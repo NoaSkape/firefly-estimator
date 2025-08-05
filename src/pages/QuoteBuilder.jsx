@@ -71,7 +71,6 @@ const QuoteBuilder = () => {
         <div className="card">
           <h2 className="section-header">Customize Your Home</h2>
           <OptionSelector
-            options={OPTIONS}
             selectedItems={selectedOptions}
             onSelectionChange={items => setSelectedOptions(items)}
           />
