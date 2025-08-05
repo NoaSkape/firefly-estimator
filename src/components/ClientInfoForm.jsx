@@ -1,9 +1,14 @@
-const ClientInfoForm = ({ register, errors, onDeliveryCalculation }) => {
+const ClientInfoForm = ({ value, onChange }) => {
+  const handleFieldChange = (field, newValue) => {
+    onChange({
+      ...value,
+      [field]: newValue
+    })
+  }
+
   const handleZipCodeChange = (e) => {
     const zipCode = e.target.value
-    if (zipCode.length === 5) {
-      onDeliveryCalculation(zipCode)
-    }
+    handleFieldChange('zip', zipCode)
   }
 
   return (
@@ -15,13 +20,11 @@ const ClientInfoForm = ({ register, errors, onDeliveryCalculation }) => {
           </label>
           <input
             type="text"
-            {...register('name', { required: 'Name is required' })}
+            value={value.fullName || ''}
+            onChange={(e) => handleFieldChange('fullName', e.target.value)}
             className="input-field"
             placeholder="Enter full name"
           />
-          {errors.name && (
-            <p className="text-red-600 text-sm mt-1">{errors.name.message}</p>
-          )}
         </div>
 
         <div>
@@ -30,19 +33,11 @@ const ClientInfoForm = ({ register, errors, onDeliveryCalculation }) => {
           </label>
           <input
             type="tel"
-            {...register('phone', { 
-              required: 'Phone number is required',
-              pattern: {
-                value: /^[\+]?[1-9][\d]{0,15}$/,
-                message: 'Please enter a valid phone number'
-              }
-            })}
+            value={value.phone || ''}
+            onChange={(e) => handleFieldChange('phone', e.target.value)}
             className="input-field"
             placeholder="(555) 123-4567"
           />
-          {errors.phone && (
-            <p className="text-red-600 text-sm mt-1">{errors.phone.message}</p>
-          )}
         </div>
       </div>
 
@@ -52,19 +47,11 @@ const ClientInfoForm = ({ register, errors, onDeliveryCalculation }) => {
         </label>
         <input
           type="email"
-          {...register('email', { 
-            required: 'Email is required',
-            pattern: {
-              value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-              message: 'Please enter a valid email address'
-            }
-          })}
+          value={value.email || ''}
+          onChange={(e) => handleFieldChange('email', e.target.value)}
           className="input-field"
           placeholder="your.email@example.com"
         />
-        {errors.email && (
-          <p className="text-red-600 text-sm mt-1">{errors.email.message}</p>
-        )}
       </div>
 
       <div>
@@ -72,14 +59,12 @@ const ClientInfoForm = ({ register, errors, onDeliveryCalculation }) => {
           Delivery Address *
         </label>
         <textarea
-          {...register('address', { required: 'Delivery address is required' })}
+          value={value.address || ''}
+          onChange={(e) => handleFieldChange('address', e.target.value)}
           className="input-field"
           rows="3"
           placeholder="Enter complete delivery address including street, city, state, and ZIP code"
         />
-        {errors.address && (
-          <p className="text-red-600 text-sm mt-1">{errors.address.message}</p>
-        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -89,20 +74,11 @@ const ClientInfoForm = ({ register, errors, onDeliveryCalculation }) => {
           </label>
           <input
             type="text"
-            {...register('zipCode', { 
-              required: 'ZIP code is required',
-              pattern: {
-                value: /^\d{5}(-\d{4})?$/,
-                message: 'Please enter a valid ZIP code'
-              }
-            })}
+            value={value.zip || ''}
+            onChange={handleZipCodeChange}
             className="input-field"
             placeholder="12345"
-            onChange={handleZipCodeChange}
           />
-          {errors.zipCode && (
-            <p className="text-red-600 text-sm mt-1">{errors.zipCode.message}</p>
-          )}
         </div>
 
         <div>
@@ -111,7 +87,8 @@ const ClientInfoForm = ({ register, errors, onDeliveryCalculation }) => {
           </label>
           <input
             type="date"
-            {...register('deliveryDate')}
+            value={value.preferredDate || ''}
+            onChange={(e) => handleFieldChange('preferredDate', e.target.value)}
             className="input-field"
             min={new Date().toISOString().split('T')[0]}
           />
@@ -123,7 +100,8 @@ const ClientInfoForm = ({ register, errors, onDeliveryCalculation }) => {
           Special Instructions
         </label>
         <textarea
-          {...register('specialInstructions')}
+          value={value.notes || ''}
+          onChange={(e) => handleFieldChange('notes', e.target.value)}
           className="input-field"
           rows="2"
           placeholder="Any special delivery requirements or site preparation notes..."

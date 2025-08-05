@@ -7,11 +7,6 @@ function App() {
   const [currentPage, setCurrentPage] = useState('builder')
   const [quoteData, setQuoteData] = useState(null)
 
-  const handleGenerateQuote = (data) => {
-    setQuoteData(data)
-    setCurrentPage('preview')
-  }
-
   const handleBackToBuilder = () => {
     setCurrentPage('builder')
   }
@@ -59,7 +54,7 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {currentPage === 'builder' && (
-          <QuoteBuilder onGenerateQuote={handleGenerateQuote} />
+          <QuoteBuilder />
         )}
         {currentPage === 'preview' && quoteData && (
           <QuotePDFPreview 

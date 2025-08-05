@@ -1,119 +1,58 @@
 import { useState, useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { MODELS } from '../data/models'
+import { OPTIONS } from '../data/options'
+import ClientInfoForm from '../components/ClientInfoForm'
 import ModelSelector from '../components/ModelSelector'
 import OptionSelector from '../components/OptionSelector'
 import PriceBreakdown from '../components/PriceBreakdown'
-import ClientInfoForm from '../components/ClientInfoForm'
+import { generatePDF } from '../utils/generatePDF'
 
-const QuoteBuilder = ({ onGenerateQuote }) => {
-  const [models, setModels] = useState([])
-  const [options, setOptions] = useState([])
+const QuoteBuilder = () => {
+  // Component State
   const [selectedModel, setSelectedModel] = useState(null)
   const [selectedOptions, setSelectedOptions] = useState([])
+  const [clientInfo, setClientInfo] = useState({})
   const [deliveryFee, setDeliveryFee] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
+  const taxRate = parseFloat(import.meta.env.VITE_TAX_RATE) || 0.08 // Default 8% tax rate
 
-  const { register, handleSubmit, formState: { errors } } = useForm()
-
+  // Calculate delivery fee when ZIP code changes
   useEffect(() => {
-    // Load models and options from JSON files
-    const loadData = async () => {
-      try {
-        const [modelsResponse, optionsResponse] = await Promise.all([
-          fetch('/data/models.json'),
-          fetch('/data/options.json')
-        ])
-        
-        const modelsData = await modelsResponse.json()
-        const optionsData = await optionsResponse.json()
-        
-        setModels(modelsData)
-        setOptions(optionsData.categories)
-        setIsLoading(false)
-      } catch (error) {
-        console.error('Error loading data:', error)
-        setIsLoading(false)
-      }
+    if (clientInfo.zip) {
+      // Stub: $3/mile rule or call a function calculateDelivery(clientInfo.zip)
+      const baseDeliveryFee = parseFloat(import.meta.env.VITE_BASE_DELIVERY_FEE) || 500
+      setDeliveryFee(baseDeliveryFee)
     }
+  }, [clientInfo.zip])
 
-    loadData()
-  }, [])
-
-  const calculateSubtotal = () => {
-    const modelPrice = selectedModel?.basePrice || 0
-    const optionsPrice = selectedOptions.reduce((sum, option) => sum + option.price, 0)
-    return modelPrice + optionsPrice
-  }
-
-  const calculateTax = (subtotal) => {
-    // TODO: Implement tax calculation based on location
-    return subtotal * 0.08 // 8% tax rate placeholder
-  }
-
-  const calculateTotal = () => {
-    const subtotal = calculateSubtotal()
-    const tax = calculateTax(subtotal)
-    return subtotal + tax + deliveryFee
-  }
-
-  const handleModelSelect = (model) => {
+  // Handle model selection
+  const handleModelSelect = (modelId) => {
+    const model = MODELS.find(m => m.id === modelId)
     setSelectedModel(model)
+    // Reset options & fees when model changes
+    setSelectedOptions([])
+    setDeliveryFee(0)
   }
 
-  const handleOptionToggle = (option) => {
-    setSelectedOptions(prev => {
-      const isSelected = prev.find(item => item.id === option.id)
-      if (isSelected) {
-        return prev.filter(item => item.id !== option.id)
-      } else {
-        return [...prev, option]
-      }
-    })
-  }
+  // Compute pricing
+  const base = selectedModel?.basePrice || 0
+  const optionsTotal = selectedOptions.reduce((sum, o) => sum + o.price, 0)
+  const subtotal = base + optionsTotal
+  const tax = subtotal * taxRate
+  const total = subtotal + tax + deliveryFee
 
-  const handleDeliveryCalculation = async (zipCode) => {
-    try {
-      const response = await fetch('/api/calculate-delivery', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ zipCode }),
-      })
-      
-      const data = await response.json()
-      if (data.success) {
-        setDeliveryFee(data.deliveryFee)
-      }
-    } catch (error) {
-      console.error('Error calculating delivery:', error)
-    }
-  }
+  // Validation for PDF generation
+  const canGeneratePDF = selectedModel && selectedOptions.length > 0 && clientInfo.fullName && clientInfo.zip
 
-  const onSubmit = (clientData) => {
-    const quoteData = {
+  // Handle PDF generation
+  const handleGeneratePDF = () => {
+    if (!canGeneratePDF) return
+
+    generatePDF({
       model: selectedModel,
       options: selectedOptions,
-      client: clientData,
-      pricing: {
-        subtotal: calculateSubtotal(),
-        tax: calculateTax(calculateSubtotal()),
-        deliveryFee,
-        total: calculateTotal()
-      },
-      timestamp: new Date().toISOString(),
-      quoteId: `FF-${Date.now()}`
-    }
-    
-    onGenerateQuote(quoteData)
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    )
+      client: clientInfo,
+      fees: { subtotal, tax, deliveryFee, total }
+    })
   }
 
   return (
@@ -122,28 +61,27 @@ const QuoteBuilder = ({ onGenerateQuote }) => {
       <div className="lg:col-span-2 space-y-6">
         <div className="card">
           <h2 className="section-header">Select Base Model</h2>
-          <ModelSelector 
-            models={models}
-            selectedModel={selectedModel}
-            onSelect={handleModelSelect}
+          <ModelSelector
+            models={MODELS}
+            value={selectedModel?.id || ''}
+            onChange={handleModelSelect}
           />
         </div>
 
         <div className="card">
           <h2 className="section-header">Customize Your Home</h2>
-          <OptionSelector 
-            options={options}
-            selectedOptions={selectedOptions}
-            onToggle={handleOptionToggle}
+          <OptionSelector
+            options={OPTIONS}
+            selectedItems={selectedOptions}
+            onSelectionChange={items => setSelectedOptions(items)}
           />
         </div>
 
         <div className="card">
           <h2 className="section-header">Client Information</h2>
-          <ClientInfoForm 
-            register={register}
-            errors={errors}
-            onDeliveryCalculation={handleDeliveryCalculation}
+          <ClientInfoForm
+            value={clientInfo}
+            onChange={info => setClientInfo(info)}
           />
         </div>
       </div>
@@ -151,22 +89,34 @@ const QuoteBuilder = ({ onGenerateQuote }) => {
       {/* Right Column - Price Breakdown */}
       <div className="lg:col-span-1">
         <div className="sticky top-8">
-          <PriceBreakdown 
-            selectedModel={selectedModel}
-            selectedOptions={selectedOptions}
+          <PriceBreakdown
+            subtotal={subtotal}
+            tax={tax}
             deliveryFee={deliveryFee}
-            subtotal={calculateSubtotal()}
-            tax={calculateTax(calculateSubtotal())}
-            total={calculateTotal()}
+            total={total}
           />
           
           <button
-            onClick={handleSubmit(onSubmit)}
-            disabled={!selectedModel}
+            onClick={handleGeneratePDF}
+            disabled={!canGeneratePDF}
             className="w-full btn-primary mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Generate Quote PDF
           </button>
+
+          {!canGeneratePDF && (
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="text-sm text-yellow-800">
+                <p className="font-medium mb-2">To generate a quote PDF, please:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  {!selectedModel && <li>Select a base model</li>}
+                  {selectedOptions.length === 0 && <li>Choose at least one option</li>}
+                  {!clientInfo.fullName && <li>Enter your full name</li>}
+                  {!clientInfo.zip && <li>Enter your ZIP code</li>}
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

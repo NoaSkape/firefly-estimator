@@ -1,12 +1,12 @@
-const ModelSelector = ({ models, selectedModel, onSelect }) => {
+const ModelSelector = ({ models, value, onChange }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {models.map((model) => (
         <div
           key={model.id}
-          onClick={() => onSelect(model)}
+          onClick={() => onChange(model.id)}
           className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
-            selectedModel?.id === model.id
+            value === model.id
               ? 'border-primary-500 bg-primary-50'
               : 'border-gray-200 hover:border-gray-300 bg-white'
           }`}
