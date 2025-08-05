@@ -1,92 +1,65 @@
 import { useState } from 'react'
 
 const OptionSelector = ({ options, selectedItems, onSelectionChange }) => {
-  const [expandedPackages, setExpandedPackages] = useState(new Set())
+  // Track which subject is currently expanded (only one at a time)
+  const [expandedSubject, setExpandedSubject] = useState(null)
 
   const isSelected = (option) => {
     return selectedItems.find(item => item.id === option.id) !== undefined
   }
 
-  const togglePackage = (packageId) => {
-    setExpandedPackages(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(packageId)) {
-        newSet.delete(packageId)
-      } else {
-        newSet.add(packageId)
-      }
-      return newSet
-    })
+  const toggleSubject = (subject) => {
+    setExpandedSubject(expandedSubject === subject ? null : subject)
   }
 
-  const handleOptionToggle = (option) => {
+  const handleOptionToggle = (option, subject) => {
     const newSelection = isSelected(option)
       ? selectedItems.filter(item => item.id !== option.id)
-      : [...selectedItems, option]
+      : [...selectedItems, { ...option, subject }]
     onSelectionChange(newSelection)
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {options.map((category) => (
-        <div key={category.subject} className="border border-gray-200 rounded-lg p-4">
-          <h3 className="font-semibold text-lg text-gray-900 mb-4">
-            {category.subject}
-          </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {category.items.map((option) => (
-              <div
-                key={option.id}
-                className={`p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
-                  isSelected(option)
-                    ? 'border-primary-500 bg-primary-50'
-                    : 'border-gray-200 hover:border-gray-300 bg-white'
-                }`}
-                onClick={() => handleOptionToggle(option)}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-3">
-                    <input
-                      type="checkbox"
-                      checked={isSelected(option)}
-                      onChange={() => handleOptionToggle(option)}
-                      className="mt-1 h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                    />
-                    <div className="flex-1">
-                      <div className={`font-medium ${option.isPackage ? 'text-blue-600' : 'text-gray-900'}`}>
-                        {option.name}
-                        {option.isPackage && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              togglePackage(option.id)
-                            }}
-                            className="ml-2 text-blue-500 hover:text-blue-700 text-sm"
-                          >
-                            {expandedPackages.has(option.id) ? 'Hide' : 'Show'} Details
-                          </button>
-                        )}
-                      </div>
-                      {option.isPackage && expandedPackages.has(option.id) && (
-                        <div className="text-sm text-gray-600 mt-1 bg-blue-50 p-2 rounded">
-                          {option.description}
-                        </div>
-                      )}
-                      {!option.isPackage && option.description && (
-                        <div className="text-sm text-gray-600 mt-1">
-                          {option.description}
-                        </div>
-                      )}
+        <div key={category.subject} className="border border-gray-200 rounded-lg overflow-hidden">
+          {/* Subject Header - Clickable Accordion Trigger */}
+          <button
+            type="button"
+            onClick={() => toggleSubject(category.subject)}
+            className="w-full bg-gray-100 px-4 py-2 font-semibold text-left hover:bg-gray-150 transition-colors duration-200 flex justify-between items-center"
+          >
+            <span>{category.subject}</span>
+            <span className="text-gray-500">
+              {expandedSubject === category.subject ? '▾' : '▸'}
+            </span>
+          </button>
+
+          {/* Accordion Body - Expanded Content */}
+          {expandedSubject === category.subject && (
+            <div className="p-4 space-y-3">
+              {category.items.map((option) => (
+                <div key={option.id} className="flex items-start space-x-3">
+                  <input
+                    type="checkbox"
+                    checked={isSelected(option)}
+                    onChange={() => handleOptionToggle(option, category.subject)}
+                    className="mt-1 h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                  />
+                  <div className="flex-1">
+                    <div className={`font-medium ${option.isPackage ? 'text-blue-600' : 'text-gray-900'}`}>
+                      {option.name} - ${option.price.toLocaleString()}
                     </div>
-                  </div>
-                  <div className="font-semibold text-primary-600">
-                    ${option.price.toLocaleString()}
+                    {option.description && (
+                      <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded mt-1">
+                        {option.description}
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       ))}
     </div>
