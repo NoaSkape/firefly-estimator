@@ -1,0 +1,148 @@
+{
+  "categories": [
+    {
+      "id": "exterior",
+      "name": "Exterior Options",
+      "options": [
+        {
+          "id": "metal-roof",
+          "name": "Metal Roof",
+          "price": 2500,
+          "description": "Premium metal roofing with extended warranty"
+        },
+        {
+          "id": "siding-upgrade",
+          "name": "Premium Siding",
+          "price": 1800,
+          "description": "Upgraded siding materials and colors"
+        },
+        {
+          "id": "windows-upgrade",
+          "name": "Energy Efficient Windows",
+          "price": 1200,
+          "description": "Double-pane energy efficient windows"
+        },
+        {
+          "id": "deck",
+          "name": "Exterior Deck",
+          "price": 3500,
+          "description": "8x12 exterior deck with railing"
+        }
+      ]
+    },
+    {
+      "id": "interior",
+      "name": "Interior Upgrades",
+      "options": [
+        {
+          "id": "hardwood-floors",
+          "name": "Hardwood Floors",
+          "price": 2800,
+          "description": "Premium hardwood flooring throughout"
+        },
+        {
+          "id": "granite-countertops",
+          "name": "Granite Countertops",
+          "price": 2200,
+          "description": "Granite kitchen countertops"
+        },
+        {
+          "id": "custom-cabinets",
+          "name": "Custom Cabinets",
+          "price": 1800,
+          "description": "Custom kitchen and bathroom cabinets"
+        },
+        {
+          "id": "tile-shower",
+          "name": "Tile Shower",
+          "price": 1500,
+          "description": "Custom tile shower enclosure"
+        }
+      ]
+    },
+    {
+      "id": "appliances",
+      "name": "Appliances & Technology",
+      "options": [
+        {
+          "id": "washer-dryer",
+          "name": "Washer/Dryer Combo",
+          "price": 1200,
+          "description": "Compact washer and dryer unit"
+        },
+        {
+          "id": "dishwasher",
+          "name": "Dishwasher",
+          "price": 800,
+          "description": "Built-in dishwasher"
+        },
+        {
+          "id": "smart-home",
+          "name": "Smart Home Package",
+          "price": 1500,
+          "description": "Smart thermostat, lighting, and security"
+        },
+        {
+          "id": "solar-panels",
+          "name": "Solar Panel System",
+          "price": 8500,
+          "description": "Off-grid solar power system"
+        }
+      ]
+    },
+    {
+      "id": "comfort",
+      "name": "Comfort & Climate",
+      "options": [
+        {
+          "id": "mini-split",
+          "name": "Mini Split HVAC",
+          "price": 3200,
+          "description": "Ductless heating and cooling system"
+        },
+        {
+          "id": "fireplace",
+          "name": "Electric Fireplace",
+          "price": 900,
+          "description": "Electric fireplace with remote control"
+        },
+        {
+          "id": "ceiling-fans",
+          "name": "Ceiling Fans",
+          "price": 400,
+          "description": "Ceiling fans in living area and bedroom"
+        },
+        {
+          "id": "insulation-upgrade",
+          "name": "Premium Insulation",
+          "price": 1800,
+          "description": "Enhanced insulation for extreme climates"
+        }
+      ]
+    },
+    {
+      "id": "storage",
+      "name": "Storage Solutions",
+      "options": [
+        {
+          "id": "closet-system",
+          "name": "Custom Closet System",
+          "price": 1200,
+          "description": "Custom closet organization system"
+        },
+        {
+          "id": "under-stairs",
+          "name": "Under Stairs Storage",
+          "price": 800,
+          "description": "Custom storage under stairs"
+        },
+        {
+          "id": "exterior-storage",
+          "name": "Exterior Storage Box",
+          "price": 600,
+          "description": "Weatherproof exterior storage box"
+        }
+      ]
+    }
+  ]
+} 
