@@ -1,10 +1,23 @@
+import { useNavigate } from 'react-router-dom'
+
 const ModelSelector = ({ models, value, onChange }) => {
+  const navigate = useNavigate()
+
+  const handleCardClick = (modelId) => {
+    onChange(modelId)
+  }
+
+  const handleModelNameClick = (e, modelId) => {
+    e.stopPropagation() // Prevent card selection when clicking the name
+    navigate(`/models/${modelId}`)
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {models.map((model) => (
         <div
           key={model.id}
-          onClick={() => onChange(model.id)}
+          onClick={() => handleCardClick(model.id)}
           className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
             value === model.id
               ? 'border-primary-500 bg-primary-50'
@@ -12,7 +25,11 @@ const ModelSelector = ({ models, value, onChange }) => {
           }`}
         >
           <div className="text-center">
-            <h3 className="font-semibold text-lg text-gray-900 mb-1">
+            <h3 
+              className="font-semibold text-lg text-gray-900 mb-1 hover:text-primary-600 transition-colors duration-200"
+              onClick={(e) => handleModelNameClick(e, model.id)}
+              style={{ cursor: 'pointer' }}
+            >
               {model.name}
             </h3>
             <p className="text-gray-500 text-sm mb-3">

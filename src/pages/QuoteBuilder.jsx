@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { MODELS } from '../data/models'
 import { OPTIONS } from '../data/options'
 import ClientInfoForm from '../components/ClientInfoForm'
@@ -13,7 +14,19 @@ const QuoteBuilder = () => {
   const [selectedOptions, setSelectedOptions] = useState([])
   const [clientInfo, setClientInfo] = useState({})
   const [deliveryFee, setDeliveryFee] = useState(0)
+  const [searchParams] = useSearchParams()
   const taxRate = parseFloat(import.meta.env.VITE_TAX_RATE) || 0.08 // Default 8% tax rate
+
+  // Check for initial model selection from URL or detail page
+  useEffect(() => {
+    const modelId = searchParams.get('model')
+    if (modelId && !selectedModel) {
+      const model = MODELS.find(m => m.id === modelId)
+      if (model) {
+        setSelectedModel(model)
+      }
+    }
+  }, [searchParams, selectedModel])
 
   // Calculate delivery fee when ZIP code changes
   useEffect(() => {
@@ -103,7 +116,7 @@ const QuoteBuilder = () => {
           >
             Generate Quote PDF
           </button>
-
+          
           {!canGeneratePDF && (
             <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="text-sm text-yellow-800">
