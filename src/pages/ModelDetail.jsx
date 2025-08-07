@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { AdvancedImage } from '@cloudinary/react'
 import { getModelById } from '../data/baseModels'
+import { createHeroImage, createThumbnailImage, createGalleryImage } from '../utils/cloudinary'
 
 const ModelDetail = ({ onModelSelect }) => {
   const { modelId } = useParams()
@@ -26,16 +28,48 @@ const ModelDetail = ({ onModelSelect }) => {
     )
   }
 
-  // Image gallery - these will be loaded from /public/models/[modelId]/
+  // Image gallery with Cloudinary optimization
   const images = [
-    { src: `/models/${model.imageFolder}/hero.jpg`, alt: `${model.name} - Hero Image` },
-    { src: `/models/${model.imageFolder}/floorplan.jpg`, alt: `${model.name} - Floor Plan` },
-    { src: `/models/${model.imageFolder}/kitchen.jpg`, alt: `${model.name} - Kitchen` },
-    { src: `/models/${model.imageFolder}/living.jpg`, alt: `${model.name} - Living Area` },
-    { src: `/models/${model.imageFolder}/bedroom.jpg`, alt: `${model.name} - Bedroom` },
-    { src: `/models/${model.imageFolder}/bathroom.jpg`, alt: `${model.name} - Bathroom` },
-    { src: `/models/${model.imageFolder}/exterior.jpg`, alt: `${model.name} - Exterior` },
-    { src: `/models/${model.imageFolder}/porch.jpg`, alt: `${model.name} - Porch` }
+    { 
+      id: `${model.imageFolder}/hero`, 
+      alt: `${model.name} - Hero Image`,
+      cldImg: createHeroImage(`${model.imageFolder}/hero`)
+    },
+    { 
+      id: `${model.imageFolder}/floorplan`, 
+      alt: `${model.name} - Floor Plan`,
+      cldImg: createGalleryImage(`${model.imageFolder}/floorplan`)
+    },
+    { 
+      id: `${model.imageFolder}/kitchen`, 
+      alt: `${model.name} - Kitchen`,
+      cldImg: createGalleryImage(`${model.imageFolder}/kitchen`)
+    },
+    { 
+      id: `${model.imageFolder}/living`, 
+      alt: `${model.name} - Living Area`,
+      cldImg: createGalleryImage(`${model.imageFolder}/living`)
+    },
+    { 
+      id: `${model.imageFolder}/bedroom`, 
+      alt: `${model.name} - Bedroom`,
+      cldImg: createGalleryImage(`${model.imageFolder}/bedroom`)
+    },
+    { 
+      id: `${model.imageFolder}/bathroom`, 
+      alt: `${model.name} - Bathroom`,
+      cldImg: createGalleryImage(`${model.imageFolder}/bathroom`)
+    },
+    { 
+      id: `${model.imageFolder}/exterior`, 
+      alt: `${model.name} - Exterior`,
+      cldImg: createGalleryImage(`${model.imageFolder}/exterior`)
+    },
+    { 
+      id: `${model.imageFolder}/porch`, 
+      alt: `${model.name} - Porch`,
+      cldImg: createGalleryImage(`${model.imageFolder}/porch`)
+    }
   ]
 
   const handleChooseModel = () => {
@@ -81,14 +115,10 @@ const ModelDetail = ({ onModelSelect }) => {
           <div className="space-y-4">
             {/* Main Image */}
             <div className="relative">
-              <img
-                src={images[currentImageIndex]?.src}
+              <AdvancedImage
+                cldImg={images[currentImageIndex]?.cldImg}
                 alt={images[currentImageIndex]?.alt}
                 className="w-full h-96 object-cover rounded-lg shadow-lg"
-                onError={(e) => {
-                  e.target.src = '/models/placeholder.svg'
-                  e.target.alt = 'Image not available'
-                }}
               />
               
               {/* Navigation Arrows */}
@@ -121,13 +151,10 @@ const ModelDetail = ({ onModelSelect }) => {
                       currentImageIndex === index ? 'ring-2 ring-primary-500' : ''
                     }`}
                   >
-                    <img
-                      src={image.src}
+                    <AdvancedImage
+                      cldImg={createThumbnailImage(image.id)}
                       alt={image.alt}
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.src = '/models/placeholder.svg'
-                      }}
                     />
                   </button>
                 ))}

@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.39.0",
+    "@cloudinary/react": "^1.14.3",
+    "@cloudinary/url-gen": "^1.21.0",
     "axios": "^1.7.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
