@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
+import { UserButton } from '@clerk/clerk-react'
 import QuoteBuilder from './pages/QuoteBuilder'
 import QuotePDFPreview from './pages/QuotePDFPreview'
 import ModelDetail from './pages/ModelDetail'
@@ -26,6 +27,16 @@ function App() {
                 <h1 className="text-xl font-semibold text-gray-900">
                   Firefly Estimator
                 </h1>
+              </div>
+              <div className="flex items-center">
+                <UserButton 
+                  appearance={{
+                    elements: {
+                      userButtonAvatarBox: 'w-8 h-8',
+                      userButtonTrigger: 'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2'
+                    }
+                  }}
+                />
               </div>
             </div>
           </div>
