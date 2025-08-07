@@ -10,8 +10,8 @@ function App() {
   const [quoteData, setQuoteData] = useState(null)
   const [selectedModel, setSelectedModel] = useState(null)
 
-  const handleModelSelect = (modelId) => {
-    setSelectedModel(modelId)
+  const handleModelSelect = (modelCode) => {
+    setSelectedModel(modelCode)
   }
 
   return (
@@ -49,7 +49,7 @@ function App() {
               element={<QuoteBuilder />} 
             />
             <Route 
-              path="/models/:modelId" 
+              path="/models/:modelCode" 
               element={
                 <ModelDetail onModelSelect={handleModelSelect} />
               } 
