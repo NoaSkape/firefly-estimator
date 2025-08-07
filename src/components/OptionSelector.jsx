@@ -1,15 +1,23 @@
 import { useState } from 'react'
 
 const OptionSelector = ({ options, selectedItems, onSelectionChange }) => {
-  // Track which subject is currently expanded (only one at a time)
-  const [expandedSubject, setExpandedSubject] = useState(null)
+  // Track which subjects are currently expanded (multiple can be open)
+  const [expandedSubjects, setExpandedSubjects] = useState(new Set())
 
   const isSelected = (option) => {
     return selectedItems.find(item => item.id === option.id) !== undefined
   }
 
   const toggleSubject = (subject) => {
-    setExpandedSubject(expandedSubject === subject ? null : subject)
+    setExpandedSubjects(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(subject)) {
+        newSet.delete(subject)
+      } else {
+        newSet.add(subject)
+      }
+      return newSet
+    })
   }
 
   const handleOptionToggle = (option, subject) => {
@@ -31,12 +39,12 @@ const OptionSelector = ({ options, selectedItems, onSelectionChange }) => {
           >
             <span>{category.subject}</span>
             <span className="text-gray-500">
-              {expandedSubject === category.subject ? '▾' : '▸'}
+              {expandedSubjects.has(category.subject) ? '▾' : '▸'}
             </span>
           </button>
 
           {/* Accordion Body - Expanded Content */}
-          {expandedSubject === category.subject && (
+          {expandedSubjects.has(category.subject) && (
             <div className="p-4 space-y-3">
               {category.items.map((option) => (
                 <div key={option.id} className="flex items-start space-x-3">
