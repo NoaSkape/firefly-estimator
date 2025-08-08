@@ -4,14 +4,35 @@ import { findModelById, ensureModelIndexes } from '../../../lib/model-utils.js'
 
 export default async function handler(req, res) {
   console.log('images.js called with method:', req.method);
+  console.log('req.query:', req.query);
+  console.log('req.url:', req.url);
   
   const auth = await requireAuth(req, res, true);
   if (!auth?.userId) return;
 
+  // Try different ways to get the model code
   const { code: id } = req.query;
+  console.log('Extracted id from code:', id);
+  
+  // If code is not in query, try to extract from URL
+  let modelCode = id;
+  if (!modelCode && req.url) {
+    const urlParts = req.url.split('/');
+    const modelsIndex = urlParts.indexOf('models');
+    if (modelsIndex !== -1 && urlParts[modelsIndex + 1]) {
+      modelCode = urlParts[modelsIndex + 1];
+      console.log('Extracted modelCode from URL:', modelCode);
+    }
+  }
+  
+  if (!modelCode) {
+    console.log('No model code found');
+    return res.status(400).json({ error: 'No model code provided' });
+  }
+  
   const db = await getDb();
   await ensureModelIndexes();
-  const model = await findModelById(id);
+  const model = await findModelById(modelCode);
   if (!model) return res.status(404).json({ error: 'Not found' });
 
   switch (req.method) {
