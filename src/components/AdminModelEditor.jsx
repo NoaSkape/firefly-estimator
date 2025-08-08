@@ -106,12 +106,10 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
       if (!uploadRes.ok) throw new Error('Cloudinary upload failed')
       const uploaded = await uploadRes.json()
 
-      // Save into DB using images.patch add
+      // Save into DB using images endpoint (must include Authorization)
       const saveRes = await fetch(`/api/models/images?modelCode=${idParam}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           add: [{
             url: uploaded.secure_url,
