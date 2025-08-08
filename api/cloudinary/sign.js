@@ -6,8 +6,11 @@ export default async function handler(req, res) {
   const auth = await requireAuth(req, res, true);
   if (!auth?.userId) return; // auth already sent error
 
-  const { folder, tags = [] } = req.body;
+  const { subfolder = '', tags = [] } = req.body;
   const timestamp = Math.round(Date.now() / 1000);
+  const root = process.env.CLOUDINARY_ROOT_FOLDER || 'firefly-estimator/models';
+  const safeSub = String(subfolder).replace(/[^a-zA-Z0-9_\/-]/g, '');
+  const folder = safeSub ? `${root}/${safeSub}` : root;
   const signature = cloudinary.utils.api_sign_request(
     { timestamp, folder, tags: tags.join(',') },
     process.env.CLOUDINARY_API_SECRET

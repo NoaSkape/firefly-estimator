@@ -6,6 +6,7 @@ import { createHeroImage, createThumbnailImage, createGalleryImage } from '../ut
 import { slugToModelId, isValidSlug, getModelBySlug } from '../utils/modelUrlMapping'
 import { MODELS } from '../data/models'
 import SEOHead from '../components/SEOHead'
+import AdminModelEditor from '../components/AdminModelEditor'
 
 const ModelDetail = ({ onModelSelect }) => {
   const { id } = useParams()
@@ -19,6 +20,7 @@ const ModelDetail = ({ onModelSelect }) => {
   const [description, setDescription] = useState('')
   const [uploadingImage, setUploadingImage] = useState(false)
   const [imageTag, setImageTag] = useState('gallery')
+  const [isEditorOpen, setIsEditorOpen] = useState(false)
   
   const isAdmin = user?.publicMetadata?.role === 'admin'
 
@@ -72,11 +74,11 @@ const ModelDetail = ({ onModelSelect }) => {
         }
       }
       
-      // For legacy URLs or if local data not found, try API
-      if (actualModelCode) {
+      // Fetch from API using the id from route (slug or code)
+      if (id) {
         try {
           const token = await user?.getToken()
-          const response = await fetch(`/api/models/${actualModelCode}`, {
+          const response = await fetch(`/api/models/${id}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
             }
@@ -193,7 +195,7 @@ const ModelDetail = ({ onModelSelect }) => {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          folder: `${process.env.VITE_CLOUDINARY_ROOT_FOLDER}/${actualModelCode}`,
+          subfolder: actualModelCode,
           tags: [imageTag]
         })
       })
@@ -225,16 +227,18 @@ const ModelDetail = ({ onModelSelect }) => {
       const uploadResult = await uploadResponse.json()
       
       // Save image metadata to our API
-      const saveResponse = await fetch(`/api/models/${actualModelCode}/images`, {
-        method: 'POST',
+      const saveResponse = await fetch(`/api/models/${id}/images`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          url: uploadResult.secure_url,
-          publicId: uploadResult.public_id,
-          tag: imageTag
+          add: [{
+            url: uploadResult.secure_url,
+            publicId: uploadResult.public_id,
+            alt: `${model?.name || 'Model'} image`
+          }]
         })
       })
       
@@ -283,6 +287,11 @@ const ModelDetail = ({ onModelSelect }) => {
     navigate(`/?model=${actualModelCode}`)
   }
 
+  const handleModelUpdate = (updated) => {
+    setModel(updated)
+    setDescription(updated.description || '')
+  }
+
   const nextImage = () => {
     if (model.images && model.images.length > 0) {
       setCurrentImageIndex((prev) => (prev + 1) % model.images.length)
@@ -322,6 +331,14 @@ const ModelDetail = ({ onModelSelect }) => {
                 Firefly Estimator
               </h1>
             </div>
+            {isAdmin && (
+              <button
+                onClick={() => setIsEditorOpen(true)}
+                className="px-3 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+              >
+                Edit
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -583,6 +600,14 @@ const ModelDetail = ({ onModelSelect }) => {
           </div>
         </div>
       </div>
+      {isAdmin && isEditorOpen && model && (
+        <AdminModelEditor
+          idParam={id}
+          model={model}
+          onClose={() => setIsEditorOpen(false)}
+          onSaved={handleModelUpdate}
+        />
+      )}
     </div>
   )
 }
