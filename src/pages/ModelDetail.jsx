@@ -99,12 +99,9 @@ const ModelDetail = ({ onModelSelect }) => {
       // Fetch from API using the id from route (slug or code)
       if (id) {
         try {
-          const token = await getToken({ template: 'vercel' })
-          const response = await fetch(`/api/models/${id}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            }
-          })
+          const token = await getToken()
+          const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+          const response = await fetch(`/api/models/${id}`, { headers })
           
           if (response.ok) {
             const apiModelData = await response.json()
@@ -183,12 +180,12 @@ const ModelDetail = ({ onModelSelect }) => {
 
   const handleSaveDescription = async () => {
     try {
-      const token = await getToken({ template: 'vercel' })
+      const token = await getToken()
       const response = await fetch(`/api/models/${actualModelCode}/description`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ description })
       })
@@ -209,12 +206,12 @@ const ModelDetail = ({ onModelSelect }) => {
       setUploadingImage(true)
       
       // Get signed upload parameters
-      const token = await getToken({ template: 'vercel' })
+      const token = await getToken()
       const signResponse = await fetch('/api/cloudinary/sign', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           subfolder: actualModelCode,
@@ -253,7 +250,7 @@ const ModelDetail = ({ onModelSelect }) => {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           add: [{

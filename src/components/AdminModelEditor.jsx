@@ -29,12 +29,12 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
   const handleSave = async () => {
     try {
       setSaving(true)
-      const token = await getToken({ template: 'vercel' })
+      const token = await getToken()
       const res = await fetch(`/api/models/${idParam}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ name, price, description, specs, features })
       })
@@ -81,14 +81,14 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
     if (!file) return
     try {
       setUploading(true)
-      const token = await getToken({ template: 'vercel' })
+      const token = await getToken()
       // sign request
       const subfolder = model.modelCode || idParam
       const signRes = await fetch('/api/cloudinary/sign', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ subfolder, tags: [imageTag] })
       })
@@ -115,7 +115,7 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           add: [{
@@ -139,10 +139,10 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
   const handleDeleteImage = async (publicId) => {
     if (!publicId) return
     try {
-      const token = await getToken({ template: 'vercel' })
+      const token = await getToken()
       const res = await fetch(`/api/models/${idParam}/images?publicId=${encodeURIComponent(publicId)}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       })
       if (!res.ok) throw new Error('Failed to delete image')
       const next = images.filter(img => img.publicId !== publicId)
@@ -177,7 +177,7 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
 
   const persistImageOrderAndPrimary = useCallback(async () => {
     try {
-      const token = await getToken({ template: 'vercel' })
+      const token = await getToken()
       const order = images.map(img => img.publicId)
       const body = {
         order,
@@ -187,7 +187,7 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(body)
       })
