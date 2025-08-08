@@ -21,8 +21,29 @@ const ModelDetail = ({ onModelSelect }) => {
   const [uploadingImage, setUploadingImage] = useState(false)
   const [imageTag, setImageTag] = useState('gallery')
   const [isEditorOpen, setIsEditorOpen] = useState(false)
-  
-  const isAdmin = user?.publicMetadata?.role === 'admin'
+
+  // Determine admin: role metadata OR email included in VITE_ADMIN_EMAILS
+  const isAdmin = (() => {
+    if (!user) return false
+    if (user?.publicMetadata?.role === 'admin') return true
+    const configured = (import.meta.env.VITE_ADMIN_EMAILS || '')
+      .split(',')
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean)
+    if (!configured.length) return false
+    const emails = new Set()
+    try {
+      if (user.primaryEmailAddress?.emailAddress) {
+        emails.add(String(user.primaryEmailAddress.emailAddress).toLowerCase())
+      }
+      if (Array.isArray(user.emailAddresses)) {
+        user.emailAddresses.forEach(e => {
+          if (e?.emailAddress) emails.add(String(e.emailAddress).toLowerCase())
+        })
+      }
+    } catch {}
+    return Array.from(emails).some(e => configured.includes(e))
+  })()
 
   // Determine the actual model code from URL parameters
   const getModelCode = () => {
