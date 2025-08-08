@@ -119,7 +119,28 @@ To make a user an admin, set their `publicMetadata.role` to `"admin"` in Clerk:
 
 ## Production Deployment
 
-The production deployment remains unchanged - Vercel will automatically deploy the serverless functions and the frontend will work with the new API structure.
+### Clerk Production-Only Key Configuration
+
+The app is configured to only work with production Clerk keys on the `fireflyestimator.com` domain for security:
+
+- **Production Vercel Environment Variables:**
+  - `VITE_CLERK_PUBLISHABLE_KEY=pk_live_...`
+  - `CLERK_SECRET_KEY=sk_live_...`
+
+- **Domain Configuration:** App is configured for `fireflyestimator.com` in Vercel
+
+- **Security Guard:** The app includes a guard (`src/lib/clerkGuard.ts`) that prevents using live keys on non-production hosts
+
+- **No Preview Keys Needed:** All testing is done on the production domain after deployment
+
+### Verification
+
+On deployment, verify:
+1. ✅ App loads correctly at `https://fireflyestimator.com`
+2. ✅ Loading from any other host with `pk_live_` keys throws an immediate guard error
+3. ✅ Authentication works properly on production domain
+
+The production deployment uses Vercel serverless functions and the frontend works with the new API structure.
 
 ## Troubleshooting
 
