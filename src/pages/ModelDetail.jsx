@@ -50,34 +50,110 @@ const ModelDetail = ({ onModelSelect }) => {
         // Use local data for slug-based URLs
         modelData = getModelBySlug(slug, MODELS)
         if (modelData) {
-          setModel(modelData)
-          setDescription(modelData.description || '')
+          // Transform local data to match expected structure
+          const transformedModel = {
+            ...modelData,
+            modelCode: modelData.subtitle,
+            width: modelData.specs?.width,
+            length: modelData.specs?.length,
+            height: modelData.specs?.height,
+            weight: modelData.specs?.weight,
+            bedrooms: modelData.specs?.bedrooms,
+            bathrooms: modelData.specs?.bathrooms,
+            squareFeet: calculateSquareFeet(modelData.specs?.length, modelData.specs?.width),
+            images: [], // Local data doesn't have images, will be empty array
+            features: modelData.features || []
+          }
+          setModel(transformedModel)
+          setDescription(transformedModel.description || '')
           setLoading(false)
           return
         }
       }
       
-      // Fallback to API call for admin features or if local data not found
-      const token = await user?.getToken()
-      const response = await fetch(`/api/models/${actualModelCode}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
+      // For legacy URLs or if local data not found, try API
+      if (actualModelCode) {
+        try {
+          const token = await user?.getToken()
+          const response = await fetch(`/api/models/${actualModelCode}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            }
+          })
+          
+          if (response.ok) {
+            const apiModelData = await response.json()
+            setModel(apiModelData)
+            setDescription(apiModelData.description || '')
+          } else {
+            // If API fails, try to find in local data as fallback
+            const localModel = MODELS.find(m => m.id === actualModelCode)
+            if (localModel) {
+              const transformedModel = {
+                ...localModel,
+                modelCode: localModel.subtitle,
+                width: localModel.specs?.width,
+                length: localModel.specs?.length,
+                height: localModel.specs?.height,
+                weight: localModel.specs?.weight,
+                bedrooms: localModel.specs?.bedrooms,
+                bathrooms: localModel.specs?.bathrooms,
+                squareFeet: calculateSquareFeet(localModel.specs?.length, localModel.specs?.width),
+                images: [],
+                features: localModel.features || []
+              }
+              setModel(transformedModel)
+              setDescription(transformedModel.description || '')
+            } else {
+              throw new Error('Model not found')
+            }
+          }
+        } catch (apiErr) {
+          console.error('API error:', apiErr)
+          // Try local data as final fallback
+          const localModel = MODELS.find(m => m.id === actualModelCode)
+          if (localModel) {
+            const transformedModel = {
+              ...localModel,
+              modelCode: localModel.subtitle,
+              width: localModel.specs?.width,
+              length: localModel.specs?.length,
+              height: localModel.specs?.height,
+              weight: localModel.specs?.weight,
+              bedrooms: localModel.specs?.bedrooms,
+              bathrooms: localModel.specs?.bathrooms,
+              squareFeet: calculateSquareFeet(localModel.specs?.length, localModel.specs?.width),
+              images: [],
+              features: localModel.features || []
+            }
+            setModel(transformedModel)
+            setDescription(transformedModel.description || '')
+          } else {
+            throw new Error('Model not found')
+          }
         }
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch model')
+      } else {
+        throw new Error('Invalid model code')
       }
-      
-      const apiModelData = await response.json()
-      setModel(apiModelData)
-      setDescription(apiModelData.description || '')
     } catch (err) {
       console.error('Error fetching model:', err)
       setError(err.message)
     } finally {
       setLoading(false)
     }
+  }
+
+  // Helper function to calculate square feet
+  const calculateSquareFeet = (length, width) => {
+    if (!length || !width) return null
+    
+    // Extract numbers from strings like "30'" and "8'6\""
+    const lengthNum = parseFloat(length.replace(/['"]/g, ''))
+    const widthNum = parseFloat(width.replace(/['"]/g, ''))
+    
+    if (isNaN(lengthNum) || isNaN(widthNum)) return null
+    
+    return Math.round(lengthNum * widthNum)
   }
 
   const handleSaveDescription = async () => {
@@ -474,6 +550,21 @@ const ModelDetail = ({ onModelSelect }) => {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Features */}
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Features</h2>
+              <ul className="space-y-2">
+                {model.features.map((feature, index) => (
+                  <li key={index} className="flex items-center text-gray-700">
+                    <svg className="w-5 h-5 text-primary-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
             </div>
 
             {/* Choose Model Button */}
