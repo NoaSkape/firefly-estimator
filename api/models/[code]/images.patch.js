@@ -3,7 +3,11 @@ import { requireAuth } from '../../../lib/auth.js'
 import { findModelById, ensureModelIndexes } from '../../../lib/model-utils.js'
 
 export default async function handler(req, res) {
-  if (req.method !== 'PATCH') return res.status(405).end();
+  console.log('images.patch.js called with method:', req.method);
+  if (req.method !== 'PATCH') {
+    console.log('Method not allowed:', req.method);
+    return res.status(405).end();
+  }
   const auth = await requireAuth(req, res, true);
   if (!auth?.userId) return;
 
