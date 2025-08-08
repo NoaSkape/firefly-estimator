@@ -12,5 +12,10 @@ export default async function handler(req, res) {
   const model = await findModelById(id);
 
   if (!model) return res.status(404).json({ error: 'Not found' });
-  res.status(200).json(model);
+  const normalized = {
+    ...model,
+    features: Array.isArray(model.features) ? model.features : [],
+    images: Array.isArray(model.images) ? model.images : [],
+  };
+  res.status(200).json(normalized);
 } 

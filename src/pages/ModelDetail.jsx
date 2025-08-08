@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useUser, useAuth } from '@clerk/clerk-react'
+import { canEditModelsClient } from '../lib/canEditModels'
 import { AdvancedImage } from '@cloudinary/react'
 import { createHeroImage, createThumbnailImage, createGalleryImage } from '../utils/cloudinary'
 import { slugToModelId, isValidSlug, getModelBySlug } from '../utils/modelUrlMapping'
@@ -24,27 +25,7 @@ const ModelDetail = ({ onModelSelect }) => {
   const [isEditorOpen, setIsEditorOpen] = useState(false)
 
   // Determine admin: role metadata OR email included in VITE_ADMIN_EMAILS
-  const isAdmin = (() => {
-    if (!user) return false
-    if (user?.publicMetadata?.role === 'admin') return true
-    const configured = (import.meta.env.VITE_ADMIN_EMAILS || '')
-      .split(',')
-      .map(s => s.trim().toLowerCase())
-      .filter(Boolean)
-    if (!configured.length) return false
-    const emails = new Set()
-    try {
-      if (user.primaryEmailAddress?.emailAddress) {
-        emails.add(String(user.primaryEmailAddress.emailAddress).toLowerCase())
-      }
-      if (Array.isArray(user.emailAddresses)) {
-        user.emailAddresses.forEach(e => {
-          if (e?.emailAddress) emails.add(String(e.emailAddress).toLowerCase())
-        })
-      }
-    } catch {}
-    return Array.from(emails).some(e => configured.includes(e))
-  })()
+  const isAdmin = canEditModelsClient(user)
 
   // Determine the actual model code from URL parameters
   const getModelCode = () => {
