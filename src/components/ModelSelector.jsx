@@ -16,10 +16,10 @@ const ModelSelector = ({ models, value, onChange }) => {
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {models.map((model) => (
         <div
-          key={model.modelCode}
-          onClick={() => handleCardClick(model.modelCode)}
+          key={model.id}
+          onClick={() => handleCardClick(model.id)}
           className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
-            value === model.modelCode
+            value === model.id
               ? 'border-primary-500 bg-primary-50'
               : 'border-gray-200 hover:border-gray-300 bg-white'
           }`}
@@ -27,7 +27,7 @@ const ModelSelector = ({ models, value, onChange }) => {
           <div className="text-center">
             <h3 
               className="font-semibold text-lg text-gray-900 mb-1 hover:text-primary-600 transition-colors duration-200"
-              onClick={(e) => handleModelNameClick(e, model.modelCode)}
+              onClick={(e) => handleModelNameClick(e, model.id)}
               style={{ cursor: 'pointer' }}
             >
               {model.name}
