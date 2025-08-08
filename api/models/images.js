@@ -32,7 +32,11 @@ export default async function handler(req, res) {
   }
   
   const db = await getDb();
-  await ensureModelIndexes();
+  try {
+    await ensureModelIndexes();
+  } catch (err) {
+    console.error('ensureModelIndexes error:', err?.message || err);
+  }
   const model = await findModelById(modelCode);
   if (!model) return res.status(404).json({ error: 'Model not found' });
 
