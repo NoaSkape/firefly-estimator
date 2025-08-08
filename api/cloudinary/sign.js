@@ -1,4 +1,4 @@
-import cloudinary from '../../lib/cloudinary.js';
+import { createHash } from 'node:crypto'
 import { requireAuth } from '../../lib/auth.js';
 
 export default async function handler(req, res) {
@@ -12,16 +12,31 @@ export default async function handler(req, res) {
   const safeSub = String(subfolder).replace(/[^a-zA-Z0-9_\/-]/g, '');
   const folder = safeSub ? `${root}/${safeSub}` : root;
   try {
-    const signature = cloudinary.utils.api_sign_request(
-      { timestamp, folder, tags: Array.isArray(tags) ? tags.join(',') : '' },
-      process.env.CLOUDINARY_API_SECRET
-    );
+    const apiKey = process.env.CLOUDINARY_API_KEY
+    const apiSecret = process.env.CLOUDINARY_API_SECRET
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME
+    if (!apiKey || !apiSecret || !cloudName) {
+      return res.status(500).json({ error: 'missing_env', message: 'Cloudinary env vars are not configured' })
+    }
+
+    const paramsToSign = {
+      folder,
+      tags: Array.isArray(tags) ? tags.join(',') : '',
+      timestamp,
+    }
+    const toSign = Object.keys(paramsToSign)
+      .sort()
+      .map(k => `${k}=${paramsToSign[k]}`)
+      .join('&')
+    const signature = createHash('sha1')
+      .update(`${toSign}${apiSecret}`)
+      .digest('hex')
 
     res.status(200).json({
       timestamp,
       signature,
-      apiKey: process.env.CLOUDINARY_API_KEY,
-      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+      apiKey,
+      cloudName,
       folder,
     });
   } catch (err) {
