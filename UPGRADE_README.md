@@ -1,3 +1,38 @@
+# Slug vs Model Code Contract
+
+We now support human-friendly slugs alongside manufacturer model codes.
+
+Canonical model page URLs use slug: `/models/:slug` (e.g. `/models/bluebonnet`).
+
+API contract: All model endpoints accept either a slug or a model code in the `:id` param, and resolve to the same document.
+
+Examples:
+
+- `GET /api/models/bluebonnet` → resolves by `slug: 'bluebonnet'`
+- `GET /api/models/APS-527B` → resolves by `modelCode: 'APS-527B'`
+
+Write endpoints also accept either form and update by `_id` to avoid ambiguity:
+
+- `PATCH /api/models/:id/description`
+- `POST /api/models/:id/images`
+
+Cloudinary folders remain keyed by `modelCode`.
+
+MongoDB indexes:
+
+```js
+db.baseModels.createIndex({ modelCode: 1 }, { unique: true })
+db.baseModels.createIndex({ slug: 1 }, { unique: true, sparse: true })
+```
+
+Migration script to backfill slugs:
+
+```bash
+npm run migrate:slugs
+```
+
+This will generate slugs from names (lowercase, strip "the ", spaces → `-`), ensure uniqueness, and update documents.
+
 # Firefly Estimator - Admin Content Management Upgrade
 
 This upgrade adds admin-managed content for base models with photo uploads (Cloudinary) and editable descriptions (MongoDB).

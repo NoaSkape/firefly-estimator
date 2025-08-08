@@ -18,8 +18,7 @@ function App() {
     setSelectedModel(modelCode)
   }
 
-  // Get all valid model slugs for individual routes
-  const modelSlugs = getAllValidSlugs()
+  // Dynamic routing handles all slugs/codes; no need to enumerate
 
   // Test URLs in development
   useEffect(() => {
@@ -74,18 +73,9 @@ function App() {
                 element={<QuoteBuilder />} 
               />
               
-              {/* Individual model routes for SEO and direct access */}
-              {modelSlugs.map(slug => (
-                <Route
-                  key={slug}
-                  path={`/models/${slug}`}
-                  element={<ModelDetail onModelSelect={handleModelSelect} />}
-                />
-              ))}
-              
-              {/* Fallback dynamic route for any edge cases */}
+              {/* Single dynamic route supporting slug or code */}
               <Route 
-                path="/models/:modelCode" 
+                path="/models/:id" 
                 element={<ModelDetail onModelSelect={handleModelSelect} />} 
               />
             </Routes>

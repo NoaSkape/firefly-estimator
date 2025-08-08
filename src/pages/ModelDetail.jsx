@@ -8,7 +8,7 @@ import { MODELS } from '../data/models'
 import SEOHead from '../components/SEOHead'
 
 const ModelDetail = ({ onModelSelect }) => {
-  const { modelCode, slug } = useParams()
+  const { id } = useParams()
   const navigate = useNavigate()
   const { user, isSignedIn } = useUser()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -24,12 +24,13 @@ const ModelDetail = ({ onModelSelect }) => {
 
   // Determine the actual model code from URL parameters
   const getModelCode = () => {
-    // If we have a slug, convert it to model code
-    if (slug && isValidSlug(slug)) {
-      return slugToModelId(slug)
+    if (!id) return null
+    // If id is a slug, map to modelCode for Cloudinary folder usage
+    if (isValidSlug(id)) {
+      return slugToModelId(id)
     }
-    // Otherwise use the modelCode parameter (legacy support)
-    return modelCode
+    // Otherwise, assume it's already a code
+    return id
   }
 
   const actualModelCode = getModelCode()
@@ -46,9 +47,9 @@ const ModelDetail = ({ onModelSelect }) => {
       // First try to get model from local data
       let modelData = null
       
-      if (slug && isValidSlug(slug)) {
+      if (id && isValidSlug(id)) {
         // Use local data for slug-based URLs
-        modelData = getModelBySlug(slug, MODELS)
+        modelData = getModelBySlug(id, MODELS)
         if (modelData) {
           // Transform local data to match expected structure
           const transformedModel = {

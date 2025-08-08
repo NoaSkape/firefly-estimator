@@ -12,7 +12,8 @@
     "dev:full": "concurrently \"npm run dev\" \"npm run server\"",
     "dev:api": "node backend/dev-server.js",
     "dev:local": "concurrently \"npm run dev\" \"npm run dev:api\"",
-    "migrate": "node -r dotenv/config scripts/migrate-data.js"
+    "migrate": "node -r dotenv/config scripts/migrate-data.js",
+    "migrate:slugs": "node -r dotenv/config scripts/add-slugs.js"
   },
   "dependencies": {
     "@clerk/backend": "^2.6.3",

@@ -1,38 +1,33 @@
 import fetch from 'node-fetch';
 
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
-async function testAPI() {
-  console.log('Testing API endpoints...\n');
-
+async function testGet(id) {
   try {
-    // Test health endpoint
-    console.log('1. Testing health endpoint...');
-    const healthResponse = await fetch(`${BASE_URL}/api/health`);
-    const healthData = await healthResponse.json();
-    console.log('Health response:', healthData);
-    console.log('');
-
-    // Test model endpoint (this will fail without auth, but we can see the structure)
-    console.log('2. Testing model endpoint...');
-    try {
-      const modelResponse = await fetch(`${BASE_URL}/api/models/aps-630`);
-      console.log('Model response status:', modelResponse.status);
-      if (modelResponse.ok) {
-        const modelData = await modelResponse.json();
-        console.log('Model data:', modelData);
-      } else {
-        console.log('Model endpoint requires authentication');
-      }
-    } catch (error) {
-      console.log('Model endpoint error:', error.message);
-    }
-    console.log('');
-
-    console.log('API test completed!');
-  } catch (error) {
-    console.error('Test failed:', error);
+    const res = await fetch(`${BASE_URL}/api/models/${id}`);
+    const text = await res.text();
+    console.log(`GET /api/models/${id} -> ${res.status} ${text}`);
+  } catch (e) {
+    console.error(`Error GET /api/models/${id}:`, e.message);
   }
 }
 
-testAPI(); 
+async function testAPI() {
+  console.log('Testing API endpoints...\n');
+  console.log('Base URL:', BASE_URL);
+
+  // Health
+  try {
+    const healthResponse = await fetch(`${BASE_URL}/api/health`);
+    console.log('Health status:', healthResponse.status);
+  } catch (e) {
+    console.error('Health check failed:', e.message);
+  }
+
+  // Dual-resolution tests (may require auth depending on server guard)
+  await testGet('aps-630');
+  await testGet('APS-630');
+  await testGet('magnolia');
+}
+
+testAPI();
