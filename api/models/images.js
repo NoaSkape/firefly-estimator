@@ -83,8 +83,9 @@ async function handlePatch(req, res, model, db) {
     }
   }
 
-  await db.collection('baseModels').updateOne({ _id: model._id }, updates);
-  const updated = await db.collection('baseModels').findOne({ _id: model._id });
+  const collectionName = process.env.MODELS_COLLECTION || 'Models';
+  await db.collection(collectionName).updateOne({ _id: model._id }, updates);
+  const updated = await db.collection(collectionName).findOne({ _id: model._id });
   res.status(200).json(updated);
 }
 
@@ -93,7 +94,8 @@ async function handleDelete(req, res, model, db) {
   if (!publicId) return res.status(400).json({ error: 'Missing publicId' });
 
   const next = (model.images || []).filter(img => img.publicId !== publicId);
-  await db.collection('baseModels').updateOne(
+  const collectionName = process.env.MODELS_COLLECTION || 'Models';
+  await db.collection(collectionName).updateOne(
     { _id: model._id },
     { $set: { images: next, updatedAt: new Date() } }
   );
@@ -107,7 +109,8 @@ async function handlePost(req, res, model, db) {
     return res.status(400).json({ error: 'Missing fields' });
   }
 
-  await db.collection('baseModels').updateOne(
+  const collectionName = process.env.MODELS_COLLECTION || 'Models';
+  await db.collection(collectionName).updateOne(
     { _id: model._id },
     {
       $push: { images: { url, publicId, tag } },

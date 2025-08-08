@@ -57,8 +57,9 @@ export default async function handler(req, res) {
   const model = await findModelById(id)
   if (!model) return res.status(404).json({ error: 'Not found' })
 
-  await db.collection('baseModels').updateOne({ _id: model._id }, { $set })
-  const updated = await db.collection('baseModels').findOne({ _id: model._id })
+  const collectionName = process.env.MODELS_COLLECTION || 'Models'
+  await db.collection(collectionName).updateOne({ _id: model._id }, { $set })
+  const updated = await db.collection(collectionName).findOne({ _id: model._id })
   res.status(200).json(updated)
 }
 

@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 import { requireAuth } from '../../lib/auth.js';
 
+export const runtime = 'nodejs'
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   const auth = await requireAuth(req, res, true);
