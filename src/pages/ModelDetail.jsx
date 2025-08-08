@@ -74,12 +74,12 @@ const ModelDetail = ({ onModelSelect }) => {
         }
       }
       
-      // Fetch from API using the id from route (slug or code)
-      if (id) {
+      // Fetch from API using the actual model code
+      if (actualModelCode) {
         try {
           const token = await getToken()
           const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
-          const response = await fetch(`/api/models/${id}`, { headers })
+          const response = await fetch(`/api/models/${actualModelCode}`, { headers })
           
           if (response.ok) {
             const apiModelData = await response.json()
@@ -487,7 +487,7 @@ const ModelDetail = ({ onModelSelect }) => {
       </div>
       {isAdmin && isEditorOpen && model && (
         <AdminModelEditor
-          idParam={id}
+          idParam={actualModelCode}
           model={model}
           onClose={() => setIsEditorOpen(false)}
           onSaved={handleModelUpdate}
