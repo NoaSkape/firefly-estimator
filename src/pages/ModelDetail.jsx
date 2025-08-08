@@ -18,10 +18,7 @@ const ModelDetail = ({ onModelSelect }) => {
   const [model, setModel] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [editingDescription, setEditingDescription] = useState(false)
-  const [description, setDescription] = useState('')
-  const [uploadingImage, setUploadingImage] = useState(false)
-  const [imageTag, setImageTag] = useState('gallery')
+  // Inline editing and inline upload removed; edits happen in AdminModelEditor only
   const [isEditorOpen, setIsEditorOpen] = useState(false)
 
   // Determine admin: role metadata OR email included in VITE_ADMIN_EMAILS
@@ -71,7 +68,7 @@ const ModelDetail = ({ onModelSelect }) => {
             features: modelData.features || []
           }
           setModel(transformedModel)
-          setDescription(transformedModel.description || '')
+          
           setLoading(false)
           return
         }
@@ -87,7 +84,7 @@ const ModelDetail = ({ onModelSelect }) => {
           if (response.ok) {
             const apiModelData = await response.json()
             setModel(apiModelData)
-            setDescription(apiModelData.description || '')
+            
           } else {
             // If API fails, try to find in local data as fallback
             const localModel = MODELS.find(m => m.id === actualModelCode)
@@ -106,7 +103,7 @@ const ModelDetail = ({ onModelSelect }) => {
                 features: localModel.features || []
               }
               setModel(transformedModel)
-              setDescription(transformedModel.description || '')
+              
             } else {
               throw new Error('Model not found')
             }
@@ -130,7 +127,7 @@ const ModelDetail = ({ onModelSelect }) => {
               features: localModel.features || []
             }
             setModel(transformedModel)
-            setDescription(transformedModel.description || '')
+            
           } else {
             throw new Error('Model not found')
           }
@@ -159,28 +156,7 @@ const ModelDetail = ({ onModelSelect }) => {
     return Math.round(lengthNum * widthNum)
   }
 
-  const handleSaveDescription = async () => {
-    try {
-      const token = await getToken()
-      const response = await fetch(`/api/models/${actualModelCode}/description`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ description })
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to save description')
-      }
-      
-      setEditingDescription(false)
-      await fetchModel() // Refresh the model data
-    } catch (err) {
-      console.error('Error saving description:', err)
-    }
-  }
+  // Description editing moved into AdminModelEditor
 
   const handleImageUpload = async (file) => {
     try {
@@ -410,59 +386,7 @@ const ModelDetail = ({ onModelSelect }) => {
               </div>
             )}
 
-            {/* Admin Image Upload */}
-            {isAdmin && (
-              <div className="bg-white rounded-lg p-4 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload Image</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Image Tag
-                    </label>
-                    <select
-                      value={imageTag}
-                      onChange={(e) => setImageTag(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    >
-                      <option value="gallery">Gallery</option>
-                      <option value="hero">Hero</option>
-                      <option value="floorplan">Floor Plan</option>
-                      <option value="kitchen">Kitchen</option>
-                      <option value="living">Living Area</option>
-                      <option value="bedroom">Bedroom</option>
-                      <option value="bathroom">Bathroom</option>
-                      <option value="exterior">Exterior</option>
-                      <option value="porch">Porch</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Image File
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/webp"
-                      onChange={(e) => {
-                        const file = e.target.files[0]
-                        if (file && file.size <= 10 * 1024 * 1024) { // 10MB limit
-                          handleImageUpload(file)
-                        } else {
-                          alert('Please select a valid image file (max 10MB)')
-                        }
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      disabled={uploadingImage}
-                    />
-                  </div>
-                  {uploadingImage && (
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto"></div>
-                      <p className="text-sm text-gray-600 mt-2">Uploading image...</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Inline Admin Image Upload removed; use Edit panel instead */}
           </div>
 
           {/* Right Column - Model Information */}
@@ -480,50 +404,10 @@ const ModelDetail = ({ onModelSelect }) => {
               </p>
             </div>
 
-            {/* Model Description */}
+            {/* Model Description - read only; editing via Edit panel */}
             <div className="bg-white rounded-lg p-6 shadow-sm">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Description</h2>
-                {isAdmin && (
-                  <button
-                    onClick={() => setEditingDescription(!editingDescription)}
-                    className="text-sm text-primary-600 hover:text-primary-700"
-                  >
-                    {editingDescription ? 'Cancel' : 'Edit'}
-                  </button>
-                )}
-              </div>
-              
-              {editingDescription ? (
-                <div className="space-y-4">
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="Enter model description..."
-                  />
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={handleSaveDescription}
-                      className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingDescription(false)
-                        setDescription(model.description || '')
-                      }}
-                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-gray-700">{model.description || 'No description available.'}</p>
-              )}
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Description</h2>
+              <p className="text-gray-700">{model.description || 'No description available.'}</p>
             </div>
 
             {/* Specifications */}
