@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { useUser } from '@clerk/clerk-react'
+import { useUser, useAuth } from '@clerk/clerk-react'
 
 export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
   const { user } = useUser()
+  const { getToken } = useAuth()
   const [saving, setSaving] = useState(false)
   const [tab, setTab] = useState('overview')
 
@@ -28,7 +29,7 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
   const handleSave = async () => {
     try {
       setSaving(true)
-      const token = await user?.getToken()
+      const token = await getToken({ template: 'vercel' })
       const res = await fetch(`/api/models/${idParam}`, {
         method: 'PATCH',
         headers: {
@@ -80,7 +81,7 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
     if (!file) return
     try {
       setUploading(true)
-      const token = await user?.getToken()
+      const token = await getToken({ template: 'vercel' })
       // sign request
       const subfolder = model.modelCode || idParam
       const signRes = await fetch('/api/cloudinary/sign', {
@@ -138,7 +139,7 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
   const handleDeleteImage = async (publicId) => {
     if (!publicId) return
     try {
-      const token = await user?.getToken()
+      const token = await getToken({ template: 'vercel' })
       const res = await fetch(`/api/models/${idParam}/images?publicId=${encodeURIComponent(publicId)}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -176,7 +177,7 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
 
   const persistImageOrderAndPrimary = useCallback(async () => {
     try {
-      const token = await user?.getToken()
+      const token = await getToken({ template: 'vercel' })
       const order = images.map(img => img.publicId)
       const body = {
         order,

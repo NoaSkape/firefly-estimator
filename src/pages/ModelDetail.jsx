@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useUser } from '@clerk/clerk-react'
+import { useUser, useAuth } from '@clerk/clerk-react'
 import { AdvancedImage } from '@cloudinary/react'
 import { createHeroImage, createThumbnailImage, createGalleryImage } from '../utils/cloudinary'
 import { slugToModelId, isValidSlug, getModelBySlug } from '../utils/modelUrlMapping'
@@ -12,6 +12,7 @@ const ModelDetail = ({ onModelSelect }) => {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user, isSignedIn } = useUser()
+  const { getToken } = useAuth()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [model, setModel] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -98,7 +99,7 @@ const ModelDetail = ({ onModelSelect }) => {
       // Fetch from API using the id from route (slug or code)
       if (id) {
         try {
-          const token = await user?.getToken()
+          const token = await getToken({ template: 'vercel' })
           const response = await fetch(`/api/models/${id}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -182,7 +183,7 @@ const ModelDetail = ({ onModelSelect }) => {
 
   const handleSaveDescription = async () => {
     try {
-      const token = await user?.getToken()
+      const token = await getToken({ template: 'vercel' })
       const response = await fetch(`/api/models/${actualModelCode}/description`, {
         method: 'PATCH',
         headers: {
@@ -208,7 +209,7 @@ const ModelDetail = ({ onModelSelect }) => {
       setUploadingImage(true)
       
       // Get signed upload parameters
-      const token = await user?.getToken()
+      const token = await getToken({ template: 'vercel' })
       const signResponse = await fetch('/api/cloudinary/sign', {
         method: 'POST',
         headers: {
