@@ -40,7 +40,8 @@ export default async function handler(req, res) {
   const model = await findModelById(modelCode);
   if (!model) return res.status(404).json({ error: 'Model not found' });
 
-  switch (req.method) {
+  try {
+    switch (req.method) {
     case 'PATCH':
       return handlePatch(req, res, model, db);
     case 'DELETE':
@@ -49,6 +50,10 @@ export default async function handler(req, res) {
       return handlePost(req, res, model, db);
     default:
       return res.status(405).json({ error: 'Method not allowed' });
+    }
+  } catch (err) {
+    console.error('route models/images error', err?.message || err);
+    return res.status(500).json({ error: 'server_error' });
   }
 }
 

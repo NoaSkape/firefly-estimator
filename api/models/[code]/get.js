@@ -4,14 +4,14 @@ import { findModelById, ensureModelIndexes } from '../../../lib/model-utils.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end();
-  const auth = await requireAuth(req, res, false);
-  if (!auth?.userId) return;
+  // Allow unauthenticated reads; admin gating is handled elsewhere
+  await requireAuth(req, res, false);
 
   const { code: id } = req.query;
   await ensureModelIndexes();
   const model = await findModelById(id);
 
-  if (!model) return res.status(404).json({ error: 'Not found' });
+  if (!model) return res.status(404).json({ error: 'Not found', images: [], features: [] });
   const normalized = {
     ...model,
     features: Array.isArray(model.features) ? model.features : [],
