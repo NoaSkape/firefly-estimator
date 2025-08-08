@@ -107,7 +107,7 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
       const uploaded = await uploadRes.json()
 
       // Save into DB using images.patch add
-      const saveRes = await fetch(`/api/models/${idParam}/images`, {
+      const saveRes = await fetch(`/api/models/images?modelCode=${idParam}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -136,7 +136,7 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
     try {
       const token = await getToken()
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
-      const res = await fetch(`/api/models/${idParam}/images?publicId=${encodeURIComponent(publicId)}`, {
+      const res = await fetch(`/api/models/images?modelCode=${idParam}&publicId=${encodeURIComponent(publicId)}`, {
         method: 'DELETE',
         headers
       })
@@ -180,7 +180,7 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
       if (primaryPublicId) body.setPrimary = primaryPublicId
       const token = await getToken()
       const headers = token ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } : { 'Content-Type': 'application/json' }
-      const res = await fetch(`/api/models/${idParam}/images`, {
+      const res = await fetch(`/api/models/images?modelCode=${idParam}`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify(body)
