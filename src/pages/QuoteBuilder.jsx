@@ -19,9 +19,9 @@ const QuoteBuilder = () => {
 
   // Check for initial model selection from URL or detail page
   useEffect(() => {
-    const modelId = searchParams.get('model')
-    if (modelId && !selectedModel) {
-      const model = MODELS.find(m => m.id === modelId)
+    const modelCode = searchParams.get('model')
+    if (modelCode && !selectedModel) {
+      const model = MODELS.find(m => m.modelCode === modelCode)
       if (model) {
         setSelectedModel(model)
       }
@@ -38,8 +38,8 @@ const QuoteBuilder = () => {
   }, [clientInfo.zip])
 
   // Handle model selection
-  const handleModelSelect = (modelId) => {
-    const model = MODELS.find(m => m.id === modelId)
+  const handleModelSelect = (modelCode) => {
+    const model = MODELS.find(m => m.modelCode === modelCode)
     setSelectedModel(model)
     // Reset options & fees when model changes
     setSelectedOptions([])

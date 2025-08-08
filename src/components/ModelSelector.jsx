@@ -3,23 +3,23 @@ import { useNavigate } from 'react-router-dom'
 const ModelSelector = ({ models, value, onChange }) => {
   const navigate = useNavigate()
 
-  const handleCardClick = (modelId) => {
-    onChange(modelId)
+  const handleCardClick = (modelCode) => {
+    onChange(modelCode)
   }
 
-  const handleModelNameClick = (e, modelId) => {
+  const handleModelNameClick = (e, modelCode) => {
     e.stopPropagation() // Prevent card selection when clicking the name
-    navigate(`/models/${modelId}`)
+    navigate(`/models/${modelCode}`)
   }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {models.map((model) => (
         <div
-          key={model.id}
-          onClick={() => handleCardClick(model.id)}
+          key={model.modelCode}
+          onClick={() => handleCardClick(model.modelCode)}
           className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
-            value === model.id
+            value === model.modelCode
               ? 'border-primary-500 bg-primary-50'
               : 'border-gray-200 hover:border-gray-300 bg-white'
           }`}
@@ -27,7 +27,7 @@ const ModelSelector = ({ models, value, onChange }) => {
           <div className="text-center">
             <h3 
               className="font-semibold text-lg text-gray-900 mb-1 hover:text-primary-600 transition-colors duration-200"
-              onClick={(e) => handleModelNameClick(e, model.id)}
+              onClick={(e) => handleModelNameClick(e, model.modelCode)}
               style={{ cursor: 'pointer' }}
             >
               {model.name}
@@ -44,29 +44,12 @@ const ModelSelector = ({ models, value, onChange }) => {
             </div>
             
             <div className="space-y-1 text-xs text-gray-500">
-              <div>Length: {model.specs.length}</div>
-              <div>Width: {model.specs.width}</div>
-              <div>Height: {model.specs.height}</div>
-              <div>Weight: {model.specs.weight}</div>
-              <div>{model.specs.bedrooms} Bedroom{model.specs.bedrooms !== 1 ? 's' : ''}</div>
-              <div>{model.specs.bathrooms} Bathroom{model.specs.bathrooms !== 1 ? 's' : ''}</div>
-            </div>
-            
-            <div className="mt-3">
-              <h4 className="font-medium text-gray-900 mb-1">Features:</h4>
-              <ul className="text-xs text-gray-600 space-y-1">
-                {model.features.slice(0, 3).map((feature, index) => (
-                  <li key={index} className="flex items-center">
-                    <span className="w-1 h-1 bg-primary-500 rounded-full mr-2"></span>
-                    {feature}
-                  </li>
-                ))}
-                {model.features.length > 3 && (
-                  <li className="text-primary-600 font-medium">
-                    +{model.features.length - 3} more features
-                  </li>
-                )}
-              </ul>
+              <div>Length: {model.length}</div>
+              <div>Width: {model.width}</div>
+              <div>Height: {model.height}</div>
+              <div>Weight: {model.weight}</div>
+              <div>{model.bedrooms} Bedroom{model.bedrooms !== 1 ? 's' : ''}</div>
+              <div>{model.bathrooms} Bathroom{model.bathrooms !== 1 ? 's' : ''}</div>
             </div>
           </div>
         </div>
