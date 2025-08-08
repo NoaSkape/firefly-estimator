@@ -3,9 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import { AdvancedImage } from '@cloudinary/react'
 import { createHeroImage, createThumbnailImage, createGalleryImage } from '../utils/cloudinary'
+import { slugToModelId, isValidSlug, getModelBySlug } from '../utils/modelUrlMapping'
+import { MODELS } from '../data/models'
+import SEOHead from '../components/SEOHead'
 
 const ModelDetail = ({ onModelSelect }) => {
-  const { modelCode } = useParams()
+  const { modelCode, slug } = useParams()
   const navigate = useNavigate()
   const { user, isSignedIn } = useUser()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -19,15 +22,44 @@ const ModelDetail = ({ onModelSelect }) => {
   
   const isAdmin = user?.publicMetadata?.role === 'admin'
 
+  // Determine the actual model code from URL parameters
+  const getModelCode = () => {
+    // If we have a slug, convert it to model code
+    if (slug && isValidSlug(slug)) {
+      return slugToModelId(slug)
+    }
+    // Otherwise use the modelCode parameter (legacy support)
+    return modelCode
+  }
+
+  const actualModelCode = getModelCode()
+
   useEffect(() => {
     fetchModel()
-  }, [modelCode])
+  }, [actualModelCode])
 
   const fetchModel = async () => {
     try {
       setLoading(true)
+      setError(null)
+      
+      // First try to get model from local data
+      let modelData = null
+      
+      if (slug && isValidSlug(slug)) {
+        // Use local data for slug-based URLs
+        modelData = getModelBySlug(slug, MODELS)
+        if (modelData) {
+          setModel(modelData)
+          setDescription(modelData.description || '')
+          setLoading(false)
+          return
+        }
+      }
+      
+      // Fallback to API call for admin features or if local data not found
       const token = await user?.getToken()
-      const response = await fetch(`/api/models/${modelCode}`, {
+      const response = await fetch(`/api/models/${actualModelCode}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }
@@ -37,10 +69,11 @@ const ModelDetail = ({ onModelSelect }) => {
         throw new Error('Failed to fetch model')
       }
       
-      const modelData = await response.json()
-      setModel(modelData)
-      setDescription(modelData.description || '')
+      const apiModelData = await response.json()
+      setModel(apiModelData)
+      setDescription(apiModelData.description || '')
     } catch (err) {
+      console.error('Error fetching model:', err)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -50,7 +83,7 @@ const ModelDetail = ({ onModelSelect }) => {
   const handleSaveDescription = async () => {
     try {
       const token = await user?.getToken()
-      const response = await fetch(`/api/models/${modelCode}/description`, {
+      const response = await fetch(`/api/models/${actualModelCode}/description`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -83,7 +116,7 @@ const ModelDetail = ({ onModelSelect }) => {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          folder: `${process.env.VITE_CLOUDINARY_ROOT_FOLDER}/${modelCode}`,
+          folder: `${process.env.VITE_CLOUDINARY_ROOT_FOLDER}/${actualModelCode}`,
           tags: [imageTag]
         })
       })
@@ -115,7 +148,7 @@ const ModelDetail = ({ onModelSelect }) => {
       const uploadResult = await uploadResponse.json()
       
       // Save image metadata to our API
-      const saveResponse = await fetch(`/api/models/${modelCode}/images`, {
+      const saveResponse = await fetch(`/api/models/${actualModelCode}/images`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -170,7 +203,7 @@ const ModelDetail = ({ onModelSelect }) => {
   }
 
   const handleChooseModel = () => {
-    navigate(`/?model=${modelCode}`)
+    navigate(`/?model=${actualModelCode}`)
   }
 
   const nextImage = () => {
@@ -187,6 +220,13 @@ const ModelDetail = ({ onModelSelect }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* SEO Head Component */}
+      <SEOHead 
+        title={model ? `${model.name} - Firefly Tiny Homes` : 'Model Not Found - Firefly Tiny Homes'}
+        description={model ? `${model.name} - ${model.description || 'Explore this beautiful tiny home model from Firefly Tiny Homes.'}` : 'The model you\'re looking for doesn\'t exist.'}
+        model={model}
+      />
+      
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { generateModelUrl } from '../utils/modelUrlMapping'
 
 const ModelSelector = ({ models, value, onChange }) => {
   const navigate = useNavigate()
@@ -7,9 +8,12 @@ const ModelSelector = ({ models, value, onChange }) => {
     onChange(modelCode)
   }
 
-  const handleModelNameClick = (e, modelCode) => {
+  const handleModelNameClick = (e, model) => {
     e.stopPropagation() // Prevent card selection when clicking the name
-    navigate(`/models/${modelCode}`)
+    const modelUrl = generateModelUrl(model)
+    if (modelUrl) {
+      navigate(modelUrl)
+    }
   }
 
   return (
@@ -27,7 +31,7 @@ const ModelSelector = ({ models, value, onChange }) => {
           <div className="text-center">
             <h3 
               className="font-semibold text-lg text-gray-900 mb-1 hover:text-primary-600 transition-colors duration-200"
-              onClick={(e) => handleModelNameClick(e, model.id)}
+              onClick={(e) => handleModelNameClick(e, model)}
               style={{ cursor: 'pointer' }}
             >
               {model.name}
