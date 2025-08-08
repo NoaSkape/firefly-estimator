@@ -1,9 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { useUser, useAuth } from '@clerk/clerk-react'
+import { useUser } from '@clerk/clerk-react'
 
 export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
   const { user } = useUser()
-  const { getToken } = useAuth()
   const [saving, setSaving] = useState(false)
   const [tab, setTab] = useState('overview')
 
@@ -29,12 +28,10 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
   const handleSave = async () => {
     try {
       setSaving(true)
-      const token = await getToken()
       const res = await fetch(`/api/models/${idParam}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ name, price, description, specs, features })
       })
@@ -81,14 +78,12 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
     if (!file) return
     try {
       setUploading(true)
-      const token = await getToken()
       // sign request
       const subfolder = model.modelCode || idParam
       const signRes = await fetch('/api/cloudinary/sign', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ subfolder, tags: [imageTag] })
       })
@@ -115,7 +110,6 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           add: [{
@@ -139,10 +133,9 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
   const handleDeleteImage = async (publicId) => {
     if (!publicId) return
     try {
-      const token = await getToken()
       const res = await fetch(`/api/models/${idParam}/images?publicId=${encodeURIComponent(publicId)}`, {
         method: 'DELETE',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        headers: {}
       })
       if (!res.ok) throw new Error('Failed to delete image')
       const next = images.filter(img => img.publicId !== publicId)
@@ -177,7 +170,6 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
 
   const persistImageOrderAndPrimary = useCallback(async () => {
     try {
-      const token = await getToken()
       const order = images.map(img => img.publicId)
       const body = {
         order,
@@ -187,7 +179,6 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(body)
       })

@@ -246,11 +246,12 @@ const ModelDetail = ({ onModelSelect }) => {
       const uploadResult = await uploadResponse.json()
       
       // Save image metadata to our API
+      const token2 = await getToken()
       const saveResponse = await fetch(`/api/models/${id}/images`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          ...(token2 ? { 'Authorization': `Bearer ${token2}` } : {}),
         },
         body: JSON.stringify({
           add: [{
