@@ -72,13 +72,13 @@ async function handlePatch(req, res, model, db) {
     updates.$push = { images: { $each: clean } };
   }
 
-  if (typeof setPrimary === 'string' && model.images && model.images.length) {
-    const next = (model.images || []).map(img => ({ ...img, isPrimary: img.publicId === setPrimary }));
+  if (typeof setPrimary === 'string' && Array.isArray(model.images) && model.images.length) {
+    const next = model.images.map(img => ({ ...img, isPrimary: img.publicId === setPrimary }));
     updates.$set.images = next;
   }
 
-  if (Array.isArray(order) && model.images && model.images.length) {
-    const map = new Map((model.images || []).map(img => [img.publicId, img]));
+  if (Array.isArray(order) && Array.isArray(model.images) && model.images.length) {
+    const map = new Map(model.images.map(img => [img.publicId, img]));
     const next = order
       .map(id => map.get(id))
       .filter(Boolean)
@@ -98,7 +98,7 @@ async function handleDelete(req, res, model, db) {
   const { publicId } = req.query;
   if (!publicId) return res.status(400).json({ error: 'Missing publicId' });
 
-  const next = (model.images || []).filter(img => img.publicId !== publicId);
+  const next = (Array.isArray(model.images) ? model.images : []).filter(img => img.publicId !== publicId);
   const collectionName = process.env.MODELS_COLLECTION || 'Models';
   await db.collection(collectionName).updateOne(
     { _id: model._id },
@@ -109,8 +109,8 @@ async function handleDelete(req, res, model, db) {
 }
 
 async function handlePost(req, res, model, db) {
-  const { url, publicId, tag } = req.body;
-  if (!url || !publicId || !tag) {
+  const { url, publicId, tag } = req.body || {};
+  if (!url || !publicId) {
     return res.status(400).json({ error: 'Missing fields' });
   }
 
@@ -118,7 +118,7 @@ async function handlePost(req, res, model, db) {
   await db.collection(collectionName).updateOne(
     { _id: model._id },
     {
-      $push: { images: { url, publicId, tag } },
+      $push: { images: { url, publicId, tag: tag || 'gallery' } },
       $set: { updatedAt: new Date() },
     }
   );

@@ -16,8 +16,8 @@ async function migrateData() {
     await client.connect();
     console.log('Connected to MongoDB');
     
-    const db = client.db();
-    const collection = db.collection('baseModels');
+    const db = client.db(process.env.MONGODB_DB);
+    const collection = db.collection(process.env.MODELS_COLLECTION || 'Models');
     
     // Convert existing models to new schema
     const baseModels = MODELS.map(model => ({
@@ -40,7 +40,7 @@ async function migrateData() {
     
     // Clear existing data
     await collection.deleteMany({});
-    console.log('Cleared existing baseModels collection');
+    console.log('Cleared existing Models collection');
     
     // Insert new data
     const result = await collection.insertMany(baseModels);

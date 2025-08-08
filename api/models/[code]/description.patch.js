@@ -15,7 +15,8 @@ export default async function handler(req, res) {
   const model = await findModelById(id);
   if (!model) return res.status(404).json({ error: 'Not found' });
 
-  await db.collection('baseModels').updateOne(
+  const collectionName = process.env.MODELS_COLLECTION || 'Models'
+  await db.collection(collectionName).updateOne(
     { _id: model._id },
     { $set: { description, updatedAt: new Date() } }
   );

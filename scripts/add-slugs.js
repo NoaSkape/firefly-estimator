@@ -14,7 +14,7 @@ async function addSlugs() {
   try {
     await client.connect()
     const db = client.db()
-    const collection = db.collection('baseModels')
+    const collection = db.collection(process.env.MODELS_COLLECTION || 'Models')
 
     // Ensure index for slug
     await collection.createIndex({ slug: 1 }, { unique: true, sparse: true })
