@@ -65,13 +65,15 @@ async function handlePatch(req, res, model, db) {
   if (debug) console.log('[DEBUG_ADMIN] Handling PATCH request images');
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
   const { add, setPrimary, order, images, tag } = body
-  // Basic validation and sanitization
   const toStringSafe = (v) => (v == null ? '' : String(v)).slice(0, 500)
-  const updates = { $set: { updatedAt: new Date() } };
+
+  const collectionName = process.env.MODELS_COLLECTION || 'Models';
+  const current = Array.isArray(model.images) ? model.images.slice() : []
+  let nextImages = current
 
   if (Array.isArray(images)) {
     const now = new Date()
-    const normalized = images
+    nextImages = images
       .map((img, idx) => ({
         publicId: toStringSafe(img.public_id || img.publicId),
         url: toStringSafe(img.secure_url || img.url),
@@ -81,43 +83,41 @@ async function handlePatch(req, res, model, db) {
         uploadedAt: img.uploadedAt ? new Date(img.uploadedAt) : now,
       }))
       .filter(i => i.url)
-    updates.$set.images = normalized
-  }
-
-  if (Array.isArray(add) && add.length) {
-    const clean = add.map(img => ({
-      publicId: toStringSafe(img.publicId),
-      url: toStringSafe(img.url),
-      alt: toStringSafe(img.alt),
-      isPrimary: false,
-    }));
-    updates.$push = { images: { $each: clean } };
-  }
-
-  if (typeof setPrimary === 'string' && Array.isArray(model.images) && model.images.length) {
-    const primaryId = String(setPrimary)
-    const next = model.images.map(img => ({ ...img, isPrimary: img.publicId === primaryId }));
-    updates.$set.images = next;
-  }
-
-  if (Array.isArray(order) && Array.isArray(model.images) && model.images.length) {
-    const map = new Map(model.images.map(img => [img.publicId, img]));
-    const next = order
-      .map(id => map.get(String(id)))
-      .filter(Boolean)
-      .map((img) => ({ ...img }));
-    if (next.length) {
-      updates.$set = { ...(updates.$set || {}), images: next };
+  } else {
+    // Start from current and apply granular ops
+    nextImages = current.map(img => ({ ...img }))
+    if (Array.isArray(add) && add.length) {
+      const cleanAdds = add.map((img, idx) => ({
+        publicId: toStringSafe(img.publicId),
+        url: toStringSafe(img.url),
+        alt: toStringSafe(img.alt),
+        isPrimary: false,
+        order: typeof img.order === 'number' ? img.order : current.length + idx,
+        tag: toStringSafe(tag || img.tag || 'gallery'),
+        uploadedAt: new Date(),
+      })).filter(i => i.url)
+      nextImages.push(...cleanAdds)
+    }
+    if (typeof setPrimary === 'string' && nextImages.length) {
+      const primaryId = String(setPrimary)
+      nextImages = nextImages.map(img => ({ ...img, isPrimary: img.publicId === primaryId }))
+    }
+    if (Array.isArray(order) && nextImages.length) {
+      const byId = new Map(nextImages.map(img => [img.publicId, img]))
+      const reordered = order.map(id => byId.get(String(id))).filter(Boolean)
+      if (reordered.length) {
+        nextImages = reordered.map((img, idx) => ({ ...img, order: idx }))
+      }
     }
   }
 
-  const collectionName = process.env.MODELS_COLLECTION || 'Models';
-  const result = await db.collection(collectionName).updateOne({ _id: model._id }, updates);
+  const updates = { $set: { images: nextImages, updatedAt: new Date() } }
+  const result = await db.collection(collectionName).updateOne({ _id: model._id }, updates)
   if (debug) {
     console.log('[DEBUG_ADMIN] images PATCH update result', { matchedCount: result?.matchedCount, modifiedCount: result?.modifiedCount })
   }
-  const updated = await db.collection(collectionName).findOne({ _id: model._id });
-  res.status(200).json(updated);
+  const updated = await db.collection(collectionName).findOne({ _id: model._id })
+  res.status(200).json(updated)
 }
 
 async function handleDelete(req, res, model, db) {
