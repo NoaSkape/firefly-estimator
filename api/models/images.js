@@ -1,6 +1,6 @@
 import { getDb } from '../../lib/db.js'
 import { requireAuth } from '../../lib/auth.js'
-import { findModelById, ensureModelIndexes } from '../../lib/model-utils.js'
+import { findOrCreateModel, ensureModelIndexes, updateModelFields } from '../../lib/model-utils.js'
 
 export default async function handler(req, res) {
   const debug = process.env.DEBUG_ADMIN === 'true'
@@ -27,23 +27,21 @@ export default async function handler(req, res) {
   const auth = await requireAuth(req, res, true);
   if (!auth?.userId) return;
 
-  // Extract model code from query or URL
-  const { modelCode } = req.query;
-  if (debug) console.log('[DEBUG_ADMIN] modelCode', modelCode);
-  
-  if (!modelCode) {
-    console.log('No model code provided');
-    return res.status(400).json({ error: 'No model code provided' });
+  // Extract model id/code from query
+  const { modelCode, modelId } = req.query || {};
+  if (debug) console.log('[DEBUG_ADMIN] model identifiers', { modelCode, modelId });
+  if (!modelCode && !modelId) {
+    return res.status(400).json({ error: 'modelCode or modelId is required' });
   }
-  
+
   const db = await getDb();
   try {
     await ensureModelIndexes();
   } catch (err) {
     console.error('ensureModelIndexes error:', err?.message || err);
   }
-  const model = await findModelById(modelCode);
-  if (!model) return res.status(404).json({ error: 'Model not found' });
+  const model = await findOrCreateModel({ modelId, modelCode });
+  if (!model?._id) return res.status(404).json({ error: 'Model not found' });
 
   try {
     switch (req.method) {
@@ -65,10 +63,26 @@ export default async function handler(req, res) {
 async function handlePatch(req, res, model, db) {
   const debug = process.env.DEBUG_ADMIN === 'true'
   if (debug) console.log('[DEBUG_ADMIN] Handling PATCH request images');
-  const { add, setPrimary, order } = req.body || {};
+  const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+  const { add, setPrimary, order, images, tag } = body
   // Basic validation and sanitization
   const toStringSafe = (v) => (v == null ? '' : String(v)).slice(0, 500)
   const updates = { $set: { updatedAt: new Date() } };
+
+  if (Array.isArray(images)) {
+    const now = new Date()
+    const normalized = images
+      .map((img, idx) => ({
+        publicId: toStringSafe(img.public_id || img.publicId),
+        url: toStringSafe(img.secure_url || img.url),
+        isPrimary: !!img.isPrimary,
+        order: typeof img.order === 'number' ? img.order : idx,
+        tag: toStringSafe(tag || img.tag || 'gallery'),
+        uploadedAt: img.uploadedAt ? new Date(img.uploadedAt) : now,
+      }))
+      .filter(i => i.url)
+    updates.$set.images = normalized
+  }
 
   if (Array.isArray(add) && add.length) {
     const clean = add.map(img => ({

@@ -1,6 +1,6 @@
 import { getDb } from '../../../lib/db.js'
 import { requireAuth } from '../../../lib/auth.js'
-import { findModelById, ensureModelIndexes } from '../../../lib/model-utils.js'
+import { findModelById, ensureModelIndexes, findOrCreateModel, updateModelFields } from '../../../lib/model-utils.js'
 
 function setCors(res) {
   const allowed = process.env.ALLOWED_ORIGIN || process.env.ALLOWED_ORIGINS || ''
@@ -57,13 +57,8 @@ async function getModel(req, res, debug) {
 
 async function patchModel(req, res, debug) {
   const { code: id } = req.query
-  const {
-    name,
-    price,
-    description,
-    specs,
-    features,
-  } = req.body || {}
+  const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+  const { name, price, description, specs, features } = body
 
   const $set = { updatedAt: new Date() }
   if (typeof name === 'string') $set.name = String(name).slice(0, 200)
@@ -90,7 +85,7 @@ async function patchModel(req, res, debug) {
 
   const db = await getDb()
   await ensureModelIndexes()
-  const model = await findModelById(id)
+  const model = await findOrCreateModel({ modelCode: id })
   if (!model) return res.status(404).json({ error: 'Not found' })
   if (debug) {
     console.log('[DEBUG_ADMIN] Found model', { _id: model?._id, modelCode: model?.modelCode, slug: model?.slug })
