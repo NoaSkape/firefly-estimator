@@ -1,11 +1,14 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useUser, useAuth } from '@clerk/clerk-react'
+import { canEditModelsClient } from '../lib/canEditModels'
 
 export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
   const { user } = useUser()
   const { getToken } = useAuth()
   const [saving, setSaving] = useState(false)
   const [tab, setTab] = useState('overview')
+  const debug = (import.meta.env?.VITE_DEBUG_ADMIN === 'true')
+  const isAdmin = canEditModelsClient(user)
 
   // Local editable state
   const [name, setName] = useState(model.name || '')
@@ -29,15 +32,40 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
   const handleSave = async () => {
     try {
       setSaving(true)
+      if (debug) {
+        console.log('[DEBUG_ADMIN] AdminModelEditor: starting save', { idParam, isAdmin })
+      }
       const token = await getToken()
+      if (debug) {
+        const masked = token ? `${token.slice(0, 6)}...${token.slice(-6)}` : null
+        console.log('[DEBUG_ADMIN] AdminModelEditor: token from getToken()', { hasToken: !!token, length: token?.length || 0, masked })
+      }
+      if (!token) {
+        alert('No Clerk token from getToken(). Are you signed in?')
+        return
+      }
       const headers = token ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } : { 'Content-Type': 'application/json' }
-      const res = await fetch(`/api/models/${idParam}`, {
+      const url = `/api/models/${idParam}`
+      if (debug) {
+        const maskedAuth = headers.Authorization ? `${headers.Authorization.slice(0, 13)}...${headers.Authorization.slice(-6)}` : undefined
+        console.log('[DEBUG_ADMIN] Request', { method: 'PATCH', url, headers: { ...headers, Authorization: maskedAuth } })
+      }
+      const res = await fetch(url, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ name, price, description, specs, features })
       })
       if (!res.ok) throw new Error('Failed to save model')
       const updated = await res.json()
+      if (debug) {
+        const primary = Array.isArray(updated?.images) ? updated.images.find(i => i?.isPrimary)?.publicId : null
+        console.log('[DEBUG_ADMIN] onSaved(updated)', {
+          _id: updated?._id,
+          modelCode: updated?.modelCode,
+          imagesLength: Array.isArray(updated?.images) ? updated.images.length : 0,
+          primaryPublicId: primary
+        })
+      }
       onSaved?.(updated)
       onClose?.()
     } catch (e) {
@@ -79,17 +107,36 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
     if (!file) return
     try {
       setUploading(true)
+      if (debug) {
+        console.log('[DEBUG_ADMIN] Upload image start', { size: file.size, type: file.type, name: file.name })
+      }
       // sign request
       const subfolder = model.modelCode || idParam
       const token = await getToken()
+      if (debug) {
+        const masked = token ? `${token.slice(0, 6)}...${token.slice(-6)}` : null
+        console.log('[DEBUG_ADMIN] getToken for sign', { hasToken: !!token, length: token?.length || 0, masked })
+      }
+      if (!token) {
+        alert('No Clerk token from getToken(). Are you signed in?')
+        return
+      }
       const headers = token ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } : { 'Content-Type': 'application/json' }
-      const signRes = await fetch('/api/cloudinary/sign', {
+      const signUrl = '/api/cloudinary/sign'
+      if (debug) {
+        const maskedAuth = headers.Authorization ? `${headers.Authorization.slice(0, 13)}...${headers.Authorization.slice(-6)}` : undefined
+        console.log('[DEBUG_ADMIN] Request sign', { method: 'POST', url: signUrl, body: { subfolder, tags: [imageTag] }, headers: { ...headers, Authorization: maskedAuth } })
+      }
+      const signRes = await fetch(signUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify({ subfolder, tags: [imageTag] })
       })
       if (!signRes.ok) throw new Error('Failed to get upload signature')
       const params = await signRes.json()
+      if (debug) {
+        console.log('[DEBUG_ADMIN] Sign response', { folder: params.folder, cloudName: params.cloudName, hasSignature: !!params.signature })
+      }
 
       const form = new FormData()
       form.append('file', file)
@@ -99,15 +146,31 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
       form.append('folder', params.folder)
       form.append('tags', imageTag)
 
-      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${params.cloudName}/image/upload`, {
+      const cloudUrl = `https://api.cloudinary.com/v1_1/${params.cloudName}/image/upload`
+      if (debug) {
+        console.log('[DEBUG_ADMIN] Cloudinary upload start', { url: cloudUrl, folder: params.folder, tags: imageTag })
+      }
+      const uploadRes = await fetch(cloudUrl, {
         method: 'POST',
         body: form,
       })
-      if (!uploadRes.ok) throw new Error('Cloudinary upload failed')
+      if (!uploadRes.ok) {
+        let msg = 'Cloudinary upload failed'
+        try { msg = `${msg}: ${await uploadRes.text()}` } catch {}
+        throw new Error(msg)
+      }
       const uploaded = await uploadRes.json()
+      if (debug) {
+        console.log('[DEBUG_ADMIN] Cloudinary upload success', { public_id: uploaded.public_id, url: uploaded.secure_url })
+      }
 
       // Save into DB using images endpoint (must include Authorization)
-      const saveRes = await fetch(`/api/models/images?modelCode=${idParam}`, {
+      const imagesUrl = `/api/models/images?modelCode=${idParam}`
+      if (debug) {
+        const maskedAuth = headers.Authorization ? `${headers.Authorization.slice(0, 13)}...${headers.Authorization.slice(-6)}` : undefined
+        console.log('[DEBUG_ADMIN] Persist image metadata', { method: 'PATCH', url: imagesUrl, headers: { ...headers, Authorization: maskedAuth } })
+      }
+      const saveRes = await fetch(imagesUrl, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({
@@ -121,6 +184,15 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
       if (!saveRes.ok) throw new Error('Failed to save image metadata')
       const updated = await saveRes.json()
       setImages(Array.isArray(updated.images) ? updated.images : [])
+      if (debug) {
+        const primary = Array.isArray(updated?.images) ? updated.images.find(i => i?.isPrimary)?.publicId : null
+        console.log('[DEBUG_ADMIN] onSaved(updated) after image add', {
+          _id: updated?._id,
+          modelCode: updated?.modelCode,
+          imagesLength: Array.isArray(updated?.images) ? updated.images.length : 0,
+          primaryPublicId: primary
+        })
+      }
       onSaved?.(updated)
     } catch (e) {
       alert(e.message)
@@ -132,7 +204,13 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
   const handleDeleteImage = async (publicId) => {
     if (!publicId) return
     try {
+      if (debug) console.log('[DEBUG_ADMIN] Delete image start', { publicId })
       const token = await getToken()
+      if (debug) {
+        const masked = token ? `${token.slice(0, 6)}...${token.slice(-6)}` : null
+        console.log('[DEBUG_ADMIN] getToken for delete', { hasToken: !!token, length: token?.length || 0, masked })
+      }
+      if (!token) { alert('No Clerk token from getToken(). Are you signed in?'); return }
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
       const res = await fetch(`/api/models/images?modelCode=${idParam}&publicId=${encodeURIComponent(publicId)}`, {
         method: 'DELETE',
@@ -142,6 +220,15 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
       const next = images.filter(img => img.publicId !== publicId)
       setImages(next)
       const updated = { ...model, images: next }
+      if (debug) {
+        const primary = Array.isArray(updated?.images) ? updated.images.find(i => i?.isPrimary)?.publicId : null
+        console.log('[DEBUG_ADMIN] onSaved(updated) after delete', {
+          _id: updated?._id,
+          modelCode: updated?.modelCode,
+          imagesLength: Array.isArray(updated?.images) ? updated.images.length : 0,
+          primaryPublicId: primary
+        })
+      }
       onSaved?.(updated)
     } catch (e) {
       alert(e.message)
@@ -177,8 +264,18 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
       }
       if (primaryPublicId) body.setPrimary = primaryPublicId
       const token = await getToken()
+      if (debug) {
+        const masked = token ? `${token.slice(0, 6)}...${token.slice(-6)}` : null
+        console.log('[DEBUG_ADMIN] Save images (order/primary)', { orderLength: order.length, setPrimary: primaryPublicId || null, hasToken: !!token, masked })
+      }
+      if (!token) { alert('No Clerk token from getToken(). Are you signed in?'); return }
       const headers = token ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } : { 'Content-Type': 'application/json' }
-      const res = await fetch(`/api/models/images?modelCode=${idParam}`, {
+      const url = `/api/models/images?modelCode=${idParam}`
+      if (debug) {
+        const maskedAuth = headers.Authorization ? `${headers.Authorization.slice(0, 13)}...${headers.Authorization.slice(-6)}` : undefined
+        console.log('[DEBUG_ADMIN] Request', { method: 'PATCH', url, headers: { ...headers, Authorization: maskedAuth }, body })
+      }
+      const res = await fetch(url, {
         method: 'PATCH',
         headers,
         body: JSON.stringify(body)
@@ -186,6 +283,15 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
       if (!res.ok) throw new Error('Failed to save image settings')
       const updated = await res.json()
       setImages(Array.isArray(updated.images) ? updated.images : [])
+      if (debug) {
+        const primary = Array.isArray(updated?.images) ? updated.images.find(i => i?.isPrimary)?.publicId : null
+        console.log('[DEBUG_ADMIN] onSaved(updated) after image settings', {
+          _id: updated?._id,
+          modelCode: updated?.modelCode,
+          imagesLength: Array.isArray(updated?.images) ? updated.images.length : 0,
+          primaryPublicId: primary
+        })
+      }
       onSaved?.(updated)
     } catch (e) {
       alert(e.message)

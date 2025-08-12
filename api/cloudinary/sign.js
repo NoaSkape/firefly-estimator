@@ -4,6 +4,14 @@ import { requireAuth } from '../../lib/auth.js';
 export const runtime = 'nodejs'
 
 export default async function handler(req, res) {
+  const allowed = process.env.ALLOWED_ORIGIN || process.env.ALLOWED_ORIGINS || ''
+  const origin = allowed || (process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : '')
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).end();
   const auth = await requireAuth(req, res, true);
   if (!auth?.userId) return; // auth already sent error
@@ -13,6 +21,8 @@ export default async function handler(req, res) {
   const root = process.env.CLOUDINARY_ROOT_FOLDER || 'firefly-estimator/models';
   const safeSub = String(subfolder).replace(/[^a-zA-Z0-9_\/-]/g, '');
   const folder = safeSub ? `${root}/${safeSub}` : root;
+  const debug = process.env.DEBUG_ADMIN === 'true'
+  if (debug) console.log('[DEBUG_ADMIN] cloudinary/sign', { folder, tags, cloudName: process.env.CLOUDINARY_CLOUD_NAME })
   try {
     const apiKey = process.env.CLOUDINARY_API_KEY
     const apiSecret = process.env.CLOUDINARY_API_SECRET

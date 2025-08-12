@@ -2,12 +2,12 @@ import { Cloudinary } from '@cloudinary/url-gen';
 import { auto } from '@cloudinary/url-gen/actions/resize';
 import { autoGravity } from '@cloudinary/url-gen/qualifiers/gravity';
 
-// Initialize Cloudinary with your cloud name
-const cld = new Cloudinary({ 
-  cloud: { 
-    cloudName: 'dxttm3ivu' 
-  } 
-});
+// Initialize Cloudinary with env-provided cloud name
+const cld = new Cloudinary({
+  cloud: {
+    cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
+  },
+})
 
 // Utility function to create optimized images
 export const createOptimizedImage = (imageId, options = {}) => {

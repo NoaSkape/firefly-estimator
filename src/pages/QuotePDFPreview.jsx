@@ -5,9 +5,8 @@ const QuotePDFPreview = ({ quoteData, onBack }) => {
   const pdfRef = useRef(null)
 
   const handleDownloadPDF = async () => {
-    if (pdfRef.current) {
-      await generatePDF(pdfRef.current, `firefly-quote-${quoteData.quoteId}.pdf`)
-    }
+    // Expect quoteData to already contain model, options, client, fees
+    await generatePDF(quoteData)
   }
 
   const formatCurrency = (amount) => {

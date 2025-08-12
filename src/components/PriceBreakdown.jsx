@@ -6,6 +6,13 @@ const PriceBreakdown = ({ subtotal, tax, deliveryFee, total }) => {
     }).format(amount)
   }
 
+  // Simple amortized monthly payment using APR if provided
+  const apr = parseFloat(import.meta.env.VITE_FINANCING_APR || '0.075')
+  const years = parseFloat(import.meta.env.VITE_FINANCING_YEARS || '10')
+  const n = Math.max(1, Math.round(years * 12))
+  const r = apr / 12
+  const monthlyPayment = r > 0 ? (total * r) / (1 - Math.pow(1 + r, -n)) : total / n
+
   return (
     <div className="card">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Price Breakdown</h3>
@@ -37,7 +44,7 @@ const PriceBreakdown = ({ subtotal, tax, deliveryFee, total }) => {
           <div className="text-sm text-primary-800">
             <div className="font-medium">Estimated Monthly Payment:</div>
             <div className="text-lg font-semibold">
-              {formatCurrency(total / 120)} <span className="text-sm font-normal">(120 months at 7.5% APR)</span>
+              {formatCurrency(monthlyPayment)} <span className="text-sm font-normal">({n} months at {(apr * 100).toFixed(1)}% APR)</span>
             </div>
           </div>
         </div>

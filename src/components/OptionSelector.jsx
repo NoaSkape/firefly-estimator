@@ -35,7 +35,7 @@ const OptionSelector = ({ options, selectedItems, onSelectionChange }) => {
           <button
             type="button"
             onClick={() => toggleSubject(category.subject)}
-            className="w-full bg-gray-100 px-4 py-2 font-semibold text-left hover:bg-gray-150 transition-colors duration-200 flex justify-between items-center"
+            className="w-full bg-gray-100 px-4 py-2 font-semibold text-left hover:bg-gray-200 transition-colors duration-200 flex justify-between items-center"
           >
             <span>{category.subject}</span>
             <span className="text-gray-500">

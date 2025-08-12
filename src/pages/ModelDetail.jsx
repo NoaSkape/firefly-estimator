@@ -20,6 +20,7 @@ const ModelDetail = ({ onModelSelect }) => {
   const [error, setError] = useState(null)
   // Inline editing and inline upload removed; edits happen in AdminModelEditor only
   const [isEditorOpen, setIsEditorOpen] = useState(false)
+  const debug = (import.meta.env?.VITE_DEBUG_ADMIN === 'true')
 
   // Determine admin: role metadata OR email included in VITE_ADMIN_EMAILS
   const isAdmin = canEditModelsClient(user)
@@ -79,11 +80,24 @@ const ModelDetail = ({ onModelSelect }) => {
         try {
           const token = await getToken()
           const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
-          const response = await fetch(`/api/models/${actualModelCode}`, { headers })
+          const url = `/api/models/${actualModelCode}`
+          if (debug) {
+            const maskedAuth = headers.Authorization ? `${headers.Authorization.slice(0, 13)}...${headers.Authorization.slice(-6)}` : undefined
+            console.log('[DEBUG_ADMIN] Fetch model', { url, headers: { ...headers, Authorization: maskedAuth } })
+          }
+          const response = await fetch(url, { headers })
           
           if (response.ok) {
             const apiModelData = await response.json()
             setModel(apiModelData)
+            if (debug) {
+              console.log('[DEBUG_ADMIN] Model loaded from API', {
+                _id: apiModelData?._id,
+                modelCode: apiModelData?.modelCode,
+                imagesLength: Array.isArray(apiModelData?.images) ? apiModelData.images.length : 0,
+                featuresLength: Array.isArray(apiModelData?.features) ? apiModelData.features.length : 0
+              })
+            }
             
           } else {
             // If API fails, try to find in local data as fallback
@@ -110,6 +124,7 @@ const ModelDetail = ({ onModelSelect }) => {
           }
         } catch (apiErr) {
           console.error('API error:', apiErr)
+          if (debug) console.log('[DEBUG_ADMIN] Fetch model error', apiErr)
           // Try local data as final fallback
           const localModel = MODELS.find(m => m.id === actualModelCode)
           if (localModel) {
@@ -156,81 +171,7 @@ const ModelDetail = ({ onModelSelect }) => {
     return Math.round(lengthNum * widthNum)
   }
 
-  // Description editing moved into AdminModelEditor
-
-  const handleImageUpload = async (file) => {
-    try {
-      setUploadingImage(true)
-      
-      // Get signed upload parameters
-      const token = await getToken()
-      const signResponse = await fetch('/api/cloudinary/sign', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          subfolder: actualModelCode,
-          tags: [imageTag]
-        })
-      })
-      
-      if (!signResponse.ok) {
-        throw new Error('Failed to get upload parameters')
-      }
-      
-      const uploadParams = await signResponse.json()
-      
-      // Upload to Cloudinary
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('timestamp', uploadParams.timestamp)
-      formData.append('signature', uploadParams.signature)
-      formData.append('api_key', uploadParams.apiKey)
-      formData.append('folder', uploadParams.folder)
-      formData.append('tags', imageTag)
-      
-      const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${uploadParams.cloudName}/image/upload`, {
-        method: 'POST',
-        body: formData
-      })
-      
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload image')
-      }
-      
-      const uploadResult = await uploadResponse.json()
-      
-      // Save image metadata to our API
-      const token2 = await getToken()
-      const saveResponse = await fetch(`/api/models/${id}/images`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token2 ? { 'Authorization': `Bearer ${token2}` } : {}),
-        },
-        body: JSON.stringify({
-          add: [{
-            url: uploadResult.secure_url,
-            publicId: uploadResult.public_id,
-            alt: `${model?.name || 'Model'} image`
-          }]
-        })
-      })
-      
-      if (!saveResponse.ok) {
-        throw new Error('Failed to save image metadata')
-      }
-      
-      await fetchModel() // Refresh the model data
-      setImageTag('gallery')
-    } catch (err) {
-      console.error('Error uploading image:', err)
-    } finally {
-      setUploadingImage(false)
-    }
-  }
+  // Description editing moved into AdminModelEditor. All image uploads handled inside AdminModelEditor.
 
   if (loading) {
     return (
@@ -266,7 +207,14 @@ const ModelDetail = ({ onModelSelect }) => {
 
   const handleModelUpdate = (updated) => {
     setModel(updated)
-    setDescription(updated.description || '')
+    if (debug) {
+      console.log('[DEBUG_ADMIN] ModelDetail onSaved(received)', {
+        _id: updated?._id,
+        modelCode: updated?.modelCode,
+        imagesLength: Array.isArray(updated?.images) ? updated.images.length : 0,
+        featuresLength: Array.isArray(updated?.features) ? updated.features.length : 0
+      })
+    }
   }
 
   const nextImage = () => {

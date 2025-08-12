@@ -2,7 +2,9 @@ export default async function handler(req, res) {
   console.log('=== TEST ENDPOINT CALLED ===');
   console.log('Method:', req.method);
   console.log('URL:', req.url);
-  console.log('Headers:', req.headers);
+  // Avoid logging full headers to prevent leaking Authorization
+  const { authorization, Authorization, ...restHeaders } = req.headers || {}
+  console.log('Headers (redacted):', restHeaders)
   console.log('Query:', req.query);
   console.log('Body:', req.body);
   console.log('========================');

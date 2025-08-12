@@ -48,12 +48,18 @@ const ModelSelector = ({ models, value, onChange }) => {
             </div>
             
             <div className="space-y-1 text-xs text-gray-500">
-              <div>Length: {model.length}</div>
-              <div>Width: {model.width}</div>
-              <div>Height: {model.height}</div>
-              <div>Weight: {model.weight}</div>
-              <div>{model.bedrooms} Bedroom{model.bedrooms !== 1 ? 's' : ''}</div>
-              <div>{model.bathrooms} Bathroom{model.bathrooms !== 1 ? 's' : ''}</div>
+              <div>Length: {model.specs?.length || model.length}</div>
+              <div>Width: {model.specs?.width || model.width}</div>
+              <div>Height: {model.specs?.height || model.height}</div>
+              <div>Weight: {model.specs?.weight || model.weight}</div>
+              <div>
+                {model.specs?.bedrooms ?? model.bedrooms} Bedroom
+                {(model.specs?.bedrooms ?? model.bedrooms) !== 1 ? 's' : ''}
+              </div>
+              <div>
+                {model.specs?.bathrooms ?? model.bathrooms} Bathroom
+                {(model.specs?.bathrooms ?? model.bathrooms) !== 1 ? 's' : ''}
+              </div>
             </div>
           </div>
         </div>
