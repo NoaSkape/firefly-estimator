@@ -7,6 +7,7 @@
     "node": "18.x"
   },
   "scripts": {
+    "seed:models": "node -r dotenv/config scripts/seed-models.cjs",
     "dev": "concurrently \"vite\" \"vercel dev --listen 3000\"",
     "build": "vite build",
     "lint": "eslint .",
