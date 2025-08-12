@@ -1,3 +1,5 @@
+export const runtime = 'nodejs'
+
 import { getDb } from '../../lib/db.js'
 import { requireAuth } from '../../lib/auth.js'
 import { findOrCreateModel, ensureModelIndexes, updateModelFields } from '../../lib/model-utils.js'
