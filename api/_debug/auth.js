@@ -1,5 +1,7 @@
 import { requireAuth } from '../../lib/auth.js'
-import { clerkClient } from '@clerk/backend'
+import { createClerkClient } from '@clerk/backend'
+
+const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY })
 
 export default async function handler(req, res) {
   const debug = process.env.DEBUG_ADMIN === 'true'
@@ -8,7 +10,7 @@ export default async function handler(req, res) {
   if (!auth?.userId) return res.status(401).json({ ok: false, error: 'unauthorized' })
   let user = auth.user
   if (!user) {
-    try { user = await clerkClient.users.getUser(auth.userId) } catch {}
+    try { user = await clerk.users.getUser(auth.userId) } catch {}
   }
   const emails = []
   try {
