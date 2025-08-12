@@ -47,33 +47,7 @@ const ModelDetail = ({ onModelSelect }) => {
       setLoading(true)
       setError(null)
       
-      // First try to get model from local data
-      let modelData = null
-      
-      if (id && isValidSlug(id)) {
-        // Use local data for slug-based URLs
-        modelData = getModelBySlug(id, MODELS)
-        if (modelData) {
-          // Transform local data to match expected structure
-          const transformedModel = {
-            ...modelData,
-            modelCode: modelData.subtitle,
-            width: modelData.specs?.width,
-            length: modelData.specs?.length,
-            height: modelData.specs?.height,
-            weight: modelData.specs?.weight,
-            bedrooms: modelData.specs?.bedrooms,
-            bathrooms: modelData.specs?.bathrooms,
-            squareFeet: calculateSquareFeet(modelData.specs?.length, modelData.specs?.width),
-            images: [], // Local data doesn't have images, will be empty array
-            features: modelData.features || []
-          }
-          setModel(transformedModel)
-          
-          setLoading(false)
-          return
-        }
-      }
+      // API-first fetch to ensure persisted images/features are loaded from DB
       
       // Fetch from API using the actual model code
       if (actualModelCode) {

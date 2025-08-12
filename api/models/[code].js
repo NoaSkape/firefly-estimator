@@ -2,21 +2,16 @@ export const runtime = 'nodejs'
 
 import { getDb } from '../../lib/db.js'
 import { requireAuth } from '../../lib/auth.js'
+import { applyCors } from '../../lib/cors.js'
 import { findModelById, ensureModelIndexes, findOrCreateModel } from '../../lib/model-utils.js'
 
-function setCors(res) {
-  const allowed = process.env.ALLOWED_ORIGIN || process.env.ALLOWED_ORIGINS || ''
-  const origin = allowed || (process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : '')
-  if (origin) {
-    res.setHeader('Access-Control-Allow-Origin', origin)
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, PATCH, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+function setCors(req, res) {
+  applyCors(req, res, 'GET, PATCH, OPTIONS')
 }
 
 export default async function handler(req, res) {
   const debug = process.env.DEBUG_ADMIN === 'true'
-  setCors(res)
+  setCors(req, res)
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end()

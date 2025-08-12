@@ -2,6 +2,7 @@ export const runtime = 'nodejs'
 
 import { getDb } from '../../lib/db.js'
 import { requireAuth } from '../../lib/auth.js'
+import { applyCors } from '../../lib/cors.js'
 import { findOrCreateModel, ensureModelIndexes, updateModelFields } from '../../lib/model-utils.js'
 
 export default async function handler(req, res) {
@@ -13,14 +14,8 @@ export default async function handler(req, res) {
     console.log('[DEBUG_ADMIN] Query:', req.query)
   }
   
-  // Set CORS headers first (restrict to configured origin if provided)
-  const allowed = process.env.ALLOWED_ORIGIN || process.env.ALLOWED_ORIGINS || ''
-  const origin = allowed || (process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : '')
-  if (origin) {
-    res.setHeader('Access-Control-Allow-Origin', origin)
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'DELETE, PATCH, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  // CORS
+  applyCors(req, res, 'DELETE, PATCH, POST, OPTIONS')
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
