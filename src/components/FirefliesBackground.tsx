@@ -151,8 +151,8 @@ export default function FirefliesBackground(props: FirefliesProps) {
         vy: (Math.random() * 2 - 1) * 0.1,
         r,
         twPhase: Math.random() * Math.PI * 2,
-        // 7-10s twinkle period (de-synced), scaled by speed prop
-        twSpeed: (2 * Math.PI) / (7 + Math.random() * 3) * (0.9 + 0.2 * Math.random()),
+        // ~6s cycle (4s on, 2s off) with slight per-fly variance
+        twSpeed: (2 * Math.PI) / (6 + (Math.random() * 0.8 - 0.4)),
         biasX: 0,
         biasY: 0,
         layer: Math.random() // 0..1 for per-fly parallax depth
@@ -282,12 +282,12 @@ export default function FirefliesBackground(props: FirefliesProps) {
     if (trails) {
       // semi-transparent fill to create subtle motion trails
       ctx.globalCompositeOperation = 'source-over'
-      // darker smear on dark theme, lighter on light theme
+      // extremely subtle: nearly no trail
       if (theme === 'dark') {
-        ctx.globalAlpha = 0.08
+        ctx.globalAlpha = 0.02
         ctx.fillStyle = 'rgba(8, 18, 28, 1)'
       } else {
-        ctx.globalAlpha = 0.06
+        ctx.globalAlpha = 0.015
         ctx.fillStyle = 'rgba(246, 247, 249, 1)'
       }
       ctx.fillRect(0, 0, w, h)
@@ -297,9 +297,12 @@ export default function FirefliesBackground(props: FirefliesProps) {
 
     for (let i = 0; i < flies.length; i++) {
       const f = flies[i]
-      const baseAlpha = theme === 'dark' ? 0.75 : 0.6
-      // twinkle like fireflies: slow on/off, de-synced per-fly
-      const pulse = twinkle ? 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(f.twPhase + i * 0.37)) : 1
+      const baseAlpha = theme === 'dark' ? 0.8 : 0.65
+      // Firefly pattern: bias toward visible (~4s) then quick fade (~2s)
+      // Use a rectified sine (half-wave) to create an off period
+      const s = Math.sin(f.twPhase + i * 0.37)
+      const rectified = Math.max(0, s) // negative half is 0 (off)
+      const pulse = twinkle ? (0.2 + 0.8 * rectified) : 1
       const alpha = baseAlpha * pulse
 
       // soft radial glow
