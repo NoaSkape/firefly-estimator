@@ -39,7 +39,7 @@ export default function FirefliesBackground(props: FirefliesProps) {
     maxSize = 2.2,
     color,
     twinkle = true,
-    trails = true,
+    trails = false,
     parallax = 0.2,
     speed = 1,
     wind = null,
@@ -279,21 +279,8 @@ export default function FirefliesBackground(props: FirefliesProps) {
     const { w, h } = viewportRef.current
 
     const theme = getTheme()
-    if (trails) {
-      // semi-transparent fill to create subtle motion trails
-      ctx.globalCompositeOperation = 'source-over'
-      // extremely subtle: nearly no trail
-      if (theme === 'dark') {
-        ctx.globalAlpha = 0.02
-        ctx.fillStyle = 'rgba(8, 18, 28, 1)'
-      } else {
-        ctx.globalAlpha = 0.015
-        ctx.fillStyle = 'rgba(246, 247, 249, 1)'
-      }
-      ctx.fillRect(0, 0, w, h)
-    } else {
-      ctx.clearRect(0, 0, w, h)
-    }
+    // No trails requested → clear fully each frame
+    ctx.clearRect(0, 0, w, h)
 
     for (let i = 0; i < flies.length; i++) {
       const f = flies[i]
