@@ -164,8 +164,10 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
         console.log('[DEBUG_ADMIN] Cloudinary upload success', { public_id: uploaded.public_id, url: uploaded.secure_url })
       }
 
-      // Save into DB using images endpoint (must include Authorization)
-      const imagesUrl = `/api/models/images?modelCode=${idParam}`
+		// Save into DB using images endpoint (must include Authorization)
+		const imagesUrl = model?._id
+			? `/api/models/images?modelId=${encodeURIComponent(model._id)}`
+			: `/api/models/images?modelCode=${encodeURIComponent(idParam)}`
       if (debug) {
         const maskedAuth = headers.Authorization ? `${headers.Authorization.slice(0, 13)}...${headers.Authorization.slice(-6)}` : undefined
         console.log('[DEBUG_ADMIN] Persist image metadata', { method: 'PATCH', url: imagesUrl, headers: { ...headers, Authorization: maskedAuth } })
@@ -212,7 +214,10 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
       }
       if (!token) { alert('No Clerk token from getToken(). Are you signed in?'); return }
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
-      const res = await fetch(`/api/models/images?modelCode=${idParam}&publicId=${encodeURIComponent(publicId)}`, {
+		const idQuery = model?._id
+			? `modelId=${encodeURIComponent(model._id)}`
+			: `modelCode=${encodeURIComponent(idParam)}`
+		const res = await fetch(`/api/models/images?${idQuery}&publicId=${encodeURIComponent(publicId)}`, {
         method: 'DELETE',
         headers
       })
@@ -270,7 +275,9 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
       }
       if (!token) { alert('No Clerk token from getToken(). Are you signed in?'); return }
       const headers = token ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } : { 'Content-Type': 'application/json' }
-      const url = `/api/models/images?modelCode=${idParam}`
+		const url = model?._id
+			? `/api/models/images?modelId=${encodeURIComponent(model._id)}`
+			: `/api/models/images?modelCode=${encodeURIComponent(idParam)}`
       if (debug) {
         const maskedAuth = headers.Authorization ? `${headers.Authorization.slice(0, 13)}...${headers.Authorization.slice(-6)}` : undefined
         console.log('[DEBUG_ADMIN] Request', { method: 'PATCH', url, headers: { ...headers, Authorization: maskedAuth }, body })
