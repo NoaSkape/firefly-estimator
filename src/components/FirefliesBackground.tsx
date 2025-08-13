@@ -332,7 +332,7 @@ export default function FirefliesBackground(props: FirefliesProps) {
   return (
     <canvas
       ref={canvasRef}
-      className={`fixed inset-0 -z-10 pointer-events-none ${className || ''}`}
+      className={`fixed inset-0 z-0 pointer-events-none ${className || ''}`}
       aria-hidden="true"
     />
   )

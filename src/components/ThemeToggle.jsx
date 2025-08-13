@@ -7,10 +7,12 @@ export default function ThemeToggle() {
     const html = document.documentElement
     if (dark) {
       html.setAttribute('data-theme', 'dark')
-      document.body.classList.remove('bg-gray-50', 'text-gray-900')
+      document.body.style.backgroundColor = 'rgb(8,18,28)'
+      document.body.style.color = 'rgb(243,244,246)'
     } else {
       html.setAttribute('data-theme', 'light')
-      document.body.classList.add('bg-gray-50', 'text-gray-900')
+      document.body.style.backgroundColor = 'rgb(248,249,250)'
+      document.body.style.color = '#111827'
     }
   }, [dark])
 

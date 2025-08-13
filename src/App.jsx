@@ -42,7 +42,7 @@ function App() {
   return (
     <ErrorBoundary>
       <Router>
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-[rgb(8,18,28)] text-gray-100 transition-colors duration-300" data-app-container>
           {/* Animated background (behind all content) */}
           <FirefliesBackground density={0.14} color="#FFD86B" parallax={0.25} />
           <header className="bg-gray-900/50 border-b border-gray-800 backdrop-blur-sm">
