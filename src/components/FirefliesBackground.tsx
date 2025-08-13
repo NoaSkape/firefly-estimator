@@ -30,6 +30,9 @@ type Fly = {
   orbitRadius: number
   dirAngle: number
   cruiseBase: number
+  orbitBase: number
+  phaseA: number
+  phaseB: number
 }
 
 /**
@@ -56,6 +59,7 @@ export default function FirefliesBackground(props: FirefliesProps) {
   const rafRef = useRef<number | null>(null)
   const fliesRef = useRef<Fly[]>([])
   const lastTimeRef = useRef<number>(0)
+  const timeRef = useRef<number>(0)
   const dprRef = useRef<number>(1)
   const viewportRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 })
   const mouseRef = useRef<{ x: number; y: number }>({ x: 0.5, y: 0.5 })
@@ -167,7 +171,10 @@ export default function FirefliesBackground(props: FirefliesProps) {
         orbitRadius: 8 + Math.random() * 20,
         dirAngle: Math.random() * Math.PI * 2,
         // cruise speed ~ 1 inch/sec +/- 0.5 inch/sec
-        cruiseBase: INCH * (0.5 + Math.random())
+        cruiseBase: INCH * (0.5 + Math.random()),
+        orbitBase: 8 + Math.random() * 20,
+        phaseA: Math.random() * Math.PI * 2,
+        phaseB: Math.random() * Math.PI * 2
       })
     }
     fliesRef.current = flies
@@ -197,6 +204,7 @@ export default function FirefliesBackground(props: FirefliesProps) {
       // safety clamp
       dt = Math.max(0, Math.min(dt, 0.033))
       lastTimeRef.current = t
+      timeRef.current += dt
 
       update(dt)
       draw(ctx, dt)
@@ -232,13 +240,17 @@ export default function FirefliesBackground(props: FirefliesProps) {
     // gentle global parallax drift offset for all flies
     const px = (mx - 0.5) * (parallax * 20)
     const py = (my - 0.5) * (parallax * 20)
+    const gt = timeRef.current
 
     for (let i = 0; i < flies.length; i++) {
       const f = flies[i]
 
       // Smooth tiny heading jitter, not velocity explosion
-      const headingJitter = (Math.random() * 2 - 1) * 0.4 * dt // radians
+      const headingJitter = (Math.random() * 2 - 1) * 0.25 * dt // radians (small)
       f.dirAngle += headingJitter
+      // Flow-field swirl for more turns/spirals
+      const swirl = Math.sin(gt * 0.6 + f.phaseA) * 0.4 + Math.cos(gt * 0.35 + f.phaseB) * 0.4
+      f.dirAngle += swirl * 0.15 * dt
 
       // Occasional ease toward a random point (approx. every few seconds)
       if (Math.random() < 0.002) {
@@ -277,6 +289,8 @@ export default function FirefliesBackground(props: FirefliesProps) {
 
       // whimsical loops: subtle orbit offset added to position
       f.orbitAngle += dt * f.orbitSpeed * 0.35
+      // gently vary orbit radius over time
+      f.orbitRadius = f.orbitBase * (0.75 + 0.25 * (0.5 + 0.5 * Math.sin(gt * 0.5 + f.phaseB)))
       const ox = Math.cos(f.orbitAngle) * f.orbitRadius
       const oy = Math.sin(f.orbitAngle) * f.orbitRadius
 
@@ -305,12 +319,10 @@ export default function FirefliesBackground(props: FirefliesProps) {
     for (let i = 0; i < flies.length; i++) {
       const f = flies[i]
       const baseAlpha = theme === 'dark' ? 0.85 : 0.7
-      // Hold bright most of the time, quick fades at edges
-      // Map sin to [0,1], then apply a sharp sigmoid to compress mid-range
+      // Smooth blink (no abrupt extra disappear): cosine easing between phases
       const s = 0.5 + 0.5 * Math.sin(f.twPhase + i * 0.37)
-      const sharp = smoothStepSharp(s, 0.1) // near 1 for most of the "on" half, drops fast
-      const offMask = s > 0.5 ? 1 : 0 // quick off on the negative half
-      const pulse = twinkle ? (offMask * sharp) : 1
+      const ease = 0.5 - 0.5 * Math.cos(Math.PI * s) // 0..1 smooth
+      const pulse = twinkle ? ease : 1
       const alpha = baseAlpha * pulse
 
       // soft radial glow
