@@ -19,8 +19,9 @@ export default function ThemeToggle() {
       onClick={() => setDark(v => !v)}
       className="ml-3 px-3 py-1 rounded-md text-sm bg-gray-800 text-gray-100 border border-gray-700 hover:bg-gray-700"
       title="Toggle theme"
+      aria-pressed={dark ? 'true' : 'false'}
     >
-      {dark ? 'Light' : 'Dark'}
+      {dark ? 'Dark' : 'Light'}
     </button>
   )
 }

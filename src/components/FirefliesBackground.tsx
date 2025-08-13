@@ -65,6 +65,8 @@ export default function FirefliesBackground(props: FirefliesProps) {
     return theme === 'dark' ? '#FFC94A' : '#FFE066'
   }, [color])
 
+  const getTheme = () => (document.documentElement.getAttribute('data-theme') || 'light')
+
   // Observe hover over model cards to bias nearby flies gently toward the hovered card
   useEffect(() => {
     const root = document
@@ -149,7 +151,8 @@ export default function FirefliesBackground(props: FirefliesProps) {
         vy: (Math.random() * 2 - 1) * 0.1,
         r,
         twPhase: Math.random() * Math.PI * 2,
-        twSpeed: 0.5 + Math.random() * 1.2,
+        // 7-10s twinkle period (de-synced), scaled by speed prop
+        twSpeed: (2 * Math.PI) / (7 + Math.random() * 3) * (0.9 + 0.2 * Math.random()),
         biasX: 0,
         biasY: 0,
         layer: Math.random() // 0..1 for per-fly parallax depth
@@ -194,10 +197,17 @@ export default function FirefliesBackground(props: FirefliesProps) {
       lastTimeRef.current = performance.now()
     }
     document.addEventListener('visibilitychange', onVisibility)
+    // Observe theme changes to adjust smear color without refresh
+    const themeObserver = new MutationObserver(() => {
+      // kick a frame so the smear color updates immediately
+      lastTimeRef.current = performance.now()
+    })
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
     return () => {
       running = false
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       document.removeEventListener('visibilitychange', onVisibility)
+      themeObserver.disconnect()
     }
   }, [paused, reducedMotion, trails, twinkle, speed, parallax, wind, glowColor])
 
@@ -268,12 +278,18 @@ export default function FirefliesBackground(props: FirefliesProps) {
     const flies = fliesRef.current
     const { w, h } = viewportRef.current
 
+    const theme = getTheme()
     if (trails) {
       // semi-transparent fill to create subtle motion trails
       ctx.globalCompositeOperation = 'source-over'
-      ctx.globalAlpha = 0.08
-      // very dark blue to feel like night, not pure black
-      ctx.fillStyle = 'rgba(8, 18, 28, 1)'
+      // darker smear on dark theme, lighter on light theme
+      if (theme === 'dark') {
+        ctx.globalAlpha = 0.08
+        ctx.fillStyle = 'rgba(8, 18, 28, 1)'
+      } else {
+        ctx.globalAlpha = 0.06
+        ctx.fillStyle = 'rgba(246, 247, 249, 1)'
+      }
       ctx.fillRect(0, 0, w, h)
     } else {
       ctx.clearRect(0, 0, w, h)
@@ -281,15 +297,15 @@ export default function FirefliesBackground(props: FirefliesProps) {
 
     for (let i = 0; i < flies.length; i++) {
       const f = flies[i]
-      const baseAlpha = 0.7
+      const baseAlpha = theme === 'dark' ? 0.75 : 0.6
       // twinkle like fireflies: slow on/off, de-synced per-fly
       const pulse = twinkle ? 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(f.twPhase + i * 0.37)) : 1
       const alpha = baseAlpha * pulse
 
       // soft radial glow
-      const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r * 6)
+      const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r * 7)
       g.addColorStop(0, `${hexToRgba(glowColor, Math.min(1, alpha))}`)
-      g.addColorStop(0.25, `${hexToRgba(glowColor, alpha * 0.7)}`)
+      g.addColorStop(0.25, `${hexToRgba(glowColor, alpha * 0.75)}`)
       g.addColorStop(1, `${hexToRgba(glowColor, 0)}`)
       ctx.globalAlpha = 1
       ctx.fillStyle = g
