@@ -35,7 +35,8 @@ export default async function handler(req, res) {
   try {
     await ensureModelIndexes();
   } catch (err) {
-    console.error('ensureModelIndexes error:', err?.message || err);
+    const debug = process.env.DEBUG_ADMIN === 'true'
+    if (debug) console.warn('[DEBUG_ADMIN] ensureModelIndexes error (continuing):', err?.message || err)
   }
   const model = await findOrCreateModel({ modelId, modelCode });
   if (!model?._id) return res.status(404).json({ error: 'Model not found' });
@@ -49,7 +50,7 @@ export default async function handler(req, res) {
     case 'POST':
       return handlePost(req, res, model, db);
     default:
-      return res.status(405).json({ error: 'Method not allowed' });
+      return res.status(405).json({ error: 'method_not_allowed' });
     }
   } catch (err) {
     console.error('[DEBUG_ADMIN] route models/images error', err?.message || err);

@@ -20,7 +20,7 @@ export default async function handler(req, res) {
   try {
     switch (req.method) {
       case 'GET':
-        await requireAuth(req, res, false)
+        // Public reads allowed; do not require token for GET
         return getModel(req, res, debug)
       case 'PATCH': {
         const auth = await requireAuth(req, res, true)
@@ -28,7 +28,7 @@ export default async function handler(req, res) {
         return patchModel(req, res, debug)
       }
       default:
-        return res.status(405).end()
+        return res.status(405).json({ error: 'method_not_allowed' })
     }
   } catch (err) {
     if (debug) console.error('[DEBUG_ADMIN] models/[code] error', err?.message || err)
@@ -81,7 +81,11 @@ async function patchModel(req, res, debug) {
   }
 
   const db = await getDb()
-  await ensureModelIndexes()
+  try {
+    await ensureModelIndexes()
+  } catch (e) {
+    if (debug) console.warn('[DEBUG_ADMIN] ensureModelIndexes error (continuing):', e?.message || e)
+  }
   const model = await findOrCreateModel({ modelCode: id })
   if (!model) return res.status(404).json({ error: 'Not found' })
   if (debug) {

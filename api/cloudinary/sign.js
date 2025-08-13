@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 export default async function handler(req, res) {
   applyCors(req, res, 'POST, OPTIONS')
   if (req.method === 'OPTIONS') return res.status(200).end()
-  if (req.method !== 'POST') return res.status(405).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
   const auth = await requireAuth(req, res, true);
   if (!auth?.userId) return; // auth already sent error
 
