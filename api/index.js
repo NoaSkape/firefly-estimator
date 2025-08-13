@@ -79,6 +79,11 @@ app.get(['/api/models/:code', '/models/:code'], async (req, res) => {
   }
 })
 
+// ----- Images routes (register BEFORE dynamic PATCH/PUT to avoid '/api/models/:code' capturing 'images') -----
+app.patch(['/api/models/images', '/models/images'], imagesEntry)
+app.post(['/api/models/images', '/models/images'], imagesEntry)
+app.delete(['/api/models/images', '/models/images'], imagesEntry)
+
 // ----- PATCH/PUT model -----
 async function handleModelWrite(req, res) {
   const debug = process.env.DEBUG_ADMIN === 'true'
@@ -133,7 +138,7 @@ app.put(['/api/models/:code', '/models/:code'], async (req, res) => {
   return handleModelWrite(req, res)
 })
 
-// ----- Images routes -----
+// ----- Images route handlers -----
 async function handleImagesPatch(req, res, model, db) {
   const debug = process.env.DEBUG_ADMIN === 'true'
   if (debug) console.log('[DEBUG_ADMIN] Handling PATCH request images')
