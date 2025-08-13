@@ -22,7 +22,8 @@ export default async function handler(req, res) {
       case 'GET':
         // Public reads allowed; do not require token for GET
         return getModel(req, res, debug)
-      case 'PATCH': {
+      case 'PATCH':
+      case 'PUT': {
         const auth = await requireAuth(req, res, true)
         if (!auth?.userId) return
         return patchModel(req, res, debug)

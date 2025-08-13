@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 
 const uri = process.env.MONGODB_URI;
-console.log('Testing URI:', !!uri); // quick proof it ran
 if (!uri) {
   console.error('MONGODB_URI is not set');
   process.exit(1);
@@ -17,3 +16,4 @@ if (!uri) {
     process.exit(1);
   }
 })();
+    
