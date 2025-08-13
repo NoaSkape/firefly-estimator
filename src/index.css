@@ -9,8 +9,7 @@
   }
   
   body {
-    @apply text-gray-100;
-    background-color: rgb(8,18,28); /* dark baseline */
+    @apply text-gray-900 bg-gray-50;
   }
 }
 
@@ -24,7 +23,7 @@
   }
   
   .card {
-    @apply bg-gray-800/60 rounded-lg shadow border border-gray-700 p-6 backdrop-blur-sm;
+    @apply rounded-lg shadow border p-6 backdrop-blur-sm;
   }
   
   .input-field {
@@ -35,3 +34,15 @@
     @apply text-xl font-semibold text-gray-100 mb-4;
   }
 }
+
+/* Theme tokens applied via [data-theme] attribute */
+[data-theme="dark"] body, body[data-theme="dark"] {
+  color: #E5E7EB; /* text-gray-200 */
+  background-color: rgb(8,18,28);
+}
+
+[data-theme="dark"] .card { @apply bg-gray-800/60 border-gray-700; }
+[data-theme="light"] .card { @apply bg-white border-gray-200; }
+
+[data-theme="dark"] .input-field { @apply bg-gray-800 border-gray-700 text-gray-100; }
+[data-theme="light"] .input-field { @apply bg-white border-gray-300 text-gray-900; }

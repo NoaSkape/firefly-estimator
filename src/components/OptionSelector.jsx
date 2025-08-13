@@ -30,12 +30,12 @@ const OptionSelector = ({ options, selectedItems, onSelectionChange }) => {
   return (
     <div className="space-y-4">
       {options.map((category) => (
-        <div key={category.subject} className="border border-gray-200 rounded-lg overflow-hidden">
+        <div key={category.subject} className="border rounded-lg overflow-hidden bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100 border-gray-200 dark:border-gray-700">
           {/* Subject Header - Clickable Accordion Trigger */}
           <button
             type="button"
             onClick={() => toggleSubject(category.subject)}
-            className="w-full bg-gray-100 px-4 py-2 font-semibold text-left hover:bg-gray-200 transition-colors duration-200 flex justify-between items-center"
+            className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2 font-semibold text-left hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 flex justify-between items-center"
           >
             <span>{category.subject}</span>
             <span className="text-gray-500">
@@ -52,14 +52,14 @@ const OptionSelector = ({ options, selectedItems, onSelectionChange }) => {
                     type="checkbox"
                     checked={isSelected(option)}
                     onChange={() => handleOptionToggle(option, category.subject)}
-                    className="mt-1 h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    className="mt-1 h-4 w-4 text-yellow-500 border-gray-300 dark:border-gray-600 rounded focus:ring-yellow-500"
                   />
                   <div className="flex-1">
-                    <div className={`font-medium ${option.isPackage ? 'text-blue-600' : 'text-gray-900'}`}>
+                    <div className={`font-medium ${option.isPackage ? 'text-blue-600' : 'text-gray-900 dark:text-gray-100'}`}>
                       {option.name} - ${option.price.toLocaleString()}
                     </div>
                     {option.description && (
-                      <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded mt-1">
+                      <div className="text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 p-2 rounded mt-1">
                         {option.description}
                       </div>
                     )}
