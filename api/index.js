@@ -1,7 +1,6 @@
 export const runtime = 'nodejs'
 
 import express from 'express'
-import serverless from 'serverless-http'
 import { createHash } from 'node:crypto'
 
 import { getDb } from '../lib/db.js'
@@ -36,6 +35,17 @@ app.use((req, _res, next) => {
 app.use((req, res, next) => {
   applyCors(req, res, 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
   if (req.method === 'OPTIONS') return res.status(200).end()
+  next()
+})
+
+// Handle explicit rewrite target /api/index?path=/...
+app.use('/api/index', (req, _res, next) => {
+  const p = (req.query && (req.query.path || req.query.p)) || null
+  const debug = process.env.DEBUG_ADMIN === 'true'
+  if (p) {
+    req.url = String(p).startsWith('/') ? String(p) : `/${String(p)}`
+    if (debug) console.log('[DEBUG_ADMIN] rewrite middleware set url from query', req.url)
+  }
   next()
 })
 
@@ -291,6 +301,13 @@ app.post(['/api/cloudinary/sign', '/cloudinary/sign'], async (req, res) => {
     console.error('Cloudinary sign error', err)
     res.status(500).json({ error: 'sign_error', message: String(err?.message || err) })
   }
+})
+
+// Fallback to JSON 404 to avoid hanging requests
+app.use((req, res) => {
+  const debug = process.env.DEBUG_ADMIN === 'true'
+  if (debug) console.log('[DEBUG_ADMIN] 404', { method: req.method, url: req.url })
+  res.status(404).json({ error: 'not_found', url: req.url })
 })
 
 // Vercel Node.js functions expect (req, res). Call Express directly.
