@@ -293,7 +293,7 @@ app.post(['/api/cloudinary/sign', '/cloudinary/sign'], async (req, res) => {
   }
 })
 
-// Export wrapped app for Vercel
-export default serverless(app)
+// Vercel Node.js functions expect (req, res). Call Express directly.
+export default (req, res) => app(req, res)
 
 
