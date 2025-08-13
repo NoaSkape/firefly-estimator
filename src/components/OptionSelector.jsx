@@ -30,15 +30,18 @@ const OptionSelector = ({ options, selectedItems, onSelectionChange }) => {
   return (
     <div className="space-y-4">
       {options.map((category) => (
-        <div key={category.subject} className="border rounded-lg overflow-hidden bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100 border-gray-200 dark:border-gray-700">
+        <div
+          key={category.subject}
+          className="border rounded-lg overflow-hidden bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100 border-gray-200 dark:border-gray-700 shadow backdrop-blur-sm transition-colors hover:border-yellow-500/40"
+        >
           {/* Subject Header - Clickable Accordion Trigger */}
           <button
             type="button"
             onClick={() => toggleSubject(category.subject)}
-            className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2 font-semibold text-left hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 flex justify-between items-center"
+            className="w-full px-4 py-3 font-semibold text-left transition-colors duration-200 flex justify-between items-center bg-transparent text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700"
           >
             <span>{category.subject}</span>
-            <span className="text-gray-500">
+            <span className="text-gray-500 dark:text-gray-400">
               {expandedSubjects.has(category.subject) ? '▾' : '▸'}
             </span>
           </button>
