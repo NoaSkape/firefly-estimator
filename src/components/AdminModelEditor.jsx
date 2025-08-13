@@ -29,6 +29,27 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
   const [imageTag, setImageTag] = useState('gallery')
   const dragIndexRef = useRef(null)
 
+	// Safely build images endpoint with both modelId and modelCode to avoid mismatches
+	const buildImagesEndpoint = useCallback(() => {
+		const coerceId = (val) => {
+			if (!val) return null
+			if (typeof val === 'string') return val
+			if (typeof val === 'object') {
+				if (typeof val.$oid === 'string') return val.$oid
+				const asStr = String(val)
+				// Only accept if it looks like a hex ObjectId
+				return /^[a-fA-F0-9]{24}$/.test(asStr) ? asStr : null
+			}
+			const asStr = String(val)
+			return /^[a-fA-F0-9]{24}$/.test(asStr) ? asStr : null
+		}
+		const modelIdStr = coerceId(model?._id)
+		const params = new URLSearchParams()
+		if (modelIdStr) params.set('modelId', modelIdStr)
+		if (idParam) params.set('modelCode', String(idParam))
+		return `/api/models/images?${params.toString()}`
+	}, [model?._id, idParam])
+
   const handleSave = async () => {
     try {
       setSaving(true)
@@ -165,9 +186,7 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
       }
 
 		// Save into DB using images endpoint (must include Authorization)
-		const imagesUrl = model?._id
-			? `/api/models/images?modelId=${encodeURIComponent(model._id)}`
-			: `/api/models/images?modelCode=${encodeURIComponent(idParam)}`
+		const imagesUrl = buildImagesEndpoint()
       if (debug) {
         const maskedAuth = headers.Authorization ? `${headers.Authorization.slice(0, 13)}...${headers.Authorization.slice(-6)}` : undefined
         console.log('[DEBUG_ADMIN] Persist image metadata', { method: 'PATCH', url: imagesUrl, headers: { ...headers, Authorization: maskedAuth } })
@@ -214,10 +233,9 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
       }
       if (!token) { alert('No Clerk token from getToken(). Are you signed in?'); return }
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
-		const idQuery = model?._id
-			? `modelId=${encodeURIComponent(model._id)}`
-			: `modelCode=${encodeURIComponent(idParam)}`
-		const res = await fetch(`/api/models/images?${idQuery}&publicId=${encodeURIComponent(publicId)}`, {
+		const baseUrl = buildImagesEndpoint()
+		const sep = baseUrl.includes('?') ? '&' : '?'
+		const res = await fetch(`${baseUrl}${sep}publicId=${encodeURIComponent(publicId)}`, {
         method: 'DELETE',
         headers
       })
@@ -275,9 +293,7 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
       }
       if (!token) { alert('No Clerk token from getToken(). Are you signed in?'); return }
       const headers = token ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } : { 'Content-Type': 'application/json' }
-		const url = model?._id
-			? `/api/models/images?modelId=${encodeURIComponent(model._id)}`
-			: `/api/models/images?modelCode=${encodeURIComponent(idParam)}`
+		const url = buildImagesEndpoint()
       if (debug) {
         const maskedAuth = headers.Authorization ? `${headers.Authorization.slice(0, 13)}...${headers.Authorization.slice(-6)}` : undefined
         console.log('[DEBUG_ADMIN] Request', { method: 'PATCH', url, headers: { ...headers, Authorization: maskedAuth }, body })
