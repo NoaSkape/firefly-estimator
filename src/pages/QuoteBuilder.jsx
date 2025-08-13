@@ -11,22 +11,61 @@ import { generatePDF } from '../utils/generatePDF'
 const QuoteBuilder = () => {
   // Component State
   const [selectedModel, setSelectedModel] = useState(null)
+  const [allModels, setAllModels] = useState(MODELS)
   const [selectedOptions, setSelectedOptions] = useState([])
   const [clientInfo, setClientInfo] = useState({})
   const [deliveryFee, setDeliveryFee] = useState(0)
   const [searchParams] = useSearchParams()
   const taxRate = parseFloat(import.meta.env.VITE_TAX_RATE) || 0.08 // Default 8% tax rate
 
-  // Check for initial model selection from URL or detail page
+  // Load latest model data from API and merge over local definitions
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      const local = MODELS.map(m => ({ ...m }))
+      setAllModels(local)
+      try {
+        const responses = await Promise.all(local.map(m => fetch(`/api/models/${m.id}`)))
+        const apiModels = await Promise.all(responses.map(r => (r.ok ? r.json() : null)))
+        const merged = local.map((m, i) => {
+          const api = apiModels[i]
+          if (!api) return m
+          return {
+            ...m,
+            // prefer API values where available
+            name: api.name || m.name,
+            description: api.description ?? m.description,
+            basePrice: typeof api.basePrice === 'number' ? api.basePrice : m.basePrice,
+            width: api.width ?? m.specs?.width ?? m.width,
+            length: api.length ?? m.specs?.length ?? m.length,
+            height: api.height ?? m.specs?.height ?? m.height,
+            weight: api.weight ?? m.specs?.weight ?? m.weight,
+            bedrooms: api.bedrooms ?? m.specs?.bedrooms ?? m.bedrooms,
+            bathrooms: api.bathrooms ?? m.specs?.bathrooms ?? m.bathrooms,
+            squareFeet: api.squareFeet ?? m.specs?.squareFeet ?? m.squareFeet,
+            images: Array.isArray(api.images) ? api.images : [],
+            subtitle: api.modelCode || m.subtitle,
+          }
+        })
+        if (!cancelled) setAllModels(merged)
+      } catch (_) {
+        // ignore; fall back to local models
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
+
+  // Check for initial model selection from URL or detail page, using enriched models
   useEffect(() => {
     const modelId = searchParams.get('model')
     if (modelId && !selectedModel) {
-      const model = MODELS.find(m => m.id === modelId)
+      const model = allModels.find(m => m.id === modelId)
       if (model) {
         setSelectedModel(model)
       }
     }
-  }, [searchParams, selectedModel])
+  }, [searchParams, selectedModel, allModels])
 
   // Calculate delivery fee when ZIP code changes
   useEffect(() => {
@@ -39,7 +78,7 @@ const QuoteBuilder = () => {
 
   // Handle model selection
   const handleModelSelect = (modelId) => {
-    const model = MODELS.find(m => m.id === modelId)
+    const model = allModels.find(m => m.id === modelId)
     setSelectedModel(model)
     // Reset options & fees when model changes
     setSelectedOptions([])
@@ -75,7 +114,7 @@ const QuoteBuilder = () => {
         <div className="card">
           <h2 className="section-header">Select Base Model</h2>
           <ModelSelector
-            models={MODELS}
+            models={allModels}
             value={selectedModel?.id || ''}
             onChange={handleModelSelect}
           />

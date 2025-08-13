@@ -29,6 +29,14 @@ const ModelSelector = ({ models, value, onChange }) => {
           }`}
         >
           <div className="text-center">
+            {/* Main image (primary or first) */}
+            {Array.isArray(model.images) && model.images.length > 0 && (
+              <img
+                src={(model.images.find(i => i.isPrimary)?.url) || model.images[0]?.url}
+                alt={model.name}
+                className="w-full h-40 object-cover rounded mb-3"
+              />
+            )}
             <h3 
               className="font-semibold text-lg text-gray-900 mb-1 hover:text-primary-600 transition-colors duration-200"
               onClick={(e) => handleModelNameClick(e, model)}
@@ -44,21 +52,21 @@ const ModelSelector = ({ models, value, onChange }) => {
             </p>
             
             <div className="text-2xl font-bold text-primary-600 mb-3">
-              ${model.basePrice.toLocaleString()}
+              ${Number(model.basePrice || 0).toLocaleString()}
             </div>
             
             <div className="space-y-1 text-xs text-gray-500">
-              <div>Length: {model.specs?.length || model.length}</div>
-              <div>Width: {model.specs?.width || model.width}</div>
-              <div>Height: {model.specs?.height || model.height}</div>
-              <div>Weight: {model.specs?.weight || model.weight}</div>
+              <div>Length: {model.length || model.specs?.length}</div>
+              <div>Width: {model.width || model.specs?.width}</div>
+              <div>Height: {model.height || model.specs?.height}</div>
+              <div>Weight: {model.weight || model.specs?.weight}</div>
               <div>
-                {model.specs?.bedrooms ?? model.bedrooms} Bedroom
-                {(model.specs?.bedrooms ?? model.bedrooms) !== 1 ? 's' : ''}
+                {(model.bedrooms ?? model.specs?.bedrooms) || 0} Bedroom
+                {((model.bedrooms ?? model.specs?.bedrooms) || 0) !== 1 ? 's' : ''}
               </div>
               <div>
-                {model.specs?.bathrooms ?? model.bathrooms} Bathroom
-                {(model.specs?.bathrooms ?? model.bathrooms) !== 1 ? 's' : ''}
+                {(model.bathrooms ?? model.specs?.bathrooms) || 0} Bathroom
+                {((model.bathrooms ?? model.specs?.bathrooms) || 0) !== 1 ? 's' : ''}
               </div>
             </div>
           </div>
