@@ -15,6 +15,8 @@ app.use(express.json({ limit: '2mb' }))
 
 // Preserve original path for deployments that rewrite to /api/index
 app.use((req, _res, next) => {
+  const debug = process.env.DEBUG_ADMIN === 'true'
+  if (debug) console.log('[DEBUG_ADMIN] incoming', { method: req.method, url: req.url })
   try {
     const host = req.headers.host || 'localhost'
     const url = new URL(req.url, `http://${host}`)
@@ -26,6 +28,7 @@ app.use((req, _res, next) => {
       if (p) req.url = p.startsWith('/') ? p : `/${p}`
     }
   } catch {}
+  if (debug) console.log('[DEBUG_ADMIN] normalized', { method: req.method, url: req.url })
   next()
 })
 
@@ -290,6 +293,7 @@ app.post(['/api/cloudinary/sign', '/cloudinary/sign'], async (req, res) => {
   }
 })
 
+// Export wrapped app for Vercel
 export default serverless(app)
 
 
