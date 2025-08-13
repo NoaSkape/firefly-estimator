@@ -28,6 +28,8 @@ type Fly = {
   orbitAngle: number
   orbitSpeed: number
   orbitRadius: number
+  dirAngle: number
+  cruiseBase: number
 }
 
 /**
@@ -44,7 +46,7 @@ export default function FirefliesBackground(props: FirefliesProps) {
     twinkle = true,
     trails = false,
     parallax = 0.2,
-    speed = 0.6,
+    speed = 1,
     wind = null,
     paused = false,
     className = ''
@@ -145,6 +147,7 @@ export default function FirefliesBackground(props: FirefliesProps) {
     const count = Math.max(6, Math.floor((area / 100000) * effectiveDensity))
 
     const flies: Fly[] = []
+    const INCH = 96 // CSS pixels per inch
     for (let i = 0; i < count; i++) {
       const r = 0.8 + Math.random() * (maxSize - 0.8)
       flies.push({
@@ -161,7 +164,10 @@ export default function FirefliesBackground(props: FirefliesProps) {
         layer: Math.random(), // 0..1 for per-fly parallax depth
         orbitAngle: Math.random() * Math.PI * 2,
         orbitSpeed: 0.8 + Math.random() * 0.6, // radians/sec scaled below
-        orbitRadius: 8 + Math.random() * 20
+        orbitRadius: 8 + Math.random() * 20,
+        dirAngle: Math.random() * Math.PI * 2,
+        // cruise speed ~ 1 inch/sec +/- 0.5 inch/sec
+        cruiseBase: INCH * (0.5 + Math.random())
       })
     }
     fliesRef.current = flies
@@ -230,9 +236,9 @@ export default function FirefliesBackground(props: FirefliesProps) {
     for (let i = 0; i < flies.length; i++) {
       const f = flies[i]
 
-      // Smooth random wandering via tiny accelerations (slower)
-      const jitterX = (Math.random() * 2 - 1) * 0.01
-      const jitterY = (Math.random() * 2 - 1) * 0.01
+      // Smooth tiny heading jitter, not velocity explosion
+      const headingJitter = (Math.random() * 2 - 1) * 0.4 * dt // radians
+      f.dirAngle += headingJitter
 
       // Occasional ease toward a random point (approx. every few seconds)
       if (Math.random() < 0.002) {
@@ -255,24 +261,27 @@ export default function FirefliesBackground(props: FirefliesProps) {
       const dxb = f.biasX ? (f.biasX - f.x) : 0
       const dyb = f.biasY ? (f.biasY - f.y) : 0
       const distb = Math.max(1, Math.hypot(dxb, dyb))
-      const bx = (dxb / distb) * 0.2
-      const by = (dyb / distb) * 0.2
+      const bx = (dxb / distb) * 0.15
+      const by = (dyb / distb) * 0.15
 
-      // base velocity
-      f.vx += (jitterX + bx + gx + (wind?.x || 0) * 0.01) * speed
-      f.vy += (jitterY + by + gy + (wind?.y || 0) * 0.01) * speed
+      // consistent cruise velocity toward current heading with mild bias forces
+      const targetVx = Math.cos(f.dirAngle) * f.cruiseBase
+      const targetVy = Math.sin(f.dirAngle) * f.cruiseBase
+      // adjust heading slightly toward waypoint and hover target
+      f.vx += ((targetVx - f.vx) * 0.15 + (bx + gx + (wind?.x || 0) * 0.01) * 30) * dt
+      f.vy += ((targetVy - f.vy) * 0.15 + (by + gy + (wind?.y || 0) * 0.01) * 30) * dt
 
       // mild damping keeps velocities bounded
-      f.vx *= 0.99
-      f.vy *= 0.99
+      f.vx *= 0.995
+      f.vy *= 0.995
 
-      // whimsical loops: small local orbit
-      f.orbitAngle += dt * f.orbitSpeed * 0.4
+      // whimsical loops: subtle orbit offset added to position
+      f.orbitAngle += dt * f.orbitSpeed * 0.35
       const ox = Math.cos(f.orbitAngle) * f.orbitRadius
       const oy = Math.sin(f.orbitAngle) * f.orbitRadius
 
-      f.x += f.vx + ox * 0.02 + px * (0.15 + f.layer * 0.5)
-      f.y += f.vy + oy * 0.02 + py * (0.15 + f.layer * 0.5)
+      f.x += (f.vx * dt) + ox * 0.02 + px * (0.15 + f.layer * 0.5)
+      f.y += (f.vy * dt) + oy * 0.02 + py * (0.15 + f.layer * 0.5)
 
       // wrap bounds for continuous field
       if (f.x < -20) f.x = w + 20
