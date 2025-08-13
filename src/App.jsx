@@ -9,6 +9,7 @@ import { testModelUrls, generateModelSitemap } from './utils/testModelUrls'
 import { verifyImplementation } from './utils/verifyImplementation'
 import ErrorBoundary from './components/ErrorBoundary'
 import FirefliesBackground from './components/FirefliesBackground'
+import ThemeToggle from './components/ThemeToggle'
 import './App.css'
 
 function App() {
@@ -44,14 +45,14 @@ function App() {
         <div className="min-h-screen bg-gray-50">
           {/* Animated background (behind all content) */}
           <FirefliesBackground density={0.14} color="#FFD86B" parallax={0.25} />
-          <header className="bg-white shadow-sm border-b border-gray-200">
+          <header className="bg-gray-900/50 border-b border-gray-800 backdrop-blur-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between items-center py-4">
                 <div className="flex items-center">
-                  <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center mr-3">
-                    <span className="text-white font-bold text-sm">F</span>
+                  <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center mr-3">
+                    <span className="text-gray-900 font-bold text-sm">F</span>
                   </div>
-                  <h1 className="text-xl font-semibold text-gray-900">
+                  <h1 className="text-xl font-semibold text-gray-100">
                     Firefly Estimator
                   </h1>
                 </div>
@@ -60,10 +61,11 @@ function App() {
                     appearance={{
                       elements: {
                         userButtonAvatarBox: 'w-8 h-8',
-                        userButtonTrigger: 'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2'
+                        userButtonTrigger: 'focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2'
                       }
                     }}
                   />
+                  <ThemeToggle />
                 </div>
               </div>
             </div>

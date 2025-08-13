@@ -271,8 +271,9 @@ export default function FirefliesBackground(props: FirefliesProps) {
     if (trails) {
       // semi-transparent fill to create subtle motion trails
       ctx.globalCompositeOperation = 'source-over'
-      ctx.globalAlpha = 0.1
-      ctx.fillStyle = '#000000'
+      ctx.globalAlpha = 0.08
+      // very dark blue to feel like night, not pure black
+      ctx.fillStyle = 'rgba(8, 18, 28, 1)'
       ctx.fillRect(0, 0, w, h)
     } else {
       ctx.clearRect(0, 0, w, h)
@@ -280,14 +281,15 @@ export default function FirefliesBackground(props: FirefliesProps) {
 
     for (let i = 0; i < flies.length; i++) {
       const f = flies[i]
-      const baseAlpha = 0.6
-      const pulse = twinkle ? 0.5 + 0.5 * Math.sin(f.twPhase + i) : 1
+      const baseAlpha = 0.7
+      // twinkle like fireflies: slow on/off, de-synced per-fly
+      const pulse = twinkle ? 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(f.twPhase + i * 0.37)) : 1
       const alpha = baseAlpha * pulse
 
       // soft radial glow
       const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r * 6)
       g.addColorStop(0, `${hexToRgba(glowColor, Math.min(1, alpha))}`)
-      g.addColorStop(0.3, `${hexToRgba(glowColor, alpha * 0.6)}`)
+      g.addColorStop(0.25, `${hexToRgba(glowColor, alpha * 0.7)}`)
       g.addColorStop(1, `${hexToRgba(glowColor, 0)}`)
       ctx.globalAlpha = 1
       ctx.fillStyle = g

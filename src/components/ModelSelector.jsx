@@ -22,10 +22,8 @@ const ModelSelector = ({ models, value, onChange }) => {
         <div
           key={model.id}
           onClick={() => handleCardClick(model.id)}
-          className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
-            value === model.id
-              ? 'border-primary-500 bg-primary-50'
-              : 'border-gray-200 hover:border-gray-300 bg-white'
+          className={`p-4 border rounded-lg cursor-pointer transition-all duration-200 bg-gray-800/60 border-gray-700 hover:border-yellow-500/40 hover:shadow-lg backdrop-blur-sm ${
+            value === model.id ? 'ring-1 ring-yellow-500/50' : ''
           }`}
           data-model-card="true"
         >
@@ -39,24 +37,24 @@ const ModelSelector = ({ models, value, onChange }) => {
               />
             )}
             <h3 
-              className="font-semibold text-lg text-gray-900 mb-1 hover:text-primary-600 transition-colors duration-200"
+              className="font-semibold text-lg text-gray-100 mb-1 hover:text-yellow-400 transition-colors duration-200"
               onClick={(e) => handleModelNameClick(e, model)}
               style={{ cursor: 'pointer' }}
             >
               {model.name}
             </h3>
-            <p className="text-gray-500 text-sm mb-3">
+            <p className="text-gray-400 text-sm mb-3">
               {model.subtitle}
             </p>
-            <p className="text-gray-600 text-sm mb-3">
+            <p className="text-gray-300 text-sm mb-3">
               {model.description}
             </p>
             
-            <div className="text-2xl font-bold text-primary-600 mb-3">
+            <div className="text-2xl font-bold text-yellow-400 mb-3">
               ${Number(model.basePrice || 0).toLocaleString()}
             </div>
             
-            <div className="space-y-1 text-xs text-gray-500">
+            <div className="space-y-1 text-xs text-gray-400">
               {model.length && (<div>Length: {model.length}</div>)}
               {model.width && (<div>Width: {model.width}</div>)}
               {model.height && (<div>Height: {model.height}</div>)}
