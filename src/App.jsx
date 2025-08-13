@@ -8,6 +8,7 @@ import { getAllValidSlugs } from './utils/modelUrlMapping'
 import { testModelUrls, generateModelSitemap } from './utils/testModelUrls'
 import { verifyImplementation } from './utils/verifyImplementation'
 import ErrorBoundary from './components/ErrorBoundary'
+import FirefliesBackground from './components/FirefliesBackground'
 import './App.css'
 
 function App() {
@@ -41,6 +42,8 @@ function App() {
     <ErrorBoundary>
       <Router>
         <div className="min-h-screen bg-gray-50">
+          {/* Animated background (behind all content) */}
+          <FirefliesBackground density={0.14} color="#FFD86B" parallax={0.25} />
           <header className="bg-white shadow-sm border-b border-gray-200">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between items-center py-4">

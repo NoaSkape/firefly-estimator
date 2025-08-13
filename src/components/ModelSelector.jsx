@@ -27,6 +27,7 @@ const ModelSelector = ({ models, value, onChange }) => {
               ? 'border-primary-500 bg-primary-50'
               : 'border-gray-200 hover:border-gray-300 bg-white'
           }`}
+          data-model-card="true"
         >
           <div className="text-center">
             {/* Main image (primary or first) */}
