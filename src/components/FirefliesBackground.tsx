@@ -25,6 +25,9 @@ type Fly = {
   biasX: number
   biasY: number
   layer: number // for subtle parallax per fly
+  orbitAngle: number
+  orbitSpeed: number
+  orbitRadius: number
 }
 
 /**
@@ -41,7 +44,7 @@ export default function FirefliesBackground(props: FirefliesProps) {
     twinkle = true,
     trails = false,
     parallax = 0.2,
-    speed = 1,
+    speed = 0.6,
     wind = null,
     paused = false,
     className = ''
@@ -155,7 +158,10 @@ export default function FirefliesBackground(props: FirefliesProps) {
         twSpeed: (2 * Math.PI) / (6 + (Math.random() * 0.8 - 0.4)),
         biasX: 0,
         biasY: 0,
-        layer: Math.random() // 0..1 for per-fly parallax depth
+        layer: Math.random(), // 0..1 for per-fly parallax depth
+        orbitAngle: Math.random() * Math.PI * 2,
+        orbitSpeed: 0.8 + Math.random() * 0.6, // radians/sec scaled below
+        orbitRadius: 8 + Math.random() * 20
       })
     }
     fliesRef.current = flies
@@ -224,9 +230,9 @@ export default function FirefliesBackground(props: FirefliesProps) {
     for (let i = 0; i < flies.length; i++) {
       const f = flies[i]
 
-      // Smooth random wandering via tiny accelerations
-      const jitterX = (Math.random() * 2 - 1) * 0.02
-      const jitterY = (Math.random() * 2 - 1) * 0.02
+      // Smooth random wandering via tiny accelerations (slower)
+      const jitterX = (Math.random() * 2 - 1) * 0.01
+      const jitterY = (Math.random() * 2 - 1) * 0.01
 
       // Occasional ease toward a random point (approx. every few seconds)
       if (Math.random() < 0.002) {
@@ -249,19 +255,24 @@ export default function FirefliesBackground(props: FirefliesProps) {
       const dxb = f.biasX ? (f.biasX - f.x) : 0
       const dyb = f.biasY ? (f.biasY - f.y) : 0
       const distb = Math.max(1, Math.hypot(dxb, dyb))
-      const bx = (dxb / distb) * 0.3
-      const by = (dyb / distb) * 0.3
+      const bx = (dxb / distb) * 0.2
+      const by = (dyb / distb) * 0.2
 
       // base velocity
-      f.vx += (jitterX + bx + gx + (wind?.x || 0) * 0.02) * speed
-      f.vy += (jitterY + by + gy + (wind?.y || 0) * 0.02) * speed
+      f.vx += (jitterX + bx + gx + (wind?.x || 0) * 0.01) * speed
+      f.vy += (jitterY + by + gy + (wind?.y || 0) * 0.01) * speed
 
       // mild damping keeps velocities bounded
-      f.vx *= 0.985
-      f.vy *= 0.985
+      f.vx *= 0.99
+      f.vy *= 0.99
 
-      f.x += f.vx + px * (0.2 + f.layer * 0.8)
-      f.y += f.vy + py * (0.2 + f.layer * 0.8)
+      // whimsical loops: small local orbit
+      f.orbitAngle += dt * f.orbitSpeed * 0.4
+      const ox = Math.cos(f.orbitAngle) * f.orbitRadius
+      const oy = Math.sin(f.orbitAngle) * f.orbitRadius
+
+      f.x += f.vx + ox * 0.02 + px * (0.15 + f.layer * 0.5)
+      f.y += f.vy + oy * 0.02 + py * (0.15 + f.layer * 0.5)
 
       // wrap bounds for continuous field
       if (f.x < -20) f.x = w + 20
@@ -284,12 +295,13 @@ export default function FirefliesBackground(props: FirefliesProps) {
 
     for (let i = 0; i < flies.length; i++) {
       const f = flies[i]
-      const baseAlpha = theme === 'dark' ? 0.8 : 0.65
-      // Firefly pattern: bias toward visible (~4s) then quick fade (~2s)
-      // Use a rectified sine (half-wave) to create an off period
-      const s = Math.sin(f.twPhase + i * 0.37)
-      const rectified = Math.max(0, s) // negative half is 0 (off)
-      const pulse = twinkle ? (0.2 + 0.8 * rectified) : 1
+      const baseAlpha = theme === 'dark' ? 0.85 : 0.7
+      // Hold bright most of the time, quick fades at edges
+      // Map sin to [0,1], then apply a sharp sigmoid to compress mid-range
+      const s = 0.5 + 0.5 * Math.sin(f.twPhase + i * 0.37)
+      const sharp = smoothStepSharp(s, 0.1) // near 1 for most of the "on" half, drops fast
+      const offMask = s > 0.5 ? 1 : 0 // quick off on the negative half
+      const pulse = twinkle ? (offMask * sharp) : 1
       const alpha = baseAlpha * pulse
 
       // soft radial glow
@@ -336,6 +348,17 @@ function hexToRgba(hex: string, alpha = 1) {
   const g = (bigint >> 8) & 255
   const b = bigint & 255
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+// Sharp sigmoid-like curve to keep near-1 most of the time and drop quickly near edges
+function smoothStepSharp(x: number, edge: number) {
+  // clamp
+  const t = Math.max(0, Math.min(1, x))
+  // push values away from 0..1 edges except near a small edge window
+  const e = Math.max(0.001, Math.min(0.3, edge))
+  if (t < e) return t / e // quick ramp up
+  if (t > 1 - e) return (1 - t) / e // quick ramp down
+  return 1 // hold bright
 }
 
 
