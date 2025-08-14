@@ -219,21 +219,15 @@ const ModelDetail = ({ onModelSelect }) => {
             <div className="flex items-center">
               <button
                 onClick={() => navigate('/')}
-                className="mr-4 text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white"
               >
                 ← Back to Quote Builder
               </button>
-              <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center mr-3">
-                 <span className="text-white font-bold text-sm">F</span>
-              </div>
-               <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                Firefly Estimator
-              </h1>
             </div>
             {isAdmin && (
               <button
                 onClick={() => setIsEditorOpen(true)}
-                className="px-3 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                className="px-3 py-2 btn-primary rounded-md"
               >
                 Edit
               </button>
@@ -321,7 +315,7 @@ const ModelDetail = ({ onModelSelect }) => {
               <p className="text-lg text-gray-600 dark:text-gray-300 mb-4">
                 {model.modelCode}
               </p>
-              <p className="text-xl text-primary-600 font-semibold">
+              <p className="text-xl text-yellow-500 font-semibold">
                 ${model.basePrice?.toLocaleString() || 'N/A'}
               </p>
             </div>
