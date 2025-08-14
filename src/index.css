@@ -9,7 +9,7 @@
   }
   
   body {
-    @apply text-gray-900 bg-white;
+    @apply text-gray-900 bg-gray-50; /* very light gray so white cards pop */
   }
 }
 
@@ -31,7 +31,7 @@
   }
   
   .section-header {
-    @apply text-xl font-semibold text-gray-100 mb-4;
+    @apply text-xl font-semibold text-gray-900 mb-4;
   }
 }
 
@@ -41,7 +41,8 @@
   background-color: rgb(8,18,28);
 }
 
-[data-theme="dark"] .card { @apply bg-gray-800/60 border-gray-700; }
+[data-theme="dark"] .card { @apply bg-gray-800/60 border-gray-700 text-gray-100; }
+[data-theme="dark"] .section-header { @apply text-gray-100; }
 [data-theme="light"] .card { @apply bg-white border-gray-200 text-gray-900; }
 
 [data-theme="dark"] .input-field { @apply bg-gray-800 border-gray-700 text-gray-100; }

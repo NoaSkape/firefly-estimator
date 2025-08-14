@@ -24,7 +24,7 @@ const ModelSelector = ({ models, value, onChange }) => {
           onClick={() => handleCardClick(model.id)}
           className={`p-4 border rounded-lg cursor-pointer transition-all duration-200 backdrop-blur-sm hover:border-yellow-500/40 hover:shadow-lg ${
             value === model.id ? 'ring-1 ring-yellow-500/50' : ''
-          } bg-white border-gray-200 text-gray-900 dark:bg-gray-800/60 dark:border-gray-700 dark:text-gray-100`}
+          } bg-white border-gray-200 text-gray-900 [data-theme='dark'] &:bg-gray-800/60`}
           data-model-card="true"
         >
           <div className="text-center">
