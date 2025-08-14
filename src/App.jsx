@@ -9,12 +9,16 @@ import { testModelUrls, generateModelSitemap } from './utils/testModelUrls'
 import { verifyImplementation } from './utils/verifyImplementation'
 import ErrorBoundary from './components/ErrorBoundary'
 import FirefliesBackground from './components/FirefliesBackground'
-import ThemeToggle from './components/ThemeToggle'
 import './App.css'
 
 function App() {
   const [quoteData, setQuoteData] = useState(null)
   const [selectedModel, setSelectedModel] = useState(null)
+  const [dark, setDark] = useState(() => {
+    if (typeof window === 'undefined') return true
+    const persisted = window.localStorage.getItem('theme')
+    return persisted ? persisted === 'dark' : true
+  })
 
   const handleModelSelect = (modelCode) => {
     setSelectedModel(modelCode)
@@ -24,6 +28,20 @@ function App() {
 
   // Test URLs in development
   useEffect(() => {
+    // apply theme on mount and when toggled
+    const html = document.documentElement
+    if (dark) {
+      html.classList.add('dark')
+      html.setAttribute('data-theme', 'dark')
+      document.body.setAttribute('data-theme', 'dark')
+      window.localStorage.setItem('theme', 'dark')
+    } else {
+      html.classList.remove('dark')
+      html.setAttribute('data-theme', 'light')
+      document.body.setAttribute('data-theme', 'light')
+      window.localStorage.setItem('theme', 'light')
+    }
+
     if (import.meta.env.DEV) {
       console.log('🚀 Development Mode - Comprehensive Testing...')
       
@@ -37,7 +55,9 @@ function App() {
         verifyImplementation()
       }, 1000)
     }
-  }, [])
+  }, [dark])
+
+  const toggleTheme = () => setDark(v => !v)
 
   return (
     <ErrorBoundary>
@@ -47,9 +67,9 @@ function App() {
           <FirefliesBackground density={0.14} color="#FFD86B" parallax={0.25} />
           <header className="bg-gray-900/50 border-b border-gray-800 backdrop-blur-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-between items-center py-4">
+              <div className="flex justify-between items-center py-5">
                 <div className="flex items-center">
-                  <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" className="h-8 w-auto mr-3" />
+                  <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" className="h-12 w-auto mr-3" />
                   <h1 className="text-xl font-semibold text-gray-100">Firefly Estimator</h1>
                 </div>
                 <div className="flex items-center">
@@ -60,8 +80,11 @@ function App() {
                         userButtonTrigger: 'focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2'
                       }
                     }}
-                  />
-                  <ThemeToggle />
+                  >
+                    <UserButton.MenuItems>
+                      <UserButton.Action label={dark ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggleTheme} />
+                    </UserButton.MenuItems>
+                  </UserButton>
                 </div>
               </div>
             </div>
