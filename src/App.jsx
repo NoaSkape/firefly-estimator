@@ -73,7 +73,7 @@ function App() {
                   <h1 className="text-xl font-semibold text-gray-100">Firefly Estimator</h1>
                 </div>
                 <div className="flex items-center">
-                  <UserButton 
+                  <UserButton
                     appearance={{
                       elements: {
                         userButtonAvatarBox: 'w-8 h-8',
@@ -81,8 +81,13 @@ function App() {
                       }
                     }}
                   >
+                    {/* Append a theme toggle entry to the default Clerk menu */}
                     <UserButton.MenuItems>
-                      <UserButton.Action label={dark ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggleTheme} />
+                      <UserButton.Action
+                        id="toggle-theme"
+                        label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+                        onClick={toggleTheme}
+                      />
                     </UserButton.MenuItems>
                   </UserButton>
                 </div>

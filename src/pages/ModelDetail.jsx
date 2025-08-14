@@ -20,6 +20,7 @@ const ModelDetail = ({ onModelSelect }) => {
   const [error, setError] = useState(null)
   // Inline editing and inline upload removed; edits happen in AdminModelEditor only
   const [isEditorOpen, setIsEditorOpen] = useState(false)
+  const [isViewerOpen, setIsViewerOpen] = useState(false)
   const debug = (import.meta.env?.VITE_DEBUG_ADMIN === 'true')
 
   // Determine admin: role metadata OR email included in VITE_ADMIN_EMAILS
@@ -246,7 +247,8 @@ const ModelDetail = ({ onModelSelect }) => {
                 <img
                   src={model.images[currentImageIndex]?.url}
                   alt={`${model.name} - Image ${currentImageIndex + 1}`}
-                  className="w-full h-96 object-cover rounded-lg shadow-lg"
+                  className="w-full h-96 object-cover rounded-lg shadow-lg cursor-zoom-in"
+                  onClick={() => setIsViewerOpen(true)}
                 />
               ) : (
                 <div className="w-full h-96 bg-gray-200 rounded-lg shadow-lg flex items-center justify-center">
@@ -408,6 +410,53 @@ const ModelDetail = ({ onModelSelect }) => {
           onClose={() => setIsEditorOpen(false)}
           onSaved={handleModelUpdate}
         />
+      )}
+
+      {/* Fullscreen Image Viewer */}
+      {isViewerOpen && model?.images?.length > 0 && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
+          <button
+            aria-label="Close"
+            className="absolute top-4 right-4 text-white bg-black/60 hover:bg-black/80 rounded px-3 py-1"
+            onClick={() => setIsViewerOpen(false)}
+          >
+            ✕
+          </button>
+          <div className="flex-1 flex items-center justify-center select-none">
+            <img
+              src={model.images[currentImageIndex]?.url}
+              alt={`${model.name} - Image ${currentImageIndex + 1}`}
+              className="max-h-[85vh] max-w-[90vw] object-contain"
+            />
+          </div>
+          {model.images.length > 1 && (
+            <div className="p-4 flex items-center justify-between text-white">
+              <button
+                onClick={prevImage}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded"
+              >
+                Prev
+              </button>
+              <div className="space-x-2 overflow-x-auto">
+                {model.images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentImageIndex(idx)}
+                    className={`inline-block w-16 h-16 rounded overflow-hidden ${idx===currentImageIndex?'ring-2 ring-yellow-400':''}`}
+                  >
+                    <img src={img.url} alt="thumb" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={nextImage}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
