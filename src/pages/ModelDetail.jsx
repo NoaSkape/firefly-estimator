@@ -204,7 +204,7 @@ const ModelDetail = ({ onModelSelect }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {/* SEO Head Component */}
       <SEOHead 
         title={model ? `${model.name} - Firefly Tiny Homes` : 'Model Not Found - Firefly Tiny Homes'}
@@ -213,7 +213,7 @@ const ModelDetail = ({ onModelSelect }) => {
       />
       
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-900/50 shadow-sm border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
@@ -224,9 +224,9 @@ const ModelDetail = ({ onModelSelect }) => {
                 ← Back to Quote Builder
               </button>
               <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center mr-3">
-                <span className="text-white font-bold text-sm">F</span>
+                 <span className="text-white font-bold text-sm">F</span>
               </div>
-              <h1 className="text-xl font-semibold text-gray-900">
+               <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                 Firefly Estimator
               </h1>
             </div>

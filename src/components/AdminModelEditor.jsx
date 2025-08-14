@@ -322,13 +322,13 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
   }, [images, primaryPublicId, idParam, getToken, onSaved])
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-end z-50">
-      <div className="w-full max-w-2xl h-full bg-white shadow-xl flex flex-col">
+    <div className="fixed inset-0 bg-black/40 flex justify-end z-50">
+      <div className="w-full max-w-2xl h-full bg-white dark:bg-gray-900 shadow-xl flex flex-col text-gray-900 dark:text-gray-100">
         <div className="p-4 border-b flex items-center justify-between">
           <div className="font-semibold">Edit Model</div>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
         </div>
-        <div className="px-4 pt-2 flex gap-2 border-b">
+        <div className="px-4 pt-2 flex gap-2 border-b border-gray-200 dark:border-gray-800">
           {['overview','specs','features','images'].map(t => (
             <button key={t} className={`px-3 py-2 ${tab===t?'border-b-2 border-primary-600 text-primary-700':''}`} onClick={()=>setTab(t)}>{t[0].toUpperCase()+t.slice(1)}</button>
           ))}
