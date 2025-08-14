@@ -17,14 +17,15 @@ export const generatePDF = async (quoteData) => {
     const { model, options, client, fees } = quoteData
     
     pdfElement.innerHTML = `
-      <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #0ea5e9; font-size: 28px; margin: 0;">Firefly Tiny Homes</h1>
+      <div style="text-align: center; margin-bottom: 20px;">
+        <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" style="height: 48px;"/>
+        <h1 style="color: #111827; font-size: 22px; margin: 6px 0 0 0;">Firefly Tiny Homes</h1>
         <h2 style="color: #374151; font-size: 20px; margin: 10px 0;">Quote Estimate</h2>
         <p style="color: #6b7280; margin: 0;">Generated on ${new Date().toLocaleDateString()}</p>
       </div>
       
       <div style="margin-bottom: 30px;">
-        <h3 style="color: #374151; border-bottom: 2px solid #0ea5e9; padding-bottom: 5px;">Client Information</h3>
+        <h3 style="color: #374151; border-bottom: 2px solid #f59e0b; padding-bottom: 5px;">Client Information</h3>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
           <div>
             <p><strong>Name:</strong> ${client.fullName || 'N/A'}</p>
@@ -41,7 +42,7 @@ export const generatePDF = async (quoteData) => {
       </div>
       
       <div style="margin-bottom: 30px;">
-        <h3 style="color: #374151; border-bottom: 2px solid #0ea5e9; padding-bottom: 5px;">Selected Model</h3>
+          <h3 style="color: #374151; border-bottom: 2px solid #f59e0b; padding-bottom: 5px;">Selected Model</h3>
         <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
           <h4 style="margin: 0 0 10px 0; color: #0ea5e9;">${model.name}</h4>
           <p style="margin: 0 0 10px 0; color: #6b7280;">${model.description}</p>
@@ -58,7 +59,7 @@ export const generatePDF = async (quoteData) => {
       
       ${options.length > 0 ? `
         <div style="margin-bottom: 30px;">
-          <h3 style="color: #374151; border-bottom: 2px solid #0ea5e9; padding-bottom: 5px;">Selected Options & Upgrades</h3>
+          <h3 style="color: #374151; border-bottom: 2px solid #f59e0b; padding-bottom: 5px;">Selected Options & Upgrades</h3>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             ${options.map(option => `
               <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
@@ -78,7 +79,7 @@ export const generatePDF = async (quoteData) => {
       ` : ''}
       
       <div style="margin-bottom: 30px;">
-        <h3 style="color: #374151; border-bottom: 2px solid #0ea5e9; padding-bottom: 5px;">Pricing Breakdown</h3>
+        <h3 style="color: #374151; border-bottom: 2px solid #f59e0b; padding-bottom: 5px;">Pricing Breakdown</h3>
         <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
           <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
             <span><strong>Base Model:</strong></span>
@@ -100,7 +101,7 @@ export const generatePDF = async (quoteData) => {
             <span><strong>Delivery Fee:</strong></span>
             <span>$${fees.deliveryFee.toLocaleString()}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; padding: 12px 0; font-size: 18px; font-weight: bold; color: #0ea5e9;">
+          <div style="display: flex; justify-content: space-between; padding: 12px 0; font-size: 18px; font-weight: bold; color: #f59e0b;">
             <span><strong>TOTAL:</strong></span>
             <span>$${fees.total.toLocaleString()}</span>
           </div>
