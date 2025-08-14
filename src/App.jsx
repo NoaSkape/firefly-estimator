@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { UserButton } from '@clerk/clerk-react'
 import QuoteBuilder from './pages/QuoteBuilder'
@@ -19,8 +19,7 @@ function App() {
     const persisted = window.localStorage.getItem('theme')
     return persisted ? persisted === 'dark' : true
   })
-  const [themeMenuOpen, setThemeMenuOpen] = useState(false)
-  const userBtnRef = useRef(null)
+  
 
   const handleModelSelect = (modelCode) => {
     setSelectedModel(modelCode)
@@ -61,17 +60,7 @@ function App() {
 
   const toggleTheme = () => setDark(v => !v)
 
-  // Close custom menu on outside click
-  useEffect(() => {
-    function onDocClick(e) {
-      if (!themeMenuOpen) return
-      if (userBtnRef.current && !userBtnRef.current.contains(e.target)) {
-        setThemeMenuOpen(false)
-      }
-    }
-    document.addEventListener('click', onDocClick)
-    return () => document.removeEventListener('click', onDocClick)
-  }, [themeMenuOpen])
+  // no custom popover; rely on Clerk UserButton.Action
 
   return (
     <ErrorBoundary>
@@ -86,7 +75,7 @@ function App() {
                   <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" className="h-12 w-auto mr-3" />
                   <h1 className="text-xl font-semibold text-gray-100">Firefly Estimator</h1>
                 </div>
-                <div className="flex items-center relative" ref={userBtnRef} onClick={() => setThemeMenuOpen(true)}>
+                <div className="flex items-center">
                   <UserButton
                     appearance={{
                       elements: {
@@ -104,19 +93,6 @@ function App() {
                       />
                     </UserButton.MenuItems>
                   </UserButton>
-                  {themeMenuOpen && (
-                    <div className="absolute right-0 mt-12 w-72 rounded-lg border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-xl z-50">
-                      <div className="px-4 py-3 text-sm text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700">{ /* header */ }
-                        {dark ? 'Appearance: Dark' : 'Appearance: Light'}
-                      </div>
-                      <button
-                        className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 text-sm text-gray-700 dark:text-gray-200"
-                        onClick={() => { toggleTheme(); setThemeMenuOpen(false) }}
-                      >
-                        {dark ? 'Switch to light mode' : 'Switch to dark mode'}
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
