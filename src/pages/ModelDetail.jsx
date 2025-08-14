@@ -160,6 +160,31 @@ const ModelDetail = ({ onModelSelect }) => {
   }
 
   // Description editing moved into AdminModelEditor. All image uploads handled inside AdminModelEditor.
+  
+  // Image navigation helpers must be declared before any early returns
+  const nextImage = () => {
+    if (model?.images && model.images.length > 0) {
+      setCurrentImageIndex((prev) => (prev + 1) % model.images.length)
+    }
+  }
+
+  const prevImage = () => {
+    if (model?.images && model.images.length > 0) {
+      setCurrentImageIndex((prev) => (prev - 1 + model.images.length) % model.images.length)
+    }
+  }
+
+  // Keyboard navigation in viewer – keep before conditional returns to preserve hook order
+  useEffect(() => {
+    if (!isViewerOpen) return
+    const onKey = (e) => {
+      if (e.key === 'ArrowRight') nextImage()
+      if (e.key === 'ArrowLeft') prevImage()
+      if (e.key === 'Escape') setIsViewerOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isViewerOpen, model?.images?.length])
 
   if (loading) {
     return (
@@ -205,29 +230,7 @@ const ModelDetail = ({ onModelSelect }) => {
     }
   }
 
-  const nextImage = () => {
-    if (model.images && model.images.length > 0) {
-      setCurrentImageIndex((prev) => (prev + 1) % model.images.length)
-    }
-  }
-
-  const prevImage = () => {
-    if (model.images && model.images.length > 0) {
-      setCurrentImageIndex((prev) => (prev - 1 + model.images.length) % model.images.length)
-    }
-  }
-
-  // Keyboard navigation in viewer
-  useEffect(() => {
-    if (!isViewerOpen) return
-    const onKey = (e) => {
-      if (e.key === 'ArrowRight') nextImage()
-      if (e.key === 'ArrowLeft') prevImage()
-      if (e.key === 'Escape') setIsViewerOpen(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [isViewerOpen, model?.images?.length])
+  
 
   return (
     <div className="min-h-screen">
