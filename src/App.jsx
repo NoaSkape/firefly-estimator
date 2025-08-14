@@ -60,7 +60,46 @@ function App() {
 
   const toggleTheme = () => setDark(v => !v)
 
-  // no custom popover; rely on Clerk UserButton.Action
+  // Fallback injection: if Clerk doesn't render our MenuItems in production, insert a row into the open popover
+  useEffect(() => {
+    function tryInjectThemeRow() {
+      // Defer to allow Clerk popover DOM to mount
+      setTimeout(() => {
+        try {
+          const signOutBtn = Array.from(document.querySelectorAll('button, a'))
+            .find(el => (el.textContent || '').trim() === 'Sign out')
+          if (!signOutBtn) return
+          const listItem = signOutBtn.closest('li, div') || signOutBtn.parentElement
+          const list = listItem?.parentElement
+          if (!list || list.querySelector('[data-ff-theme-toggle]')) return
+
+          const wrapper = document.createElement(listItem?.tagName || 'div')
+          wrapper.setAttribute('data-ff-theme-toggle', 'true')
+          wrapper.className = listItem?.className || ''
+
+          const btn = document.createElement('button')
+          btn.type = 'button'
+          btn.className = signOutBtn.className || 'w-full text-left px-4 py-3'
+          btn.textContent = dark ? 'Switch to light mode' : 'Switch to dark mode'
+          btn.onclick = () => {
+            toggleTheme()
+            // update label shortly after theme flips
+            setTimeout(() => {
+              btn.textContent = !dark ? 'Switch to light mode' : 'Switch to dark mode'
+            }, 0)
+          }
+
+          wrapper.appendChild(btn)
+          list.insertBefore(wrapper, listItem)
+        } catch {}
+      }, 50)
+    }
+
+    document.addEventListener('click', tryInjectThemeRow)
+    return () => document.removeEventListener('click', tryInjectThemeRow)
+  }, [dark])
+
+  // no custom popover; rely on Clerk UserButton.Action; above effect injects only if missing
 
   return (
     <ErrorBoundary>
