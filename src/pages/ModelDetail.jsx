@@ -327,13 +327,13 @@ const ModelDetail = ({ onModelSelect }) => {
             </div>
 
             {/* Model Description - read only; editing via Edit panel */}
-            <div className="bg-white rounded-lg p-6 shadow-sm">
+            <div className="card">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">Description</h2>
               <p className="text-gray-700">{model.description || 'No description available.'}</p>
             </div>
 
             {/* Specifications */}
-            <div className="bg-white rounded-lg p-6 shadow-sm">
+            <div className="card">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Specifications</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -378,7 +378,7 @@ const ModelDetail = ({ onModelSelect }) => {
             </div>
 
             {/* Features */}
-            <div className="bg-white rounded-lg p-6 shadow-sm">
+            <div className="card">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Features</h2>
               <ul className="space-y-2">
                 {model.features.map((feature, index) => (
@@ -393,7 +393,7 @@ const ModelDetail = ({ onModelSelect }) => {
             </div>
 
             {/* Choose Model Button */}
-            <div className="bg-white rounded-lg p-6 shadow-sm">
+            <div className="card">
               <button
                 onClick={handleChooseModel}
                 className="w-full btn-primary text-lg py-4"

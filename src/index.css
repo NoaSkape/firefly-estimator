@@ -9,7 +9,7 @@
   }
   
   body {
-    @apply text-gray-900 bg-gray-50;
+    @apply text-gray-900 bg-white;
   }
 }
 
@@ -42,7 +42,7 @@
 }
 
 [data-theme="dark"] .card { @apply bg-gray-800/60 border-gray-700; }
-[data-theme="light"] .card { @apply bg-white border-gray-200; }
+[data-theme="light"] .card { @apply bg-white border-gray-200 text-gray-900; }
 
 [data-theme="dark"] .input-field { @apply bg-gray-800 border-gray-700 text-gray-100; }
 [data-theme="light"] .input-field { @apply bg-white border-gray-300 text-gray-900; }
