@@ -15,7 +15,7 @@ const PriceBreakdown = ({ subtotal, tax, deliveryFee, total }) => {
 
   return (
     <div className="card">
-      <h3 className="text-lg font-semibold text-gray-100 mb-4">Price Breakdown</h3>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Price Breakdown</h3>
       
       <div className="space-y-3">
         <div className="flex justify-between items-center py-2 border-b border-gray-700">
