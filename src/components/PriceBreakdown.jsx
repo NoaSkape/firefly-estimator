@@ -40,8 +40,8 @@ const PriceBreakdown = ({ subtotal, tax, deliveryFee, total }) => {
       </div>
 
       {total > 0 && (
-        <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-          <div className="text-sm text-yellow-300">
+        <div className="mt-4 p-3 rounded-lg border bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-500/10 dark:border-yellow-500/30 dark:text-yellow-300">
+          <div className="text-sm">
             <div className="font-medium">Estimated Monthly Payment:</div>
             <div className="text-lg font-semibold">
               {formatCurrency(monthlyPayment)} <span className="text-sm font-normal">({n} months at {(apr * 100).toFixed(1)}% APR)</span>
