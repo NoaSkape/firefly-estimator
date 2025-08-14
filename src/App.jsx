@@ -88,7 +88,7 @@ function App() {
                     <UserButton.MenuItems>
                       <UserButton.Action
                         id="toggle-theme"
-                        label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+                        label="Toggle dark mode"
                         onClick={toggleTheme}
                       />
                     </UserButton.MenuItems>
