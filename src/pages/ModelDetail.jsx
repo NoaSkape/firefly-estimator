@@ -315,10 +315,10 @@ const ModelDetail = ({ onModelSelect }) => {
           <div className="space-y-6">
             {/* Model Header */}
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                 {model.name}
               </h1>
-              <p className="text-lg text-gray-600 mb-4">
+              <p className="text-lg text-gray-600 dark:text-gray-300 mb-4">
                 {model.modelCode}
               </p>
               <p className="text-xl text-primary-600 font-semibold">
@@ -328,49 +328,49 @@ const ModelDetail = ({ onModelSelect }) => {
 
             {/* Model Description - read only; editing via Edit panel */}
             <div className="card">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Description</h2>
-              <p className="text-gray-700">{model.description || 'No description available.'}</p>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Description</h2>
+              <p className="text-gray-700 dark:text-gray-300">{model.description || 'No description available.'}</p>
             </div>
 
             {/* Specifications */}
             <div className="card">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Specifications</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Specifications</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <span className="text-sm text-gray-500">Width</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Width</span>
                   <p className="font-medium">{model.width}</p>
                 </div>
                 <div>
-                  <span className="text-sm text-gray-500">Square Feet</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Square Feet</span>
                   <p className="font-medium">{model.squareFeet} sq ft</p>
                 </div>
                 {model.length && (
                   <div>
-                    <span className="text-sm text-gray-500">Length</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Length</span>
                     <p className="font-medium">{model.length}</p>
                   </div>
                 )}
                 {model.height && (
                   <div>
-                    <span className="text-sm text-gray-500">Height</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Height</span>
                     <p className="font-medium">{model.height}</p>
                   </div>
                 )}
                 {model.weight && (
                   <div>
-                    <span className="text-sm text-gray-500">Weight</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Weight</span>
                     <p className="font-medium">{model.weight}</p>
                   </div>
                 )}
                 {model.bedrooms && (
                   <div>
-                    <span className="text-sm text-gray-500">Bedrooms</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Bedrooms</span>
                     <p className="font-medium">{model.bedrooms}</p>
                   </div>
                 )}
                 {model.bathrooms && (
                   <div>
-                    <span className="text-sm text-gray-500">Bathrooms</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Bathrooms</span>
                     <p className="font-medium">{model.bathrooms}</p>
                   </div>
                 )}
@@ -379,10 +379,10 @@ const ModelDetail = ({ onModelSelect }) => {
 
             {/* Features */}
             <div className="card">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Features</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Features</h2>
               <ul className="space-y-2">
                 {model.features.map((feature, index) => (
-                  <li key={index} className="flex items-center text-gray-700">
+                  <li key={index} className="flex items-center text-gray-700 dark:text-gray-300">
                     <svg className="w-5 h-5 text-primary-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
