@@ -32,16 +32,16 @@ const OptionSelector = ({ options, selectedItems, onSelectionChange }) => {
       {options.map((category) => (
         <div
           key={category.subject}
-          className="border rounded-lg overflow-hidden bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100 border-gray-200 dark:border-gray-700 shadow backdrop-blur-sm transition-colors hover:border-yellow-500/40"
+          className="card overflow-hidden transition-colors hover:border-yellow-500/40"
         >
           {/* Subject Header - Clickable Accordion Trigger */}
           <button
             type="button"
             onClick={() => toggleSubject(category.subject)}
-            className="w-full px-4 py-3 font-semibold text-left transition-colors duration-200 flex justify-between items-center bg-transparent text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700"
+            className="w-full px-4 py-3 font-semibold text-left transition-colors duration-200 flex justify-between items-center bg-transparent text-current border-b border-white/10"
           >
             <span>{category.subject}</span>
-            <span className="text-gray-500 dark:text-gray-400">
+            <span className="opacity-60">
               {expandedSubjects.has(category.subject) ? '▾' : '▸'}
             </span>
           </button>
@@ -58,11 +58,11 @@ const OptionSelector = ({ options, selectedItems, onSelectionChange }) => {
                     className="mt-1 h-4 w-4 text-yellow-500 border-gray-300 dark:border-gray-600 rounded focus:ring-yellow-500"
                   />
                   <div className="flex-1">
-                    <div className={`font-medium ${option.isPackage ? 'text-blue-600' : 'text-gray-900 dark:text-gray-100'}`}>
+                    <div className={`font-medium ${option.isPackage ? 'text-blue-500' : 'text-current'}`}>
                       {option.name} - ${option.price.toLocaleString()}
                     </div>
                     {option.description && (
-                      <div className="text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 p-2 rounded mt-1">
+                      <div className="text-sm opacity-80 bg-black/5 dark:bg-white/5 p-2 rounded mt-1">
                         {option.description}
                       </div>
                     )}
