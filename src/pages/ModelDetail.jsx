@@ -30,7 +30,9 @@ const ModelDetail = ({ onModelSelect }) => {
     window.addEventListener('popstate', onPop)
     // push a state so back closes viewer first
     window.history.pushState({ viewer: true }, '')
-    return () => window.removeEventListener('popstate', onPop)
+    return () => {
+      window.removeEventListener('popstate', onPop)
+    }
   }, [isViewerOpen])
   const debug = (import.meta.env?.VITE_DEBUG_ADMIN === 'true')
 
