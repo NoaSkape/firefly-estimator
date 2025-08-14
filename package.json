@@ -24,22 +24,22 @@
   },
   "dependencies": {
     "@clerk/backend": "^2.6.3",
-    "@clerk/clerk-react": "^5.39.0",
+    "@clerk/clerk-react": "^5.42.0",
     "@cloudinary/react": "^1.14.3",
     "@cloudinary/url-gen": "^1.21.0",
     "cloudinary": "^2.7.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "serverless-http": "^3.2.0",
     "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.1",
+    "jspdf": "^3.0.1",
     "mongodb": "^6.18.0",
     "papaparse": "^5.4.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.51.0",
     "react-router-dom": "^7.7.1",
+    "serverless-http": "^3.2.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
@@ -49,13 +49,13 @@
     "@vitejs/plugin-react": "^4.6.0",
     "autoprefixer": "^10.4.18",
     "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
     "eslint": "^9.30.1",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
-    "vite": "^7.0.4",
-    "cross-env": "^7.0.3"
+    "vite": "^7.0.4"
   }
 }
