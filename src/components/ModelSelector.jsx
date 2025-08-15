@@ -12,7 +12,7 @@ const ModelSelector = ({ models, value, onChange }) => {
     e.stopPropagation() // Prevent card selection when clicking the name
     const modelUrl = generateModelUrl(model)
     if (modelUrl) {
-      navigate(modelUrl)
+      navigate(`${modelUrl}?context=estimator`)
     }
   }
 
