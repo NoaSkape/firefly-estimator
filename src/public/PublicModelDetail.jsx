@@ -107,6 +107,20 @@ export default function PublicModelDetail() {
 
   const handleModelUpdate = (updated) => { setModel(updated) }
 
+  // Fallback demo packages/add-ons if none configured so the UI is visible publicly
+  const fallbackPackages = [
+    { key:'comfort-xtreme', name:'Comfort Xtreme', priceDelta:3500, description:'HVAC mini‑split, insulation upgrades, blackout shades.', images:(model.images||[]).slice(0,3).map(i=>i.url), items:['Mini‑split HVAC','Upgraded insulation','Blackout shades'] },
+    { key:'chefs-pick', name:"Chef's Pick", priceDelta:5200, description:'Solid-surface counters, gas range, deep sink, pull‑outs.', images:(model.images||[]).slice(0,3).map(i=>i.url), items:['Solid-surface counters','Gas range','Deep sink'] },
+    { key:'cozy-cottage', name:'Cozy Cottage', priceDelta:2800, description:'Wood accents, warm lighting, upgraded trim.', images:(model.images||[]).slice(0,3).map(i=>i.url), items:['Wood accents','Warm lighting','Upgraded trim'] },
+    { key:'ultra', name:'Ultra', priceDelta:7400, description:'Premium finishes across kitchen, bath and exterior.', images:(model.images||[]).slice(0,3).map(i=>i.url), items:['Premium finishes','Exterior lighting','Tile shower'] },
+  ]
+  const showPackages = Array.isArray(model.packages) && model.packages.length ? model.packages : fallbackPackages
+  const fallbackAddOns = [
+    { id:'awnings', name:'Window Awnings', priceDelta:900, description:'Add charm and shade with custom awnings.', image:(model.images||[])[0]?.url||'' },
+    { id:'skylight', name:'Skylight', priceDelta:650, description:'Bring in natural light with a roof skylight.', image:(model.images||[])[1]?.url||'' },
+  ]
+  const showAddOns = Array.isArray(model.addOns) && model.addOns.length ? model.addOns : fallbackAddOns
+
   return (
     <div className="min-h-screen">
       <SEOHead title={model ? `${model.name} - Firefly Tiny Homes` : 'Model Not Found - Firefly Tiny Homes'} description={model ? `${model.name} - ${model.description || 'Explore this beautiful tiny home model from Firefly Tiny Homes.'}` : 'The model you\'re looking for doesn\'t exist.'} model={model} />
@@ -148,6 +162,49 @@ export default function PublicModelDetail() {
                 ))}
               </div>
             )}
+            {/* New: Packages grid under photos */}
+            <div className="card">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Popular Add‑On Packages</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {showPackages.slice(0,4).map((p) => (
+                  <div key={p.key} className="border rounded p-4 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="font-medium text-lg">{p.name}</div>
+                        {p.description && <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-3">{p.description}</div>}
+                      </div>
+                      <a className="text-sm text-yellow-400 hover:underline" href={`/public/models/${modelIdToSlug(actualModelCode) || id}/package/${encodeURIComponent(p.key)}`}>Details</a>
+                    </div>
+                    {!!p.images?.length && (
+                      <div className="mt-3 grid grid-cols-3 gap-2">
+                        {p.images.slice(0,3).map((u, i) => (<img key={i} src={u} alt={p.name} className="w-full h-16 object-cover rounded" />))}
+                      </div>
+                    )}
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="text-sm text-gray-700 dark:text-gray-300">+${Number(p.priceDelta||0).toLocaleString()}</div>
+                      <a href={`/checkout/configure/${modelIdToSlug(actualModelCode) || id}?pkg=${encodeURIComponent(p.key)}`} className="btn-primary">Choose Package</a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* New: single add-ons below packages */}
+            <div className="card">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Additional Add‑Ons</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {showAddOns.map(a => (
+                  <div key={a.id} className="border rounded p-4 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 flex gap-3">
+                    {a.image && <img src={a.image} alt={a.name} className="w-24 h-24 object-cover rounded" />}
+                    <div className="flex-1">
+                      <div className="font-medium">{a.name}</div>
+                      {a.description && <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{a.description}</div>}
+                      <div className="text-sm mt-2">+${Number(a.priceDelta||0).toLocaleString()}</div>
+                    </div>
+                    <a className="btn-primary self-start" href={`/checkout/configure/${modelIdToSlug(actualModelCode) || id}?addon=${encodeURIComponent(a.id)}`}>Add</a>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="space-y-6">
