@@ -1,0 +1,10 @@
+{
+  "defaultBase": 500,
+  "perMile": 3,
+  "states": {
+    "TX": { "base": 400, "perMile": 2.5 },
+    "OK": { "base": 450, "perMile": 2.8 }
+  }
+}
+
+

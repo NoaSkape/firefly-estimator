@@ -7,6 +7,10 @@ import { getDb } from '../lib/db.js'
 import { requireAuth } from '../lib/auth.js'
 import { applyCors } from '../lib/cors.js'
 import { findModelById, ensureModelIndexes, findOrCreateModel, COLLECTION } from '../lib/model-utils.js'
+import { ensureOrderIndexes, createOrderDraft, getOrderById, updateOrder, listOrdersForUser, listOrdersAdmin } from '../lib/orders.js'
+import { ensureIdempotencyIndexes, withIdempotency } from '../lib/idempotency.js'
+import { quoteDelivery } from '../lib/delivery.js'
+import { z } from 'zod'
 
 const app = express()
 app.disable('x-powered-by')
@@ -83,6 +87,70 @@ app.get(['/api/models/:code', '/models/:code'], async (req, res) => {
 app.patch(['/api/models/images', '/models/images'], imagesEntry)
 app.post(['/api/models/images', '/models/images'], imagesEntry)
 app.delete(['/api/models/images', '/models/images'], imagesEntry)
+
+// ----- Delivery quote -----
+app.get(['/api/delivery/quote', '/delivery/quote'], async (req, res) => {
+  const { zip } = req.query || {}
+  if (!zip) return res.status(400).json({ error: 'missing_zip' })
+  const q = quoteDelivery(String(zip))
+  return res.status(200).json(q)
+})
+
+// ----- Orders -----
+const OrderDraftSchema = z.object({
+  model: z.object({ modelCode: z.string(), slug: z.string(), name: z.string(), basePrice: z.number() }),
+  selections: z.array(z.object({ key: z.string(), label: z.string(), priceDelta: z.number() })).default([]),
+  pricing: z.object({ base: z.number(), options: z.number(), delivery: z.number(), total: z.number(), deposit: z.number().default(0) })
+})
+
+app.post(['/api/orders', '/orders'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  await ensureOrderIndexes(); await ensureIdempotencyIndexes()
+  const idKey = req.headers['idempotency-key'] || req.headers['Idempotency-Key']
+  const result = await withIdempotency(idKey, async () => {
+    const data = OrderDraftSchema.parse(typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body)
+    const doc = await createOrderDraft({ userId: auth.userId, ...data })
+    return { ok: true, orderId: String(doc._id) }
+  })
+  return res.status(200).json(result)
+})
+
+app.get(['/api/orders/:id', '/orders/:id'], async (req, res) => {
+  const auth = await requireAuth(req, res, false)
+  const doc = await getOrderById(req.params.id)
+  if (!doc) return res.status(404).json({ error: 'not_found' })
+  if (auth.userId !== doc.userId) {
+    const admin = await requireAuth(req, res, true)
+    if (!admin?.userId) return
+  }
+  return res.status(200).json(doc)
+})
+
+app.patch(['/api/orders/:id', '/orders/:id'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  const allowed = ['buyer', 'delivery', 'selections', 'pricing']
+  const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+  const patch = {}
+  for (const k of allowed) if (k in body) patch[k] = body[k]
+  const updated = await updateOrder(req.params.id, patch)
+  return res.status(200).json(updated)
+})
+
+app.get(['/api/portal/orders', '/portal/orders'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  const list = await listOrdersForUser(auth.userId)
+  return res.status(200).json(list)
+})
+
+app.get(['/api/admin/orders', '/admin/orders'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  const list = await listOrdersAdmin({ status: req.query?.status })
+  return res.status(200).json(list)
+})
 
 // ----- PATCH/PUT model -----
 async function handleModelWrite(req, res) {

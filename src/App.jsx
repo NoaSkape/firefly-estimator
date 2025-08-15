@@ -4,6 +4,14 @@ import { UserButton } from '@clerk/clerk-react'
 import QuoteBuilder from './pages/QuoteBuilder'
 import QuotePDFPreview from './pages/QuotePDFPreview'
 import ModelDetail from './pages/ModelDetail'
+import Configure from './pages/checkout/Configure'
+import Delivery from './pages/checkout/Delivery'
+import AuthStep from './pages/checkout/Auth'
+import Payment from './pages/checkout/Payment'
+import Sign from './pages/checkout/Sign'
+import Confirm from './pages/checkout/Confirm'
+import PortalOrders from './pages/portal/Orders'
+import AdminOrders from './pages/admin/Orders'
 import { getAllValidSlugs } from './utils/modelUrlMapping'
 import { testModelUrls, generateModelSitemap } from './utils/testModelUrls'
 import { verifyImplementation } from './utils/verifyImplementation'
@@ -162,6 +170,14 @@ function App() {
                 path="/models/:id" 
                 element={<ModelDetail onModelSelect={handleModelSelect} />} 
               />
+              <Route path="/checkout/configure/:slug" element={<Configure />} />
+              <Route path="/checkout/delivery" element={<Delivery />} />
+              <Route path="/checkout/auth" element={<AuthStep />} />
+              <Route path="/checkout/payment" element={<Payment />} />
+              <Route path="/checkout/sign" element={<Sign />} />
+              <Route path="/checkout/confirm" element={<Confirm />} />
+              <Route path="/portal" element={<PortalOrders />} />
+              <Route path="/admin/orders" element={<AdminOrders />} />
             </Routes>
           </main>
         </div>
