@@ -23,6 +23,14 @@ export default function Configure() {
   useEffect(() => {
     const m = MODELS.find(m => m.slug === slug || m.id === slug)
     if (m) setSelectedModelId(m.id)
+    // pick preset from query if provided
+    const sp = new URLSearchParams(window.location.search)
+    const preset = sp.get('pkg')
+    if (preset) setSelectedPackage(preset)
+    const addon = sp.get('addon')
+    if (addon) {
+      // noop here; addon pricing handled later when persisted
+    }
   }, [slug])
 
   const model = models.find(m => m.id === selectedModelId)
