@@ -157,7 +157,7 @@ async function handleModelWrite(req, res) {
   const debug = process.env.DEBUG_ADMIN === 'true'
   const { code } = req.params
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-  const { name, price, description, specs, features } = body
+  const { name, price, description, specs, features, packages, addOns } = body
 
   const $set = { updatedAt: new Date() }
   if (typeof name === 'string') $set.name = String(name).slice(0, 200)
@@ -177,6 +177,27 @@ async function handleModelWrite(req, res) {
 
   if (Array.isArray(features)) {
     $set.features = features.map(f => String(f).slice(0, 300)).slice(0, 100)
+  }
+
+  // Public site add-on packages (up to 4) and single add-ons
+  if (Array.isArray(packages)) {
+    $set.packages = packages.slice(0, 4).map((p, idx) => ({
+      key: String(p?.key || `pkg${idx+1}`).slice(0, 40),
+      name: String(p?.name || '').slice(0, 120),
+      priceDelta: typeof p?.priceDelta === 'number' ? p.priceDelta : 0,
+      description: typeof p?.description === 'string' ? String(p.description).slice(0, 5000) : '',
+      items: Array.isArray(p?.items) ? p.items.map(i => String(i).slice(0, 200)).slice(0, 40) : [],
+      images: Array.isArray(p?.images) ? p.images.map(u => String(u).slice(0, 1000)).slice(0, 12) : [],
+    }))
+  }
+  if (Array.isArray(addOns)) {
+    $set.addOns = addOns.slice(0, 40).map((a, idx) => ({
+      id: String(a?.id || `addon${idx+1}`).slice(0, 40),
+      name: String(a?.name || '').slice(0, 120),
+      priceDelta: typeof a?.priceDelta === 'number' ? a.priceDelta : 0,
+      description: typeof a?.description === 'string' ? String(a.description).slice(0, 2000) : '',
+      image: a?.image ? String(a.image).slice(0, 1000) : '',
+    }))
   }
 
   const db = await getDb()

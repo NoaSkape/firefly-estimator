@@ -25,6 +25,8 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
   })
   const [features, setFeatures] = useState(Array.isArray(model.features) ? model.features : [])
   const [images, setImages] = useState(Array.isArray(model.images) ? model.images : [])
+  const [packages, setPackages] = useState(Array.isArray(model.packages) ? model.packages : [])
+  const [addOns, setAddOns] = useState(Array.isArray(model.addOns) ? model.addOns : [])
   const [uploading, setUploading] = useState(false)
   const [imageTag, setImageTag] = useState('gallery')
   const dragIndexRef = useRef(null)
@@ -74,7 +76,7 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
       const res = await fetch(url, {
         method: 'PATCH',
         headers,
-        body: JSON.stringify({ name, price, description, specs, features })
+        body: JSON.stringify({ name, price, description, specs, features, packages, addOns })
       })
       if (!res.ok) throw new Error('Failed to save model')
       const updated = await res.json()
@@ -329,7 +331,7 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
         </div>
         <div className="px-4 pt-2 flex gap-2 border-b border-gray-200 dark:border-gray-800">
-          {['overview','specs','features','images'].map(t => (
+          {['overview','specs','features','images','packages','addons'].map(t => (
             <button key={t} className={`px-3 py-2 ${tab===t?'border-b-2 border-primary-600 text-primary-700':''}`} onClick={()=>setTab(t)}>{t[0].toUpperCase()+t.slice(1)}</button>
           ))}
         </div>
@@ -455,6 +457,42 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
                   onClick={persistImageOrderAndPrimary}
                 >Save Images</button>
               </div>
+            </div>
+          )}
+          {tab==='packages' && (
+            <div className="space-y-4">
+              <div className="text-sm text-gray-500">Up to 4 packages. Each package can include a description, price, images and bullet items.</div>
+              {packages.map((p, idx) => (
+                <div key={idx} className="border rounded p-3 space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input className="input-field" placeholder="Key" value={p.key||''} onChange={e=>{const n=[...packages];n[idx]={...p,key:e.target.value};setPackages(n)}} />
+                    <input className="input-field" placeholder="Name" value={p.name||''} onChange={e=>{const n=[...packages];n[idx]={...p,name:e.target.value};setPackages(n)}} />
+                    <input className="input-field" type="number" placeholder="Price Delta" value={p.priceDelta||0} onChange={e=>{const n=[...packages];n[idx]={...p,priceDelta:parseFloat(e.target.value)||0};setPackages(n)}} />
+                    <input className="input-field" placeholder="Images (comma URLs)" value={(p.images||[]).join(',')} onChange={e=>{const n=[...packages];n[idx]={...p,images:e.target.value.split(',').map(s=>s.trim()).filter(Boolean)};setPackages(n)}} />
+                  </div>
+                  <textarea className="input-field" rows={3} placeholder="Description" value={p.description||''} onChange={e=>{const n=[...packages];n[idx]={...p,description:e.target.value};setPackages(n)}} />
+                  <input className="input-field" placeholder="Items (comma list)" value={(p.items||[]).join(',')} onChange={e=>{const n=[...packages];n[idx]={...p,items:e.target.value.split(',').map(s=>s.trim()).filter(Boolean)};setPackages(n)}} />
+                  <div className="flex justify-end"><button className="text-red-600" onClick={()=>setPackages(packages.filter((_,i)=>i!==idx))}>Remove</button></div>
+                </div>
+              ))}
+              {packages.length < 4 && (<button className="btn-secondary" onClick={()=>setPackages([...packages,{ key:'', name:'', priceDelta:0, description:'', items:[], images:[] }])}>Add Package</button>)}
+            </div>
+          )}
+          {tab==='addons' && (
+            <div className="space-y-4">
+              {addOns.map((a, idx) => (
+                <div key={idx} className="border rounded p-3 space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input className="input-field" placeholder="Id" value={a.id||''} onChange={e=>{const n=[...addOns];n[idx]={...a,id:e.target.value};setAddOns(n)}} />
+                    <input className="input-field" placeholder="Name" value={a.name||''} onChange={e=>{const n=[...addOns];n[idx]={...a,name:e.target.value};setAddOns(n)}} />
+                    <input className="input-field" type="number" placeholder="Price Delta" value={a.priceDelta||0} onChange={e=>{const n=[...addOns];n[idx]={...a,priceDelta:parseFloat(e.target.value)||0};setAddOns(n)}} />
+                    <input className="input-field" placeholder="Image URL" value={a.image||''} onChange={e=>{const n=[...addOns];n[idx]={...a,image:e.target.value};setAddOns(n)}} />
+                  </div>
+                  <textarea className="input-field" rows={3} placeholder="Description" value={a.description||''} onChange={e=>{const n=[...addOns];n[idx]={...a,description:e.target.value};setAddOns(n)}} />
+                  <div className="flex justify-end"><button className="text-red-600" onClick={()=>setAddOns(addOns.filter((_,i)=>i!==idx))}>Remove</button></div>
+                </div>
+              ))}
+              <button className="btn-secondary" onClick={()=>setAddOns([...addOns,{ id:'', name:'', priceDelta:0, description:'', image:'' }])}>Add Add‑On</button>
             </div>
           )}
         </div>

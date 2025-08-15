@@ -156,6 +156,34 @@ export default function PublicModelDetail() {
               <p className="text-lg text-gray-600 dark:text-gray-300 mb-4">{model.modelCode}</p>
               <p className="text-xl text-yellow-500 font-semibold">${model.basePrice?.toLocaleString() || 'N/A'}</p>
             </div>
+            {/* 2x2 Add-on packages grid */}
+            {Array.isArray(model.packages) && model.packages.length > 0 && (
+              <div className="card">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Popular Add‑On Packages</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {model.packages.slice(0,4).map((p) => (
+                    <div key={p.key} className="border rounded p-4 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="font-medium text-lg">{p.name}</div>
+                          {p.description && <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-3">{p.description}</div>}
+                        </div>
+                        <a className="text-sm text-yellow-400 hover:underline" href={`/packages/${encodeURIComponent(p.key)}`}>Details</a>
+                      </div>
+                      {!!p.images?.length && (
+                        <div className="mt-3 grid grid-cols-3 gap-2">
+                          {p.images.slice(0,3).map((u, i) => (<img key={i} src={u} alt={p.name} className="w-full h-16 object-cover rounded" />))}
+                        </div>
+                      )}
+                      <div className="mt-3 flex items-center justify-between">
+                        <div className="text-sm text-gray-700 dark:text-gray-300">+${Number(p.priceDelta||0).toLocaleString()}</div>
+                        <a href={`/checkout/configure/${modelIdToSlug(actualModelCode) || id}?pkg=${encodeURIComponent(p.key)}`} className="btn-primary">Choose Package</a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="card">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Description</h2>
               <p className="text-gray-700 dark:text-gray-300">{model.description || 'No description available.'}</p>
@@ -183,6 +211,25 @@ export default function PublicModelDetail() {
                 ))}
               </ul>
             </div>
+            {/* Single add-ons list (admin editable) */}
+            {Array.isArray(model.addOns) && model.addOns.length > 0 && (
+              <div className="card">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Additional Add‑Ons</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {model.addOns.map(a => (
+                    <div key={a.id} className="border rounded p-4 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 flex gap-3">
+                      {a.image && <img src={a.image} alt={a.name} className="w-24 h-24 object-cover rounded" />}
+                      <div className="flex-1">
+                        <div className="font-medium">{a.name}</div>
+                        {a.description && <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{a.description}</div>}
+                        <div className="text-sm mt-2">+${Number(a.priceDelta||0).toLocaleString()}</div>
+                      </div>
+                      <a className="btn-primary self-start" href={`/checkout/configure/${modelIdToSlug(actualModelCode) || id}?addon=${encodeURIComponent(a.id)}`}>Add</a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="card">
               <button onClick={handleChooseHome} className="w-full btn-primary text-lg py-4">Choose This Home</button>
               <p className="text-sm text-gray-600 mt-2 text-center">This will select this home and take you to design options</p>
