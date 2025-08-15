@@ -13,6 +13,7 @@ import Sign from './pages/checkout/Sign'
 import Confirm from './pages/checkout/Confirm'
 import PortalOrders from './pages/portal/Orders'
 import AdminOrders from './pages/admin/Orders'
+import PublicModelDetail from './public/PublicModelDetail'
 import { getAllValidSlugs } from './utils/modelUrlMapping'
 import { testModelUrls, generateModelSitemap } from './utils/testModelUrls'
 import { verifyImplementation } from './utils/verifyImplementation'
@@ -185,6 +186,7 @@ function App() {
               <Route path="/checkout/payment" element={<Payment />} />
               <Route path="/checkout/sign" element={<Sign />} />
               <Route path="/checkout/confirm" element={<Confirm />} />
+              <Route path="/public/models/:id" element={<PublicModelDetail />} />
               <Route path="/portal" element={<PortalOrders />} />
               <Route path="/admin/orders" element={<AdminOrders />} />
             </Routes>

@@ -44,7 +44,7 @@ export default function Home() {
 
   const handleCardSelect = (modelId) => {
     const slug = modelIdToSlug(modelId)
-    if (slug) navigate(`/models/${slug}`)
+    if (slug) navigate(`/public/models/${slug}`)
   }
 
   return (

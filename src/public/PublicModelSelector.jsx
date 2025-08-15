@@ -6,7 +6,7 @@ export default function PublicModelSelector({ models }) {
   const navigate = useNavigate()
   const goConfigure = (modelId) => {
     const slug = modelIdToSlug(modelId)
-    if (slug) navigate(`/checkout/configure/${slug}`)
+    if (slug) navigate(`/public/models/${slug}`)
   }
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -36,7 +36,7 @@ export default function PublicModelSelector({ models }) {
               {typeof model.bedrooms === 'number' && (<div>{model.bedrooms} Bedroom{model.bedrooms !== 1 ? 's' : ''}</div>)}
               {typeof model.bathrooms === 'number' && (<div>{model.bathrooms} Bathroom{model.bathrooms !== 1 ? 's' : ''}</div>)}
             </div>
-            <button className="btn-primary mt-3">Design This Model</button>
+            <button className="btn-primary mt-3">Choose This Home</button>
           </div>
         </div>
       ))}
