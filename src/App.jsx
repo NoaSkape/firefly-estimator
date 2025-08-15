@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { UserButton } from '@clerk/clerk-react'
 import QuoteBuilder from './pages/QuoteBuilder'
+import Home from './pages/Home'
 import QuotePDFPreview from './pages/QuotePDFPreview'
 import ModelDetail from './pages/ModelDetail'
 import Configure from './pages/checkout/Configure'
@@ -18,6 +19,8 @@ import { verifyImplementation } from './utils/verifyImplementation'
 import ErrorBoundary from './components/ErrorBoundary'
 import FirefliesBackground from './components/FirefliesBackground'
 import './App.css'
+import { SignedIn, useUser } from '@clerk/clerk-react'
+import { canEditModelsClient } from './lib/canEditModels'
 
 function App() {
   const [quoteData, setQuoteData] = useState(null)
@@ -67,6 +70,8 @@ function App() {
   }, [dark])
 
   const toggleTheme = () => setDark(v => !v)
+  const { user } = useUser()
+  const isAdmin = canEditModelsClient(user)
 
   // Fallback injection: if Clerk doesn't render our MenuItems in production, insert a row into the open popover
   useEffect(() => {
@@ -135,7 +140,10 @@ function App() {
                   <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" className="h-12 w-auto mr-3" />
                   <h1 className="text-xl font-semibold text-gray-100">Firefly Estimator</h1>
                 </div>
-                <div className="flex items-center">
+                <div className="flex items-center gap-3">
+                  {isAdmin && (
+                    <a href="/estimator" className="text-sm px-3 py-1.5 rounded bg-white/10 text-white hover:bg-white/20">Estimator</a>
+                  )}
                   <UserButton
                     appearance={{
                       elements: {
@@ -162,8 +170,9 @@ function App() {
             <Routes>
               <Route 
                 path="/" 
-                element={<QuoteBuilder />} 
+                element={<Home />} 
               />
+              <Route path="/estimator" element={<QuoteBuilder />} />
               
               {/* Single dynamic route supporting slug or code */}
               <Route 
