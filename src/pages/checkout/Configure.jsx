@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import ModelSelector from '../../components/ModelSelector'
-import OptionSelector from '../../components/OptionSelector'
+import PublicOptionSelector from '../../public/PublicOptionSelector'
 import PackagesSelector from '../../components/PackagesSelector'
 import { MODELS } from '../../data/models'
 import { OPTIONS } from '../../data/options'
@@ -46,7 +46,7 @@ export default function Configure() {
         </div>
         <div className="card">
           <h2 className="section-header">Customize Your Home</h2>
-          <OptionSelector options={OPTIONS} selectedItems={selectedOptions} onSelectionChange={setSelectedOptions} />
+          <PublicOptionSelector options={OPTIONS} value={selectedOptions} onChange={setSelectedOptions} />
         </div>
         <div className="card">
           <PackagesSelector packages={packages} value={selectedPackage} onChange={setSelectedPackage} />

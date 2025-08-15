@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import ModelSelector from '../components/ModelSelector'
+import PublicModelSelector from '../public/PublicModelSelector'
 import { MODELS } from '../data/models'
 import { modelIdToSlug } from '../utils/modelUrlMapping'
 
@@ -51,7 +51,7 @@ export default function Home() {
     <div className="space-y-6">
       <div className="card">
         <h2 className="section-header">Explore Our Models</h2>
-        <ModelSelector models={allModels} value={null} onChange={handleCardSelect} />
+        <PublicModelSelector models={allModels} />
       </div>
     </div>
   )
