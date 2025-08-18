@@ -1,15 +1,10 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { UserButton } from '@clerk/clerk-react'
 import QuoteBuilder from './pages/QuoteBuilder'
 import Home from './pages/Home'
 import QuotePDFPreview from './pages/QuotePDFPreview'
 import ModelDetail from './pages/ModelDetail'
 import Configure from './pages/checkout/Configure'
-import Delivery from './pages/checkout/Delivery'
-import AuthStep from './pages/checkout/Auth'
-import Payment from './pages/checkout/Payment'
-import Sign from './pages/checkout/Sign'
 import Confirm from './pages/checkout/Confirm'
 import PortalOrders from './pages/portal/Orders'
 import AdminOrders from './pages/admin/Orders'
@@ -20,6 +15,9 @@ import { testModelUrls, generateModelSitemap } from './utils/testModelUrls'
 import { verifyImplementation } from './utils/verifyImplementation'
 import ErrorBoundary from './components/ErrorBoundary'
 import FirefliesBackground from './components/FirefliesBackground'
+import BackgroundImage from './components/BackgroundImage'
+import Header from './components/Header'
+import Footer from './components/Footer'
 import './App.css'
 import { SignedIn, useUser } from '@clerk/clerk-react'
 import { canEditModelsClient } from './lib/canEditModels'
@@ -133,40 +131,10 @@ function App() {
     <ErrorBoundary>
       <Router>
         <div className="min-h-screen transition-colors duration-300" data-app-container>
-          {/* Animated background (behind all content) */}
-          <FirefliesBackground density={0.14} color="#FFD86B" parallax={0.25} />
-          <header className="bg-gray-900/50 border-b border-gray-800 backdrop-blur-sm">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-between items-center py-5">
-                <div className="flex items-center">
-                  <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" className="h-12 w-auto mr-3" />
-                  <h1 className="text-xl font-semibold text-gray-100">Firefly Estimator</h1>
-                </div>
-                <div className="flex items-center gap-3">
-                  {isAdmin && (
-                    <a href="/estimator" className="text-sm px-3 py-1.5 rounded bg-white/10 text-white hover:bg-white/20">Estimator</a>
-                  )}
-                  <UserButton
-                    appearance={{
-                      elements: {
-                        userButtonAvatarBox: 'w-8 h-8',
-                        userButtonTrigger: 'focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2'
-                      }
-                    }}
-                  >
-                    {/* Append a theme toggle entry to the default Clerk menu */}
-                    <UserButton.MenuItems>
-                      <UserButton.Action
-                        id="toggle-theme"
-                        label="Toggle dark mode"
-                        onClick={toggleTheme}
-                      />
-                    </UserButton.MenuItems>
-                  </UserButton>
-                </div>
-              </div>
-            </div>
-          </header>
+          {/* Background image with gradient + animated fireflies above it */}
+          <BackgroundImage src="/hero/tiny-home-dusk.png" />
+          <FirefliesBackground density={0.12} color="#FFD86B" parallax={0.25} />
+          <Header isAdmin={isAdmin} />
 
           <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <Routes>
@@ -182,10 +150,7 @@ function App() {
                 element={<ModelDetail onModelSelect={handleModelSelect} />} 
               />
               <Route path="/checkout/configure/:slug" element={<Configure />} />
-              <Route path="/checkout/delivery" element={<Delivery />} />
-              <Route path="/checkout/auth" element={<AuthStep />} />
-              <Route path="/checkout/payment" element={<Payment />} />
-              <Route path="/checkout/sign" element={<Sign />} />
+              {/* Removed legacy steps: Delivery/Auth/Payment/Sign */}
               <Route path="/checkout/confirm" element={<Confirm />} />
               <Route path="/public/models/:id" element={<PublicModelDetail />} />
               <Route path="/public/models/:id/package/:key" element={<PackageDetail />} />
@@ -193,6 +158,7 @@ function App() {
               <Route path="/admin/orders" element={<AdminOrders />} />
             </Routes>
           </main>
+          <Footer />
         </div>
       </Router>
     </ErrorBoundary>

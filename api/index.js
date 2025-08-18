@@ -1,6 +1,7 @@
 export const runtime = 'nodejs'
 
 import express from 'express'
+import Stripe from 'stripe'
 import { createHash } from 'node:crypto'
 
 import { getDb } from '../lib/db.js'
@@ -15,6 +16,41 @@ import { z } from 'zod'
 const app = express()
 app.disable('x-powered-by')
 app.use(express.json({ limit: '2mb' }))
+
+// Stripe
+const stripeSecret = process.env.STRIPE_SECRET_KEY
+if (!stripeSecret) {
+  console.error('Missing STRIPE_SECRET_KEY in environment variables.')
+}
+export const stripe = new Stripe(stripeSecret)
+
+const getOrigin = (req) => {
+  return req.headers.origin || process.env.APP_URL || 'http://localhost:5173'
+}
+
+async function createCheckoutSession(req, res) {
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: { name: 'Firefly Estimate Deposit (TEST)' },
+            unit_amount: 5000,
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: `${getOrigin(req)}/checkout/confirm?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${getOrigin(req)}/`,
+    })
+    return res.status(200).json({ url: session.url })
+  } catch (err) {
+    console.error('Stripe error:', err)
+    return res.status(500).json({ error: err?.message || 'stripe_error' })
+  }
+}
 
 // Preserve original path for deployments that rewrite to /api/index
 app.use((req, _res, next) => {
@@ -150,6 +186,20 @@ app.get(['/api/admin/orders', '/admin/orders'], async (req, res) => {
   if (!auth?.userId) return
   const list = await listOrdersAdmin({ status: req.query?.status })
   return res.status(200).json(list)
+})
+
+// ----- Stripe Checkout (test item) -----
+app.post(['/api/checkout/create-checkout-session', '/checkout/create-checkout-session'], createCheckoutSession)
+
+// TEMP: path probe for debugging rewrites/normalizer. Remove after verification.
+app.all(['/api/what-path', '/what-path'], (req, res) => {
+  return res.json({
+    method: req.method,
+    path: req.path,
+    originalUrl: req.originalUrl,
+    baseUrl: req.baseUrl,
+    url: req.url,
+  })
 })
 
 // ----- PATCH/PUT model -----
@@ -406,5 +456,3 @@ app.use((req, res) => {
 
 // Vercel Node.js functions expect (req, res). Call Express directly.
 export default (req, res) => app(req, res)
-
-

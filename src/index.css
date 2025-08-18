@@ -48,3 +48,18 @@
 
 [data-theme="dark"] .input-field { @apply bg-gray-800 border-gray-700 text-gray-100; }
 [data-theme="light"] .input-field { @apply bg-white border-gray-300 text-gray-900; }
+
+/* slower pulse for the arrow below hero */
+.animate-pulse-slow { animation: pulseGlow 1.8s ease-in-out infinite; }
+.animate-arrow-glow { animation: arrowGlow 2.6s ease-in-out infinite; filter: drop-shadow(0 0 6px #FACC15); }
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: .45; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(3px); }
+}
+
+@keyframes arrowGlow {
+  0%   { opacity: .6; transform: translateY(0); filter: drop-shadow(0 0 4px #FACC15); }
+  50%  { opacity: 1; transform: translateY(6px); filter: drop-shadow(0 0 14px #FACC15); }
+  100% { opacity: .6; transform: translateY(0); filter: drop-shadow(0 0 4px #FACC15); }
+}

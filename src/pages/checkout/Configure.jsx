@@ -70,6 +70,25 @@ export default function Configure() {
             <div className="flex justify-between font-semibold border-t border-gray-200 dark:border-gray-800 pt-2"><span>Total</span><span>${total.toLocaleString()}</span></div>
           </div>
           <button className="btn-primary w-full mt-4" disabled={!model} onClick={proceed}>Proceed to Checkout</button>
+          <button
+            className="btn-secondary w-full mt-2"
+            onClick={async () => {
+              try {
+                const res = await fetch('/api/checkout/create-checkout-session', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: '{}'
+                })
+                const data = await res.json()
+                if (data?.url) window.location.assign(data.url)
+                else alert(data?.error || 'Could not start checkout')
+              } catch (e) {
+                alert(String(e?.message || e))
+              }
+            }}
+          >
+            Pay Deposit (Test)
+          </button>
         </div>
       </div>
     </div>
