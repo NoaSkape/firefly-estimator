@@ -6,6 +6,7 @@ import QuotePDFPreview from './pages/QuotePDFPreview'
 import ModelDetail from './pages/ModelDetail'
 import Configure from './pages/checkout/Configure'
 import Confirm from './pages/checkout/Confirm'
+import FAQPage from './pages/FAQ'
 import PortalOrders from './pages/portal/Orders'
 import AdminOrders from './pages/admin/Orders'
 import PublicModelDetail from './public/PublicModelDetail'
@@ -156,6 +157,7 @@ function App() {
               <Route path="/public/models/:id/package/:key" element={<PackageDetail />} />
               <Route path="/portal" element={<PortalOrders />} />
               <Route path="/admin/orders" element={<AdminOrders />} />
+              <Route path="/faq" element={<FAQPage />} />
             </Routes>
           </main>
           <Footer />
