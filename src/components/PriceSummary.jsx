@@ -1,4 +1,4 @@
-export default function PriceSummary({ pricing }) {
+export default function PriceSummary({ pricing, onSave, onDuplicate }) {
   const base = Number(pricing?.base || 0)
   const options = Number(pricing?.options || 0)
   const delivery = Number(pricing?.delivery || 0)
@@ -16,6 +16,12 @@ export default function PriceSummary({ pricing }) {
         <div className="flex justify-between"><span>Tax</span><span>${tax.toLocaleString()}</span></div>
         <div className="flex justify-between font-semibold border-t border-gray-800 pt-2"><span>Total</span><span>${total.toLocaleString()}</span></div>
       </div>
+      {(onSave || onDuplicate) && (
+        <div className="mt-3 flex gap-2">
+          {onSave && <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={onSave}>Save</button>}
+          {onDuplicate && <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={onDuplicate}>Duplicate</button>}
+        </div>
+      )}
     </div>
   )
 }

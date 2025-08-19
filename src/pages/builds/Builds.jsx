@@ -42,8 +42,8 @@ export default function BuildsDashboard() {
           {builds.map(b => (
             <div key={b._id} className="card flex items-center justify-between">
               <div>
-                <div className="font-semibold">{b.modelName || b.modelSlug}</div>
-                <div className="text-xs text-gray-400">Step {b.step}/5 · {b.status}</div>
+                <div className="font-semibold">{b.modelName || b.modelSlug} {b.primary && <span className="ml-2 text-xs px-2 py-0.5 rounded bg-yellow-400 text-black">Primary</span>}</div>
+                <div className="text-xs text-gray-400">Step {b.step}/5 · {b.status} · Total ${Number(b?.pricing?.total||0).toLocaleString()} · Updated {(new Date(b.updatedAt)).toLocaleString()}</div>
               </div>
               <div className="flex items-center gap-2">
                 <button className="btn-primary" onClick={()=>navigate(`/builds/${b._id}`)}>Resume</button>

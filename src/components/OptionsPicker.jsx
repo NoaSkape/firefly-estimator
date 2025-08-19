@@ -13,7 +13,19 @@ export default function OptionsPicker({ optionsCatalog = [], value = [], onChang
     return Array.from(map.entries()).map(([group, items]) => ({ group, items }))
   }, [optionsCatalog])
 
-  function isChecked(opt) { return value.some(v => v.code === opt.id || v.id === opt.id) }
+  function isChecked(opt) { return value.some(v => (v.code || v.id) === opt.id) }
+  function getQuantity(opt) { return (value.find(v => (v.code || v.id) === opt.id)?.quantity) || 1 }
+  function setQuantity(opt, qty) {
+    const q = Math.max(1, Number.isFinite(qty) ? qty : 1)
+    const exists = isChecked(opt)
+    let next
+    if (!exists) {
+      next = [...value, { code: opt.id, name: opt.name, price: Number(opt.price||0), quantity: q }]
+    } else {
+      next = value.map(v => (v.code === opt.id || v.id === opt.id) ? { ...v, quantity: q } : v)
+    }
+    onChange(next)
+  }
   function toggle(opt) {
     const exists = isChecked(opt)
     const next = exists
@@ -32,13 +44,24 @@ export default function OptionsPicker({ optionsCatalog = [], value = [], onChang
           {expanded[group] && (
             <div className="p-3 space-y-2">
               {items.map(opt => (
-                <label key={opt.id} className="flex items-start gap-3">
+                <div key={opt.id} className="flex items-start gap-3">
                   <input type="checkbox" className="mt-1 h-4 w-4" checked={isChecked(opt)} onChange={()=>toggle(opt)} />
-                  <div>
-                    <div className="font-medium">{opt.name} <span className="opacity-70">${Number(opt.price||0).toLocaleString()}</span></div>
+                  <div className="flex-1">
+                    <div className="font-medium flex items-center justify-between">
+                      <span>{opt.name} <span className="opacity-70">${Number(opt.price||0).toLocaleString()}</span></span>
+                      {isChecked(opt) && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <button className="px-2 py-1 rounded border border-gray-700" onClick={()=>setQuantity(opt, getQuantity(opt)-1)}>-</button>
+                          <input className="w-12 px-2 py-1 rounded border border-gray-700 bg-transparent"
+                                 value={getQuantity(opt)}
+                                 onChange={(e)=>setQuantity(opt, parseInt(e.target.value, 10)||1)} />
+                          <button className="px-2 py-1 rounded border border-gray-700" onClick={()=>setQuantity(opt, getQuantity(opt)+1)}>+</button>
+                        </div>
+                      )}
+                    </div>
                     {opt.description && <div className="text-sm opacity-80">{opt.description}</div>}
                   </div>
-                </label>
+                </div>
               ))}
             </div>
           )}

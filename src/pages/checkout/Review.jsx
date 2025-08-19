@@ -23,7 +23,7 @@ export default function Review() {
 
   if (!build) return (
     <div>
-      <CheckoutProgress step={4} onNavigate={async (n)=>{
+      <CheckoutProgress step={4} getBlockReason={(n)=> n===5 ? 'Complete required items before confirming' : ''} onNavigate={async (n)=>{
         if (n<=3) navigate(`/checkout/${buildId}/${n===2?'payment':'buyer'}`)
         if (n===5) {
           try {
@@ -83,6 +83,19 @@ export default function Review() {
             }}
           >
             Sign & Submit
+          </button>
+          <button
+            className="px-4 py-2 rounded border border-gray-700 text-white"
+            onClick={async ()=>{
+              try {
+                const token = await getToken()
+                const res = await fetch(`/api/builds/${buildId}/confirm`, { method:'POST', headers: token?{ Authorization:`Bearer ${token}` }:{} })
+                if (!res.ok) { addToast({ type:'error', message:'Could not place order' }); return }
+                navigate(`/checkout/${buildId}/confirm`)
+              } catch { addToast({ type:'error', message:'Could not place order' }) }
+            }}
+          >
+            Place Order (stub)
           </button>
         </div>
       </div>

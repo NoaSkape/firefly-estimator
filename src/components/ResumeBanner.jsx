@@ -17,7 +17,11 @@ export default function ResumeBanner() {
         if (res.ok) {
           const list = await res.json()
           const candidate = Array.isArray(list) ? list.find(b => b.status === 'DRAFT' || b.status === 'CHECKOUT_IN_PROGRESS') : null
-          if (candidate) setBuild(candidate)
+          if (candidate) {
+            const dismissedId = localStorage.getItem('ff.resume.dismissed')
+            if (dismissedId && dismissedId === String(candidate._id)) return
+            setBuild(candidate)
+          }
         }
       } catch {}
     })()
@@ -35,7 +39,7 @@ export default function ResumeBanner() {
         <div className="mb-2">You have an in‑progress build: <span className="font-semibold">{build.modelName || build.modelSlug}</span> (Step {step}/5)</div>
         <div className="flex items-center gap-2">
           <button className="btn-primary" onClick={()=>navigate(url)}>Resume →</button>
-          <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={()=>setDismissed(true)}>Dismiss</button>
+          <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={()=>{ setDismissed(true); try{ localStorage.setItem('ff.resume.dismissed', String(build._id)) } catch {} }}>Dismiss</button>
         </div>
       </div>
     </div>

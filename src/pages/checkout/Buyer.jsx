@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useUser, useAuth, SignIn } from '@clerk/clerk-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useToast } from '../../components/ToastProvider'
+import ConfirmLeaveModal from '../../components/ConfirmLeaveModal'
 import CheckoutProgress from '../../components/CheckoutProgress'
 
 export default function Buyer() {
@@ -15,6 +16,9 @@ export default function Buyer() {
     address: '', city: '', state: '', zip: ''
   })
   const [errors, setErrors] = useState({})
+  const [dirty, setDirty] = useState(false)
+  const [showLeave, setShowLeave] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     try {
@@ -29,7 +33,7 @@ export default function Buyer() {
     }))
   }, [user])
 
-  function setField(k, v) { setForm(f => ({ ...f, [k]: v })) }
+  function setField(k, v) { setForm(f => ({ ...f, [k]: v })); setDirty(true) }
   function validate() {
     const e = {}
     if (!form.firstName) e.firstName = 'Required'
@@ -44,6 +48,7 @@ export default function Buyer() {
     if (!validate()) { addToast({ type:'error', message:'Please complete required fields' }); return }
     try {
       const token = await getToken()
+      setSaving(true)
       const res = await fetch(`/api/builds/${buildId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -53,9 +58,32 @@ export default function Buyer() {
       addToast({ type: 'success', message: 'Saved' })
       const res2 = await fetch(`/api/builds/${buildId}/checkout-step`, { method:'POST', headers: { 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, body: JSON.stringify({ step: 4 }) })
       if (!res2.ok) { const j = await res2.json().catch(()=>({})); addToast({ type:'error', message: j?.error || 'Complete previous steps' }); return }
-    } catch {}
+    } catch {} finally { setSaving(false); setDirty(false) }
     navigate(`/checkout/${buildId}/review`)
   }
+
+  // Leave guards
+  useEffect(() => {
+    function onBeforeUnload(e) {
+      if (!dirty) return
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [dirty])
+
+  useEffect(() => {
+    if (!dirty) return
+    function onPop(e) {
+      e.preventDefault?.()
+      setShowLeave(true)
+      window.history.pushState({ stay: true }, '')
+    }
+    window.addEventListener('popstate', onPop)
+    window.history.pushState({ stay: true }, '')
+    return () => window.removeEventListener('popstate', onPop)
+  }, [dirty])
 
   return (
     <div>
@@ -82,6 +110,13 @@ export default function Buyer() {
         <div className="mt-6 flex gap-3">
           <button className="btn-primary" onClick={next}>Continue</button>
         </div>
+        <ConfirmLeaveModal
+          open={showLeave}
+          saving={saving}
+          onSaveLeave={async ()=>{ await next(); setShowLeave(false) }}
+          onDiscard={()=>{ setDirty(false); setShowLeave(false); window.history.back() }}
+          onStay={()=>setShowLeave(false)}
+        />
       </div>
     </div>
   )
