@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import CheckoutProgress from '../../components/CheckoutProgress'
 import PriceSummary from '../../components/PriceSummary'
 import OptionsPicker from '../../components/OptionsPicker'
+import Breadcrumbs from '../../components/Breadcrumbs'
 import { useToast } from '../../components/ToastProvider'
+import { trackEvent } from '../../utils/analytics'
 import ConfirmLeaveModal from '../../components/ConfirmLeaveModal'
 
 export default function BuildCustomize() {
   const { buildId } = useParams()
   const navigate = useNavigate()
-  const { getToken } = useAuth()
+  const location = useLocation()
+  const { getToken, isSignedIn } = useAuth()
   const [build, setBuild] = useState(null)
   const [saving, setSaving] = useState(false)
   const saveTimer = useRef(null)
@@ -23,7 +26,7 @@ export default function BuildCustomize() {
       try {
         const token = await getToken()
         const res = await fetch(`/api/builds/${buildId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-        if (res.ok) setBuild(await res.json())
+        if (res.ok) { setBuild(await res.json()); trackEvent('build_loaded', { buildId }) }
       } catch {}
       // flush any pending offline save
       try {
@@ -57,7 +60,7 @@ export default function BuildCustomize() {
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(patch),
       })
-      if (!resp.ok) addToast({ type: 'error', message: 'Save failed' }); else addToast({ type: 'success', message: 'Saved' })
+      if (!resp.ok) addToast({ type: 'error', message: 'Save failed' }); else { addToast({ type: 'success', message: 'Saved' }); trackEvent('build_saved', { buildId }) }
       const res = await fetch(`/api/builds/${buildId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
       if (res.ok) setBuild(await res.json())
     } catch (e) {
@@ -82,6 +85,7 @@ export default function BuildCustomize() {
 
   return (
     <div>
+      <Breadcrumbs items={[{ label: 'Models', to: '/models' }, { label: 'My Builds', to: '/builds' }, { label: build.modelName || build.modelSlug }]} />
       <CheckoutProgress step={1} onNavigate={async (n)=>{
         if (n===2) {
           try {
@@ -111,13 +115,38 @@ export default function BuildCustomize() {
             }}>Continue to Checkout</button>
           </div>
         </div>
-        <PriceSummary pricing={build?.pricing || { total: price }} />
+        <PriceSummary pricing={build?.pricing || { total: price }} onSave={async () => {
+          if (!isSignedIn) {
+            // Prompt sign-in, then migrate guest draft and resume
+            const { openSignIn } = await import('@clerk/clerk-react')
+            openSignIn({
+              redirectUrl: location.pathname + location.search,
+              afterSignInUrl: location.pathname + location.search
+            })
+            return
+          }
+          await savePatch({})
+        }} onDuplicate={async ()=>{
+          try { const token = await getToken(); const r = await fetch(`/api/builds/${buildId}/duplicate`, { method:'POST', headers: token?{Authorization:`Bearer ${token}`}:{}}); const j = await r.json(); if (j?.buildId) { trackEvent('build_duplicated', { from: buildId, to: j.buildId }); navigate(`/builds/${j.buildId}`) } }
+          catch {}
+        }} />
       </div>
       {/* Mobile SaveBar */}
       <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-gray-800 bg-gray-900/90 backdrop-blur px-4 py-3 flex items-center justify-between lg:hidden">
         <div className="text-sm text-gray-300">Total: ${price.toLocaleString()}</div>
         <div className="flex gap-2">
-          <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={()=>savePatch({})}>Save Build</button>
+          <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={async () => {
+            if (!isSignedIn) {
+              // Prompt sign-in, then migrate guest draft and resume
+              const { openSignIn } = await import('@clerk/clerk-react')
+              openSignIn({
+                redirectUrl: location.pathname + location.search,
+                afterSignInUrl: location.pathname + location.search
+              })
+              return
+            }
+            await savePatch({})
+          }}>Save Build</button>
           <button className="btn-primary" onClick={async ()=>{
             try {
               const token = await getToken()

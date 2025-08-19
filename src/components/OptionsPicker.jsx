@@ -13,6 +13,26 @@ export default function OptionsPicker({ optionsCatalog = [], value = [], onChang
     return Array.from(map.entries()).map(([group, items]) => ({ group, items }))
   }, [optionsCatalog])
 
+  function iconFor(group) {
+    const g = String(group || '').toLowerCase()
+    if (g.includes('construction')) return '🏗️'
+    if (g.includes('floor')) return '🧱'
+    if (g.includes('plumb')) return '🚿'
+    if (g.includes('cabinet') || g.includes('molding')) return '🪵'
+    if (g.includes('kitchen')) return '🍳'
+    if (g.includes('bath')) return '🛁'
+    if (g.includes('interior')) return '🏠'
+    if (g.includes('appliance')) return '🧺'
+    if (g.includes('decor')) return '🖼️'
+    if (g.includes('window')) return '🪟'
+    if (g.includes('door')) return '🚪'
+    if (g.includes('fireplace')) return '🔥'
+    if (g.includes('electrical') || g.includes('lighting')) return '💡'
+    if (g.includes('exterior')) return '🏡'
+    if (g.includes('package')) return '📦'
+    return '⚙️'
+  }
+
   function isChecked(opt) { return value.some(v => (v.code || v.id) === opt.id) }
   function getQuantity(opt) { return (value.find(v => (v.code || v.id) === opt.id)?.quantity) || 1 }
   function setQuantity(opt, qty) {
@@ -38,13 +58,21 @@ export default function OptionsPicker({ optionsCatalog = [], value = [], onChang
     <div className="space-y-4">
       {groups.map(({ group, items }) => (
         <div key={group} className="card overflow-hidden">
-          <button type="button" onClick={()=>setExpanded(e=>({...e,[group]:!e[group]}))} className="w-full px-4 py-3 text-left font-semibold border-b border-white/10">
-            {group} <span className="opacity-60">{expanded[group] ? '▾' : '▸'}</span>
+          <button type="button" onClick={()=>setExpanded(e=>({...e,[group]:!e[group]}))} className="w-full px-4 py-3 text-left font-semibold border-b border-white/10 flex items-center justify-between">
+            <span className="flex items-center gap-2"><span aria-hidden>{iconFor(group)}</span>{group}</span>
+            <span className="opacity-60">{expanded[group] ? '▾' : '▸'}</span>
           </button>
           {expanded[group] && (
             <div className="p-3 space-y-2">
               {items.map(opt => (
-                <div key={opt.id} className="flex items-start gap-3">
+                <div
+                  key={opt.id}
+                  className="flex items-start gap-3 outline-none"
+                  role="checkbox"
+                  aria-checked={isChecked(opt)}
+                  tabIndex={0}
+                  onKeyDown={(e)=>{ if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(opt) } }}
+                >
                   <input type="checkbox" className="mt-1 h-4 w-4" checked={isChecked(opt)} onChange={()=>toggle(opt)} />
                   <div className="flex-1">
                     <div className="font-medium flex items-center justify-between">

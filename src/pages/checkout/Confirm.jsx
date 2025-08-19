@@ -1,6 +1,7 @@
 import { useLocation, useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@clerk/clerk-react'
+import Breadcrumbs from '../../components/Breadcrumbs'
 
 import CheckoutProgress from '../../components/CheckoutProgress'
 export default function Confirm() {
@@ -24,6 +25,7 @@ export default function Confirm() {
 
   return (
     <div className="max-w-2xl mx-auto">
+      <Breadcrumbs items={[{ label: 'My Builds', to: '/builds' }, { label: 'Checkout', to: `/checkout/${buildId}/confirm` }, { label: 'Confirmation' }]} />
       <CheckoutProgress step={5} />
       <div className="card text-center">
         <h2 className="section-header">Order Received</h2>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { trackEvent } from '../utils/analytics'
 
 export default function ResumeBanner() {
   const { getToken } = useAuth()
@@ -38,7 +39,7 @@ export default function ResumeBanner() {
       <div className="rounded bg-gray-900/80 backdrop-blur border border-gray-700 px-4 py-3 text-sm text-gray-200 shadow-lg">
         <div className="mb-2">You have an in‑progress build: <span className="font-semibold">{build.modelName || build.modelSlug}</span> (Step {step}/5)</div>
         <div className="flex items-center gap-2">
-          <button className="btn-primary" onClick={()=>navigate(url)}>Resume →</button>
+          <button className="btn-primary" onClick={()=>{ trackEvent('build_resumed', { buildId: build._id, step }); navigate(url) }}>Resume →</button>
           <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={()=>{ setDismissed(true); try{ localStorage.setItem('ff.resume.dismissed', String(build._id)) } catch {} }}>Dismiss</button>
         </div>
       </div>

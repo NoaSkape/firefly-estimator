@@ -353,6 +353,10 @@ app.post(['/api/builds/:id/checkout-step', '/builds/:id/checkout-step'], async (
     const ok = bi.firstName && bi.lastName && bi.email && bi.address
     if (!ok) return res.status(400).json({ error: 'incomplete_buyer' })
   }
+  if (target >= 5) {
+    const c = b?.contract || {}
+    if (c?.status !== 'signed') return res.status(400).json({ error: 'contract_not_signed' })
+  }
   const updated = await updateBuild(req.params.id, { step: target })
   return res.status(200).json(updated)
 })
@@ -365,7 +369,9 @@ app.post(['/api/builds/:id/contract', '/builds/:id/contract'], async (req, res) 
   if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
   // For now, just return a URL to confirm step
   const url = `${getOrigin(req)}/checkout/${encodeURIComponent(String(req.params.id))}/confirm`
-  return res.status(200).json({ signingUrl: url })
+  // Simulate envelope creation; leave status as pending
+  await updateBuild(req.params.id, { contract: { status: 'pending', envelopeId: `env_${Date.now()}` } })
+  return res.status(200).json({ signingUrl: url, envelopeId: `env_${Date.now()}` })
 })
 
 // Finalize order (stub)
@@ -374,7 +380,20 @@ app.post(['/api/builds/:id/confirm', '/builds/:id/confirm'], async (req, res) =>
   if (!auth?.userId) return
   const b = await getBuildById(req.params.id)
   if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
-  const updated = await updateBuild(req.params.id, { step: 5, status: 'ORDER_PLACED' })
+  const now = new Date()
+  const updated = await updateBuild(req.params.id, { step: 5, status: 'ORDER_PLACED', contract: { ...(b.contract||{}), status: 'signed', signedAt: now } })
+  return res.status(200).json(updated)
+})
+
+// Optional parity endpoint for setting financing method explicitly
+app.post(['/api/builds/:id/payment-method', '/builds/:id/payment-method'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  const b = await getBuildById(req.params.id)
+  if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
+  const { method } = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+  if (!method) return res.status(400).json({ error: 'missing_method' })
+  const updated = await updateBuild(req.params.id, { financing: { ...(b.financing||{}), method } })
   return res.status(200).json(updated)
 })
 

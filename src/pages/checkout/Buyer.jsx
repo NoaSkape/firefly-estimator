@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { useUser, useAuth, SignIn } from '@clerk/clerk-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useToast } from '../../components/ToastProvider'
+import { trackEvent } from '../../utils/analytics'
 import ConfirmLeaveModal from '../../components/ConfirmLeaveModal'
 import CheckoutProgress from '../../components/CheckoutProgress'
+import Breadcrumbs from '../../components/Breadcrumbs'
 
 export default function Buyer() {
   const { user, isSignedIn } = useUser()
@@ -56,8 +58,10 @@ export default function Buyer() {
       })
       if (!res.ok) { addToast({ type: 'error', message: 'Please complete required fields' }); return }
       addToast({ type: 'success', message: 'Saved' })
+      trackEvent('buyer_saved', { buildId })
       const res2 = await fetch(`/api/builds/${buildId}/checkout-step`, { method:'POST', headers: { 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, body: JSON.stringify({ step: 4 }) })
       if (!res2.ok) { const j = await res2.json().catch(()=>({})); addToast({ type:'error', message: j?.error || 'Complete previous steps' }); return }
+      trackEvent('step_changed', { buildId, step: 4 })
     } catch {} finally { setSaving(false); setDirty(false) }
     navigate(`/checkout/${buildId}/review`)
   }
@@ -87,7 +91,15 @@ export default function Buyer() {
 
   return (
     <div>
-      <CheckoutProgress step={3} />
+      <Breadcrumbs items={[{ label: 'My Builds', to: '/builds' }, { label: 'Checkout', to: `/checkout/${buildId}/buyer` }, { label: 'Buyer Info' }]} />
+      <CheckoutProgress
+        step={3}
+        getBlockReason={(n)=> (n>=4 && (!form.firstName || !form.lastName || !form.email || !form.address)) ? 'Complete required fields' : ''}
+        onNavigate={async (n)=>{
+          if (n===2) { navigate(`/checkout/${buildId}/payment`); return }
+          if (n===4) { await next(); return }
+        }}
+      />
       <div className="max-w-3xl mx-auto">
         {!isSignedIn && (
           <div className="card mb-6">

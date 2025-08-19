@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { useToast } from '../../components/ToastProvider'
+import { trackEvent } from '../../utils/analytics'
 import CheckoutProgress from '../../components/CheckoutProgress'
+import Breadcrumbs from '../../components/Breadcrumbs'
 
 export default function PaymentMethod() {
   const navigate = useNavigate()
@@ -27,8 +29,10 @@ export default function PaymentMethod() {
       })
       if (!res.ok) { addToast({ type:'error', message:'Could not save payment method' }); return }
       addToast({ type:'success', message:'Payment method saved' })
+      trackEvent('payment_selected', { buildId, method: choice })
       const res2 = await fetch(`/api/builds/${buildId}/checkout-step`, { method:'POST', headers: { 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, body: JSON.stringify({ step: 3 }) })
       if (!res2.ok) { const j = await res2.json().catch(()=>({})); addToast({ type:'error', message: j?.error || 'Complete required fields first' }); return }
+      trackEvent('step_changed', { buildId, step: 3 })
     } catch {}
     navigate(`/checkout/${buildId}/buyer`)
   }
@@ -52,7 +56,15 @@ export default function PaymentMethod() {
 
   return (
     <div>
-      <CheckoutProgress step={2} />
+      <Breadcrumbs items={[{ label: 'My Builds', to: '/builds' }, { label: 'Checkout', to: `/checkout/${buildId}/payment` }, { label: 'Payment' }]} />
+      <CheckoutProgress
+        step={2}
+        getBlockReason={(n)=> (n>=3 && !choice) ? 'Select a payment method first' : ''}
+        onNavigate={async (n)=>{
+          if (n === 1) { navigate(`/builds/${buildId}`); return }
+          if (n === 3) { await continueNext(); return }
+        }}
+      />
       <div className="max-w-3xl mx-auto">
         <h1 className="section-header">Payment Method</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

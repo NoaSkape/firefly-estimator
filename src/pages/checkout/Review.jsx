@@ -1,8 +1,10 @@
 import CheckoutProgress from '../../components/CheckoutProgress'
+import Breadcrumbs from '../../components/Breadcrumbs'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { useToast } from '../../components/ToastProvider'
+import { trackEvent } from '../../utils/analytics'
 
 export default function Review() {
   const { buildId } = useParams()
@@ -23,6 +25,7 @@ export default function Review() {
 
   if (!build) return (
     <div>
+      <Breadcrumbs items={[{ label: 'My Builds', to: '/builds' }, { label: 'Checkout', to: `/checkout/${buildId}/review` }, { label: 'Review & Sign' }]} />
       <CheckoutProgress step={4} getBlockReason={(n)=> n===5 ? 'Complete required items before confirming' : ''} onNavigate={async (n)=>{
         if (n<=3) navigate(`/checkout/${buildId}/${n===2?'payment':'buyer'}`)
         if (n===5) {
@@ -30,6 +33,7 @@ export default function Review() {
             const token = await getToken()
             const res = await fetch(`/api/builds/${buildId}/checkout-step`, { method:'POST', headers:{ 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, body: JSON.stringify({ step: 5 }) })
             if (!res.ok) { const j = await res.json().catch(()=>({})); addToast({ type:'error', message: j?.error || 'Complete previous steps' }); return }
+            trackEvent('step_changed', { buildId, step: 5 })
             navigate(`/checkout/${buildId}/confirm`)
           } catch { addToast({ type:'error', message:'Unable to continue' }) }
         }
@@ -77,7 +81,7 @@ export default function Review() {
                 const token = await getToken()
                 const res = await fetch(`/api/builds/${buildId}/contract`, { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {} })
                 const data = await res.json()
-                if (data?.signingUrl) window.location.assign(data.signingUrl)
+                if (data?.signingUrl) { trackEvent('contract_started', { buildId }); window.location.assign(data.signingUrl) }
                 else addToast({ type:'error', message:'Could not start signing' })
               } catch (e) { addToast({ type:'error', message:'Could not start signing' }) }
             }}
@@ -91,6 +95,7 @@ export default function Review() {
                 const token = await getToken()
                 const res = await fetch(`/api/builds/${buildId}/confirm`, { method:'POST', headers: token?{ Authorization:`Bearer ${token}` }:{} })
                 if (!res.ok) { addToast({ type:'error', message:'Could not place order' }); return }
+                trackEvent('order_confirmed', { buildId })
                 navigate(`/checkout/${buildId}/confirm`)
               } catch { addToast({ type:'error', message:'Could not place order' }) }
             }}

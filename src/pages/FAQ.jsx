@@ -87,7 +87,7 @@ export default function FAQPage() {
             Because our dealership is primarily online, we don’t have the overhead costs of a brick-and-mortar dealership who have large lots with expensive models onsite. We pass those savings directly to you, giving us a competitive edge, and offering you better prices and more streamlined service.
           </QA>
           <QA q="How is the online dealership experience better?">
-            You can browse models, customize your home, and complete the buying process from anywhere—no long drives to a sales lot required, and no hard-ball salesperson to contend with. Though our team of experts are always available for in-person or virtual consultations, that’s entirely optional, as our online purchase flow is simply and intuitive.
+            You can browse models, customize your home, and complete the buying process from anywhere—no long drives to a sales lot required, and no hard-ball salesperson to contend with. Though our team of experts are always available for in-person or virtual consultations, that’s entirely optional, as our online purchase flow is simple and intuitive.
           </QA>
           <QA q="How are we paving the future of park model home buying?">
             The people have spoken, and just like the car industry shifted to online dealerships for customer convenience, we’re doing the same with park model homes. Firefly is at the forefront of this change, giving buyers a faster, smarter, and more affordable way to purchase their dream home.
