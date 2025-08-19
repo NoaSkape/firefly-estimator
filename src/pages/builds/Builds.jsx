@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useUser, useAuth } from '@clerk/clerk-react'
+import { useUser, useAuth, SignUp, SignIn } from '@clerk/clerk-react'
 import CheckoutProgress from '../../components/CheckoutProgress'
 
 export default function BuildsDashboard() {
@@ -23,16 +23,28 @@ export default function BuildsDashboard() {
 
   if (!isSignedIn) {
     return (
-      <div className="card">
-        <h1 className="section-header">My Builds</h1>
-        <p className="text-sm text-gray-300">Sign in to save and manage your builds.</p>
+      <div className="max-w-3xl mx-auto">
+        <div className="card text-center">
+          <h1 className="section-header">My Home</h1>
+          <p className="text-lg text-gray-300 mb-6">Create an account to save and customize your home</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-md mx-auto">
+            <div className="rounded border border-gray-800 bg-gray-900/50 p-4">
+              <h2 className="text-lg font-semibold text-gray-100 mb-2">New to Firefly</h2>
+              <SignUp redirectUrl="/builds" signInUrl="/builds" />
+            </div>
+            <div className="rounded border border-gray-800 bg-gray-900/50 p-4">
+              <h2 className="text-lg font-semibold text-gray-100 mb-2">Already have an account?</h2>
+              <SignIn redirectUrl="/builds" signUpUrl="/builds" />
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
     <div>
-      <h1 className="section-header">My Builds</h1>
+      <h1 className="section-header">My Home</h1>
       {loading ? (
         <div className="text-gray-400">Loading…</div>
       ) : builds.length === 0 ? (

@@ -23,7 +23,7 @@ export default function Header({ isAdmin }: HeaderProps) {
     return (
       <nav className="hidden md:flex items-center gap-6 text-sm">
         <a href="/models" className="hover:text-yellow-400">Explore Models</a>
-        <a href="/estimator" className="hover:text-yellow-400">Design & Price</a>
+        <a href="/builds" className="hover:text-yellow-400">My Home</a>
         <a href="/#financing" className="hover:text-yellow-400">Financing</a>
         <a href="/how" className="hover:text-yellow-400">How It Works</a>
         <a href="/faq" className="hover:text-yellow-400">FAQ</a>
@@ -45,9 +45,6 @@ export default function Header({ isAdmin }: HeaderProps) {
         <NavLinks />
 
         <div className="flex items-center gap-3">
-          {isAdmin && (
-            <a href="/estimator" className="hidden sm:inline text-sm px-3 py-1.5 rounded bg-white/10 text-white hover:bg-white/20">Estimator</a>
-          )}
           <a href="/checkout?mode=finance" className="hidden md:inline text-sm px-3 py-1.5 rounded bg-yellow-400 text-gray-900 hover:bg-yellow-300">Get Pre-Approved</a>
           <UserButton appearance={{ elements: { userButtonAvatarBox: 'w-8 h-8' } }} />
           <button aria-label="Open menu" className="md:hidden p-2 rounded hover:bg-white/10" onClick={() => setOpen(true)}>
@@ -72,7 +69,7 @@ export default function Header({ isAdmin }: HeaderProps) {
             </div>
             <nav className="flex flex-col gap-3 text-sm">
               <a href="/models" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>Explore Models</a>
-              <a href="/estimator" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>Design & Price</a>
+              <a href="/builds" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>My Home</a>
               <a href="/#financing" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>Financing</a>
               <a href="/how" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>How It Works</a>
               <a href="/faq" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>FAQ</a>

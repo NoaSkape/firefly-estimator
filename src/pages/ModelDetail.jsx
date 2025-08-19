@@ -219,8 +219,8 @@ const ModelDetail = ({ onModelSelect }) => {
   }
 
   const handleChooseModel = () => {
-    // Return to estimator with the chosen model
-    navigate(`/estimator?model=${actualModelCode}`)
+    // Navigate to builds page
+    navigate(`/builds`)
   }
 
   const computePricing = () => {
