@@ -47,7 +47,9 @@ export default function BuildsDashboard() {
               </div>
               <div className="flex items-center gap-2">
                 <button className="btn-primary" onClick={()=>navigate(`/builds/${b._id}`)}>Resume</button>
-                <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={()=>navigate(`/checkout/${b._id}`)}>Checkout</button>
+                <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={()=>navigate(`/checkout/${b._id}/payment`)}>Checkout</button>
+                <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={async()=>{ const token = await getToken(); const r = await fetch(`/api/builds/${b._id}/duplicate`, { method:'POST', headers: token?{Authorization:`Bearer ${token}`}:{}}); const j=await r.json(); if(j?.buildId) navigate(`/builds/${j.buildId}`) }}>Duplicate</button>
+                <button className="px-3 py-2 rounded border border-red-800 text-red-300 hover:bg-red-900/30" onClick={async()=>{ const token = await getToken(); await fetch(`/api/builds/${b._id}`, { method:'DELETE', headers: token?{Authorization:`Bearer ${token}`}:{}}); setBuilds(list=>list.filter(x=>x._id!==b._id)) }}>Delete</button>
               </div>
             </div>
           ))}

@@ -1,0 +1,38 @@
+import { useEffect, useState } from 'react'
+import { useAuth } from '@clerk/clerk-react'
+import { useNavigate } from 'react-router-dom'
+
+export default function ResumeBanner() {
+  const { getToken } = useAuth()
+  const [build, setBuild] = useState(null)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/builds', { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+        if (res.ok) {
+          const list = await res.json()
+          const candidate = Array.isArray(list) ? list.find(b => b.status === 'DRAFT' || b.status === 'CHECKOUT_IN_PROGRESS') : null
+          if (candidate) setBuild(candidate)
+        }
+      } catch {}
+    })()
+  }, [getToken])
+
+  if (!build) return null
+  const step = Number(build.step || 1)
+  const url = step <= 1 ? `/builds/${build._id}` : `/checkout/${build._id}/${step===2?'payment':step===3?'buyer':step===4?'review':'confirm'}`
+
+  return (
+    <div className="fixed bottom-3 right-3 z-40">
+      <div className="rounded bg-gray-900/80 backdrop-blur border border-gray-700 px-4 py-3 text-sm text-gray-200 shadow-lg">
+        <div className="mb-2">You have an in‑progress build: <span className="font-semibold">{build.modelName || build.modelSlug}</span> (Step {step}/5)</div>
+        <button className="btn-primary" onClick={()=>navigate(url)}>Resume →</button>
+      </div>
+    </div>
+  )
+}
+
+
