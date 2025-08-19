@@ -2,12 +2,14 @@ import CheckoutProgress from '../../components/CheckoutProgress'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@clerk/clerk-react'
+import { useToast } from '../../components/ToastProvider'
 
 export default function Review() {
   const { buildId } = useParams()
   const navigate = useNavigate()
   const { getToken } = useAuth()
   const [build, setBuild] = useState(null)
+  const { addToast } = useToast()
 
   useEffect(() => {
     (async () => {
@@ -21,7 +23,17 @@ export default function Review() {
 
   if (!build) return (
     <div>
-      <CheckoutProgress step={4} />
+      <CheckoutProgress step={4} onNavigate={async (n)=>{
+        if (n<=3) navigate(`/checkout/${buildId}/${n===2?'payment':'buyer'}`)
+        if (n===5) {
+          try {
+            const token = await getToken()
+            const res = await fetch(`/api/builds/${buildId}/checkout-step`, { method:'POST', headers:{ 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, body: JSON.stringify({ step: 5 }) })
+            if (!res.ok) { const j = await res.json().catch(()=>({})); addToast({ type:'error', message: j?.error || 'Complete previous steps' }); return }
+            navigate(`/checkout/${buildId}/confirm`)
+          } catch { addToast({ type:'error', message:'Unable to continue' }) }
+        }
+      }} />
       <div className="text-gray-400">Loading…</div>
     </div>
   )
@@ -66,8 +78,8 @@ export default function Review() {
                 const res = await fetch(`/api/builds/${buildId}/contract`, { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {} })
                 const data = await res.json()
                 if (data?.signingUrl) window.location.assign(data.signingUrl)
-                else alert('Could not start signing')
-              } catch (e) { alert('Could not start signing') }
+                else addToast({ type:'error', message:'Could not start signing' })
+              } catch (e) { addToast({ type:'error', message:'Could not start signing' }) }
             }}
           >
             Sign & Submit

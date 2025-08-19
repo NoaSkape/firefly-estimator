@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
+import { useToast } from '../../components/ToastProvider'
 import CheckoutProgress from '../../components/CheckoutProgress'
 
 export default function PaymentMethod() {
@@ -8,6 +9,7 @@ export default function PaymentMethod() {
   const { buildId } = useParams()
   const { getToken } = useAuth()
   const [choice, setChoice] = useState('')
+  const { addToast } = useToast()
 
   useEffect(() => {
     const saved = localStorage.getItem('ff.checkout.paymentMethod')
@@ -18,11 +20,15 @@ export default function PaymentMethod() {
     if (!choice) { alert('Please select a payment method to continue'); return }
     try {
       const token = await getToken()
-      await fetch(`/api/builds/${buildId}`, {
+      const res = await fetch(`/api/builds/${buildId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ financing: { method: choice }, step: 3 })
       })
+      if (!res.ok) { addToast({ type:'error', message:'Could not save payment method' }); return }
+      addToast({ type:'success', message:'Payment method saved' })
+      const res2 = await fetch(`/api/builds/${buildId}/checkout-step`, { method:'POST', headers: { 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, body: JSON.stringify({ step: 3 }) })
+      if (!res2.ok) { const j = await res2.json().catch(()=>({})); addToast({ type:'error', message: j?.error || 'Complete required fields first' }); return }
     } catch {}
     navigate(`/checkout/${buildId}/buyer`)
   }

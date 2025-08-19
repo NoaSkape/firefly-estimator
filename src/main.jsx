@@ -5,6 +5,7 @@ import './index.css'
 import App from './App.jsx'
 import { ClerkProvider, SignedIn, SignedOut, SignIn } from '@clerk/clerk-react'
 import { HelmetProvider } from 'react-helmet-async'
+import { ToastProvider } from './components/ToastProvider'
 
 // Read publishable key from environment
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
@@ -57,7 +58,9 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <HelmetProvider>
       <ClerkProvider publishableKey={clerkPubKey}>
-        <ProtectedApp />
+        <ToastProvider>
+          <ProtectedApp />
+        </ToastProvider>
       </ClerkProvider>
     </HelmetProvider>
   </StrictMode>,

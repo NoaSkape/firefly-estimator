@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@clerk/clerk-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 export default function ResumeBanner() {
   const { getToken } = useAuth()
   const [build, setBuild] = useState(null)
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
     (async () => {
@@ -22,6 +24,8 @@ export default function ResumeBanner() {
   }, [getToken])
 
   if (!build) return null
+  if (dismissed) return null
+  if (pathname.startsWith('/builds') || pathname.startsWith('/checkout')) return null
   const step = Number(build.step || 1)
   const url = step <= 1 ? `/builds/${build._id}` : `/checkout/${build._id}/${step===2?'payment':step===3?'buyer':step===4?'review':'confirm'}`
 
@@ -29,7 +33,10 @@ export default function ResumeBanner() {
     <div className="fixed bottom-3 right-3 z-40">
       <div className="rounded bg-gray-900/80 backdrop-blur border border-gray-700 px-4 py-3 text-sm text-gray-200 shadow-lg">
         <div className="mb-2">You have an in‑progress build: <span className="font-semibold">{build.modelName || build.modelSlug}</span> (Step {step}/5)</div>
-        <button className="btn-primary" onClick={()=>navigate(url)}>Resume →</button>
+        <div className="flex items-center gap-2">
+          <button className="btn-primary" onClick={()=>navigate(url)}>Resume →</button>
+          <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={()=>setDismissed(true)}>Dismiss</button>
+        </div>
       </div>
     </div>
   )

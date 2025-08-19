@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useUser, useAuth, SignIn } from '@clerk/clerk-react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useToast } from '../../components/ToastProvider'
 import CheckoutProgress from '../../components/CheckoutProgress'
 
 export default function Buyer() {
@@ -8,10 +9,12 @@ export default function Buyer() {
   const { getToken } = useAuth()
   const navigate = useNavigate()
   const { buildId } = useParams()
+  const { addToast } = useToast()
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '',
     address: '', city: '', state: '', zip: ''
   })
+  const [errors, setErrors] = useState({})
 
   useEffect(() => {
     try {
@@ -27,14 +30,29 @@ export default function Buyer() {
   }, [user])
 
   function setField(k, v) { setForm(f => ({ ...f, [k]: v })) }
+  function validate() {
+    const e = {}
+    if (!form.firstName) e.firstName = 'Required'
+    if (!form.lastName) e.lastName = 'Required'
+    if (!form.email) e.email = 'Required'
+    if (!form.address) e.address = 'Required'
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
+
   async function next() {
+    if (!validate()) { addToast({ type:'error', message:'Please complete required fields' }); return }
     try {
       const token = await getToken()
-      await fetch(`/api/builds/${buildId}`, {
+      const res = await fetch(`/api/builds/${buildId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ buyerInfo: form, step: 4 })
       })
+      if (!res.ok) { addToast({ type: 'error', message: 'Please complete required fields' }); return }
+      addToast({ type: 'success', message: 'Saved' })
+      const res2 = await fetch(`/api/builds/${buildId}/checkout-step`, { method:'POST', headers: { 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, body: JSON.stringify({ step: 4 }) })
+      if (!res2.ok) { const j = await res2.json().catch(()=>({})); addToast({ type:'error', message: j?.error || 'Complete previous steps' }); return }
     } catch {}
     navigate(`/checkout/${buildId}/review`)
   }
@@ -52,11 +70,11 @@ export default function Buyer() {
         )}
         <h1 className="section-header">Buyer & Delivery Info</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input className="input-field" placeholder="First name" value={form.firstName} onChange={e=>setField('firstName', e.target.value)} />
-          <input className="input-field" placeholder="Last name" value={form.lastName} onChange={e=>setField('lastName', e.target.value)} />
-          <input className="input-field md:col-span-2" placeholder="Email" value={form.email} onChange={e=>setField('email', e.target.value)} />
+          <input className={`input-field ${errors.firstName?'border-red-600':''}`} placeholder="First name" value={form.firstName} onChange={e=>setField('firstName', e.target.value)} />
+          <input className={`input-field ${errors.lastName?'border-red-600':''}`} placeholder="Last name" value={form.lastName} onChange={e=>setField('lastName', e.target.value)} />
+          <input className={`input-field md:col-span-2 ${errors.email?'border-red-600':''}`} placeholder="Email" value={form.email} onChange={e=>setField('email', e.target.value)} />
           <input className="input-field md:col-span-2" placeholder="Phone" value={form.phone} onChange={e=>setField('phone', e.target.value)} />
-          <input className="input-field md:col-span-2" placeholder="Address" value={form.address} onChange={e=>setField('address', e.target.value)} />
+          <input className={`input-field md:col-span-2 ${errors.address?'border-red-600':''}`} placeholder="Address" value={form.address} onChange={e=>setField('address', e.target.value)} />
           <input className="input-field" placeholder="City" value={form.city} onChange={e=>setField('city', e.target.value)} />
           <input className="input-field" placeholder="State" value={form.state} onChange={e=>setField('state', e.target.value)} />
           <input className="input-field" placeholder="ZIP" value={form.zip} onChange={e=>setField('zip', e.target.value)} />
