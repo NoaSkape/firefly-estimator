@@ -26,17 +26,88 @@ export default function AccountCreate() {
         const res = await fetch(`/api/models/${code}`)
         if (res.ok) model = await res.json()
       } catch {}
+      
+      // Fallback to local models data if API fails
+      if (!model) {
+        const { MODELS } = await import('../../data/models.js')
+        model = MODELS.find(m => m.id === code)
+      }
+      
       if (!model) { navigate('/models'); return }
       // read guest draft and create a Build
       let guest = null
       try { guest = JSON.parse(localStorage.getItem(`ff_guest_build_${slug}`) || 'null') } catch {}
+      
+      // Handle package and add-on selections from URL parameters
+      const selectedPackage = params.get('pkg')
+      const selectedAddon = params.get('addon')
+      
+      let initialOptions = guest?.selections?.options || []
+      
+      // Add selected package to options
+      if (selectedPackage) {
+        // Check model packages first
+        let pkg = model?.packages?.find(p => p.key === selectedPackage)
+        
+        // Fallback to demo packages if not found in model
+        if (!pkg) {
+          const fallbackPackages = [
+            { key:'comfort-xtreme', name:'Comfort Xtreme', priceDelta:3500, description:'HVAC mini‑split, insulation upgrades, blackout shades.' },
+            { key:'chefs-pick', name:"Chef's Pick", priceDelta:5200, description:'Solid-surface counters, gas range, deep sink, pull‑outs.' },
+            { key:'cozy-cottage', name:'Cozy Cottage', priceDelta:2800, description:'Wood accents, warm lighting, upgraded trim.' },
+            { key:'ultra', name:'Ultra', priceDelta:7400, description:'Premium finishes across kitchen, bath and exterior.' },
+          ]
+          pkg = fallbackPackages.find(p => p.key === selectedPackage)
+        }
+        
+        if (pkg) {
+          initialOptions.push({
+            id: `pkg-${pkg.key}`,
+            name: pkg.name,
+            price: Number(pkg.priceDelta || 0),
+            description: pkg.description,
+            group: 'Packages',
+            quantity: 1
+          })
+        }
+      }
+      
+      // Add selected add-on to options
+      if (selectedAddon) {
+        // Check model add-ons first
+        let addon = model?.addOns?.find(a => a.id === selectedAddon)
+        
+        // Fallback to demo add-ons if not found in model
+        if (!addon) {
+          const fallbackAddOns = [
+            { id:'awnings', name:'Window Awnings', priceDelta:900, description:'Add charm and shade with custom awnings.' },
+            { id:'skylight', name:'Skylight', priceDelta:650, description:'Bring in natural light with a roof skylight.' },
+          ]
+          addon = fallbackAddOns.find(a => a.id === selectedAddon)
+        }
+        
+        if (addon) {
+          initialOptions.push({
+            id: `addon-${addon.id}`,
+            name: addon.name,
+            price: Number(addon.priceDelta || 0),
+            description: addon.description,
+            group: 'Add-ons',
+            quantity: 1
+          })
+        }
+      }
+      
       try {
         const token = await getToken()
         const body = {
           modelSlug: slug,
           modelName: model?.name,
           basePrice: Number(model?.basePrice || 0),
-          selections: guest?.selections || { options: [] },
+          selections: {
+            ...guest?.selections,
+            options: initialOptions
+          },
           financing: guest?.financing || {},
           buyerInfo: guest?.buyerInfo || {},
         }
