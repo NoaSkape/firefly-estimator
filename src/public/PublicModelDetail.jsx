@@ -4,6 +4,7 @@ import { useUser, useAuth } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
 import { isValidSlug, slugToModelId, modelIdToSlug } from '../utils/modelUrlMapping'
 import { MODELS } from '../data/models'
+import { analytics } from '../utils/analytics'
 import SEOHead from '../components/SEOHead'
 import AdminModelEditor from '../components/AdminModelEditor'
 
@@ -102,6 +103,10 @@ export default function PublicModelDetail() {
 
   const handleChooseHome = async () => {
     const slug = modelIdToSlug(actualModelCode) || id
+    
+    // Track model view
+    analytics.modelViewed(slug)
+    
     try {
       if (isSignedIn) {
         const token = await getToken()
@@ -117,13 +122,23 @@ export default function PublicModelDetail() {
           body: JSON.stringify(body),
         })
         const json = await res.json()
-        if (json?.buildId) return navigate(`/builds/${json.buildId}`)
+        if (json?.buildId) {
+          analytics.buildCreated(json.buildId, slug)
+          return navigate(`/builds/${json.buildId}`)
+        }
       }
     } catch {}
     // guest: store minimal draft and go to account
     try {
-      const guest = { selections: { options: [] } }
+      const guest = { 
+        selections: { options: [] },
+        modelSlug: slug,
+        modelName: model?.name,
+        basePrice: Number(model?.basePrice || 0),
+        createdAt: new Date().toISOString()
+      }
       localStorage.setItem(`ff_guest_build_${slug}`, JSON.stringify(guest))
+      analytics.guestDraftCreated(slug)
     } catch {}
     navigate(`/checkout/configure/${slug}`)
   }

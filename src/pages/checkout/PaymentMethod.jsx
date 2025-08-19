@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { useToast } from '../../components/ToastProvider'
-import { trackEvent } from '../../utils/analytics'
+import { analytics } from '../../utils/analytics'
 import CheckoutProgress from '../../components/CheckoutProgress'
 import Breadcrumbs from '../../components/Breadcrumbs'
 
@@ -29,10 +29,10 @@ export default function PaymentMethod() {
       })
       if (!res.ok) { addToast({ type:'error', message:'Could not save payment method' }); return }
       addToast({ type:'success', message:'Payment method saved' })
-      trackEvent('payment_selected', { buildId, method: choice })
+              analytics.paymentSelected(buildId, choice)
       const res2 = await fetch(`/api/builds/${buildId}/checkout-step`, { method:'POST', headers: { 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, body: JSON.stringify({ step: 3 }) })
       if (!res2.ok) { const j = await res2.json().catch(()=>({})); addToast({ type:'error', message: j?.error || 'Complete required fields first' }); return }
-      trackEvent('step_changed', { buildId, step: 3 })
+              analytics.stepChanged(buildId, 2, 3)
     } catch {}
     navigate(`/checkout/${buildId}/buyer`)
   }
