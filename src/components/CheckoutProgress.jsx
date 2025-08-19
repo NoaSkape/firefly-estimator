@@ -1,7 +1,7 @@
 export default function CheckoutProgress({ step = 1 }) {
   const steps = [
-    'Design',
-    'Buyer Info',
+    'Customize',
+    'Create Account',
     'Payment Method',
     'Review & Sign',
     'Confirmation',

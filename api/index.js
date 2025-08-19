@@ -9,6 +9,7 @@ import { requireAuth } from '../lib/auth.js'
 import { applyCors } from '../lib/cors.js'
 import { findModelById, ensureModelIndexes, findOrCreateModel, COLLECTION } from '../lib/model-utils.js'
 import { ensureOrderIndexes, createOrderDraft, getOrderById, updateOrder, listOrdersForUser, listOrdersAdmin } from '../lib/orders.js'
+import { ensureBuildIndexes, createBuild, getBuildById, listBuildsForUser, updateBuild, duplicateBuild, deleteBuild } from '../lib/builds.js'
 import { ensureIdempotencyIndexes, withIdempotency } from '../lib/idempotency.js'
 import { quoteDelivery } from '../lib/delivery.js'
 import { z } from 'zod'
@@ -265,6 +266,75 @@ app.all(['/api/what-path', '/what-path'], (req, res) => {
     baseUrl: req.baseUrl,
     url: req.url,
   })
+})
+
+// ===== Builds (new) =====
+// Create build (from model or migrated guest draft)
+app.post(['/api/builds', '/builds'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  await ensureBuildIndexes()
+  try {
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+    const doc = await createBuild({
+      userId: auth.userId,
+      modelSlug: String(body.modelSlug || ''),
+      modelName: String(body.modelName || ''),
+      basePrice: Number(body.basePrice || 0),
+      selections: body.selections || {},
+      financing: body.financing || {},
+      buyerInfo: body.buyerInfo || {},
+    })
+    return res.status(200).json({ ok: true, buildId: String(doc._id) })
+  } catch (err) {
+    return res.status(400).json({ error: 'invalid_build', message: String(err?.message || err) })
+  }
+})
+
+// List builds for current user
+app.get(['/api/builds', '/builds'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  await ensureBuildIndexes()
+  const list = await listBuildsForUser(auth.userId)
+  return res.status(200).json(list)
+})
+
+// Get single build
+app.get(['/api/builds/:id', '/builds/:id'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  const b = await getBuildById(req.params.id)
+  if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
+  return res.status(200).json(b)
+})
+
+// Update build
+app.patch(['/api/builds/:id', '/builds/:id'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  const b = await getBuildById(req.params.id)
+  if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
+  const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+  const updated = await updateBuild(req.params.id, body)
+  return res.status(200).json(updated)
+})
+
+// Duplicate build
+app.post(['/api/builds/:id/duplicate', '/builds/:id/duplicate'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  const copy = await duplicateBuild(req.params.id, auth.userId)
+  if (!copy) return res.status(404).json({ error: 'not_found' })
+  return res.status(200).json({ ok: true, buildId: String(copy._id) })
+})
+
+// Delete build
+app.delete(['/api/builds/:id', '/builds/:id'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  const result = await deleteBuild(req.params.id, auth.userId)
+  return res.status(200).json({ ok: true, deleted: result?.deletedCount || 0 })
 })
 
 // ----- PATCH/PUT model -----

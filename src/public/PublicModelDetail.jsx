@@ -10,7 +10,7 @@ import AdminModelEditor from '../components/AdminModelEditor'
 export default function PublicModelDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user } = useUser()
+  const { user, isSignedIn } = useUser()
   const { getToken } = useAuth()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [model, setModel] = useState(null)
@@ -100,8 +100,31 @@ export default function PublicModelDetail() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-center"><h1 className="text-2xl font-bold text-gray-900 mb-4">Model Not Found</h1><button onClick={()=>navigate('/')} className="btn-primary">Back to Models</button></div></div>
   )
 
-  const handleChooseHome = () => {
+  const handleChooseHome = async () => {
     const slug = modelIdToSlug(actualModelCode) || id
+    try {
+      if (isSignedIn) {
+        const token = await getToken()
+        const body = {
+          modelSlug: slug,
+          modelName: model?.name,
+          basePrice: Number(model?.basePrice || 0),
+          selections: { options: [] },
+        }
+        const res = await fetch('/api/builds', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify(body),
+        })
+        const json = await res.json()
+        if (json?.buildId) return navigate(`/builds/${json.buildId}`)
+      }
+    } catch {}
+    // guest: store minimal draft and go to account
+    try {
+      const guest = { selections: { options: [] } }
+      localStorage.setItem(`ff_guest_build_${slug}`, JSON.stringify(guest))
+    } catch {}
     navigate(`/checkout/configure/${slug}`)
   }
 

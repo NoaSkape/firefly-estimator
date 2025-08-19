@@ -22,6 +22,8 @@ import PortalDashboard from './pages/portal/Dashboard'
 import AdminOrders from './pages/admin/Orders'
 import PublicModelDetail from './public/PublicModelDetail'
 import PackageDetail from './public/PackageDetail'
+import BuildsDashboard from './pages/builds/Builds'
+import BuildCustomize from './pages/builds/Customize'
 import About from './pages/About'
 import Contact from './pages/Contact'
 import { getAllValidSlugs } from './utils/modelUrlMapping'
@@ -177,6 +179,13 @@ function App() {
               <Route path="/checkout/confirm" element={<Confirm />} />
               <Route path="/public/models/:id" element={<PublicModelDetail />} />
               <Route path="/public/models/:id/package/:key" element={<PackageDetail />} />
+              <Route path="/builds" element={<BuildsDashboard />} />
+              <Route path="/builds/:buildId" element={<BuildCustomize />} />
+              <Route path="/checkout/:buildId" element={<Review />} />
+              <Route path="/checkout/:buildId/payment" element={<PaymentMethod />} />
+              <Route path="/checkout/:buildId/buyer" element={<Buyer />} />
+              <Route path="/checkout/:buildId/review" element={<Review />} />
+              <Route path="/checkout/:buildId/confirm" element={<Confirm />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/portal" element={<PortalOrders />} />

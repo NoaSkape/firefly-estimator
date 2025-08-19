@@ -5,21 +5,17 @@ import CheckoutProgress from '../../components/CheckoutProgress'
 import { slugToModelId, isValidSlug } from '../../utils/modelUrlMapping'
 
 export default function AccountCreate() {
-  const { user, isSignedIn } = useUser()
+  const { isSignedIn } = useUser()
   const { getToken } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const { slug: pathSlug } = useParams()
   const location = useLocation()
 
-  // Ensure we create a draft order once the user is signed in
+  // After sign-in: migrate guest draft → Build, then go to /builds/:id
   useEffect(() => {
     (async () => {
       if (!isSignedIn) return
-      if (localStorage.getItem('ff.orderId')) {
-        navigate('/checkout/buyer')
-        return
-      }
       // derive model info from path param first, fall back to query if present
       const slug = pathSlug || params.get('slug') || ''
       const code = isValidSlug(slug) ? slugToModelId(slug) : slug
@@ -31,25 +27,34 @@ export default function AccountCreate() {
         if (res.ok) model = await res.json()
       } catch {}
       if (!model) { navigate('/models'); return }
+      // read guest draft and create a Build
+      let guest = null
+      try { guest = JSON.parse(localStorage.getItem(`ff_guest_build_${slug}`) || 'null') } catch {}
       try {
         const token = await getToken()
-        const key = `${Date.now()}-${user?.id || 'anon'}-${code}`
         const body = {
-          model: { modelCode: model?.modelCode || code, slug, name: model?.name, basePrice: Number(model?.basePrice||0) },
-          selections: [],
-          pricing: { base: Number(model?.basePrice||0), options: 0, delivery: 0, total: Number(model?.basePrice||0), deposit: 0 }
+          modelSlug: slug,
+          modelName: model?.name,
+          basePrice: Number(model?.basePrice || 0),
+          selections: guest?.selections || { options: [] },
+          financing: guest?.financing || {},
+          buyerInfo: guest?.buyerInfo || {},
         }
-        const res2 = await fetch('/api/orders', {
+        const res2 = await fetch('/api/builds', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify(body)
         })
         const json = await res2.json()
-        if (json?.orderId) localStorage.setItem('ff.orderId', json.orderId)
+        if (json?.buildId) {
+          localStorage.removeItem(`ff_guest_build_${slug}`)
+          navigate(`/builds/${json.buildId}`)
+          return
+        }
       } catch {}
-      navigate('/checkout/buyer')
+      navigate('/builds')
     })()
-  }, [isSignedIn, getToken, user, params, navigate])
+  }, [isSignedIn, getToken, params, navigate])
 
   return (
     <div>
