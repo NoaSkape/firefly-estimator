@@ -288,8 +288,7 @@ export default function PublicModelDetail() {
               </div>
             )}
             <div className="card">
-              <button onClick={handleChooseHome} className="w-full btn-primary text-lg py-4">Choose This Home</button>
-              <p className="text-sm text-gray-600 mt-2 text-center">This will select this home and take you to design options</p>
+              <button onClick={handleChooseHome} className="w-full btn-primary text-lg py-4">Save Design</button>
             </div>
           </div>
         </div>

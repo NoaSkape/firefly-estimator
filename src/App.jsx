@@ -7,10 +7,23 @@ import ModelDetail from './pages/ModelDetail'
 import Configure from './pages/checkout/Configure'
 import Confirm from './pages/checkout/Confirm'
 import FAQPage from './pages/FAQ'
+import ModelsPage from './pages/Models'
+import PaymentMethod from './pages/checkout/PaymentMethod'
+import Buyer from './pages/checkout/Buyer'
+import Review from './pages/checkout/Review'
+import AccountCreate from './pages/checkout/Account'
+import HowItWorks from './pages/how/HowItWorks'
+import Ordering from './pages/how/Ordering'
+import Delivery from './pages/how/Delivery'
+import Warranty from './pages/how/Warranty'
+import WhyOnline from './pages/how/WhyOnline'
 import PortalOrders from './pages/portal/Orders'
+import PortalDashboard from './pages/portal/Dashboard'
 import AdminOrders from './pages/admin/Orders'
 import PublicModelDetail from './public/PublicModelDetail'
 import PackageDetail from './public/PackageDetail'
+import About from './pages/About'
+import Contact from './pages/Contact'
 import { getAllValidSlugs } from './utils/modelUrlMapping'
 import { testModelUrls, generateModelSitemap } from './utils/testModelUrls'
 import { verifyImplementation } from './utils/verifyImplementation'
@@ -144,18 +157,30 @@ function App() {
                 element={<Home />} 
               />
               <Route path="/estimator" element={<QuoteBuilder />} />
+              <Route path="/models" element={<ModelsPage />} />
               
               {/* Single dynamic route supporting slug or code */}
               <Route 
                 path="/models/:id" 
                 element={<ModelDetail onModelSelect={handleModelSelect} />} 
               />
-              <Route path="/checkout/configure/:slug" element={<Configure />} />
+              <Route path="/checkout/configure/:slug" element={<AccountCreate />} />
+              <Route path="/checkout/payment" element={<PaymentMethod />} />
+              <Route path="/checkout/buyer" element={<Buyer />} />
+              <Route path="/checkout/review" element={<Review />} />
+              <Route path="/how" element={<HowItWorks />} />
+              <Route path="/how/ordering" element={<Ordering />} />
+              <Route path="/how/delivery" element={<Delivery />} />
+              <Route path="/how/warranty" element={<Warranty />} />
+              <Route path="/how/why-buy-online" element={<WhyOnline />} />
               {/* Removed legacy steps: Delivery/Auth/Payment/Sign */}
               <Route path="/checkout/confirm" element={<Confirm />} />
               <Route path="/public/models/:id" element={<PublicModelDetail />} />
               <Route path="/public/models/:id/package/:key" element={<PackageDetail />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
               <Route path="/portal" element={<PortalOrders />} />
+              <Route path="/portal/dashboard" element={<PortalDashboard />} />
               <Route path="/admin/orders" element={<AdminOrders />} />
               <Route path="/faq" element={<FAQPage />} />
             </Routes>

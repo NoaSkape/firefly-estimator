@@ -166,12 +166,22 @@ app.get(['/api/orders/:id', '/orders/:id'], async (req, res) => {
 app.patch(['/api/orders/:id', '/orders/:id'], async (req, res) => {
   const auth = await requireAuth(req, res, true)
   if (!auth?.userId) return
-  const allowed = ['buyer', 'delivery', 'selections', 'pricing']
+  const allowed = ['buyer', 'delivery', 'selections', 'pricing', 'payment', 'status']
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
   const patch = {}
   for (const k of allowed) if (k in body) patch[k] = body[k]
   const updated = await updateOrder(req.params.id, patch)
   return res.status(200).json(updated)
+})
+
+// list current user's orders (optionally filter by status)
+app.get(['/api/orders', '/orders'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  const list = await listOrdersForUser(auth.userId)
+  const status = req.query?.status
+  const filtered = status ? list.filter(o => String(o.status) === String(status)) : list
+  return res.status(200).json(filtered)
 })
 
 app.get(['/api/portal/orders', '/portal/orders'], async (req, res) => {
@@ -190,6 +200,61 @@ app.get(['/api/admin/orders', '/admin/orders'], async (req, res) => {
 
 // ----- Stripe Checkout (test item) -----
 app.post(['/api/checkout/create-checkout-session', '/checkout/create-checkout-session'], createCheckoutSession)
+
+// ----- E‑sign scaffolding -----
+// Create a signing session (placeholder). In production, integrate DocuSign SDK here.
+app.post(['/api/esign/create', '/esign/create'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  try {
+    const { orderId } = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+    if (!orderId) return res.status(400).json({ error: 'missing_orderId' })
+    const db = await getDb()
+    const col = db.collection(ORDERS_COLLECTION)
+    const { ObjectId } = await import('mongodb')
+    const _id = new ObjectId(String(orderId))
+    const order = await col.findOne({ _id })
+    if (!order) return res.status(404).json({ error: 'not_found' })
+
+    // Update status → signing and push timeline event
+    await col.updateOne({ _id }, {
+      $set: { status: 'signing', updatedAt: new Date() },
+      $push: { timeline: { event: 'esign_started', at: new Date() } }
+    })
+
+    // Placeholder: normally we would create a DocuSign envelope and return the recipient view URL.
+    const signUrl = `${getOrigin(req)}/checkout/confirm?orderId=${encodeURIComponent(String(orderId))}`
+    return res.status(200).json({ url: signUrl })
+  } catch (err) {
+    console.error('esign create error', err)
+    return res.status(500).json({ error: 'esign_create_failed' })
+  }
+})
+
+// Webhook endpoint for e‑sign provider (placeholder). Protect with a shared secret.
+app.post(['/api/esign/webhook', '/esign/webhook'], async (req, res) => {
+  try {
+    const secret = process.env.E_SIGN_WEBHOOK_SECRET || ''
+    const header = req.headers['x-webhook-secret'] || req.headers['X-Webhook-Secret']
+    if (secret && header !== secret) return res.status(401).json({ error: 'unauthorized' })
+
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+    const { orderId, event = 'esign_completed' } = body
+    if (!orderId) return res.status(400).json({ ok: true })
+    const db = await getDb()
+    const col = db.collection(ORDERS_COLLECTION)
+    const { ObjectId } = await import('mongodb')
+    const _id = new ObjectId(String(orderId))
+    await col.updateOne({ _id }, {
+      $set: { status: 'signed', updatedAt: new Date() },
+      $push: { timeline: { event, at: new Date() } }
+    })
+    return res.status(200).json({ ok: true })
+  } catch (err) {
+    console.error('esign webhook error', err)
+    return res.status(200).json({ ok: true })
+  }
+})
 
 // TEMP: path probe for debugging rewrites/normalizer. Remove after verification.
 app.all(['/api/what-path', '/what-path'], (req, res) => {

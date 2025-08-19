@@ -4,6 +4,7 @@ import ModelSelector from '../../components/ModelSelector'
 import PublicOptionSelector from '../../public/PublicOptionSelector'
 import PackagesSelector from '../../components/PackagesSelector'
 import { MODELS } from '../../data/models'
+import CheckoutProgress from '../../components/CheckoutProgress'
 import { OPTIONS } from '../../data/options'
 
 export default function Configure() {
@@ -46,7 +47,9 @@ export default function Configure() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div>
+      <CheckoutProgress step={1} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 space-y-6">
         <div className="card">
           <h2 className="section-header">Select Base Model</h2>
@@ -91,6 +94,7 @@ export default function Configure() {
           </button>
         </div>
       </div>
+    </div>
     </div>
   )
 }

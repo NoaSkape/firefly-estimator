@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { UserButton } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
 
@@ -22,11 +22,11 @@ export default function Header({ isAdmin }: HeaderProps) {
   function NavLinks() {
     return (
       <nav className="hidden md:flex items-center gap-6 text-sm">
-        <a href="/#models" className="hover:text-yellow-400">Explore Models</a>
+        <a href="/models" className="hover:text-yellow-400">Explore Models</a>
         <a href="/estimator" className="hover:text-yellow-400">Design & Price</a>
         <a href="/#financing" className="hover:text-yellow-400">Financing</a>
-        <a href="/#how-it-works" className="hover:text-yellow-400">How It Works</a>
-        <a href="/#faq" className="hover:text-yellow-400">FAQ</a>
+        <a href="/how" className="hover:text-yellow-400">How It Works</a>
+        <a href="/faq" className="hover:text-yellow-400">FAQ</a>
         <a href="/about" className="hover:text-yellow-400">About</a>
       </nav>
     )
@@ -71,11 +71,11 @@ export default function Header({ isAdmin }: HeaderProps) {
               </button>
             </div>
             <nav className="flex flex-col gap-3 text-sm">
-              <a href="/#models" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>Explore Models</a>
+              <a href="/models" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>Explore Models</a>
               <a href="/estimator" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>Design & Price</a>
               <a href="/#financing" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>Financing</a>
-              <a href="/#how-it-works" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>How It Works</a>
-              <a href="/#faq" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>FAQ</a>
+              <a href="/how" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>How It Works</a>
+              <a href="/faq" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>FAQ</a>
               <a href="/about" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>About</a>
               <a href="/checkout?mode=finance" className="mt-2 text-center px-3 py-2 rounded bg-yellow-400 text-gray-900 hover:bg-yellow-300" onClick={() => setOpen(false)}>Get Pre-Approved</a>
             </nav>
