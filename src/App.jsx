@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-
+import QuoteBuilder from './pages/QuoteBuilder'
 import Home from './pages/Home'
 import QuotePDFPreview from './pages/QuotePDFPreview'
 import ModelDetail from './pages/ModelDetail'
@@ -160,7 +160,7 @@ function App() {
                 path="/" 
                 element={<Home />} 
               />
-
+              <Route path="/estimator" element={<QuoteBuilder />} />
               <Route path="/models" element={<ModelsPage />} />
               
               {/* Single dynamic route supporting slug or code */}

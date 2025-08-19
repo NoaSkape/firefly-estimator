@@ -4,7 +4,7 @@ export default function PriceSummary({ pricing, onSave, onDuplicate }) {
   const delivery = Number(pricing?.delivery || 0)
   const setup = Number(pricing?.setup || 0)
   const tax = Number(pricing?.tax || 0)
-  const total = Number(pricing?.total || base + options + delivery + setup + tax)
+  const total = Number(pricing?.total || 0)
   return (
     <div className="w-72 card sticky top-4">
       <div className="font-semibold mb-2">Price Summary</div>
