@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '@clerk/clerk-react'
 import CheckoutProgress from '../../components/CheckoutProgress'
 
 export default function PaymentMethod() {
   const navigate = useNavigate()
+  const { buildId } = useParams()
+  const { getToken } = useAuth()
   const [choice, setChoice] = useState('')
 
   useEffect(() => {
@@ -13,18 +16,15 @@ export default function PaymentMethod() {
 
   async function continueNext() {
     if (!choice) { alert('Please select a payment method to continue'); return }
-    localStorage.setItem('ff.checkout.paymentMethod', choice)
-    const orderId = localStorage.getItem('ff.orderId')
-    if (orderId) {
-      try {
-        await fetch(`/api/orders/${orderId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ payment: { method: choice } })
-        })
-      } catch {}
-    }
-    navigate('/checkout/buyer')
+    try {
+      const token = await getToken()
+      await fetch(`/api/builds/${buildId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ financing: { method: choice }, step: 3 })
+      })
+    } catch {}
+    navigate(`/checkout/${buildId}/buyer`)
   }
 
   function Card({ id, title, desc }) {
@@ -46,7 +46,7 @@ export default function PaymentMethod() {
 
   return (
     <div>
-      <CheckoutProgress step={3} />
+      <CheckoutProgress step={2} />
       <div className="max-w-3xl mx-auto">
         <h1 className="section-header">Payment Method</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

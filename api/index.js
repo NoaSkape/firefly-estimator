@@ -337,6 +337,47 @@ app.delete(['/api/builds/:id', '/builds/:id'], async (req, res) => {
   return res.status(200).json({ ok: true, deleted: result?.deletedCount || 0 })
 })
 
+// Advance/retreat checkout step with minimal validation
+app.post(['/api/builds/:id/checkout-step', '/builds/:id/checkout-step'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  const b = await getBuildById(req.params.id)
+  if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
+  const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+  const target = Number(body?.step || b.step)
+  if (target < 1 || target > 5) return res.status(400).json({ error: 'invalid_step' })
+  // simple guards
+  if (target >= 3 && !(b?.financing?.method)) return res.status(400).json({ error: 'missing_payment_method' })
+  if (target >= 4) {
+    const bi = b?.buyerInfo || {}
+    const ok = bi.firstName && bi.lastName && bi.email && bi.address
+    if (!ok) return res.status(400).json({ error: 'incomplete_buyer' })
+  }
+  const updated = await updateBuild(req.params.id, { step: target })
+  return res.status(200).json(updated)
+})
+
+// Stub: generate contract and return signing URL
+app.post(['/api/builds/:id/contract', '/builds/:id/contract'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  const b = await getBuildById(req.params.id)
+  if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
+  // For now, just return a URL to confirm step
+  const url = `${getOrigin(req)}/checkout/${encodeURIComponent(String(req.params.id))}/confirm`
+  return res.status(200).json({ signingUrl: url })
+})
+
+// Finalize order (stub)
+app.post(['/api/builds/:id/confirm', '/builds/:id/confirm'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  const b = await getBuildById(req.params.id)
+  if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
+  const updated = await updateBuild(req.params.id, { step: 5, status: 'ORDER_PLACED' })
+  return res.status(200).json(updated)
+})
+
 // ----- PATCH/PUT model -----
 async function handleModelWrite(req, res) {
   const debug = process.env.DEBUG_ADMIN === 'true'

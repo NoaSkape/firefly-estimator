@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useUser, useAuth, SignIn } from '@clerk/clerk-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import CheckoutProgress from '../../components/CheckoutProgress'
 
 export default function Buyer() {
   const { user, isSignedIn } = useUser()
   const { getToken } = useAuth()
   const navigate = useNavigate()
+  const { buildId } = useParams()
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '',
     address: '', city: '', state: '', zip: ''
@@ -27,24 +28,20 @@ export default function Buyer() {
 
   function setField(k, v) { setForm(f => ({ ...f, [k]: v })) }
   async function next() {
-    localStorage.setItem('ff.checkout.buyer', JSON.stringify(form))
-    const orderId = localStorage.getItem('ff.orderId')
-    if (orderId) {
-      try {
-        const token = await getToken()
-        await fetch(`/api/orders/${orderId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ buyer: form })
-        })
-      } catch {}
-    }
-    navigate('/checkout/review')
+    try {
+      const token = await getToken()
+      await fetch(`/api/builds/${buildId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ buyerInfo: form, step: 4 })
+      })
+    } catch {}
+    navigate(`/checkout/${buildId}/review`)
   }
 
   return (
     <div>
-      <CheckoutProgress step={2} />
+      <CheckoutProgress step={3} />
       <div className="max-w-3xl mx-auto">
         {!isSignedIn && (
           <div className="card mb-6">

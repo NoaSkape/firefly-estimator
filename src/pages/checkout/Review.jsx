@@ -1,18 +1,37 @@
 import CheckoutProgress from '../../components/CheckoutProgress'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useAuth } from '@clerk/clerk-react'
 
 export default function Review() {
-  let cart = {}
-  try { cart = JSON.parse(localStorage.getItem('ff.cart') || '{}') } catch {}
-  const buyer = JSON.parse(localStorage.getItem('ff.checkout.buyer') || '{}')
-  const method = localStorage.getItem('ff.checkout.paymentMethod') || ''
+  const { buildId } = useParams()
+  const navigate = useNavigate()
+  const { getToken } = useAuth()
+  const [build, setBuild] = useState(null)
 
-  const { model, selections = [], pricing = {} } = cart
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = await getToken()
+        const res = await fetch(`/api/builds/${buildId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+        if (res.ok) setBuild(await res.json())
+      } catch {}
+    })()
+  }, [buildId, getToken])
+
+  if (!build) return (
+    <div>
+      <CheckoutProgress step={4} />
+      <div className="text-gray-400">Loading…</div>
+    </div>
+  )
+
   const rows = [
-    { label: 'Base', value: pricing.base || 0 },
-    { label: 'Options', value: pricing.options || 0 },
-    { label: 'Delivery', value: pricing.delivery || 0 },
+    { label: 'Base', value: Number(build?.selections?.basePrice || 0) },
+    { label: 'Options', value: (build?.selections?.options || []).reduce((s,o)=>s+Number(o.price||0)*(o.quantity||1),0) },
+    { label: 'Delivery', value: Number(build?.pricing?.delivery || 0) },
   ]
-  const total = pricing.total || rows.reduce((s,r)=>s+r.value,0)
+  const total = Number(build?.pricing?.total || rows.reduce((s,r)=>s+r.value,0))
 
   return (
     <div>
@@ -21,9 +40,9 @@ export default function Review() {
         <h1 className="section-header">Review & Sign</h1>
         <div className="card">
           <h2 className="text-lg font-semibold text-gray-100">Order Summary</h2>
-          <p className="text-sm text-gray-300">{model?.name} ({model?.modelCode})</p>
+          <p className="text-sm text-gray-300">{build?.modelName} ({build?.modelSlug})</p>
           <ul className="mt-3 text-sm text-gray-300 list-disc list-inside">
-            {selections.map((s, i) => (<li key={i}>{s.label} (+${(s.priceDelta||0).toLocaleString()})</li>))}
+            {(build?.selections?.options||[]).map((s, i) => (<li key={i}>{s.name || s.code} (+${Number(s.price||0).toLocaleString()})</li>))}
           </ul>
           <div className="mt-3 text-sm text-gray-200">
             {rows.map(r => (
@@ -34,23 +53,19 @@ export default function Review() {
         </div>
         <div className="card">
           <h2 className="text-lg font-semibold text-gray-100">Buyer & Delivery</h2>
-          <p className="text-sm text-gray-300">{buyer.firstName} {buyer.lastName} • {buyer.email}</p>
-          <p className="text-sm text-gray-300">{buyer.address} {buyer.city} {buyer.state} {buyer.zip}</p>
-          <p className="text-sm text-gray-300 mt-1">Payment Method: <span className="font-medium">{method || '—'}</span></p>
+          <p className="text-sm text-gray-300">{build?.buyerInfo?.firstName} {build?.buyerInfo?.lastName} • {build?.buyerInfo?.email}</p>
+          <p className="text-sm text-gray-300">{build?.buyerInfo?.deliveryAddress}</p>
+          <p className="text-sm text-gray-300 mt-1">Payment Method: <span className="font-medium">{build?.financing?.method || '—'}</span></p>
         </div>
         <div className="flex gap-3">
           <button
             className="btn-primary"
             onClick={async () => {
-              const orderId = localStorage.getItem('ff.orderId')
-              if (!orderId) { alert('Missing order id'); return }
               try {
-                const res = await fetch('/api/esign/create', {
-                  method: 'POST', headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ orderId })
-                })
+                const token = await getToken()
+                const res = await fetch(`/api/builds/${buildId}/contract`, { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {} })
                 const data = await res.json()
-                if (data?.url) window.location.assign(data.url)
+                if (data?.signingUrl) window.location.assign(data.signingUrl)
                 else alert('Could not start signing')
               } catch (e) { alert('Could not start signing') }
             }}
