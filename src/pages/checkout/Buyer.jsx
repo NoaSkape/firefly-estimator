@@ -105,7 +105,21 @@ export default function Buyer() {
           <div className="card mb-6">
             <h2 className="text-lg font-semibold text-gray-100 mb-2">Create Your Account</h2>
             <p className="text-sm text-gray-300 mb-3">Sign in or create an account so your design and checkout progress are saved.</p>
-            <SignIn redirectUrl="/checkout/buyer" signUpUrl={null} />
+            <SignIn 
+              redirectUrl="/checkout/buyer" 
+              signUpUrl="/sign-up?redirect=/checkout/buyer"
+              appearance={{
+                elements: {
+                  formButtonPrimary: 'btn-primary w-full',
+                  card: 'bg-transparent shadow-none p-0',
+                  headerTitle: 'text-lg font-semibold text-gray-100',
+                  headerSubtitle: 'text-gray-400',
+                  formFieldInput: 'w-full px-3 py-2 border border-gray-700 bg-gray-800 text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent',
+                  formFieldLabel: 'block text-sm font-medium text-gray-300 mb-1',
+                  footerActionLink: 'text-yellow-400 hover:text-yellow-300'
+                }
+              }}
+            />
           </div>
         )}
         <h1 className="section-header">Buyer & Delivery Info</h1>

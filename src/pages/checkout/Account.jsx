@@ -138,11 +138,39 @@ export default function AccountCreate() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="rounded border border-gray-800 bg-gray-900/50 p-4">
                 <h2 className="text-lg font-semibold text-gray-100 mb-2">New to Firefly</h2>
-                <SignUp redirectUrl={location.pathname + location.search} signInUrl={location.pathname + location.search} />
+                <SignUp 
+                  redirectUrl={location.pathname + location.search} 
+                  signInUrl={`/sign-in?redirect=${encodeURIComponent(location.pathname + location.search)}`}
+                  appearance={{
+                    elements: {
+                      formButtonPrimary: 'btn-primary w-full',
+                      card: 'bg-transparent shadow-none p-0',
+                      headerTitle: 'text-lg font-semibold text-gray-100',
+                      headerSubtitle: 'text-gray-400',
+                      formFieldInput: 'w-full px-3 py-2 border border-gray-700 bg-gray-800 text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent',
+                      formFieldLabel: 'block text-sm font-medium text-gray-300 mb-1',
+                      footerActionLink: 'text-yellow-400 hover:text-yellow-300'
+                    }
+                  }}
+                />
               </div>
               <div className="rounded border border-gray-800 bg-gray-900/50 p-4">
                 <h2 className="text-lg font-semibold text-gray-100 mb-2">Already have an account?</h2>
-                <SignIn redirectUrl={location.pathname + location.search} signUpUrl={location.pathname + location.search} />
+                <SignIn 
+                  redirectUrl={location.pathname + location.search} 
+                  signUpUrl={`/sign-up?redirect=${encodeURIComponent(location.pathname + location.search)}`}
+                  appearance={{
+                    elements: {
+                      formButtonPrimary: 'btn-primary w-full',
+                      card: 'bg-transparent shadow-none p-0',
+                      headerTitle: 'text-lg font-semibold text-gray-100',
+                      headerSubtitle: 'text-gray-400',
+                      formFieldInput: 'w-full px-3 py-2 border border-gray-700 bg-gray-800 text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent',
+                      formFieldLabel: 'block text-sm font-medium text-gray-300 mb-1',
+                      footerActionLink: 'text-yellow-400 hover:text-yellow-300'
+                    }
+                  }}
+                />
               </div>
             </div>
           </div>
