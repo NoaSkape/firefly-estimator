@@ -46,12 +46,8 @@ export default function Header({ isAdmin }: HeaderProps) {
 
         <div className="flex items-center gap-3">
           {isAdmin && (
-            <>
-              <a href="/estimator" className="hidden sm:inline text-sm px-3 py-1.5 rounded bg-white/10 text-white hover:bg-white/20">Estimator</a>
-              <a href="/admin/dashboard" className="hidden sm:inline text-sm px-3 py-1.5 rounded bg-yellow-500 text-gray-900 hover:bg-yellow-400">Admin</a>
-            </>
+            <a href="/admin/dashboard" className="hidden sm:inline text-sm px-3 py-1.5 rounded bg-yellow-500 text-gray-900 hover:bg-yellow-400">Admin</a>
           )}
-          <a href="/checkout?mode=finance" className="hidden md:inline text-sm px-3 py-1.5 rounded bg-yellow-400 text-gray-900 hover:bg-yellow-300">Get Pre-Approved</a>
           <UserButton appearance={{ elements: { userButtonAvatarBox: 'w-8 h-8' } }} />
           <button aria-label="Open menu" className="md:hidden p-2 rounded hover:bg-white/10" onClick={() => setOpen(true)}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
@@ -79,11 +75,10 @@ export default function Header({ isAdmin }: HeaderProps) {
               <a href="/#financing" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>Financing</a>
               <a href="/how" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>How It Works</a>
               <a href="/faq" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>FAQ</a>
-              <a href="/about" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>About</a>
-              {isAdmin && (
-                <a href="/admin/dashboard" className="px-2 py-2 rounded bg-yellow-500 text-gray-900 hover:bg-yellow-400" onClick={() => setOpen(false)}>Admin Dashboard</a>
-              )}
-              <a href="/checkout?mode=finance" className="mt-2 text-center px-3 py-2 rounded bg-yellow-400 text-gray-900 hover:bg-yellow-300" onClick={() => setOpen(false)}>Get Pre-Approved</a>
+                             <a href="/about" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>About</a>
+               {isAdmin && (
+                 <a href="/admin/dashboard" className="px-2 py-2 rounded bg-yellow-500 text-gray-900 hover:bg-yellow-400" onClick={() => setOpen(false)}>Admin Dashboard</a>
+               )}
             </nav>
           </div>
         </div>
