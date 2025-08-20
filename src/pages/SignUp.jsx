@@ -1,7 +1,7 @@
 import React from 'react'
+import { SignUp } from '@clerk/clerk-react'
 import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import CustomSignUpForm from '../components/CustomSignUpForm'
 
 export default function SignUpPage() {
   const [searchParams] = useSearchParams()
@@ -25,9 +25,33 @@ export default function SignUpPage() {
             <p className="text-gray-300">To save your customizations and calculate delivery costs</p>
           </div>
           
-          <div className="bg-white shadow-lg rounded-lg p-6">
-            <CustomSignUpForm redirectUrl={redirectUrl} />
-          </div>
+          <SignUp
+            appearance={{
+              elements: {
+                formButtonPrimary: 'btn-primary w-full',
+                card: 'bg-white shadow-lg rounded-lg p-6',
+                headerTitle: 'text-xl font-semibold text-gray-900',
+                headerSubtitle: 'text-gray-600',
+                socialButtonsBlockButton: 'btn-secondary w-full',
+                formFieldInput: 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-gray-900',
+                formFieldLabel: 'block text-sm font-medium text-gray-700 mb-1',
+                footerActionLink: 'text-yellow-600 hover:text-yellow-500',
+                dividerLine: 'bg-gray-300',
+                dividerText: 'text-gray-500 bg-white px-4'
+              }
+            }}
+            signInUrl="/sign-in"
+            fallbackRedirectUrl={redirectUrl}
+            routing="path"
+            path="/sign-up"
+            showOptionalFields={true}
+            initialValues={{
+              emailAddress: '',
+              password: '',
+              firstName: '',
+              lastName: ''
+            }}
+          />
           
           <div className="text-center">
             <p className="text-sm text-gray-300">
