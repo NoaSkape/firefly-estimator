@@ -321,7 +321,7 @@ app.post(['/api/builds', '/builds'], async (req, res) => {
 
 // List builds for current user
 app.get(['/api/builds', '/builds'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
+  const auth = await requireAuth(req, res, false)
   if (!auth?.userId) return
   await ensureBuildIndexes()
   const list = await listBuildsForUser(auth.userId)
@@ -330,7 +330,7 @@ app.get(['/api/builds', '/builds'], async (req, res) => {
 
 // Get single build
 app.get(['/api/builds/:id', '/builds/:id'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
+  const auth = await requireAuth(req, res, false)
   if (!auth?.userId) return
   const b = await getBuildById(req.params.id)
   if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
@@ -339,7 +339,7 @@ app.get(['/api/builds/:id', '/builds/:id'], async (req, res) => {
 
 // Update build
 app.patch(['/api/builds/:id', '/builds/:id'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
+  const auth = await requireAuth(req, res, false)
   if (!auth?.userId) return
   const b = await getBuildById(req.params.id)
   if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
@@ -350,7 +350,7 @@ app.patch(['/api/builds/:id', '/builds/:id'], async (req, res) => {
 
 // Duplicate build
 app.post(['/api/builds/:id/duplicate', '/builds/:id/duplicate'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
+  const auth = await requireAuth(req, res, false)
   if (!auth?.userId) return
   const copy = await duplicateBuild(req.params.id, auth.userId)
   if (!copy) return res.status(404).json({ error: 'not_found' })
@@ -359,7 +359,7 @@ app.post(['/api/builds/:id/duplicate', '/builds/:id/duplicate'], async (req, res
 
 // Rename build
 app.post(['/api/builds/:id/rename', '/builds/:id/rename'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
+  const auth = await requireAuth(req, res, false)
   if (!auth?.userId) return
   try {
     const { id } = req.params
@@ -378,7 +378,7 @@ app.post(['/api/builds/:id/rename', '/builds/:id/rename'], async (req, res) => {
 
 // Delete build
 app.delete(['/api/builds/:id', '/builds/:id'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
+  const auth = await requireAuth(req, res, false)
   if (!auth?.userId) return
   const result = await deleteBuild(req.params.id, auth.userId)
   return res.status(200).json({ ok: true, deleted: result?.deletedCount || 0 })
@@ -386,7 +386,7 @@ app.delete(['/api/builds/:id', '/builds/:id'], async (req, res) => {
 
 // Advance/retreat checkout step with minimal validation
 app.post(['/api/builds/:id/checkout-step', '/builds/:id/checkout-step'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
+  const auth = await requireAuth(req, res, false)
   if (!auth?.userId) return
   const b = await getBuildById(req.params.id)
   if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
@@ -410,7 +410,7 @@ app.post(['/api/builds/:id/checkout-step', '/builds/:id/checkout-step'], async (
 
 // Generate contract and return signing URL using Adobe Sign
 app.post(['/api/builds/:id/contract', '/builds/:id/contract'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
+  const auth = await requireAuth(req, res, false)
   if (!auth?.userId) return
   
   try {
@@ -1042,7 +1042,7 @@ async function generateModelPerformanceData(db, startDate, endDate) {
 
 // Finalize order (stub)
 app.post(['/api/builds/:id/confirm', '/builds/:id/confirm'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
+  const auth = await requireAuth(req, res, false)
   if (!auth?.userId) return
   const b = await getBuildById(req.params.id)
   if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
@@ -1053,7 +1053,7 @@ app.post(['/api/builds/:id/confirm', '/builds/:id/confirm'], async (req, res) =>
 
 // Optional parity endpoint for setting financing method explicitly
 app.post(['/api/builds/:id/payment-method', '/builds/:id/payment-method'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
+  const auth = await requireAuth(req, res, false)
   if (!auth?.userId) return
   const b = await getBuildById(req.params.id)
   if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
