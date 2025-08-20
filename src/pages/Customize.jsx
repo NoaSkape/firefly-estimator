@@ -104,13 +104,34 @@ const Customize = () => {
 
   const computePricing = () => {
     const base = Number(model?.basePrice || 0)
-    const optionsTotal = selectedOptions.reduce((s, o) => s + (o.priceDelta || 0), 0)
+    const optionsTotal = selectedOptions.reduce((s, o) => s + (o.price || 0), 0)
     const pkgDelta = (() => {
       const pkg = (model?.packages || []).find(p => (p.key || p.name) === selectedPackage)
       return pkg ? Number(pkg.priceDelta || 0) : 0
     })()
-    const total = base + optionsTotal + pkgDelta
-    return { base, options: optionsTotal, package: pkgDelta, total }
+    
+    // Calculate subtotal before delivery and taxes
+    const subtotal = base + optionsTotal + pkgDelta
+    
+    // Delivery cost (will be calculated based on address for signed-in users)
+    const delivery = isSignedIn ? 0 : 0 // TODO: Calculate based on user's delivery address
+    
+    // Calculate taxes (8.25% for Texas)
+    const taxRate = 0.0825
+    const taxableAmount = subtotal + delivery
+    const taxes = taxableAmount * taxRate
+    
+    const total = subtotal + delivery + taxes
+    
+    return { 
+      base, 
+      options: optionsTotal, 
+      package: pkgDelta, 
+      subtotal,
+      delivery, 
+      taxes, 
+      total 
+    }
   }
 
   const handleSaveCustomization = async () => {
@@ -363,6 +384,32 @@ const Customize = () => {
                     <span className="font-medium">+${pricing.options.toLocaleString()}</span>
                   </div>
                 )}
+                
+                {/* Subtotal */}
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+                  <div className="flex justify-between font-medium">
+                    <span>Subtotal</span>
+                    <span>${pricing.subtotal.toLocaleString()}</span>
+                  </div>
+                </div>
+                
+                {/* Delivery */}
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Delivery</span>
+                  {isSignedIn ? (
+                    <span className="font-medium">${pricing.delivery.toLocaleString()}</span>
+                  ) : (
+                    <span className="text-sm text-yellow-600 font-medium">Create Account to discover delivery cost</span>
+                  )}
+                </div>
+                
+                {/* Taxes */}
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Taxes (8.25%)</span>
+                  <span className="font-medium">${pricing.taxes.toLocaleString()}</span>
+                </div>
+                
+                {/* Total */}
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
                   <div className="flex justify-between text-lg font-semibold">
                     <span>Total</span>
