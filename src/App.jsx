@@ -34,6 +34,8 @@ const About = lazy(() => import('./pages/About'))
 const Contact = lazy(() => import('./pages/Contact'))
 const Financing = lazy(() => import('./pages/Financing'))
 const Customize = lazy(() => import('./pages/Customize'))
+const SignUp = lazy(() => import('./pages/SignUp'))
+const SignIn = lazy(() => import('./pages/SignIn'))
 import { getAllValidSlugs } from './utils/modelUrlMapping'
 import { testModelUrls, generateModelSitemap } from './utils/testModelUrls'
 import { verifyImplementation } from './utils/verifyImplementation'
@@ -278,6 +280,8 @@ function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/financing" element={<Financing />} />
               <Route path="/customize/:modelId" element={<Customize />} />
+              <Route path="/sign-up" element={<SignUp />} />
+              <Route path="/sign-in" element={<SignIn />} />
               <Route path="/portal" element={
                 <ProtectedRoute>
                   <PortalOrders />

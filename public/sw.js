@@ -67,19 +67,24 @@ self.addEventListener('fetch', (event) => {
 async function handleApiRequest(request) {
   const cache = await caches.open(API_CACHE)
   
+  // Don't cache POST requests - just pass them through
+  if (request.method === 'POST') {
+    return fetch(request)
+  }
+  
   try {
     // Try network first
     const response = await fetch(request)
     
-    // Cache successful responses
-    if (response.ok) {
+    // Cache successful GET responses only
+    if (response.ok && request.method === 'GET') {
       const clonedResponse = response.clone()
       cache.put(request, clonedResponse)
     }
     
     return response
   } catch (error) {
-    // Fallback to cache
+    // Fallback to cache for GET requests only
     const cachedResponse = await cache.match(request)
     if (cachedResponse) {
       return cachedResponse
