@@ -1,5 +1,5 @@
 import React from 'react'
-import { SignUp } from '@clerk/clerk-react'
+import { SignUp, UserButton } from '@clerk/clerk-react'
 import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 
@@ -14,7 +14,19 @@ export default function SignUpPage() {
         <meta name="description" content="Create your account to save your custom home designs and continue your journey with Firefly Tiny Homes." />
       </Helmet>
       
-      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
+        {/* Clerk UserButton in top right */}
+        <div className="absolute top-4 right-4 z-20">
+          <UserButton 
+            appearance={{
+              elements: {
+                userButtonAvatarBox: 'w-10 h-10',
+                userButtonTrigger: 'focus:shadow-none'
+              }
+            }}
+          />
+        </div>
+        
         <div className="max-w-md w-full space-y-6">
           <div className="text-center">
             <div className="w-16 h-16 bg-yellow-500 rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg">
