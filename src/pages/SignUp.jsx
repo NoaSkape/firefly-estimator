@@ -14,14 +14,26 @@ export default function SignUpPage() {
         <meta name="description" content="Create your account to save your custom home designs and continue your journey with Firefly Tiny Homes." />
       </Helmet>
       
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
+      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
+        {/* Background with fireflies effect */}
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+          <div className="absolute inset-0 opacity-20">
+            {/* Fireflies effect */}
+            <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+            <div className="absolute top-1/3 right-1/3 w-1 h-1 bg-yellow-300 rounded-full animate-pulse delay-1000"></div>
+            <div className="absolute top-1/2 left-1/2 w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse delay-500"></div>
+            <div className="absolute bottom-1/3 left-1/4 w-1 h-1 bg-yellow-300 rounded-full animate-pulse delay-1500"></div>
+            <div className="absolute bottom-1/4 right-1/4 w-2 h-2 bg-yellow-400 rounded-full animate-pulse delay-2000"></div>
+          </div>
+        </div>
+        
+        <div className="max-w-md w-full space-y-6 relative z-10">
           <div className="text-center">
-            <div className="w-16 h-16 bg-yellow-500 rounded-lg flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-yellow-500 rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg">
               <span className="text-white font-bold text-xl">F</span>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Create Your Account</h1>
-            <p className="text-gray-600">Join Firefly Tiny Homes to save your customizations</p>
+            <h1 className="text-2xl font-bold text-white mb-2">Create Your Account</h1>
+            <p className="text-gray-300">Join Firefly Tiny Homes to save your customizations</p>
           </div>
           
           <SignUp
@@ -41,12 +53,15 @@ export default function SignUpPage() {
             }}
             signInUrl="/sign-in"
             redirectUrl={redirectUrl}
+            afterSignUpUrl={redirectUrl}
+            routing="path"
+            path="/sign-up"
           />
           
           <div className="text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-300">
               Already have an account?{' '}
-              <a href={`/sign-in?redirect=${encodeURIComponent(redirectUrl)}`} className="text-yellow-600 hover:text-yellow-500 font-medium">
+              <a href={`/sign-in?redirect=${encodeURIComponent(redirectUrl)}`} className="text-yellow-400 hover:text-yellow-300 font-medium">
                 Sign in here
               </a>
             </p>
