@@ -1,7 +1,6 @@
 import React from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import AuthButton from '../components/AuthButton'
 import CustomSignInForm from '../components/CustomSignInForm'
 
 export default function SignInPage() {
@@ -15,11 +14,7 @@ export default function SignInPage() {
         <meta name="description" content="Sign in to your Firefly Tiny Homes account to access your saved customizations and continue your home building journey." />
       </Helmet>
       
-      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
-        {/* Auth Button in top right */}
-        <div className="absolute top-4 right-4 z-50">
-          <AuthButton />
-        </div>
+             <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
         
         <div className="max-w-md w-full space-y-6">
           <div className="text-center">
