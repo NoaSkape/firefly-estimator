@@ -1,32 +1,34 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense, lazy } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import QuoteBuilder from './pages/QuoteBuilder'
-import Home from './pages/Home'
-import QuotePDFPreview from './pages/QuotePDFPreview'
-import ModelDetail from './pages/ModelDetail'
-import Configure from './pages/checkout/Configure'
-import Confirm from './pages/checkout/Confirm'
-import FAQPage from './pages/FAQ'
-import ModelsPage from './pages/Models'
-import PaymentMethod from './pages/checkout/PaymentMethod'
-import Buyer from './pages/checkout/Buyer'
-import Review from './pages/checkout/Review'
-import AccountCreate from './pages/checkout/Account'
-import HowItWorks from './pages/how/HowItWorks'
-import Ordering from './pages/how/Ordering'
-import Delivery from './pages/how/Delivery'
-import Warranty from './pages/how/Warranty'
-import WhyOnline from './pages/how/WhyOnline'
-import PortalOrders from './pages/portal/Orders'
-import PortalDashboard from './pages/portal/Dashboard'
-import AdminOrders from './pages/admin/Orders'
-import AnalyticsDashboard from './components/AnalyticsDashboard'
-import PublicModelDetail from './public/PublicModelDetail'
-import PackageDetail from './public/PackageDetail'
-import BuildsDashboard from './pages/builds/Builds'
-import BuildCustomize from './pages/builds/Customize'
-import About from './pages/About'
-import Contact from './pages/Contact'
+
+// Lazy load all page components for better performance
+const QuoteBuilder = lazy(() => import('./pages/QuoteBuilder'))
+const Home = lazy(() => import('./pages/Home'))
+const QuotePDFPreview = lazy(() => import('./pages/QuotePDFPreview'))
+const ModelDetail = lazy(() => import('./pages/ModelDetail'))
+const Configure = lazy(() => import('./pages/checkout/Configure'))
+const Confirm = lazy(() => import('./pages/checkout/Confirm'))
+const FAQPage = lazy(() => import('./pages/FAQ'))
+const ModelsPage = lazy(() => import('./pages/Models'))
+const PaymentMethod = lazy(() => import('./pages/checkout/PaymentMethod'))
+const Buyer = lazy(() => import('./pages/checkout/Buyer'))
+const Review = lazy(() => import('./pages/checkout/Review'))
+const AccountCreate = lazy(() => import('./pages/checkout/Account'))
+const HowItWorks = lazy(() => import('./pages/how/HowItWorks'))
+const Ordering = lazy(() => import('./pages/how/Ordering'))
+const Delivery = lazy(() => import('./pages/how/Delivery'))
+const Warranty = lazy(() => import('./pages/how/Warranty'))
+const WhyOnline = lazy(() => import('./pages/how/WhyOnline'))
+const PortalOrders = lazy(() => import('./pages/portal/Orders'))
+const PortalDashboard = lazy(() => import('./pages/portal/Dashboard'))
+const AdminOrders = lazy(() => import('./pages/admin/Orders'))
+const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard'))
+const PublicModelDetail = lazy(() => import('./public/PublicModelDetail'))
+const PackageDetail = lazy(() => import('./public/PackageDetail'))
+const BuildsDashboard = lazy(() => import('./pages/builds/Builds'))
+const BuildCustomize = lazy(() => import('./pages/builds/Customize'))
+const About = lazy(() => import('./pages/About'))
+const Contact = lazy(() => import('./pages/Contact'))
 import { getAllValidSlugs } from './utils/modelUrlMapping'
 import { testModelUrls, generateModelSitemap } from './utils/testModelUrls'
 import { verifyImplementation } from './utils/verifyImplementation'
@@ -37,9 +39,11 @@ import Header from './components/Header'
 import Footer from './components/Footer'
 import ResumeBanner from './components/ResumeBanner'
 import OfflineIndicator from './components/OfflineIndicator'
+import { PageLoadingSpinner } from './components/LoadingSpinner'
 import './App.css'
 import { SignedIn, useUser } from '@clerk/clerk-react'
 import { canEditModelsClient } from './lib/canEditModels'
+import './utils/performance' // Initialize performance monitoring
 
 function App() {
   const [quoteData, setQuoteData] = useState(null)
@@ -71,6 +75,17 @@ function App() {
       html.setAttribute('data-theme', 'light')
       document.body.setAttribute('data-theme', 'light')
       window.localStorage.setItem('theme', 'light')
+    }
+
+    // Register service worker for caching and offline support
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then((registration) => {
+          console.log('Service Worker registered:', registration)
+        })
+        .catch((error) => {
+          console.log('Service Worker registration failed:', error)
+        })
     }
 
     if (import.meta.env.DEV) {
@@ -155,10 +170,11 @@ function App() {
           <FirefliesBackground density={0.12} color="#FFD86B" parallax={0.25} />
           <Header isAdmin={isAdmin} />
 
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <ResumeBanner />
-            <OfflineIndicator />
-            <Routes>
+                          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                  <ResumeBanner />
+                  <OfflineIndicator />
+                  <Suspense fallback={<PageLoadingSpinner />}>
+                    <Routes>
               <Route 
                 path="/" 
                 element={<Home />} 
@@ -198,8 +214,9 @@ function App() {
               <Route path="/admin/orders" element={<AdminOrders />} />
               <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
               <Route path="/faq" element={<FAQPage />} />
-            </Routes>
-          </main>
+                                </Routes>
+                  </Suspense>
+                </main>
           <Footer />
         </div>
       </Router>

@@ -407,17 +407,59 @@ app.post(['/api/builds/:id/checkout-step', '/builds/:id/checkout-step'], async (
   return res.status(200).json(updated)
 })
 
-// Stub: generate contract and return signing URL
+// Generate contract and return signing URL using Adobe Sign
 app.post(['/api/builds/:id/contract', '/builds/:id/contract'], async (req, res) => {
   const auth = await requireAuth(req, res, true)
   if (!auth?.userId) return
-  const b = await getBuildById(req.params.id)
-  if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
-  // For now, just return a URL to confirm step
-  const url = `${getOrigin(req)}/checkout/${encodeURIComponent(String(req.params.id))}/confirm`
-  // Simulate envelope creation; leave status as pending
-  await updateBuild(req.params.id, { contract: { status: 'pending', envelopeId: `env_${Date.now()}` } })
-  return res.status(200).json({ signingUrl: url, envelopeId: `env_${Date.now()}` })
+  
+  try {
+    const b = await getBuildById(req.params.id)
+    if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
+    
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+    const { buyerInfo } = body
+    
+    if (!buyerInfo) {
+      return res.status(400).json({ error: 'missing_buyer_info', message: 'Buyer information is required' })
+    }
+
+    // Import Adobe Sign integration
+    const { default: adobeSign } = await import('../src/utils/adobeSign.js')
+    
+    // Generate contract document
+    const documentId = await adobeSign.generateContract(b, buyerInfo)
+    
+    // Create signing agreement
+    const agreementId = await adobeSign.createSigningAgreement(b, buyerInfo, documentId)
+    
+    // Get signing URL
+    const signingUrl = await adobeSign.getSigningUrl(agreementId)
+    
+    // Update build with contract information
+    await updateBuild(req.params.id, { 
+      contract: { 
+        status: 'pending', 
+        agreementId,
+        documentId,
+        signingUrl,
+        createdAt: new Date()
+      },
+      step: 8
+    })
+    
+    return res.status(200).json({ 
+      signingUrl, 
+      agreementId,
+      status: 'pending'
+    })
+    
+  } catch (error) {
+    console.error('Contract generation error:', error)
+    return res.status(500).json({ 
+      error: 'contract_generation_failed', 
+      message: error.message || 'Failed to generate contract'
+    })
+  }
 })
 
 // Analytics endpoint
@@ -447,6 +489,47 @@ app.post(['/api/analytics/event', '/analytics/event'], async (req, res) => {
   } catch (error) {
     console.error('Analytics event error:', error)
     return res.status(500).json({ error: 'analytics_failed' })
+  }
+})
+
+// Check contract status
+app.get(['/api/builds/:id/contract/status', '/builds/:id/contract/status'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  
+  try {
+    const b = await getBuildById(req.params.id)
+    if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
+    
+    if (!b.contract?.agreementId) {
+      return res.status(404).json({ error: 'no_contract', message: 'No contract found for this build' })
+    }
+
+    // Import Adobe Sign integration
+    const { default: adobeSign } = await import('../src/utils/adobeSign.js')
+    
+    // Get agreement status
+    const status = await adobeSign.getAgreementStatus(b.contract.agreementId)
+    
+    // Update build if status changed
+    if (status.status !== b.contract.status) {
+      await updateBuild(req.params.id, { 
+        contract: { 
+          ...b.contract,
+          status: status.status,
+          updatedAt: new Date()
+        }
+      })
+    }
+    
+    return res.status(200).json(status)
+    
+  } catch (error) {
+    console.error('Contract status check error:', error)
+    return res.status(500).json({ 
+      error: 'status_check_failed', 
+      message: error.message || 'Failed to check contract status'
+    })
   }
 })
 
