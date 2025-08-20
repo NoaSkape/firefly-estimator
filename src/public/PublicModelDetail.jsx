@@ -4,7 +4,7 @@ import { useUser, useAuth } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
 import { isValidSlug, slugToModelId, modelIdToSlug } from '../utils/modelUrlMapping'
 import { MODELS } from '../data/models'
-import { analytics } from '../utils/analytics'
+import analytics from '../utils/analytics'
 import SEOHead from '../components/SEOHead'
 import AdminModelEditor from '../components/AdminModelEditor'
 
