@@ -25,10 +25,10 @@ export default function MobileNavigation() {
     setIsMenuOpen(false)
   }, [location])
 
-  const checkAdminStatus = async () => {
+      const checkAdminStatus = () => {
     if (!user) return
     try {
-      const adminStatus = await canEditModelsClient(user.id)
+              const adminStatus = canEditModelsClient(user)
       setIsAdmin(adminStatus)
     } catch (error) {
       console.error('Admin status check failed:', error)

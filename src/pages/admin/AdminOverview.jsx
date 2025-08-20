@@ -10,10 +10,12 @@ export default function AdminOverview() {
   const [loading, setLoading] = React.useState(true)
 
   React.useEffect(() => {
-    const checkAdminStatus = async () => {
+    const checkAdminStatus = () => {
       if (user) {
-        const adminStatus = await canEditModelsClient(user)
+        const adminStatus = canEditModelsClient(user)
         setIsAdmin(adminStatus)
+      } else {
+        setIsAdmin(false)
       }
       setLoading(false)
     }

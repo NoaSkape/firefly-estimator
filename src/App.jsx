@@ -111,7 +111,19 @@ function App() {
 
   const toggleTheme = () => setDark(v => !v)
   const { user } = useUser()
-  const isAdmin = canEditModelsClient(user)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (user) {
+        const adminStatus = canEditModelsClient(user)
+        setIsAdmin(adminStatus)
+      } else {
+        setIsAdmin(false)
+      }
+    }
+    checkAdminStatus()
+  }, [user])
 
   // Fallback injection: if Clerk doesn't render our MenuItems in production, insert a row into the open popover
   useEffect(() => {

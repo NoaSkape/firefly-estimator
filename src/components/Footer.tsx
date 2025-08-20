@@ -8,9 +8,9 @@ export default function Footer() {
   const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
-    const checkAdminStatus = async () => {
+    const checkAdminStatus = () => {
       if (user) {
-        const adminStatus = await canEditModelsClient(user)
+        const adminStatus = canEditModelsClient(user)
         setIsAdmin(adminStatus)
       }
     }

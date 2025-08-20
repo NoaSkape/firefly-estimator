@@ -26,11 +26,11 @@ export default function AdminDashboard() {
     checkAdminStatus()
   }, [user])
 
-  const checkAdminStatus = async () => {
+      const checkAdminStatus = () => {
     if (!user) return
     
     try {
-      const adminStatus = await canEditModelsClient(user.id)
+              const adminStatus = canEditModelsClient(user)
       setIsAdmin(adminStatus)
       
       if (adminStatus) {
