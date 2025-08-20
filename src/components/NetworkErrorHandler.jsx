@@ -47,7 +47,13 @@ export default function NetworkErrorHandler({ children }) {
       try {
         const response = await originalFetch(...args)
         
-        // Handle specific error status codes
+        // Skip error handling for Clerk API calls - let Clerk handle its own errors
+        const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || ''
+        if (url.includes('clerk.fireflyestimator.com') || url.includes('clerk.com')) {
+          return response
+        }
+        
+        // Handle specific error status codes for non-Clerk requests
         if (!response.ok) {
           const error = new Error(`HTTP ${response.status}: ${response.statusText}`)
           error.status = response.status
@@ -59,7 +65,13 @@ export default function NetworkErrorHandler({ children }) {
         
         return response
       } catch (error) {
-        // Handle network errors
+        // Skip error handling for Clerk API calls
+        const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || ''
+        if (url.includes('clerk.fireflyestimator.com') || url.includes('clerk.com')) {
+          throw error
+        }
+        
+        // Handle network errors for non-Clerk requests
         if (error.name === 'TypeError' && error.message.includes('fetch')) {
           const networkError = new Error('Network connection failed')
           networkError.isNetworkError = true
