@@ -38,6 +38,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import FirefliesBackground from './components/FirefliesBackground'
 import BackgroundImage from './components/BackgroundImage'
 import Header from './components/Header'
+import MobileNavigation from './components/MobileNavigation'
 import Footer from './components/Footer'
 import ResumeBanner from './components/ResumeBanner'
 import OfflineIndicator from './components/OfflineIndicator'
@@ -181,7 +182,16 @@ function App() {
             {/* Background image with gradient + animated fireflies above it */}
             <BackgroundImage src="/hero/tiny-home-dusk.png" />
             <FirefliesBackground density={0.12} color="#FFD86B" parallax={0.25} />
-                        <Header isAdmin={isAdmin} />
+            
+            {/* Desktop Navigation */}
+            <div className="hidden md:block">
+              <Header isAdmin={isAdmin} />
+            </div>
+            
+            {/* Mobile Navigation */}
+            <div className="md:hidden">
+              <MobileNavigation />
+            </div>
 
             <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                   <ResumeBanner />

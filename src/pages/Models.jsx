@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { MODELS } from '../data/models'
 import { Seo } from '../components/Seo'
 import PublicModelSelector from '../public/PublicModelSelector'
+import MobileModelsPage from './MobileModels'
 
 function parseQuery() {
   const p = new URLSearchParams(window.location.search)
@@ -26,8 +27,21 @@ function updateQuery(q) {
 export default function ModelsPage() {
   const [filters, setFilters] = useState(parseQuery())
   const [all, setAll] = useState(MODELS)
+  const [isMobile, setIsMobile] = useState(false)
 
-  useEffect(() => { updateQuery(filters) }, [filters])
+  useEffect(() => { 
+    updateQuery(filters) 
+    
+    // Check if mobile
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [filters])
 
   // Apply filters
   const models = useMemo(() => {
@@ -53,6 +67,11 @@ export default function ModelsPage() {
   }, [all, filters])
 
   function setFilter(k, v) { setFilters(f => ({ ...f, [k]: v })) }
+
+  // Render mobile version on mobile devices
+  if (isMobile) {
+    return <MobileModelsPage />
+  }
 
   return (
     <>
