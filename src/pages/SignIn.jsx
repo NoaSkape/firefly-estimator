@@ -1,7 +1,8 @@
 import React from 'react'
-import { SignIn, UserButton } from '@clerk/clerk-react'
+import { SignIn } from '@clerk/clerk-react'
 import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
+import AuthButton from '../components/AuthButton'
 
 export default function SignInPage() {
   const [searchParams] = useSearchParams()
@@ -15,16 +16,9 @@ export default function SignInPage() {
       </Helmet>
       
       <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
-        {/* Clerk UserButton in top right */}
-        <div className="absolute top-4 right-4 z-50 bg-white rounded-full p-1 shadow-lg">
-          <UserButton 
-            appearance={{
-              elements: {
-                userButtonAvatarBox: 'w-8 h-8',
-                userButtonTrigger: 'focus:shadow-none hover:opacity-80'
-              }
-            }}
-          />
+        {/* Auth Button in top right */}
+        <div className="absolute top-4 right-4 z-50">
+          <AuthButton />
         </div>
         
         <div className="max-w-md w-full space-y-6">

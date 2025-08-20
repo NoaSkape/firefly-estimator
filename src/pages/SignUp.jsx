@@ -1,8 +1,8 @@
 import React from 'react'
-import { UserButton } from '@clerk/clerk-react'
 import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import CustomSignUpForm from '../components/CustomSignUpForm'
+import AuthButton from '../components/AuthButton'
 
 export default function SignUpPage() {
   const [searchParams] = useSearchParams()
@@ -16,16 +16,9 @@ export default function SignUpPage() {
       </Helmet>
       
       <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
-        {/* Clerk UserButton in top right */}
-        <div className="absolute top-4 right-4 z-50 bg-white rounded-full p-1 shadow-lg">
-          <UserButton 
-            appearance={{
-              elements: {
-                userButtonAvatarBox: 'w-8 h-8',
-                userButtonTrigger: 'focus:shadow-none hover:opacity-80'
-              }
-            }}
-          />
+        {/* Auth Button in top right */}
+        <div className="absolute top-4 right-4 z-50">
+          <AuthButton />
         </div>
         
         <div className="max-w-md w-full space-y-6">
@@ -33,8 +26,8 @@ export default function SignUpPage() {
             <div className="w-16 h-16 bg-yellow-500 rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg">
               <span className="text-white font-bold text-xl">F</span>
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">Create Your Account</h1>
-            <p className="text-gray-300">Join Firefly Tiny Homes to save your customizations</p>
+            <h1 className="text-2xl font-bold text-white mb-2">Create Your Firefly Account</h1>
+            <p className="text-gray-300">To save your customizations and calculate delivery costs</p>
           </div>
           
           <div className="bg-white shadow-lg rounded-lg p-6">

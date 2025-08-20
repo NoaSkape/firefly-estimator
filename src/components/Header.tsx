@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { UserButton, useUser } from '@clerk/clerk-react'
+import { useUser } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
+import AuthButton from './AuthButton'
 
 export default function Header() {
   const { user, isSignedIn } = useUser()
@@ -74,10 +75,10 @@ export default function Header() {
         <NavLinks />
 
         <div className="flex items-center gap-3">
-                   {isAdmin && (
-           <a href="/admin" className="hidden sm:inline text-sm px-3 py-1.5 rounded bg-yellow-500 text-gray-900 hover:bg-yellow-400">Admin</a>
-         )}
-          <UserButton appearance={{ elements: { userButtonAvatarBox: 'w-8 h-8' } }} />
+          {isAdmin && (
+            <a href="/admin" className="hidden sm:inline text-sm px-3 py-1.5 rounded bg-yellow-500 text-gray-900 hover:bg-yellow-400">Admin</a>
+          )}
+          <AuthButton />
           <button aria-label="Open menu" className="md:hidden p-2 rounded hover:bg-white/10" onClick={() => setOpen(true)}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
           </button>
