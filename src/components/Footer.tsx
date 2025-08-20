@@ -67,17 +67,7 @@ export default function Footer() {
             </ul>
           </section>
 
-          {isAdmin && (
-            <section aria-labelledby="footer-admin">
-              <h3 id="footer-admin" className="text-sm font-semibold text-yellow-400">Admin Panel</h3>
-              <ul className="mt-3 space-y-2 text-sm">
-                <li><a className="hover:text-yellow-300 text-yellow-400" href="/admin">Admin Overview</a></li>
-                <li><a className="hover:text-yellow-300 text-yellow-400" href="/admin/dashboard">Dashboard</a></li>
-                <li><a className="hover:text-yellow-300 text-yellow-400" href="/admin/orders">Orders</a></li>
-                <li><a className="hover:text-yellow-300 text-yellow-400" href="/admin/reports">Reports</a></li>
-              </ul>
-            </section>
-          )}
+          
         </div>
 
         <div className="mt-10 border-t border-gray-800 pt-6 text-xs text-gray-400 flex items-center justify-between gap-3 flex-wrap">
