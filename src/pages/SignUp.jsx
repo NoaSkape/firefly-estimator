@@ -8,7 +8,6 @@ export default function SignUpPage() {
   const [searchParams] = useSearchParams()
   const redirectUrl = searchParams.get('redirect') || '/'
   const { handleAuthError } = useAuthErrorHandler()
-  const [authError, setAuthError] = useState(null)
 
   return (
     <>
@@ -54,9 +53,7 @@ export default function SignUpPage() {
               lastName: ''
             }}
             onError={(error) => {
-              console.error('SignUp error:', error)
               handleAuthError(error)
-              setAuthError(error)
             }}
           />
           

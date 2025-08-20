@@ -8,7 +8,6 @@ export default function SignInPage() {
   const [searchParams] = useSearchParams()
   const redirectUrl = searchParams.get('redirect') || '/'
   const { handleAuthError } = useAuthErrorHandler()
-  const [authError, setAuthError] = useState(null)
 
   return (
     <>
@@ -52,9 +51,7 @@ export default function SignInPage() {
               password: ''
             }}
             onError={(error) => {
-              console.error('SignIn error:', error)
               handleAuthError(error)
-              setAuthError(error)
             }}
           />
           
