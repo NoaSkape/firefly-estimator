@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useUser, useAuth } from '@clerk/clerk-react'
-import PublicOptionSelector from '../public/PublicOptionSelector'
-import PackagesSelector from '../components/PackagesSelector'
+
 import { canEditModelsClient } from '../lib/canEditModels'
 import { AdvancedImage } from '@cloudinary/react'
 import { createHeroImage, createThumbnailImage, createGalleryImage } from '../utils/cloudinary'
@@ -23,8 +22,7 @@ const ModelDetail = ({ onModelSelect }) => {
   // Inline editing and inline upload removed; edits happen in AdminModelEditor only
   const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
-  const [selectedOptions, setSelectedOptions] = useState([])
-  const [selectedPackage, setSelectedPackage] = useState('')
+
   // Close viewer first on browser back
   useEffect(() => {
     if (!isViewerOpen) return
@@ -223,46 +221,7 @@ const ModelDetail = ({ onModelSelect }) => {
     navigate(`/builds`)
   }
 
-  const computePricing = () => {
-    const base = Number(model?.basePrice || 0)
-    const optionsTotal = selectedOptions.reduce((s, o) => s + (o.priceDelta || 0), 0)
-    const pkgDelta = (() => {
-      const pkg = (model?.packages || []).find(p => (p.key || p.name) === selectedPackage)
-      return pkg ? Number(pkg.priceDelta || 0) : 0
-    })()
-    const total = base + optionsTotal + pkgDelta
-    return { base, options: optionsTotal, delivery: 0, total }
-  }
 
-  const saveOrderDraft = async (redirectTo) => {
-    if (!isSignedIn) {
-      alert('Please sign in to continue')
-      return
-    }
-    try {
-      const pricing = computePricing()
-      const body = {
-        model: { modelCode: model?.modelCode || actualModelCode, slug: id, name: model?.name, basePrice: Number(model?.basePrice||0) },
-        selections: selectedOptions,
-        pricing
-      }
-      const key = `${Date.now()}-${user?.id || 'anon'}-${actualModelCode}`
-      const token = await getToken()
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify(body)
-      })
-      if (!res.ok) throw new Error('Failed to save order')
-      const data = await res.json()
-      if (data?.orderId) localStorage.setItem('ff.orderId', data.orderId)
-      if (redirectTo === 'configure') navigate(`/checkout/payment`)
-      else if (redirectTo === 'confirm') navigate(`/checkout/confirm`)
-    } catch (e) {
-      console.error(e)
-      alert('Could not save your design. Please try again.')
-    }
-  }
 
   const handleModelUpdate = (updated) => {
     setModel(updated)
@@ -402,38 +361,7 @@ const ModelDetail = ({ onModelSelect }) => {
               <p className="text-gray-700 dark:text-gray-300">{model.description || 'No description available.'}</p>
             </div>
 
-            {/* Design Options */}
-            <div className="card">
-              <h2 className="text-lg font-semibold text-gray-100 mb-4">Customize</h2>
-              <div className="space-y-4">
-                {/* Packages */}
-                {Array.isArray(model?.packages) && model.packages.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-200 mb-2">Packages</h3>
-                    <PackagesSelector packages={model.packages} value={selectedPackage} onChange={setSelectedPackage} />
-                  </div>
-                )}
-                {/* Options */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-200 mb-2">Options</h3>
-                  <PublicOptionSelector value={selectedOptions} onChange={setSelectedOptions} />
-                </div>
-                {/* Price Summary */}
-                <div className="rounded border border-gray-800 bg-gray-900/50 p-3 text-sm text-gray-200">
-                  {(() => { const p = computePricing(); return (
-                    <div className="space-y-1">
-                      <div className="flex justify-between"><span>Base</span><span>${'{'}p.base.toLocaleString(){'}'}</span></div>
-                      <div className="flex justify-between"><span>Options</span><span>${'{'}p.options.toLocaleString(){'}'}</span></div>
-                      <div className="flex justify-between font-semibold border-t border-gray-800 pt-2"><span>Total</span><span>${'{'}p.total.toLocaleString(){'}'}</span></div>
-                    </div>
-                  )})()}
-                </div>
-                <div className="flex gap-3">
-                  <button className="btn-primary px-4 py-2" onClick={() => saveOrderDraft('configure')}>Save & Continue</button>
-                  <button className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10" onClick={() => saveOrderDraft('confirm')}>Purchase This Home</button>
-                </div>
-              </div>
-            </div>
+
 
             {/* Specifications */}
             <div className="card">
@@ -495,16 +423,16 @@ const ModelDetail = ({ onModelSelect }) => {
               </ul>
             </div>
 
-            {/* Save design → proceed to Buyer Info */}
+            {/* Customize Your Home → proceed to Customize page */}
             <div className="card">
               <button
-                onClick={() => saveOrderDraft('configure')}
+                onClick={() => navigate(`/customize/${actualModelCode}`)}
                 className="w-full btn-primary text-lg py-4"
               >
-                Save Design
+                Customize Your Home!
               </button>
               <p className="text-sm text-gray-600 mt-2 text-center">
-                Your design will be saved to your account. Next: Buyer Info.
+                Add packages and options to personalize your home. Next: Customize.
               </p>
             </div>
           </div>
