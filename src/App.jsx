@@ -48,8 +48,9 @@ import OfflineIndicator from './components/OfflineIndicator'
 import { PageLoadingSpinner } from './components/LoadingSpinner'
 import NetworkErrorHandler from './components/NetworkErrorHandler'
 import './App.css'
-import { SignedIn, useUser } from '@clerk/clerk-react'
+import { useUser } from '@clerk/clerk-react'
 import { canEditModelsClient } from './lib/canEditModels'
+import ProtectedRoute from './components/ProtectedRoute'
 import './utils/performance' // Initialize performance monitoring
 import './utils/accessibility' // Initialize accessibility features
 
@@ -200,7 +201,7 @@ function App() {
             
             {/* Desktop Navigation */}
             <div className="hidden md:block">
-              <Header isAdmin={isAdmin} />
+              <Header />
             </div>
             
             {/* Mobile Navigation */}
@@ -238,24 +239,80 @@ function App() {
               <Route path="/checkout/confirm" element={<Confirm />} />
               <Route path="/public/models/:id" element={<PublicModelDetail />} />
               <Route path="/public/models/:id/package/:key" element={<PackageDetail />} />
-              <Route path="/builds" element={<BuildsDashboard />} />
-              <Route path="/builds/:buildId" element={<BuildCustomize />} />
-              <Route path="/checkout/:buildId" element={<Review />} />
-              <Route path="/checkout/:buildId/payment" element={<PaymentMethod />} />
-              <Route path="/checkout/:buildId/buyer" element={<Buyer />} />
-              <Route path="/checkout/:buildId/review" element={<Review />} />
-              <Route path="/checkout/:buildId/confirm" element={<Confirm />} />
+              <Route path="/builds" element={
+                <ProtectedRoute>
+                  <BuildsDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/builds/:buildId" element={
+                <ProtectedRoute>
+                  <BuildCustomize />
+                </ProtectedRoute>
+              } />
+              <Route path="/checkout/:buildId" element={
+                <ProtectedRoute>
+                  <Review />
+                </ProtectedRoute>
+              } />
+              <Route path="/checkout/:buildId/payment" element={
+                <ProtectedRoute>
+                  <PaymentMethod />
+                </ProtectedRoute>
+              } />
+              <Route path="/checkout/:buildId/buyer" element={
+                <ProtectedRoute>
+                  <Buyer />
+                </ProtectedRoute>
+              } />
+              <Route path="/checkout/:buildId/review" element={
+                <ProtectedRoute>
+                  <Review />
+                </ProtectedRoute>
+              } />
+              <Route path="/checkout/:buildId/confirm" element={
+                <ProtectedRoute>
+                  <Confirm />
+                </ProtectedRoute>
+              } />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/financing" element={<Financing />} />
               <Route path="/customize/:modelId" element={<Customize />} />
-              <Route path="/portal" element={<PortalOrders />} />
-              <Route path="/portal/dashboard" element={<PortalDashboard />} />
-                                           <Route path="/admin" element={<AdminOverview />} />
-              <Route path="/admin/orders" element={<AdminOrders />} />
-              <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/reports" element={<AdvancedReporting />} />
-              <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
+              <Route path="/portal" element={
+                <ProtectedRoute>
+                  <PortalOrders />
+                </ProtectedRoute>
+              } />
+              <Route path="/portal/dashboard" element={
+                <ProtectedRoute>
+                  <PortalDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminOverview />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/orders" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminOrders />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/dashboard" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/reports" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdvancedReporting />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/analytics" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AnalyticsDashboard />
+                </ProtectedRoute>
+              } />
               <Route path="/faq" element={<FAQPage />} />
                                 </Routes>
                   </Suspense>

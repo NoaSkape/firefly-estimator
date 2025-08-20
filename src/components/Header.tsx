@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react'
-import { UserButton } from '@clerk/clerk-react'
+import { UserButton, useUser } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
 
-type HeaderProps = {
-  isAdmin?: boolean
-}
-
-export default function Header({ isAdmin }: HeaderProps) {
+export default function Header() {
+  const { user, isSignedIn } = useUser()
+  const [isAdmin, setIsAdmin] = useState(false)
   const [open, setOpen] = useState(false)
   const [shrink, setShrink] = useState(false)
   const [aboutDropdownOpen, setAboutDropdownOpen] = useState(false)
@@ -20,11 +18,25 @@ export default function Header({ isAdmin }: HeaderProps) {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  useEffect(() => {
+    const checkAdminStatus = () => {
+      if (user) {
+        const adminStatus = canEditModelsClient(user)
+        setIsAdmin(adminStatus)
+      } else {
+        setIsAdmin(false)
+      }
+    }
+    checkAdminStatus()
+  }, [user])
+
   function NavLinks() {
     return (
       <nav className="hidden md:flex items-center gap-6 text-sm">
         <a href="/models" className="hover:text-yellow-400">Explore Models</a>
-        <a href="/builds" className="hover:text-yellow-400">My Home</a>
+        {isSignedIn && (
+          <a href="/builds" className="hover:text-yellow-400">My Home</a>
+        )}
         <a href="/financing" className="hover:text-yellow-400">Financing</a>
         <a href="/how" className="hover:text-yellow-400">How It Works</a>
         <div 
@@ -88,14 +100,16 @@ export default function Header({ isAdmin }: HeaderProps) {
             </div>
             <nav className="flex flex-col gap-3 text-sm">
               <a href="/models" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>Explore Models</a>
-              <a href="/builds" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>My Home</a>
+              {isSignedIn && (
+                <a href="/builds" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>My Home</a>
+              )}
               <a href="/financing" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>Financing</a>
               <a href="/how" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>How It Works</a>
               <a href="/faq" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>FAQ</a>
               <a href="/about" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>About</a>
-                        {isAdmin && (
-           <a href="/admin" className="px-2 py-2 rounded bg-yellow-500 text-gray-900 hover:bg-yellow-400" onClick={() => setOpen(false)}>Admin</a>
-         )}
+              {isAdmin && (
+                <a href="/admin" className="px-2 py-2 rounded bg-yellow-500 text-gray-900 hover:bg-yellow-400" onClick={() => setOpen(false)}>Admin</a>
+              )}
             </nav>
           </div>
         </div>

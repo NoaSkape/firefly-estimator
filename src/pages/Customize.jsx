@@ -121,12 +121,9 @@ const Customize = () => {
     try {
       const pricing = computePricing()
       const body = {
-        model: { 
-          modelCode: model?.modelCode || actualModelCode, 
-          slug: modelId, 
-          name: model?.name, 
-          basePrice: Number(model?.basePrice||0) 
-        },
+        modelSlug: modelId,
+        modelName: model?.name || '',
+        basePrice: Number(model?.basePrice || 0),
         selections: {
           options: selectedOptions,
           package: selectedPackage
