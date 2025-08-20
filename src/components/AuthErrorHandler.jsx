@@ -48,7 +48,8 @@ export function useAuthErrorHandler() {
       return
     }
     
-    if (errorMessage.includes('not found') || errorMessage.includes('doesn\'t exist') || errorMessage.includes('no user')) {
+    // Handle "user not found" or "no user" errors (made-up email)
+    if (errorMessage.includes('not found') || errorMessage.includes('doesn\'t exist') || errorMessage.includes('no user') || errorMessage.includes('user not found') || errorMessage.includes('identifier not found')) {
       addToast({
         type: 'error',
         title: 'Account Not Found',
@@ -58,7 +59,8 @@ export function useAuthErrorHandler() {
       return
     }
     
-    if (errorMessage.includes('incorrect password') || errorMessage.includes('wrong password') || errorMessage.includes('invalid credentials') || errorMessage.includes('password is incorrect')) {
+    // Handle wrong password errors
+    if (errorMessage.includes('incorrect password') || errorMessage.includes('wrong password') || errorMessage.includes('invalid credentials') || errorMessage.includes('password is incorrect') || errorMessage.includes('invalid password') || errorMessage.includes('password does not match')) {
       addToast({
         type: 'error',
         title: 'Incorrect Password',
@@ -130,12 +132,29 @@ export function useAuthErrorHandler() {
     
     // Handle HTTP status codes
     if (errorCode === 422 || errorCode === '422') {
-      addToast({
-        type: 'error',
-        title: 'Invalid Information',
-        message: 'Please check your information and try again. Make sure all fields are filled correctly.',
-        duration: 6000
-      })
+      // For 422 errors, try to provide more specific messages based on the error content
+      if (errorMessage.includes('password') || errorMessage.includes('credentials')) {
+        addToast({
+          type: 'error',
+          title: 'Incorrect Password',
+          message: 'The password you entered is incorrect. Please try again or use "Forgot Password" to reset it.',
+          duration: 6000
+        })
+      } else if (errorMessage.includes('email') || errorMessage.includes('identifier')) {
+        addToast({
+          type: 'error',
+          title: 'Account Not Found',
+          message: 'No account found with this email address. Please check your email or create a new account.',
+          duration: 6000
+        })
+      } else {
+        addToast({
+          type: 'error',
+          title: 'Invalid Information',
+          message: 'Please check your information and try again. Make sure all fields are filled correctly.',
+          duration: 6000
+        })
+      }
       return
     }
     
@@ -185,6 +204,7 @@ export function useAuthErrorHandler() {
 // Global error interceptor for Clerk errors
 export function useGlobalAuthErrorInterceptor() {
   const { handleAuthError } = useAuthErrorHandler()
+  let isProcessingError = false // Prevent infinite loops
 
   useEffect(() => {
     // Intercept console errors that might be from Clerk
@@ -192,19 +212,31 @@ export function useGlobalAuthErrorInterceptor() {
     console.error = (...args) => {
       originalError.apply(console, args)
       
+      // Prevent infinite loops - don't process if we're already handling an error
+      if (isProcessingError) return
+      
       // Check if this is a Clerk-related error
       const errorString = args.join(' ')
       if (errorString.includes('clerk') || errorString.includes('Clerk') || errorString.includes('422') || errorString.includes('Request Failed')) {
+        // Don't process our own error messages
+        if (errorString.includes('Auth error:') || errorString.includes('Intercepted Clerk error:')) return
+        
         console.log('Intercepted Clerk error:', errorString)
+        isProcessingError = true
         handleAuthError(new Error(errorString))
+        isProcessingError = false
       }
     }
 
     // Intercept unhandled promise rejections
     const handleUnhandledRejection = (event) => {
+      if (isProcessingError) return
+      
       console.log('Unhandled promise rejection:', event.reason)
       if (event.reason && (event.reason.toString().includes('clerk') || event.reason.toString().includes('422'))) {
+        isProcessingError = true
         handleAuthError(event.reason)
+        isProcessingError = false
       }
     }
 
@@ -235,9 +267,17 @@ export function useGlobalAuthErrorInterceptor() {
                 }
               }
               
-              handleAuthError(specificError)
+              if (!isProcessingError) {
+                isProcessingError = true
+                handleAuthError(specificError)
+                isProcessingError = false
+              }
             } catch (parseError) {
-              handleAuthError(new Error('Invalid information provided'))
+              if (!isProcessingError) {
+                isProcessingError = true
+                handleAuthError(new Error('Invalid information provided'))
+                isProcessingError = false
+              }
             }
           }
         }
@@ -246,7 +286,11 @@ export function useGlobalAuthErrorInterceptor() {
       } catch (error) {
         // Handle network errors
         if (error.message.includes('fetch') || error.message.includes('network')) {
-          handleAuthError(new Error('Network error - please check your connection'))
+          if (!isProcessingError) {
+            isProcessingError = true
+            handleAuthError(new Error('Network error - please check your connection'))
+            isProcessingError = false
+          }
         }
         throw error
       }
