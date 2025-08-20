@@ -23,6 +23,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
 
   // If route requires authentication and user is not signed in
   if (isProtectedRoute(location.pathname) && !isSignedIn) {
+    console.log('[ProtectedRoute] Redirecting to sign-in:', { pathname: location.pathname, isSignedIn })
     const redirectUrl = getAuthRedirectUrl(location.pathname)
     return <Navigate to={`/sign-in?redirect=${encodeURIComponent(redirectUrl)}`} replace />
   }

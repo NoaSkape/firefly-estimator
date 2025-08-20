@@ -15,15 +15,32 @@ export default function BuildsDashboard() {
   const { addToast } = useToast()
 
   useEffect(() => {
-    (async () => {
-      if (!isSignedIn) { setLoading(false); return }
+    console.log('[BuildsDashboard] useEffect triggered:', { isSignedIn, loading })
+    ;(async () => {
+      if (!isSignedIn) { 
+        console.log('[BuildsDashboard] Not signed in, setting loading to false')
+        setLoading(false); 
+        return 
+      }
       try {
+        console.log('[BuildsDashboard] Fetching builds...')
         const token = await getToken()
         const res = await fetch('/api/builds', { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-        if (res.ok) setBuilds(await res.json())
-      } finally { setLoading(false) }
+        if (res.ok) {
+          const buildsData = await res.json()
+          console.log('[BuildsDashboard] Builds fetched successfully:', buildsData.length)
+          setBuilds(buildsData)
+        } else {
+          console.error('[BuildsDashboard] Failed to fetch builds:', res.status, res.statusText)
+        }
+      } catch (error) {
+        console.error('[BuildsDashboard] Error fetching builds:', error)
+      } finally { 
+        console.log('[BuildsDashboard] Setting loading to false')
+        setLoading(false) 
+      }
     })()
-  }, [isSignedIn, getToken])
+  }, [isSignedIn])
 
   if (!isSignedIn) {
     return (
