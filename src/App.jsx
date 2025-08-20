@@ -35,6 +35,7 @@ import BackgroundImage from './components/BackgroundImage'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import ResumeBanner from './components/ResumeBanner'
+import OfflineIndicator from './components/OfflineIndicator'
 import './App.css'
 import { SignedIn, useUser } from '@clerk/clerk-react'
 import { canEditModelsClient } from './lib/canEditModels'
@@ -155,6 +156,7 @@ function App() {
 
           <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <ResumeBanner />
+            <OfflineIndicator />
             <Routes>
               <Route 
                 path="/" 

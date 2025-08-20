@@ -8,6 +8,7 @@
   },
   "scripts": {
     "seed:models": "node -r dotenv/config scripts/seed-models.cjs",
+    "seed:complete": "node scripts/seed-models-complete.js",
     "dev": "concurrently \"vite\" \"vercel dev --listen 3000\"",
     "build": "vite build",
     "lint": "eslint .",
@@ -20,7 +21,10 @@
     "migrate:slugs": "node -r dotenv/config scripts/add-slugs.js",
     "debug:dev": "cross-env DEBUG_ADMIN=true VITE_DEBUG_ADMIN=true concurrently \"vite\" \"vercel dev --listen 3000\"",
     "debug:api": "cross-env DEBUG_ADMIN=true node backend/dev-server.js",
-    "debug:server": "cross-env DEBUG_ADMIN=true node backend/dev-server.js"
+    "debug:server": "cross-env DEBUG_ADMIN=true node backend/dev-server.js",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage"
   },
   "dependencies": {
     "@clerk/backend": "^2.6.3",
@@ -59,8 +63,11 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
+    "mongodb-memory-server": "^10.0.0",
     "postcss": "^8.4.35",
+    "supertest": "^7.0.0",
     "tailwindcss": "^3.4.1",
-    "vite": "^7.0.4"
+    "vite": "^7.0.4",
+    "vitest": "^2.1.8"
   }
 }
