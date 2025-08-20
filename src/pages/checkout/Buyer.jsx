@@ -106,7 +106,7 @@ export default function Buyer() {
             <h2 className="text-lg font-semibold text-gray-100 mb-2">Create Your Account</h2>
             <p className="text-sm text-gray-300 mb-3">Sign in or create an account so your design and checkout progress are saved.</p>
             <SignIn 
-              redirectUrl="/checkout/buyer" 
+              fallbackRedirectUrl="/checkout/buyer" 
               signUpUrl="/sign-up?redirect=/checkout/buyer"
               appearance={{
                 elements: {
@@ -118,6 +118,15 @@ export default function Buyer() {
                   formFieldLabel: 'block text-sm font-medium text-gray-300 mb-1',
                   footerActionLink: 'text-yellow-400 hover:text-yellow-300'
                 }
+              }}
+              onError={(error) => {
+                console.error('Buyer SignIn error:', error)
+                addToast({
+                  type: 'error',
+                  title: 'Sign In Error',
+                  message: 'Unable to sign in. Please check your credentials and try again.',
+                  duration: 6000
+                })
               }}
             />
           </div>

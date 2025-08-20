@@ -1,11 +1,14 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { SignUp } from '@clerk/clerk-react'
 import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
+import { useAuthErrorHandler } from '../components/AuthErrorHandler'
 
 export default function SignUpPage() {
   const [searchParams] = useSearchParams()
   const redirectUrl = searchParams.get('redirect') || '/'
+  const { handleAuthError } = useAuthErrorHandler()
+  const [authError, setAuthError] = useState(null)
 
   return (
     <>
@@ -41,7 +44,7 @@ export default function SignUpPage() {
               }
             }}
             signInUrl="/sign-in"
-            redirectUrl={redirectUrl}
+            fallbackRedirectUrl={redirectUrl}
             routing="hash"
             showOptionalFields={true}
             initialValues={{
@@ -49,6 +52,11 @@ export default function SignUpPage() {
               password: '',
               firstName: '',
               lastName: ''
+            }}
+            onError={(error) => {
+              console.error('SignUp error:', error)
+              handleAuthError(error)
+              setAuthError(error)
             }}
           />
           

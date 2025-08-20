@@ -35,7 +35,7 @@ export default function BuildsDashboard() {
             <div className="rounded border border-gray-800 bg-gray-900/50 p-4">
               <h2 className="text-lg font-semibold text-gray-100 mb-2">New to Firefly</h2>
               <SignUp 
-                redirectUrl="/builds" 
+                fallbackRedirectUrl="/builds" 
                 signInUrl="/sign-in?redirect=/builds"
                 appearance={{
                   elements: {
@@ -48,12 +48,23 @@ export default function BuildsDashboard() {
                     footerActionLink: 'text-yellow-400 hover:text-yellow-300'
                   }
                 }}
+                onError={(error) => {
+                  console.error('Builds SignUp error:', error)
+                  // Use toast for error handling
+                  const { addToast } = require('../../components/ToastProvider').useToast()
+                  addToast({
+                    type: 'error',
+                    title: 'Sign Up Error',
+                    message: 'Unable to create account. Please try again.',
+                    duration: 6000
+                  })
+                }}
               />
             </div>
             <div className="rounded border border-gray-800 bg-gray-900/50 p-4">
               <h2 className="text-lg font-semibold text-gray-100 mb-2">Already have an account?</h2>
               <SignIn 
-                redirectUrl="/builds" 
+                fallbackRedirectUrl="/builds" 
                 signUpUrl="/sign-up?redirect=/builds"
                 appearance={{
                   elements: {
@@ -65,6 +76,17 @@ export default function BuildsDashboard() {
                     formFieldLabel: 'block text-sm font-medium text-gray-300 mb-1',
                     footerActionLink: 'text-yellow-400 hover:text-yellow-300'
                   }
+                }}
+                onError={(error) => {
+                  console.error('Builds SignIn error:', error)
+                  // Use toast for error handling
+                  const { addToast } = require('../../components/ToastProvider').useToast()
+                  addToast({
+                    type: 'error',
+                    title: 'Sign In Error',
+                    message: 'Unable to sign in. Please check your credentials and try again.',
+                    duration: 6000
+                  })
                 }}
               />
             </div>

@@ -139,7 +139,7 @@ export default function AccountCreate() {
               <div className="rounded border border-gray-800 bg-gray-900/50 p-4">
                 <h2 className="text-lg font-semibold text-gray-100 mb-2">New to Firefly</h2>
                 <SignUp 
-                  redirectUrl={location.pathname + location.search} 
+                  fallbackRedirectUrl={location.pathname + location.search} 
                   signInUrl={`/sign-in?redirect=${encodeURIComponent(location.pathname + location.search)}`}
                   appearance={{
                     elements: {
@@ -152,12 +152,23 @@ export default function AccountCreate() {
                       footerActionLink: 'text-yellow-400 hover:text-yellow-300'
                     }
                   }}
+                  onError={(error) => {
+                    console.error('Account SignUp error:', error)
+                    // Add toast notification for error
+                    const { addToast } = require('../../components/ToastProvider').useToast()
+                    addToast({
+                      type: 'error',
+                      title: 'Sign Up Error',
+                      message: 'Unable to create account. Please try again.',
+                      duration: 6000
+                    })
+                  }}
                 />
               </div>
               <div className="rounded border border-gray-800 bg-gray-900/50 p-4">
                 <h2 className="text-lg font-semibold text-gray-100 mb-2">Already have an account?</h2>
                 <SignIn 
-                  redirectUrl={location.pathname + location.search} 
+                  fallbackRedirectUrl={location.pathname + location.search} 
                   signUpUrl={`/sign-up?redirect=${encodeURIComponent(location.pathname + location.search)}`}
                   appearance={{
                     elements: {
@@ -169,6 +180,17 @@ export default function AccountCreate() {
                       formFieldLabel: 'block text-sm font-medium text-gray-300 mb-1',
                       footerActionLink: 'text-yellow-400 hover:text-yellow-300'
                     }
+                  }}
+                  onError={(error) => {
+                    console.error('Account SignIn error:', error)
+                    // Add toast notification for error
+                    const { addToast } = require('../../components/ToastProvider').useToast()
+                    addToast({
+                      type: 'error',
+                      title: 'Sign In Error',
+                      message: 'Unable to sign in. Please check your credentials and try again.',
+                      duration: 6000
+                    })
                   }}
                 />
               </div>
