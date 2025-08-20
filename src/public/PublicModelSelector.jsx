@@ -6,7 +6,7 @@ export default function PublicModelSelector({ models }) {
   const navigate = useNavigate()
   const goConfigure = (modelId) => {
     const slug = modelIdToSlug(modelId)
-    if (slug) navigate(`/public/models/${slug}`)
+    if (slug) navigate(`/models/${slug}`)
   }
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
