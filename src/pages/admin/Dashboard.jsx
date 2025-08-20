@@ -56,15 +56,28 @@ export default function AdminDashboard() {
 
   const loadDashboardData = async () => {
     try {
+      // Get the authentication token from Clerk
+      const token = await user.getToken()
+      
       // Load admin statistics
-      const statsResponse = await fetch('/api/admin/stats')
+      const statsResponse = await fetch('/api/admin/stats', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
       if (statsResponse.ok) {
         const statsData = await statsResponse.json()
         setStats(statsData)
       }
 
       // Load recent activity
-      const activityResponse = await fetch('/api/admin/activity')
+      const activityResponse = await fetch('/api/admin/activity', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
       if (activityResponse.ok) {
         const activityData = await activityResponse.json()
         setRecentActivity(activityData)
@@ -95,9 +108,11 @@ export default function AdminDashboard() {
     }
 
     try {
+      const token = await user.getToken()
       const response = await fetch('/api/admin/users/bulk', {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -137,9 +152,11 @@ export default function AdminDashboard() {
 
   const exportData = async (type) => {
     try {
+      const token = await user.getToken()
       const response = await fetch(`/api/admin/export/${type}`, {
         method: 'GET',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         }
       })
@@ -441,7 +458,13 @@ function UserManagementModal({ selectedUsers, setSelectedUsers, onClose }) {
 
   const loadUsers = async () => {
     try {
-      const response = await fetch('/api/admin/users')
+      const token = await user.getToken()
+      const response = await fetch('/api/admin/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
       if (response.ok) {
         const usersData = await response.json()
         setUsers(usersData)

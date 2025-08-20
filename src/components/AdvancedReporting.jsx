@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react'
+import { useUser } from '@clerk/clerk-react'
 import { useToast } from './ToastProvider'
 import analytics from '../utils/analytics'
 
 export default function AdvancedReporting() {
+  const { user } = useUser()
   const { addToast } = useToast()
   const [loading, setLoading] = useState(true)
   const [reportData, setReportData] = useState({
@@ -25,10 +27,12 @@ export default function AdvancedReporting() {
   const loadReportData = async () => {
     try {
       setLoading(true)
+      const token = await user.getToken()
       
       const response = await fetch('/api/admin/reports', {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(filters)
@@ -59,9 +63,11 @@ export default function AdvancedReporting() {
 
   const exportReport = async (format = 'csv') => {
     try {
+      const token = await user.getToken()
       const response = await fetch('/api/admin/reports/export', {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
