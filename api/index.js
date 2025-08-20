@@ -9,7 +9,7 @@ import { requireAuth } from '../lib/auth.js'
 import { applyCors } from '../lib/cors.js'
 import { findModelById, ensureModelIndexes, findOrCreateModel, COLLECTION } from '../lib/model-utils.js'
 import { ensureOrderIndexes, createOrderDraft, getOrderById, updateOrder, listOrdersForUser, listOrdersAdmin } from '../lib/orders.js'
-import { ensureBuildIndexes, createBuild, getBuildById, listBuildsForUser, updateBuild, duplicateBuild, deleteBuild } from '../lib/builds.js'
+import { ensureBuildIndexes, createBuild, getBuildById, listBuildsForUser, updateBuild, duplicateBuild, deleteBuild, renameBuild } from '../lib/builds.js'
 import { ensureIdempotencyIndexes, withIdempotency } from '../lib/idempotency.js'
 import { quoteDelivery } from '../lib/delivery.js'
 import { z } from 'zod'
@@ -354,6 +354,25 @@ app.post(['/api/builds/:id/duplicate', '/builds/:id/duplicate'], async (req, res
   const copy = await duplicateBuild(req.params.id, auth.userId)
   if (!copy) return res.status(404).json({ error: 'not_found' })
   return res.status(200).json({ ok: true, buildId: String(copy._id) })
+})
+
+// Rename build
+app.post(['/api/builds/:id/rename', '/builds/:id/rename'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  try {
+    const { id } = req.params
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+    const { name } = body
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return res.status(400).json({ error: 'invalid_name', message: 'Build name is required' })
+    }
+    const doc = await renameBuild(id, auth.userId, name.trim())
+    if (!doc) return res.status(404).json({ error: 'build_not_found' })
+    return res.status(200).json({ ok: true, build: doc })
+  } catch (err) {
+    return res.status(400).json({ error: 'rename_failed', message: String(err?.message || err) })
+  }
 })
 
 // Delete build

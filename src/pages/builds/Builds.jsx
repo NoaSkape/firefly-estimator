@@ -2,13 +2,17 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser, useAuth, SignUp, SignIn } from '@clerk/clerk-react'
 import CheckoutProgress from '../../components/CheckoutProgress'
+import RenameModal from '../../components/RenameModal'
+import { useToast } from '../../components/ToastProvider'
 
 export default function BuildsDashboard() {
   const { isSignedIn } = useUser()
   const { getToken } = useAuth()
   const [loading, setLoading] = useState(true)
   const [builds, setBuilds] = useState([])
+  const [renameModal, setRenameModal] = useState({ isOpen: false, build: null })
   const navigate = useNavigate()
+  const { addToast } = useToast()
 
   useEffect(() => {
     (async () => {
@@ -63,12 +67,21 @@ export default function BuildsDashboard() {
                 <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={async()=>{ const token = await getToken(); const r = await fetch(`/api/builds/${b._id}/duplicate`, { method:'POST', headers: token?{Authorization:`Bearer ${token}`}:{}}); const j=await r.json(); if(j?.buildId) navigate(`/builds/${j.buildId}`) }}>Duplicate</button>
                 <button className="px-3 py-2 rounded border border-red-800 text-red-300 hover:bg-red-900/30" onClick={async()=>{ const token = await getToken(); await fetch(`/api/builds/${b._id}`, { method:'DELETE', headers: token?{Authorization:`Bearer ${token}`}:{}}); setBuilds(list=>list.filter(x=>x._id!==b._id)); if (location.pathname.includes(`/builds/${b._id}`) || location.pathname.includes(`/checkout/${b._id}`)) { navigate('/builds') } }}>Delete</button>
                 <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={async()=>{ const token = await getToken(); await fetch(`/api/builds/${b._id}`, { method:'PATCH', headers: { 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, body: JSON.stringify({ primary: true }) }); setBuilds(list=>list.map(x=>({ ...x, primary: x._id===b._id }))) }}>Set Primary</button>
-                <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={async()=>{ const name = prompt('Rename build', b.modelName || 'Build'); if (!name) return; const token = await getToken(); await fetch(`/api/builds/${b._id}`, { method:'PATCH', headers: { 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, body: JSON.stringify({ modelName: name }) }); setBuilds(list=>list.map(x=>x._id===b._id?{...x, modelName:name}:x)) }}>Rename</button>
+                <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={() => setRenameModal({ isOpen: true, build: b })}>Rename</button>
               </div>
             </div>
           ))}
         </div>
       )}
+      
+      <RenameModal
+        build={renameModal.build}
+        isOpen={renameModal.isOpen}
+        onClose={() => setRenameModal({ isOpen: false, build: null })}
+        onRenamed={(updatedBuild) => {
+          setBuilds(list => list.map(b => b._id === updatedBuild._id ? updatedBuild : b))
+        }}
+      />
     </div>
   )
 }
