@@ -7,6 +7,7 @@ import { AdvancedImage } from '@cloudinary/react'
 import { createHeroImage, createThumbnailImage, createGalleryImage } from '../utils/cloudinary'
 import { slugToModelId, isValidSlug, getModelBySlug } from '../utils/modelUrlMapping'
 import { MODELS } from '../data/models'
+import { OPTIONS } from '../data/options'
 import SEOHead from '../components/SEOHead'
 import { useToast } from '../components/ToastProvider'
 
@@ -61,12 +62,13 @@ const Customize = () => {
             // If API fails, try to find in local data as fallback
             const localModel = MODELS.find(m => m.id === actualModelCode)
             if (localModel) {
-              const transformedModel = {
-                ...localModel,
-                modelCode: localModel.subtitle,
-                images: [],
-                features: localModel.features || []
-              }
+                          const transformedModel = {
+              ...localModel,
+              modelCode: localModel.subtitle,
+              images: [],
+              features: localModel.features || [],
+              packages: []
+            }
               setModel(transformedModel)
             } else {
               setError('Model not found')
@@ -81,7 +83,8 @@ const Customize = () => {
               ...localModel,
               modelCode: localModel.subtitle,
               images: [],
-              features: localModel.features || []
+              features: localModel.features || [],
+              packages: []
             }
             setModel(transformedModel)
           } else {
@@ -334,7 +337,7 @@ const Customize = () => {
             {/* Additional Add-Ons */}
             <div className="card">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Additional Add-Ons</h2>
-              <PublicOptionSelector value={selectedOptions} onChange={setSelectedOptions} />
+              <PublicOptionSelector options={OPTIONS} value={selectedOptions} onChange={setSelectedOptions} />
             </div>
           </div>
 
