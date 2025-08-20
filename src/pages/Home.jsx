@@ -49,7 +49,7 @@ export default function Home() {
 
   const handleCardSelect = (modelId) => {
     const slug = modelIdToSlug(modelId)
-    if (slug) navigate(`/public/models/${slug}`)
+    if (slug) navigate(`/models/${slug}`)
   }
 
   const orgJsonLd = { "@context":"https://schema.org","@type":"Organization","name":"Firefly Tiny Homes","url":"https://fireflyestimator.com","logo":"https://fireflyestimator.com/logo.png","sameAs":["https://www.facebook.com/","https://www.instagram.com/"] }

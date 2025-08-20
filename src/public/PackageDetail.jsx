@@ -22,7 +22,7 @@ export default function PackageDetail() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="card">
-        <button className="text-sm text-gray-500" onClick={()=>navigate(`/public/models/${slug}`)}>← Back</button>
+        <button className="text-sm text-gray-500" onClick={()=>navigate(`/models/${slug}`)}>← Back</button>
         <h1 className="text-2xl font-semibold mt-2">{pkg.name}</h1>
         <div className="text-gray-600 dark:text-gray-300">+${Number(pkg.priceDelta||0).toLocaleString()}</div>
       </div>

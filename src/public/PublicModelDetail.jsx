@@ -211,7 +211,7 @@ export default function PublicModelDetail() {
                         <div className="font-medium text-lg">{p.name}</div>
                         {p.description && <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-3">{p.description}</div>}
                       </div>
-                      <a className="text-sm text-yellow-400 hover:underline" href={`/public/models/${modelIdToSlug(actualModelCode) || id}/package/${encodeURIComponent(p.key)}`}>Details</a>
+                                              <a className="text-sm text-yellow-400 hover:underline" href={`/models/${modelIdToSlug(actualModelCode) || id}`}>Details</a>
                     </div>
                     {!!p.images?.length && (
                       <div className="mt-3 grid grid-cols-3 gap-2">
@@ -263,7 +263,7 @@ export default function PublicModelDetail() {
                           <div className="font-medium text-lg">{p.name}</div>
                           {p.description && <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-3">{p.description}</div>}
                         </div>
-                        <a className="text-sm text-yellow-400 hover:underline" href={`/public/models/${modelIdToSlug(actualModelCode) || id}/package/${encodeURIComponent(p.key)}`}>Details</a>
+                        <a className="text-sm text-yellow-400 hover:underline" href={`/models/${modelIdToSlug(actualModelCode) || id}`}>Details</a>
                       </div>
                       {!!p.images?.length && (
                         <div className="mt-3 grid grid-cols-3 gap-2">
