@@ -268,6 +268,33 @@ app.all(['/api/what-path', '/what-path'], (req, res) => {
   })
 })
 
+// TEMP: debug builds endpoint
+app.get(['/api/debug-builds', '/debug-builds'], async (req, res) => {
+  try {
+    const db = await getDb()
+    const col = db.collection(BUILDS_COLLECTION)
+    const builds = await col.find({}).toArray()
+    
+    const debugData = builds.map(build => ({
+      id: String(build._id),
+      modelName: build.modelName,
+      modelSlug: build.modelSlug,
+      basePrice: build.selections?.basePrice,
+      pricing: build.pricing,
+      optionsCount: build.selections?.options?.length || 0,
+      createdAt: build.createdAt
+    }))
+    
+    return res.json({
+      total: builds.length,
+      builds: debugData
+    })
+  } catch (err) {
+    console.error('Debug builds error:', err)
+    return res.status(500).json({ error: 'debug_failed' })
+  }
+})
+
 // ===== Builds (new) =====
 // Create build (from model or migrated guest draft)
 app.post(['/api/builds', '/builds'], async (req, res) => {
