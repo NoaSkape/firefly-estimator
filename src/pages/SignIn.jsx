@@ -41,9 +41,8 @@ export default function SignInPage() {
               }
             }}
             signUpUrl="/sign-up"
-            fallbackRedirectUrl={redirectUrl}
-            routing="path"
-            path="/sign-in"
+            redirectUrl={redirectUrl}
+            routing="hash"
             showOptionalFields={true}
             initialValues={{
               emailAddress: '',

@@ -282,6 +282,20 @@ function App() {
               <Route path="/customize/:modelId" element={<Customize />} />
               <Route path="/sign-up" element={<SignUp />} />
               <Route path="/sign-in" element={<SignIn />} />
+              
+              {/* Clerk-specific routes for email verification and other flows */}
+              <Route path="/sign-up/verify-email-address" element={<SignUp />} />
+              <Route path="/sign-up/verify-email-address/*" element={<SignUp />} />
+              <Route path="/sign-in/verify-email-address" element={<SignIn />} />
+              <Route path="/sign-in/verify-email-address/*" element={<SignIn />} />
+              <Route path="/verify-email-address" element={<SignUp />} />
+              <Route path="/verify-email-address/*" element={<SignUp />} />
+              <Route path="/reset-password" element={<SignIn />} />
+              <Route path="/reset-password/*" element={<SignIn />} />
+              <Route path="/sign-up/continue" element={<SignUp />} />
+              <Route path="/sign-up/continue/*" element={<SignUp />} />
+              <Route path="/sign-in/continue" element={<SignIn />} />
+              <Route path="/sign-in/continue/*" element={<SignIn />} />
               <Route path="/portal" element={
                 <ProtectedRoute>
                   <PortalOrders />
