@@ -13,7 +13,7 @@ import { ensureBuildIndexes, createBuild, getBuildById, listBuildsForUser, updat
 import { ensureIdempotencyIndexes, withIdempotency } from '../lib/idempotency.js'
 import { quoteDelivery } from '../lib/delivery.js'
 import { z } from 'zod'
-import { Webhook } from 'svix'
+// import { Webhook } from 'svix' // Temporarily disabled
 
 const app = express()
 app.disable('x-powered-by')
@@ -1309,89 +1309,11 @@ app.post(['/api/cloudinary/sign', '/cloudinary/sign'], async (req, res) => {
 })
 
 // ----- Clerk Webhook -----
-app.post(['/api/webhooks/clerk', '/webhooks/clerk'], async (req, res) => {
-  try {
-    // Get the headers
-    const svix_id = req.headers["svix-id"];
-    const svix_timestamp = req.headers["svix-timestamp"];
-    const svix_signature = req.headers["svix-signature"];
-
-    // If there are no headers, error out
-    if (!svix_id || !svix_timestamp || !svix_signature) {
-      return res.status(400).json({ error: 'Missing svix headers' });
-    }
-
-    // Get the body
-    const payload = req.body;
-    const body = JSON.stringify(payload);
-
-    // Create a new Svix instance with your secret.
-    const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET || '');
-
-    let evt;
-
-    // Verify the payload with the headers
-    try {
-      evt = wh.verify(body, {
-        "svix-id": svix_id,
-        "svix-timestamp": svix_timestamp,
-        "svix-signature": svix_signature,
-      });
-    } catch (err) {
-      console.error('Error verifying webhook:', err);
-      return res.status(400).json({ error: 'Webhook verification failed' });
-    }
-
-    // Get the ID and type
-    const { id } = evt.data;
-    const eventType = evt.type;
-
-    console.log(`Webhook with ID of ${id} and type of ${eventType}`);
-
-    // Handle the webhook
-    if (eventType === 'user.created' || eventType === 'user.updated') {
-      const { id, email_addresses, first_name, last_name, unsafe_metadata } = evt.data;
-      
-      try {
-        const db = await getDb();
-        
-        // Create or update user document in MongoDB
-        const userDoc = {
-          clerkId: id,
-          email: email_addresses?.[0]?.email_address || '',
-          firstName: first_name || '',
-          lastName: last_name || '',
-          deliveryAddress: unsafe_metadata?.deliveryAddress || '',
-          deliveryCity: unsafe_metadata?.deliveryCity || '',
-          deliveryState: unsafe_metadata?.deliveryState || '',
-          deliveryZipCode: unsafe_metadata?.deliveryZipCode || '',
-          updatedAt: new Date()
-        };
-
-        if (eventType === 'user.created') {
-          userDoc.createdAt = new Date();
-        }
-
-        // Insert or update user
-        await db.collection('users').updateOne(
-          { clerkId: id },
-          { $set: userDoc },
-          { upsert: true }
-        );
-
-        console.log(`User ${eventType} in MongoDB:`, id);
-      } catch (error) {
-        console.error('Error saving user to MongoDB:', error);
-        return res.status(500).json({ error: 'Database error' });
-      }
-    }
-
-    res.status(200).json({ success: true });
-  } catch (error) {
-    console.error('Webhook error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// Temporarily disabled to fix deployment issues
+// app.post(['/api/webhooks/clerk', '/webhooks/clerk'], async (req, res) => {
+//   // Webhook handler code temporarily removed
+//   res.status(200).json({ success: true });
+// });
 
 // Fallback to JSON 404 to avoid hanging requests
 app.use((req, res) => {
