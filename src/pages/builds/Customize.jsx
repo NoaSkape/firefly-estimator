@@ -16,6 +16,7 @@ export default function BuildCustomize() {
   const { getToken, isSignedIn } = useAuth()
   const [build, setBuild] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
   const saveTimer = useRef(null)
   const { addToast } = useToast()
   const [dirty, setDirty] = useState(false)
@@ -26,8 +27,33 @@ export default function BuildCustomize() {
       try {
         const token = await getToken()
         const res = await fetch(`/api/builds/${buildId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-        if (res.ok) { setBuild(await res.json()); trackEvent('build_loaded', { buildId }) }
-      } catch {}
+        if (res.ok) { 
+          const buildData = await res.json()
+          setBuild(buildData)
+          trackEvent('build_loaded', { buildId })
+        } else if (res.status === 404) {
+          setError('Build not found')
+          addToast({ 
+            type: 'error', 
+            title: 'Build Not Found',
+            message: 'This build does not exist or you do not have access to it.'
+          })
+        } else {
+          setError('Failed to load build')
+          addToast({ 
+            type: 'error', 
+            title: 'Error',
+            message: 'Failed to load build. Please try again.'
+          })
+        }
+      } catch (err) {
+        setError('Network error')
+        addToast({ 
+          type: 'error', 
+          title: 'Network Error',
+          message: 'Unable to load build. Please check your connection.'
+        })
+      }
       // flush any pending offline save
       try {
         const pending = localStorage.getItem(`ff.pending_patch_${buildId}`)
@@ -47,7 +73,7 @@ export default function BuildCustomize() {
     }
     window.addEventListener('online', onOnline)
     return () => window.removeEventListener('online', onOnline)
-  }, [buildId, getToken])
+  }, [buildId, getToken, addToast])
 
   const price = useMemo(() => build?.pricing?.total || 0, [build])
 
@@ -79,6 +105,30 @@ export default function BuildCustomize() {
       savePatch({ selections: { options: nextOptions } })
       setDirty(false)
     }, 500)
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto text-center">
+        <div className="card">
+          <h1 className="section-header text-red-600">Build Not Found</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            {error === 'Build not found' 
+              ? 'This build does not exist or you do not have access to it.'
+              : 'Unable to load the build. Please try again.'
+            }
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button onClick={() => navigate('/builds')} className="btn-primary">
+              Go to My Builds
+            </button>
+            <button onClick={() => navigate('/models')} className="btn-secondary">
+              Explore Models
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (!build) return <div className="text-gray-400">Loading…</div>

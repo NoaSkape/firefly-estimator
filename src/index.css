@@ -63,3 +63,34 @@
   50%  { opacity: 1; transform: translateY(6px); filter: drop-shadow(0 0 14px #FACC15); }
   100% { opacity: .6; transform: translateY(0); filter: drop-shadow(0 0 4px #FACC15); }
 }
+
+/* Toast animations */
+@keyframes slide-in-from-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-out-to-right {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.animate-in {
+  animation: slide-in-from-right 0.3s ease-out;
+}
+
+.animate-out {
+  animation: slide-out-to-right 0.3s ease-in;
+}

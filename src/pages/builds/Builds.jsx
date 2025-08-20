@@ -65,7 +65,28 @@ export default function BuildsDashboard() {
                 <button className="btn-primary" onClick={()=>navigate(`/builds/${b._id}`)}>Resume</button>
                 <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={()=>navigate(`/checkout/${b._id}/payment`)}>Checkout</button>
                 <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={async()=>{ const token = await getToken(); const r = await fetch(`/api/builds/${b._id}/duplicate`, { method:'POST', headers: token?{Authorization:`Bearer ${token}`}:{}}); const j=await r.json(); if(j?.buildId) navigate(`/builds/${j.buildId}`) }}>Duplicate</button>
-                <button className="px-3 py-2 rounded border border-red-800 text-red-300 hover:bg-red-900/30" onClick={async()=>{ const token = await getToken(); await fetch(`/api/builds/${b._id}`, { method:'DELETE', headers: token?{Authorization:`Bearer ${token}`}:{}}); setBuilds(list=>list.filter(x=>x._id!==b._id)); if (location.pathname.includes(`/builds/${b._id}`) || location.pathname.includes(`/checkout/${b._id}`)) { navigate('/builds') } }}>Delete</button>
+                <button className="px-3 py-2 rounded border border-red-800 text-red-300 hover:bg-red-900/30" onClick={async()=>{ 
+                  const token = await getToken(); 
+                  await fetch(`/api/builds/${b._id}`, { method:'DELETE', headers: token?{Authorization:`Bearer ${token}`}:{}}); 
+                  setBuilds(list=>list.filter(x=>x._id!==b._id)); 
+                  
+                  // Check if we're currently on this build's pages and redirect
+                  const currentPath = window.location.pathname;
+                  if (currentPath.includes(`/builds/${b._id}`) || currentPath.includes(`/checkout/${b._id}`)) { 
+                    addToast({ 
+                      type: 'warning', 
+                      title: 'Build Deleted',
+                      message: 'The build you were viewing has been deleted. Redirected to My Builds.'
+                    });
+                    navigate('/builds') 
+                  } else {
+                    addToast({ 
+                      type: 'success', 
+                      title: 'Build Deleted',
+                      message: 'Build has been successfully deleted.'
+                    });
+                  }
+                }}>Delete</button>
                 <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={async()=>{ const token = await getToken(); await fetch(`/api/builds/${b._id}`, { method:'PATCH', headers: { 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, body: JSON.stringify({ primary: true }) }); setBuilds(list=>list.map(x=>({ ...x, primary: x._id===b._id }))) }}>Set Primary</button>
                 <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={() => setRenameModal({ isOpen: true, build: b })}>Rename</button>
               </div>
