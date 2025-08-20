@@ -20,6 +20,7 @@ import WhyOnline from './pages/how/WhyOnline'
 import PortalOrders from './pages/portal/Orders'
 import PortalDashboard from './pages/portal/Dashboard'
 import AdminOrders from './pages/admin/Orders'
+import AnalyticsDashboard from './components/AnalyticsDashboard'
 import PublicModelDetail from './public/PublicModelDetail'
 import PackageDetail from './public/PackageDetail'
 import BuildsDashboard from './pages/builds/Builds'
@@ -195,6 +196,7 @@ function App() {
               <Route path="/portal" element={<PortalOrders />} />
               <Route path="/portal/dashboard" element={<PortalDashboard />} />
               <Route path="/admin/orders" element={<AdminOrders />} />
+              <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
               <Route path="/faq" element={<FAQPage />} />
             </Routes>
           </main>

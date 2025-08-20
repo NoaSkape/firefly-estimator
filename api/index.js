@@ -420,6 +420,36 @@ app.post(['/api/builds/:id/contract', '/builds/:id/contract'], async (req, res) 
   return res.status(200).json({ signingUrl: url, envelopeId: `env_${Date.now()}` })
 })
 
+// Analytics endpoint
+app.post(['/api/analytics/event', '/analytics/event'], async (req, res) => {
+  try {
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+    const { event, sessionId, timestamp, url, properties } = body
+    
+    // Store analytics event in database
+    const db = await getDb()
+    const analyticsCol = db.collection('Analytics')
+    
+    const analyticsEvent = {
+      event,
+      sessionId,
+      timestamp: new Date(timestamp || Date.now()),
+      url,
+      properties,
+      userAgent: req.headers['user-agent'],
+      ip: req.headers['x-forwarded-for'] || req.connection.remoteAddress,
+      createdAt: new Date()
+    }
+    
+    await analyticsCol.insertOne(analyticsEvent)
+    
+    return res.status(200).json({ ok: true })
+  } catch (error) {
+    console.error('Analytics event error:', error)
+    return res.status(500).json({ error: 'analytics_failed' })
+  }
+})
+
 // Finalize order (stub)
 app.post(['/api/builds/:id/confirm', '/builds/:id/confirm'], async (req, res) => {
   const auth = await requireAuth(req, res, true)
