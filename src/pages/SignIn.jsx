@@ -14,20 +14,8 @@ export default function SignInPage() {
         <meta name="description" content="Sign in to your Firefly Tiny Homes account to access your saved customizations and continue your home building journey." />
       </Helmet>
       
-      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
-        {/* Background with fireflies effect */}
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-          <div className="absolute inset-0 opacity-20">
-            {/* Fireflies effect */}
-            <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-            <div className="absolute top-1/3 right-1/3 w-1 h-1 bg-yellow-300 rounded-full animate-pulse delay-1000"></div>
-            <div className="absolute top-1/2 left-1/2 w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse delay-500"></div>
-            <div className="absolute bottom-1/3 left-1/4 w-1 h-1 bg-yellow-300 rounded-full animate-pulse delay-1500"></div>
-            <div className="absolute bottom-1/4 right-1/4 w-2 h-2 bg-yellow-400 rounded-full animate-pulse delay-2000"></div>
-          </div>
-        </div>
-        
-        <div className="max-w-md w-full space-y-6 relative z-10">
+      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-6">
           <div className="text-center">
             <div className="w-16 h-16 bg-yellow-500 rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg">
               <span className="text-white font-bold text-xl">F</span>
@@ -56,6 +44,11 @@ export default function SignInPage() {
             afterSignInUrl={redirectUrl}
             routing="path"
             path="/sign-in"
+            initialValues={{
+              emailAddress: '',
+              password: ''
+            }}
+            showOptionalFields={true}
           />
           
           <div className="text-center">
