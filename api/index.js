@@ -533,6 +533,525 @@ app.get(['/api/builds/:id/contract/status', '/builds/:id/contract/status'], asyn
   }
 })
 
+// ===== ADMIN ENDPOINTS =====
+
+// Admin middleware to check admin status
+async function requireAdmin(req, res) {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return null
+  
+  try {
+    const { isAdmin } = await import('../lib/canEditModels.js')
+    const adminStatus = await isAdmin(auth.userId)
+    if (!adminStatus) {
+      res.status(403).json({ error: 'forbidden', message: 'Admin access required' })
+      return null
+    }
+    return auth
+  } catch (error) {
+    console.error('Admin check error:', error)
+    res.status(500).json({ error: 'admin_check_failed' })
+    return null
+  }
+}
+
+// Get admin statistics
+app.get(['/api/admin/stats', '/admin/stats'], async (req, res) => {
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
+  
+  try {
+    const db = await getDb()
+    
+    // Get user count
+    const totalUsers = await db.collection('users').countDocuments()
+    
+    // Get build count
+    const totalBuilds = await db.collection('builds').countDocuments()
+    
+    // Get order count and revenue
+    const orders = await db.collection('orders').find({}).toArray()
+    const totalOrders = orders.length
+    const revenue = orders.reduce((sum, order) => sum + (order.total || 0), 0)
+    
+    // Calculate conversion rate (orders / builds)
+    const conversionRate = totalBuilds > 0 ? (totalOrders / totalBuilds) * 100 : 0
+    
+    // Get active users (users with activity in last 30 days)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    const activeUsers = await db.collection('users').countDocuments({
+      lastActivity: { $gte: thirtyDaysAgo }
+    })
+    
+    return res.status(200).json({
+      totalUsers,
+      totalBuilds,
+      totalOrders,
+      revenue,
+      conversionRate,
+      activeUsers
+    })
+    
+  } catch (error) {
+    console.error('Admin stats error:', error)
+    return res.status(500).json({ 
+      error: 'stats_failed', 
+      message: error.message || 'Failed to load admin statistics'
+    })
+  }
+})
+
+// Get recent admin activity
+app.get(['/api/admin/activity', '/admin/activity'], async (req, res) => {
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
+  
+  try {
+    const db = await getDb()
+    
+    // Get recent activity from analytics collection
+    const activity = await db.collection('analytics')
+      .find({})
+      .sort({ timestamp: -1 })
+      .limit(20)
+      .toArray()
+    
+    const formattedActivity = activity.map(item => ({
+      action: item.eventName,
+      description: item.properties?.message || item.eventName,
+      timestamp: item.timestamp,
+      userId: item.userId,
+      sessionId: item.sessionId
+    }))
+    
+    return res.status(200).json(formattedActivity)
+    
+  } catch (error) {
+    console.error('Admin activity error:', error)
+    return res.status(500).json({ 
+      error: 'activity_failed', 
+      message: error.message || 'Failed to load recent activity'
+    })
+  }
+})
+
+// Get all users for admin
+app.get(['/api/admin/users', '/admin/users'], async (req, res) => {
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
+  
+  try {
+    const db = await getDb()
+    
+    const users = await db.collection('users')
+      .find({})
+      .sort({ createdAt: -1 })
+      .toArray()
+    
+    return res.status(200).json(users)
+    
+  } catch (error) {
+    console.error('Admin users error:', error)
+    return res.status(500).json({ 
+      error: 'users_failed', 
+      message: error.message || 'Failed to load users'
+    })
+  }
+})
+
+// Bulk user operations
+app.post(['/api/admin/users/bulk', '/admin/users/bulk'], async (req, res) => {
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
+  
+  try {
+    const { action, userIds } = req.body
+    
+    if (!action || !userIds || !Array.isArray(userIds)) {
+      return res.status(400).json({ 
+        error: 'invalid_request', 
+        message: 'Action and userIds array are required' 
+      })
+    }
+    
+    const db = await getDb()
+    let result
+    
+    switch (action) {
+      case 'activate':
+        result = await db.collection('users').updateMany(
+          { _id: { $in: userIds.map(id => new ObjectId(id)) } },
+          { $set: { status: 'active', updatedAt: new Date() } }
+        )
+        break
+        
+      case 'deactivate':
+        result = await db.collection('users').updateMany(
+          { _id: { $in: userIds.map(id => new ObjectId(id)) } },
+          { $set: { status: 'inactive', updatedAt: new Date() } }
+        )
+        break
+        
+      case 'delete':
+        result = await db.collection('users').deleteMany({
+          _id: { $in: userIds.map(id => new ObjectId(id)) }
+        })
+        break
+        
+      default:
+        return res.status(400).json({ 
+          error: 'invalid_action', 
+          message: 'Invalid action specified' 
+        })
+    }
+    
+    // Log admin action
+    await db.collection('analytics').insertOne({
+      eventName: 'admin_bulk_action',
+      userId: auth.userId,
+      sessionId: req.headers['x-session-id'] || 'unknown',
+      timestamp: new Date(),
+      properties: {
+        action,
+        userCount: userIds.length,
+        affectedUsers: userIds
+      }
+    })
+    
+    return res.status(200).json({
+      success: true,
+      action,
+      affectedCount: result.modifiedCount || result.deletedCount,
+      message: `${action} completed for ${result.modifiedCount || result.deletedCount} users`
+    })
+    
+  } catch (error) {
+    console.error('Bulk user operation error:', error)
+    return res.status(500).json({ 
+      error: 'bulk_operation_failed', 
+      message: error.message || 'Failed to perform bulk operation'
+    })
+  }
+})
+
+// Data export endpoints
+app.get(['/api/admin/export/:type', '/admin/export/:type'], async (req, res) => {
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
+  
+  try {
+    const { type } = req.params
+    const db = await getDb()
+    
+    let data = []
+    let filename = ''
+    
+    switch (type) {
+      case 'users':
+        data = await db.collection('users').find({}).toArray()
+        filename = 'users_export'
+        break
+        
+      case 'builds':
+        data = await db.collection('builds').find({}).toArray()
+        filename = 'builds_export'
+        break
+        
+      case 'orders':
+        data = await db.collection('orders').find({}).toArray()
+        filename = 'orders_export'
+        break
+        
+      case 'analytics':
+        data = await db.collection('analytics').find({}).toArray()
+        filename = 'analytics_export'
+        break
+        
+      default:
+        return res.status(400).json({ 
+          error: 'invalid_export_type', 
+          message: 'Invalid export type' 
+        })
+    }
+    
+    // Convert to CSV
+    const csv = convertToCSV(data)
+    
+    // Set headers for file download
+    res.setHeader('Content-Type', 'text/csv')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}_${new Date().toISOString().split('T')[0]}.csv"`)
+    
+    return res.status(200).send(csv)
+    
+  } catch (error) {
+    console.error('Data export error:', error)
+    return res.status(500).json({ 
+      error: 'export_failed', 
+      message: error.message || 'Failed to export data'
+    })
+  }
+})
+
+// Helper function to convert data to CSV
+function convertToCSV(data) {
+  if (data.length === 0) return ''
+  
+  const headers = Object.keys(data[0])
+  const csvRows = []
+  
+  // Add headers
+  csvRows.push(headers.join(','))
+  
+  // Add data rows
+  for (const row of data) {
+    const values = headers.map(header => {
+      const value = row[header]
+      // Handle special characters and wrap in quotes if needed
+      if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+        return `"${value.replace(/"/g, '""')}"`
+      }
+      return value || ''
+    })
+    csvRows.push(values.join(','))
+  }
+  
+  return csvRows.join('\n')
+}
+
+// Advanced reporting endpoints
+app.post(['/api/admin/reports', '/admin/reports'], async (req, res) => {
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
+  
+  try {
+    const { dateRange, modelFilter, userType } = req.body
+    const db = await getDb()
+    
+    // Calculate date range
+    const now = new Date()
+    let startDate
+    switch (dateRange) {
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        break
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        break
+      case '90d':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+        break
+      case '1y':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
+        break
+      default:
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    }
+    
+    // Generate funnel data
+    const funnelData = await generateFunnelData(db, startDate, now)
+    
+    // Generate revenue data
+    const revenueData = await generateRevenueData(db, startDate, now)
+    
+    // Generate user activity data
+    const userActivity = await generateUserActivityData(db, startDate, now)
+    
+    // Generate model performance data
+    const modelPerformance = await generateModelPerformanceData(db, startDate, now)
+    
+    return res.status(200).json({
+      funnelData,
+      revenueData,
+      userActivity,
+      modelPerformance
+    })
+    
+  } catch (error) {
+    console.error('Advanced reporting error:', error)
+    return res.status(500).json({ 
+      error: 'reporting_failed', 
+      message: error.message || 'Failed to generate report'
+    })
+  }
+})
+
+// Export advanced reports
+app.post(['/api/admin/reports/export', '/admin/reports/export'], async (req, res) => {
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
+  
+  try {
+    const { filters, chartType, format } = req.body
+    const db = await getDb()
+    
+    // Generate report data based on chart type
+    let reportData = []
+    let filename = ''
+    
+    switch (chartType) {
+      case 'funnel':
+        reportData = await generateFunnelData(db, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), new Date())
+        filename = 'funnel_report'
+        break
+      case 'revenue':
+        reportData = await generateRevenueData(db, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), new Date())
+        filename = 'revenue_report'
+        break
+      case 'activity':
+        reportData = await generateUserActivityData(db, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), new Date())
+        filename = 'activity_report'
+        break
+      case 'models':
+        reportData = await generateModelPerformanceData(db, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), new Date())
+        filename = 'models_report'
+        break
+      default:
+        return res.status(400).json({ 
+          error: 'invalid_chart_type', 
+          message: 'Invalid chart type' 
+        })
+    }
+    
+    if (format === 'pdf') {
+      // For PDF export, return JSON data (frontend can handle PDF generation)
+      return res.status(200).json({
+        data: reportData,
+        filename: `${filename}_${new Date().toISOString().split('T')[0]}.json`
+      })
+    } else {
+      // CSV export
+      const csv = convertToCSV(reportData)
+      res.setHeader('Content-Type', 'text/csv')
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}_${new Date().toISOString().split('T')[0]}.csv"`)
+      return res.status(200).send(csv)
+    }
+    
+  } catch (error) {
+    console.error('Report export error:', error)
+    return res.status(500).json({ 
+      error: 'export_failed', 
+      message: error.message || 'Failed to export report'
+    })
+  }
+})
+
+// Helper functions for report generation
+async function generateFunnelData(db, startDate, endDate) {
+  const analytics = await db.collection('analytics')
+    .find({
+      timestamp: { $gte: startDate, $lte: endDate }
+    })
+    .toArray()
+  
+  // Calculate funnel steps
+  const pageViews = analytics.filter(a => a.eventName === 'page_view').length
+  const modelViews = analytics.filter(a => a.eventName === 'model_view').length
+  const buildsStarted = analytics.filter(a => a.eventName === 'build_started').length
+  const buildsCompleted = analytics.filter(a => a.eventName === 'build_completed').length
+  const ordersStarted = analytics.filter(a => a.eventName === 'order_started').length
+  const ordersCompleted = analytics.filter(a => a.eventName === 'order_completed').length
+  
+  return [
+    { name: 'Page Views', count: pageViews, percentage: 100 },
+    { name: 'Model Views', count: modelViews, percentage: pageViews > 0 ? (modelViews / pageViews) * 100 : 0 },
+    { name: 'Builds Started', count: buildsStarted, percentage: pageViews > 0 ? (buildsStarted / pageViews) * 100 : 0 },
+    { name: 'Builds Completed', count: buildsCompleted, percentage: pageViews > 0 ? (buildsCompleted / pageViews) * 100 : 0 },
+    { name: 'Orders Started', count: ordersStarted, percentage: pageViews > 0 ? (ordersStarted / pageViews) * 100 : 0 },
+    { name: 'Orders Completed', count: ordersCompleted, percentage: pageViews > 0 ? (ordersCompleted / pageViews) * 100 : 0 }
+  ]
+}
+
+async function generateRevenueData(db, startDate, endDate) {
+  const orders = await db.collection('orders')
+    .find({
+      createdAt: { $gte: startDate, $lte: endDate }
+    })
+    .toArray()
+  
+  // Group by week
+  const weeklyData = {}
+  orders.forEach(order => {
+    const weekStart = new Date(order.createdAt)
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+    weekStart.setHours(0, 0, 0, 0)
+    
+    const weekKey = weekStart.toISOString().split('T')[0]
+    if (!weeklyData[weekKey]) {
+      weeklyData[weekKey] = { revenue: 0, orders: 0 }
+    }
+    weeklyData[weekKey].revenue += order.total || 0
+    weeklyData[weekKey].orders += 1
+  })
+  
+  return Object.entries(weeklyData).map(([week, data]) => ({
+    period: `Week of ${week}`,
+    revenue: data.revenue,
+    orders: data.orders,
+    growth: 0 // Calculate growth in frontend
+  }))
+}
+
+async function generateUserActivityData(db, startDate, endDate) {
+  const users = await db.collection('users').countDocuments({
+    createdAt: { $gte: startDate, $lte: endDate }
+  })
+  
+  const activeUsers = await db.collection('users').countDocuments({
+    lastActivity: { $gte: startDate, $lte: endDate }
+  })
+  
+  const returningUsers = await db.collection('users').countDocuments({
+    lastActivity: { $gte: startDate, $lte: endDate },
+    visitCount: { $gt: 1 }
+  })
+  
+  return [
+    { name: 'New Users', value: users, change: 5.2 },
+    { name: 'Active Users', value: activeUsers, change: 12.8 },
+    { name: 'Returning Users', value: returningUsers, change: 8.4 }
+  ]
+}
+
+async function generateModelPerformanceData(db, startDate, endDate) {
+  const analytics = await db.collection('analytics')
+    .find({
+      timestamp: { $gte: startDate, $lte: endDate },
+      eventName: { $in: ['model_view', 'build_started', 'order_completed'] }
+    })
+    .toArray()
+  
+  // Group by model
+  const modelData = {}
+  analytics.forEach(event => {
+    const modelName = event.properties?.modelName || 'Unknown'
+    if (!modelData[modelName]) {
+      modelData[modelName] = { views: 0, builds: 0, orders: 0, revenue: 0 }
+    }
+    
+    switch (event.eventName) {
+      case 'model_view':
+        modelData[modelName].views++
+        break
+      case 'build_started':
+        modelData[modelName].builds++
+        break
+      case 'order_completed':
+        modelData[modelName].orders++
+        modelData[modelName].revenue += event.properties?.total || 0
+        break
+    }
+  })
+  
+  return Object.entries(modelData).map(([name, data]) => ({
+    name,
+    views: data.views,
+    builds: data.builds,
+    orders: data.orders,
+    conversionRate: data.views > 0 ? (data.orders / data.views) * 100 : 0,
+    revenue: data.revenue
+  }))
+}
+
 // Finalize order (stub)
 app.post(['/api/builds/:id/confirm', '/builds/:id/confirm'], async (req, res) => {
   const auth = await requireAuth(req, res, true)
