@@ -40,10 +40,12 @@ import Footer from './components/Footer'
 import ResumeBanner from './components/ResumeBanner'
 import OfflineIndicator from './components/OfflineIndicator'
 import { PageLoadingSpinner } from './components/LoadingSpinner'
+import NetworkErrorHandler from './components/NetworkErrorHandler'
 import './App.css'
 import { SignedIn, useUser } from '@clerk/clerk-react'
 import { canEditModelsClient } from './lib/canEditModels'
 import './utils/performance' // Initialize performance monitoring
+import './utils/accessibility' // Initialize accessibility features
 
 function App() {
   const [quoteData, setQuoteData] = useState(null)
@@ -163,14 +165,23 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <Router>
-        <div className="min-h-screen transition-colors duration-300" data-app-container>
-          {/* Background image with gradient + animated fireflies above it */}
-          <BackgroundImage src="/hero/tiny-home-dusk.png" />
-          <FirefliesBackground density={0.12} color="#FFD86B" parallax={0.25} />
-          <Header isAdmin={isAdmin} />
+      <NetworkErrorHandler>
+        <Router>
+          <div className="min-h-screen transition-colors duration-300" data-app-container>
+            {/* Skip links for accessibility */}
+            <a href="#main-content" className="skip-link sr-only-focusable">
+              Skip to main content
+            </a>
+            <a href="#navigation" className="skip-link sr-only-focusable">
+              Skip to navigation
+            </a>
+            
+            {/* Background image with gradient + animated fireflies above it */}
+            <BackgroundImage src="/hero/tiny-home-dusk.png" />
+            <FirefliesBackground density={0.12} color="#FFD86B" parallax={0.25} />
+                        <Header isAdmin={isAdmin} />
 
-                          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                   <ResumeBanner />
                   <OfflineIndicator />
                   <Suspense fallback={<PageLoadingSpinner />}>
@@ -218,8 +229,9 @@ function App() {
                   </Suspense>
                 </main>
           <Footer />
-        </div>
-      </Router>
+                  </div>
+        </Router>
+      </NetworkErrorHandler>
     </ErrorBoundary>
   )
 }
