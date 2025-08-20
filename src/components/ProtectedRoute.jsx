@@ -5,7 +5,7 @@ import { canEditModelsClient } from '../lib/canEditModels'
 import { isProtectedRoute, isAdminRoute, getAuthRedirectUrl } from '../lib/routeProtection'
 
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
-  const { isSignedIn, user } = useUser()
+  const { isSignedIn, user, isLoaded } = useUser()
   const location = useLocation()
   const [isAdmin, setIsAdmin] = React.useState(false)
 
@@ -21,9 +21,22 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
     checkAdminStatus()
   }, [user])
 
+  // Wait for Clerk to finish loading before making authentication decisions
+  if (!isLoaded) {
+    console.log('[ProtectedRoute] Clerk still loading, showing loading state')
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
   // If route requires authentication and user is not signed in
   if (isProtectedRoute(location.pathname) && !isSignedIn) {
-    console.log('[ProtectedRoute] Redirecting to sign-in:', { pathname: location.pathname, isSignedIn })
+    console.log('[ProtectedRoute] Redirecting to sign-in:', { pathname: location.pathname, isSignedIn, isLoaded })
     const redirectUrl = getAuthRedirectUrl(location.pathname)
     return <Navigate to={`/sign-in?redirect=${encodeURIComponent(redirectUrl)}`} replace />
   }

@@ -6,7 +6,7 @@ import RenameModal from '../../components/RenameModal'
 import { useToast } from '../../components/ToastProvider'
 
 export default function BuildsDashboard() {
-  const { isSignedIn } = useUser()
+  const { isSignedIn, isLoaded } = useUser()
   const { getToken } = useAuth()
   const [loading, setLoading] = useState(true)
   const [builds, setBuilds] = useState([])
@@ -41,6 +41,18 @@ export default function BuildsDashboard() {
       }
     })()
   }, [isSignedIn])
+
+  // Wait for Clerk to finish loading before making authentication decisions
+  if (!isLoaded) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="card text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading authentication...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!isSignedIn) {
     return (
