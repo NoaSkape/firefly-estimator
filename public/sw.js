@@ -76,10 +76,12 @@ async function handleApiRequest(request) {
     // Try network first
     const response = await fetch(request)
     
-    // Cache successful GET responses only
-    if (response.ok && request.method === 'GET') {
+    // Cache successful GET responses only (skip chrome-extension URLs)
+    if (response.ok && request.method === 'GET' && !request.url.startsWith('chrome-extension://')) {
       const clonedResponse = response.clone()
-      cache.put(request, clonedResponse)
+      cache.put(request, clonedResponse).catch(() => {
+        // Silently ignore cache errors (like chrome-extension URLs)
+      })
     }
     
     return response

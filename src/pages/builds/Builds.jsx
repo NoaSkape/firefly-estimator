@@ -16,16 +16,28 @@ export default function BuildsDashboard() {
 
   useEffect(() => {
     console.log('[BuildsDashboard] useEffect triggered:', { isSignedIn, loading })
-    ;(async () => {
-      if (!isSignedIn) { 
-        console.log('[BuildsDashboard] Not signed in, setting loading to false')
-        setLoading(false); 
-        return 
-      }
+    
+    // If not signed in, stop loading immediately
+    if (!isSignedIn) { 
+      console.log('[BuildsDashboard] Not signed in, setting loading to false')
+      setLoading(false); 
+      return 
+    }
+
+    // Start fetching builds immediately when signed in
+    let isMounted = true;
+    (async () => {
       try {
         console.log('[BuildsDashboard] Fetching builds...')
         const token = await getToken()
-        const res = await fetch('/api/builds', { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+        const res = await fetch('/api/builds', { 
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          // Add cache control to ensure fresh data
+          cache: 'no-cache'
+        })
+        
+        if (!isMounted) return; // Component unmounted
+        
         if (res.ok) {
           const buildsData = await res.json()
           console.log('[BuildsDashboard] Builds fetched successfully:', buildsData.length)
@@ -34,12 +46,19 @@ export default function BuildsDashboard() {
           console.error('[BuildsDashboard] Failed to fetch builds:', res.status, res.statusText)
         }
       } catch (error) {
+        if (!isMounted) return;
         console.error('[BuildsDashboard] Error fetching builds:', error)
       } finally { 
-        console.log('[BuildsDashboard] Setting loading to false')
-        setLoading(false) 
+        if (isMounted) {
+          console.log('[BuildsDashboard] Setting loading to false')
+          setLoading(false) 
+        }
       }
     })()
+
+    return () => {
+      isMounted = false;
+    }
   }, [isSignedIn])
 
   // Wait for Clerk to finish loading before making authentication decisions
@@ -47,8 +66,8 @@ export default function BuildsDashboard() {
     return (
       <div className="max-w-3xl mx-auto">
         <div className="card text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading authentication...</p>
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-500 mx-auto mb-3"></div>
+          <p className="text-gray-400 text-sm">Loading...</p>
         </div>
       </div>
     )
@@ -129,7 +148,24 @@ export default function BuildsDashboard() {
     <div>
       <h1 className="section-header">My Home</h1>
       {loading ? (
-        <div className="text-gray-400">Loading…</div>
+        <div className="space-y-3">
+          {/* Loading skeleton */}
+          {[1, 2, 3].map(i => (
+            <div key={i} className="card animate-pulse">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="h-4 bg-gray-700 rounded w-1/3 mb-2"></div>
+                  <div className="h-3 bg-gray-800 rounded w-1/2"></div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-8 bg-gray-700 rounded w-16"></div>
+                  <div className="h-8 bg-gray-700 rounded w-20"></div>
+                  <div className="h-8 bg-gray-700 rounded w-20"></div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : builds.length === 0 ? (
         <div className="card">No builds yet. <button className="btn-primary ml-2" onClick={()=>navigate('/models')}>Start from Explore Models</button></div>
       ) : (
