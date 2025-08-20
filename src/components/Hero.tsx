@@ -10,8 +10,8 @@ export function Hero() {
           Shop, design, and order your brand-new park model tiny home online – all in less than 1 hour!
         </p>
         <div className="mt-14 md:mt-16 flex flex-wrap gap-3">
-          <a href="/build" className="px-6 h-11 inline-flex items-center rounded bg-yellow-400 text-gray-900 font-semibold hover:bg-yellow-300 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-gray-900">Start Your Build</a>
-          <a href="/#how-it-works" className="px-6 h-11 inline-flex items-center rounded border border-gray-700 text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-gray-900">Learn More</a>
+          <a href="/models" className="px-6 h-11 inline-flex items-center rounded bg-yellow-400 text-gray-900 font-semibold hover:bg-yellow-300 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-gray-900">Start Your Build</a>
+          <a href="/faq" className="px-6 h-11 inline-flex items-center rounded border border-gray-700 text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-gray-900">Learn More</a>
         </div>
         {/* benefits moved to sidebar per latest request */}
       </div>

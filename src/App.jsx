@@ -32,6 +32,7 @@ const BuildsDashboard = lazy(() => import('./pages/builds/Builds'))
 const BuildCustomize = lazy(() => import('./pages/builds/Customize'))
 const About = lazy(() => import('./pages/About'))
 const Contact = lazy(() => import('./pages/Contact'))
+const Financing = lazy(() => import('./pages/Financing'))
 import { getAllValidSlugs } from './utils/modelUrlMapping'
 import { testModelUrls, generateModelSitemap } from './utils/testModelUrls'
 import { verifyImplementation } from './utils/verifyImplementation'
@@ -245,6 +246,7 @@ function App() {
               <Route path="/checkout/:buildId/confirm" element={<Confirm />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/financing" element={<Financing />} />
               <Route path="/portal" element={<PortalOrders />} />
               <Route path="/portal/dashboard" element={<PortalDashboard />} />
                                            <Route path="/admin" element={<AdminOverview />} />

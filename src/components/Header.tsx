@@ -9,6 +9,7 @@ type HeaderProps = {
 export default function Header({ isAdmin }: HeaderProps) {
   const [open, setOpen] = useState(false)
   const [shrink, setShrink] = useState(false)
+  const [aboutDropdownOpen, setAboutDropdownOpen] = useState(false)
 
   useEffect(() => {
     function onScroll() {
@@ -24,10 +25,26 @@ export default function Header({ isAdmin }: HeaderProps) {
       <nav className="hidden md:flex items-center gap-6 text-sm">
         <a href="/models" className="hover:text-yellow-400">Explore Models</a>
         <a href="/builds" className="hover:text-yellow-400">My Home</a>
-        <a href="/#financing" className="hover:text-yellow-400">Financing</a>
+        <a href="/financing" className="hover:text-yellow-400">Financing</a>
         <a href="/how" className="hover:text-yellow-400">How It Works</a>
-        <a href="/faq" className="hover:text-yellow-400">FAQ</a>
-        <a href="/about" className="hover:text-yellow-400">About</a>
+        <div 
+          className="relative"
+          onMouseEnter={() => setAboutDropdownOpen(true)}
+          onMouseLeave={() => setAboutDropdownOpen(false)}
+        >
+          <button className="hover:text-yellow-400 flex items-center gap-1">
+            About
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {aboutDropdownOpen && (
+            <div className="absolute top-full left-0 mt-1 w-48 bg-gray-900 border border-gray-800 rounded-lg shadow-lg z-50">
+              <a href="/faq" className="block px-4 py-2 text-sm text-gray-300 hover:text-yellow-400 hover:bg-gray-800">FAQ</a>
+              <a href="/about" className="block px-4 py-2 text-sm text-gray-300 hover:text-yellow-400 hover:bg-gray-800">About Us</a>
+            </div>
+          )}
+        </div>
       </nav>
     )
   }
@@ -38,7 +55,7 @@ export default function Header({ isAdmin }: HeaderProps) {
         <div className="flex items-center">
           <a href="/" className="flex items-center">
             <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" className="h-10 w-auto mr-3" loading="eager" />
-            <span className="text-lg font-semibold text-gray-100">Firefly Estimator</span>
+            <span className="text-lg font-semibold text-gray-100">Firefly Tiny Homes</span>
           </a>
         </div>
 
@@ -63,7 +80,7 @@ export default function Header({ isAdmin }: HeaderProps) {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
                 <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" className="h-8 w-auto mr-2" />
-                <span className="text-sm font-semibold text-gray-100">Menu</span>
+                <span className="text-sm font-semibold text-gray-100">Firefly Tiny Homes</span>
               </div>
               <button aria-label="Close menu" onClick={() => setOpen(false)} className="p-2 rounded hover:bg-white/10">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
@@ -72,10 +89,10 @@ export default function Header({ isAdmin }: HeaderProps) {
             <nav className="flex flex-col gap-3 text-sm">
               <a href="/models" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>Explore Models</a>
               <a href="/builds" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>My Home</a>
-              <a href="/#financing" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>Financing</a>
+              <a href="/financing" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>Financing</a>
               <a href="/how" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>How It Works</a>
               <a href="/faq" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>FAQ</a>
-                             <a href="/about" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>About</a>
+              <a href="/about" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>About</a>
                         {isAdmin && (
            <a href="/admin" className="px-2 py-2 rounded bg-yellow-500 text-gray-900 hover:bg-yellow-400" onClick={() => setOpen(false)}>Admin</a>
          )}
