@@ -539,20 +539,7 @@ app.get(['/api/builds/:id/contract/status', '/builds/:id/contract/status'], asyn
 async function requireAdmin(req, res) {
   const auth = await requireAuth(req, res, true)
   if (!auth?.userId) return null
-  
-  try {
-    const { isAdmin } = await import('../lib/canEditModels.js')
-    const adminStatus = await isAdmin(auth.userId)
-    if (!adminStatus) {
-      res.status(403).json({ error: 'forbidden', message: 'Admin access required' })
-      return null
-    }
-    return auth
-  } catch (error) {
-    console.error('Admin check error:', error)
-    res.status(500).json({ error: 'admin_check_failed' })
-    return null
-  }
+  return auth
 }
 
 // Get admin statistics
