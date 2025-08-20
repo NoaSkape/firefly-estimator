@@ -46,7 +46,10 @@ export default function Header({ isAdmin }: HeaderProps) {
 
         <div className="flex items-center gap-3">
           {isAdmin && (
-            <a href="/estimator" className="hidden sm:inline text-sm px-3 py-1.5 rounded bg-white/10 text-white hover:bg-white/20">Estimator</a>
+            <>
+              <a href="/estimator" className="hidden sm:inline text-sm px-3 py-1.5 rounded bg-white/10 text-white hover:bg-white/20">Estimator</a>
+              <a href="/admin/dashboard" className="hidden sm:inline text-sm px-3 py-1.5 rounded bg-yellow-500 text-gray-900 hover:bg-yellow-400">Admin</a>
+            </>
           )}
           <a href="/checkout?mode=finance" className="hidden md:inline text-sm px-3 py-1.5 rounded bg-yellow-400 text-gray-900 hover:bg-yellow-300">Get Pre-Approved</a>
           <UserButton appearance={{ elements: { userButtonAvatarBox: 'w-8 h-8' } }} />
@@ -77,6 +80,9 @@ export default function Header({ isAdmin }: HeaderProps) {
               <a href="/how" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>How It Works</a>
               <a href="/faq" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>FAQ</a>
               <a href="/about" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>About</a>
+              {isAdmin && (
+                <a href="/admin/dashboard" className="px-2 py-2 rounded bg-yellow-500 text-gray-900 hover:bg-yellow-400" onClick={() => setOpen(false)}>Admin Dashboard</a>
+              )}
               <a href="/checkout?mode=finance" className="mt-2 text-center px-3 py-2 rounded bg-yellow-400 text-gray-900 hover:bg-yellow-300" onClick={() => setOpen(false)}>Get Pre-Approved</a>
             </nav>
           </div>

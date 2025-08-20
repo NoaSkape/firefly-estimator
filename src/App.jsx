@@ -22,9 +22,10 @@ const WhyOnline = lazy(() => import('./pages/how/WhyOnline'))
 const PortalOrders = lazy(() => import('./pages/portal/Orders'))
 const PortalDashboard = lazy(() => import('./pages/portal/Dashboard'))
        const AdminOrders = lazy(() => import('./pages/admin/Orders'))
-       const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'))
-       const AdvancedReporting = lazy(() => import('./components/AdvancedReporting'))
-       const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard'))
+const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'))
+const AdminOverview = lazy(() => import('./pages/admin/AdminOverview'))
+const AdvancedReporting = lazy(() => import('./components/AdvancedReporting'))
+const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard'))
 const PublicModelDetail = lazy(() => import('./public/PublicModelDetail'))
 const PackageDetail = lazy(() => import('./public/PackageDetail'))
 const BuildsDashboard = lazy(() => import('./pages/builds/Builds'))
@@ -234,10 +235,11 @@ function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/portal" element={<PortalOrders />} />
               <Route path="/portal/dashboard" element={<PortalDashboard />} />
-                             <Route path="/admin/orders" element={<AdminOrders />} />
-               <Route path="/admin/dashboard" element={<AdminDashboard />} />
-               <Route path="/admin/reports" element={<AdvancedReporting />} />
-               <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
+                                           <Route path="/admin" element={<AdminOverview />} />
+              <Route path="/admin/orders" element={<AdminOrders />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/reports" element={<AdvancedReporting />} />
+              <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
               <Route path="/faq" element={<FAQPage />} />
                                 </Routes>
                   </Suspense>

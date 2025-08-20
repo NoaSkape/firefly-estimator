@@ -1,5 +1,22 @@
+import { useUser } from '@clerk/clerk-react'
+import { canEditModelsClient } from '../lib/canEditModels'
+import { useState, useEffect } from 'react'
+
 export default function Footer() {
   const year = new Date().getFullYear()
+  const { user } = useUser()
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (user) {
+        const adminStatus = await canEditModelsClient(user)
+        setIsAdmin(adminStatus)
+      }
+    }
+    checkAdminStatus()
+  }, [user])
+
   return (
     <footer className="mt-16 border-t border-gray-800 bg-gray-900/60 text-gray-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -49,6 +66,18 @@ export default function Footer() {
               <li><a className="hover:text-white" href="/terms">Terms &amp; Conditions</a></li>
             </ul>
           </section>
+
+          {isAdmin && (
+            <section aria-labelledby="footer-admin">
+              <h3 id="footer-admin" className="text-sm font-semibold text-yellow-400">Admin Panel</h3>
+              <ul className="mt-3 space-y-2 text-sm">
+                <li><a className="hover:text-yellow-300 text-yellow-400" href="/admin">Admin Overview</a></li>
+                <li><a className="hover:text-yellow-300 text-yellow-400" href="/admin/dashboard">Dashboard</a></li>
+                <li><a className="hover:text-yellow-300 text-yellow-400" href="/admin/orders">Orders</a></li>
+                <li><a className="hover:text-yellow-300 text-yellow-400" href="/admin/reports">Reports</a></li>
+              </ul>
+            </section>
+          )}
         </div>
 
         <div className="mt-10 border-t border-gray-800 pt-6 text-xs text-gray-400 flex items-center justify-between gap-3 flex-wrap">
