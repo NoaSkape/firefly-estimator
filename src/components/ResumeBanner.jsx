@@ -20,12 +20,25 @@ export default function ResumeBanner() {
       return
     }
 
-    const checkIncompleteBuilds = async () => {
+    // Add a small delay to ensure user is fully authenticated
+    const timer = setTimeout(async () => {
       try {
         const token = await getToken()
+        if (!token) {
+          // If no token, user might not be fully authenticated yet
+          return
+        }
+        
         const res = await fetch('/api/builds', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
+          headers: { Authorization: `Bearer ${token}` }
         })
+        
+        if (res.status === 403) {
+          // User is authenticated but doesn't have permission - this shouldn't happen for builds
+          console.warn('User authenticated but got 403 for builds API')
+          return
+        }
+        
         if (res.ok) {
           const builds = await res.json()
           const incomplete = builds.find(b => 
@@ -38,9 +51,9 @@ export default function ResumeBanner() {
       } catch (error) {
         console.error('Failed to check incomplete builds:', error)
       }
-    }
+    }, 1000) // 1 second delay
 
-    checkIncompleteBuilds()
+    return () => clearTimeout(timer)
   }, [isSignedIn, location.pathname, getToken])
 
   const handleDismiss = () => {

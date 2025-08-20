@@ -29,15 +29,12 @@ export default function SignInPage() {
             appearance={{
               elements: {
                 formButtonPrimary: 'btn-primary w-full',
-                card: 'bg-white shadow-lg rounded-lg p-6',
-                headerTitle: 'text-xl font-semibold text-gray-900',
-                headerSubtitle: 'text-gray-600',
-                socialButtonsBlockButton: 'btn-secondary w-full',
-                formFieldInput: 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-gray-900',
-                formFieldLabel: 'block text-sm font-medium text-gray-700 mb-1',
-                footerActionLink: 'text-yellow-600 hover:text-yellow-500',
-                dividerLine: 'bg-gray-300',
-                dividerText: 'text-gray-500 bg-white px-4'
+                card: 'bg-transparent shadow-none p-0',
+                headerTitle: 'text-lg font-semibold text-gray-100',
+                headerSubtitle: 'text-gray-400',
+                formFieldInput: 'w-full px-3 py-2 border border-gray-700 bg-gray-800 text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent',
+                formFieldLabel: 'block text-sm font-medium text-gray-300 mb-1',
+                footerActionLink: 'text-yellow-400 hover:text-yellow-300'
               }
             }}
             signUpUrl="/sign-up"
