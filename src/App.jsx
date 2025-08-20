@@ -53,6 +53,7 @@ import './App.css'
 import { useUser } from '@clerk/clerk-react'
 import { canEditModelsClient } from './lib/canEditModels'
 import ProtectedRoute from './components/ProtectedRoute'
+import { useGlobalAuthErrorInterceptor } from './components/AuthErrorHandler'
 
 import './utils/performance' // Initialize performance monitoring
 import './utils/accessibility' // Initialize accessibility features
@@ -66,8 +67,8 @@ function App() {
     return persisted ? persisted === 'dark' : true
   })
   
-
-  
+  // Initialize global auth error interceptor
+  useGlobalAuthErrorInterceptor()
 
   const handleModelSelect = (modelCode) => {
     setSelectedModel(modelCode)

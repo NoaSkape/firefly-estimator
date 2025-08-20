@@ -1,22 +1,19 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useToast } from './ToastProvider'
 
-// Professional error handling that works WITH Clerk, not against it
+// Professional error handling that actually works with Clerk
 export function useAuthErrorHandler() {
   const { addToast } = useToast()
 
   const handleAuthError = (error) => {
-    // Don't log every error - only log for debugging when needed
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Auth error received:', error)
-    }
+    console.log('Auth error received:', error)
     
-    // Extract error details from Clerk's error format
+    // Extract error details
     const errorMessage = error?.message || error?.toString() || 'Unknown error'
     const errorCode = error?.code || error?.status || error?.statusCode || ''
     
-    // Handle specific Clerk error patterns
-    if (errorMessage.includes('identifier_not_found') || errorMessage.includes('user not found')) {
+    // Handle specific error patterns
+    if (errorMessage.includes('identifier_not_found') || errorMessage.includes('user not found') || errorMessage.includes('not found')) {
       addToast({
         type: 'error',
         title: 'Account Not Found',
@@ -26,17 +23,7 @@ export function useAuthErrorHandler() {
       return
     }
     
-    if (errorMessage.includes('form_identifier_not_found') || errorMessage.includes('identifier not found')) {
-      addToast({
-        type: 'error',
-        title: 'Account Not Found',
-        message: 'No account found with this email address. Please check your email or create a new account.',
-        duration: 6000
-      })
-      return
-    }
-    
-    if (errorMessage.includes('form_password_incorrect') || errorMessage.includes('password incorrect')) {
+    if (errorMessage.includes('password_incorrect') || errorMessage.includes('password incorrect') || errorMessage.includes('invalid password')) {
       addToast({
         type: 'error',
         title: 'Incorrect Password',
@@ -46,7 +33,7 @@ export function useAuthErrorHandler() {
       return
     }
     
-    if (errorMessage.includes('form_identifier_exists') || errorMessage.includes('already exists')) {
+    if (errorMessage.includes('identifier_exists') || errorMessage.includes('already exists')) {
       addToast({
         type: 'error',
         title: 'Account Already Exists',
@@ -56,17 +43,7 @@ export function useAuthErrorHandler() {
       return
     }
     
-    if (errorMessage.includes('form_password_pwned') || errorMessage.includes('password compromised')) {
-      addToast({
-        type: 'error',
-        title: 'Password Compromised',
-        message: 'This password has been compromised in a data breach. Please choose a different password.',
-        duration: 8000
-      })
-      return
-    }
-    
-    if (errorMessage.includes('form_password_validation_failed') || errorMessage.includes('password requirements')) {
+    if (errorMessage.includes('password_validation_failed') || errorMessage.includes('password requirements')) {
       addToast({
         type: 'error',
         title: 'Password Too Weak',
@@ -76,7 +53,7 @@ export function useAuthErrorHandler() {
       return
     }
     
-    if (errorMessage.includes('form_identifier_invalid') || errorMessage.includes('invalid email')) {
+    if (errorMessage.includes('identifier_invalid') || errorMessage.includes('invalid email')) {
       addToast({
         type: 'error',
         title: 'Invalid Email',
@@ -86,29 +63,8 @@ export function useAuthErrorHandler() {
       return
     }
     
-    if (errorMessage.includes('verification_expired') || errorMessage.includes('verification failed')) {
-      addToast({
-        type: 'warning',
-        title: 'Verification Expired',
-        message: 'Your verification link has expired. Please request a new one.',
-        duration: 8000
-      })
-      return
-    }
-    
-    if (errorMessage.includes('user_locked') || errorMessage.includes('account locked')) {
-      addToast({
-        type: 'error',
-        title: 'Account Locked',
-        message: 'Your account has been locked due to too many failed attempts. Please contact support.',
-        duration: 8000
-      })
-      return
-    }
-    
-    // Handle HTTP status codes from Clerk API
-    if (errorCode === 422) {
-      // 422 usually means validation error - check the specific error
+    // Handle HTTP status codes
+    if (errorCode === 422 || errorCode === '422') {
       if (errorMessage.includes('password') || errorMessage.includes('credentials')) {
         addToast({
           type: 'error',
@@ -134,10 +90,10 @@ export function useAuthErrorHandler() {
       return
     }
     
-    if (errorCode === 429) {
+    if (errorCode === 429 || errorCode === '429' || errorMessage.includes('429')) {
       addToast({
         type: 'error',
-        title: 'Too Many Attempts',
+        title: 'Too Many Requests',
         message: 'Too many failed attempts. Please wait a few minutes before trying again.',
         duration: 8000
       })
@@ -155,7 +111,7 @@ export function useAuthErrorHandler() {
       return
     }
     
-    // Default error message for unhandled cases
+    // Default error message
     addToast({
       type: 'error',
       title: 'Authentication Error',
@@ -165,6 +121,107 @@ export function useAuthErrorHandler() {
   }
 
   return { handleAuthError }
+}
+
+// Global error interceptor that actually works
+export function useGlobalAuthErrorInterceptor() {
+  const { handleAuthError } = useAuthErrorHandler()
+
+  useEffect(() => {
+    // Intercept unhandled promise rejections (this is where Clerk errors often end up)
+    const handleUnhandledRejection = (event) => {
+      const error = event.reason
+      if (!error) return
+      
+      const errorString = error.toString()
+      
+      // Check if this is a Clerk-related error
+      if (errorString.includes('clerk') || errorString.includes('Clerk') || 
+          errorString.includes('422') || errorString.includes('429') ||
+          errorString.includes('Request Failed') || errorString.includes('Network error')) {
+        
+        console.log('Intercepted Clerk error:', errorString)
+        
+        // Prevent the default browser error handling
+        event.preventDefault()
+        
+        // Handle the error
+        handleAuthError(error)
+      }
+    }
+
+    // Intercept console errors that might be from Clerk
+    const originalError = console.error
+    console.error = (...args) => {
+      originalError.apply(console, args)
+      
+      const errorString = args.join(' ')
+      
+      // Check if this is a Clerk-related error
+      if (errorString.includes('clerk') || errorString.includes('Clerk') || 
+          errorString.includes('422') || errorString.includes('429') ||
+          errorString.includes('Request Failed') || errorString.includes('Network error')) {
+        
+        // Don't process our own error messages
+        if (errorString.includes('Auth error received:')) return
+        
+        console.log('Intercepted console error:', errorString)
+        handleAuthError(new Error(errorString))
+      }
+    }
+
+    // Intercept fetch errors specifically for Clerk API calls
+    const originalFetch = window.fetch
+    window.fetch = async (...args) => {
+      try {
+        const response = await originalFetch(...args)
+        
+        // Check if this is a Clerk API call that failed
+        const url = args[0]
+        if (typeof url === 'string' && url.includes('clerk.fireflyestimator.com') && !response.ok) {
+          console.log('Clerk API error detected:', response.status, response.statusText)
+          
+          // For 422 and 429 errors, handle them specifically
+          if (response.status === 422 || response.status === 429) {
+            try {
+              const errorData = await response.clone().json()
+              console.log('Clerk error data:', errorData)
+              
+              // Create a more specific error based on the response
+              let specificError = new Error('Authentication failed')
+              
+              if (errorData && errorData.errors && errorData.errors.length > 0) {
+                const firstError = errorData.errors[0]
+                if (firstError.message) {
+                  specificError = new Error(firstError.message)
+                }
+              }
+              
+              handleAuthError(specificError)
+            } catch (parseError) {
+              handleAuthError(new Error('Authentication failed'))
+            }
+          }
+        }
+        
+        return response
+      } catch (error) {
+        // Handle network errors
+        if (error.message.includes('fetch') || error.message.includes('network')) {
+          handleAuthError(new Error('Network error - please check your connection'))
+        }
+        throw error
+      }
+    }
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection)
+
+    return () => {
+      console.error = originalError
+      window.fetch = originalFetch
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection)
+    }
+  }, [handleAuthError])
 }
 
 // Component for displaying error messages inline
@@ -178,19 +235,19 @@ export function AuthErrorDisplay({ error, className = '' }) {
       return 'No account found with this email address.'
     }
     
-    if (message.includes('form_password_incorrect') || message.includes('password incorrect')) {
+    if (message.includes('password_incorrect') || message.includes('password incorrect')) {
       return 'Incorrect password. Please try again.'
     }
     
-    if (message.includes('form_identifier_exists') || message.includes('already exists')) {
+    if (message.includes('identifier_exists') || message.includes('already exists')) {
       return 'An account with this email already exists.'
     }
     
-    if (message.includes('form_password_validation_failed')) {
+    if (message.includes('password_validation_failed')) {
       return 'Password must meet security requirements.'
     }
     
-    if (message.includes('form_identifier_invalid')) {
+    if (message.includes('identifier_invalid')) {
       return 'Please enter a valid email address.'
     }
     
