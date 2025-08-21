@@ -231,18 +231,7 @@ export default function MobileNavigation() {
                        </Link>
                      )}
 
-                    <button
-                      onClick={() => {
-                        handleMenuLinkClick('sign-out')
-                        // Handle sign out
-                      }}
-                      className="mobile-menu-link text-red-600"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                      </svg>
-                      <span>Sign Out</span>
-                    </button>
+
                   </div>
                 ) : (
                   <div className="space-y-1">
@@ -327,6 +316,24 @@ export default function MobileNavigation() {
             </div>
           </nav>
 
+          {/* Sign Out at Bottom */}
+          {isSignedIn && (
+            <div className="p-4 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  handleMenuLinkClick('sign-out')
+                  // Handle sign out
+                }}
+                className="mobile-menu-link text-red-600 w-full"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span>Sign Out</span>
+              </button>
+            </div>
+          )}
+
           {/* Menu Footer */}
           <div className="p-4 border-t border-gray-200">
             <div className="text-sm text-gray-500 text-center">
@@ -340,7 +347,7 @@ export default function MobileNavigation() {
       {/* Mobile-specific styles */}
       <style jsx>{`
         .mobile-menu-link {
-          @apply flex items-center space-x-3 w-full px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200 mobile-button;
+          @apply flex items-center space-x-3 w-full px-4 py-3 text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 mobile-button font-semibold;
         }
         
         .mobile-menu-link svg {
@@ -348,7 +355,7 @@ export default function MobileNavigation() {
         }
         
         .mobile-menu-link span {
-          @apply font-medium;
+          @apply font-semibold;
         }
       `}</style>
     </>
