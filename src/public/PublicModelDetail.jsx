@@ -21,6 +21,34 @@ export default function PublicModelDetail() {
   const [isViewerOpen, setIsViewerOpen] = useState(false)
   const isAdmin = canEditModelsClient(user)
   const debug = (import.meta.env?.VITE_DEBUG_ADMIN === 'true')
+  
+  // Touch/swipe handling for mobile image gallery
+  const [touchStart, setTouchStart] = useState(null)
+  const [touchEnd, setTouchEnd] = useState(null)
+  const minSwipeDistance = 50
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null)
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd || !model?.images) return
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > minSwipeDistance
+    const isRightSwipe = distance < -minSwipeDistance
+
+    if (isLeftSwipe) {
+      setCurrentImageIndex((prev) => (prev + 1) % model.images.length)
+    }
+    if (isRightSwipe) {
+      setCurrentImageIndex((prev) => (prev - 1 + model.images.length) % model.images.length)
+    }
+  }
 
   useEffect(() => {
     if (!isViewerOpen) return
@@ -180,14 +208,22 @@ export default function PublicModelDetail() {
           <div className="space-y-4">
             <div className="relative">
               {model.images && model.images.length > 0 ? (
-                <img src={model.images[currentImageIndex]?.url} alt={`${model.name} - Image ${currentImageIndex + 1}`} className="w-full h-96 object-cover rounded-lg shadow-lg cursor-zoom-in" onClick={() => setIsViewerOpen(true)} />
+                <div
+                  onTouchStart={onTouchStart}
+                  onTouchMove={onTouchMove}
+                  onTouchEnd={onTouchEnd}
+                  className="relative"
+                >
+                  <img src={model.images[currentImageIndex]?.url} alt={`${model.name} - Image ${currentImageIndex + 1}`} className="w-full h-96 object-cover rounded-lg shadow-lg cursor-zoom-in" onClick={() => setIsViewerOpen(true)} />
+                </div>
               ) : (
                 <div className="w-full h-96 bg-gray-200 rounded-lg shadow-lg flex items-center justify-center"><div className="text-center text-gray-500"><svg className="mx-auto h-12 w-12 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg><p>No images available</p></div></div>
               )}
+              {/* Navigation Arrows - Hidden on mobile */}
               {model.images && model.images.length > 1 && (
                 <>
-                  <button onClick={prevImage} className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75">←</button>
-                  <button onClick={nextImage} className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75">→</button>
+                  <button onClick={prevImage} className="hidden md:block absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75">←</button>
+                  <button onClick={nextImage} className="hidden md:block absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75">→</button>
                 </>
               )}
             </div>

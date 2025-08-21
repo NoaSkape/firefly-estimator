@@ -63,12 +63,12 @@ export default function Header() {
   }
 
   return (
-    <header className={`sticky top-0 z-40 bg-gray-900/60 border-b border-gray-800 backdrop-blur-sm transition-all ${shrink ? 'py-3' : 'py-5'}`}>
+    <header className={`sticky top-0 z-40 transition-all ${shrink ? 'py-3 bg-white/95 border-b border-gray-200 backdrop-blur-sm' : 'py-5 bg-gray-900/60 border-b border-gray-800 backdrop-blur-sm'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         <div className="flex items-center">
           <a href="/" className="flex items-center">
             <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" className="h-10 w-auto mr-3" loading="eager" />
-            <span className="text-lg font-semibold text-gray-100">Firefly Tiny Homes</span>
+            <span className={`text-lg font-semibold ${shrink ? 'text-gray-900' : 'text-gray-100'}`}>Firefly Tiny Homes</span>
           </a>
         </div>
 
@@ -80,7 +80,9 @@ export default function Header() {
           )}
           <AuthButton />
           <button aria-label="Open menu" className="md:hidden p-2 rounded hover:bg-white/10" onClick={() => setOpen(true)}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={shrink ? "currentColor" : "currentColor"} strokeWidth="2.5" className={shrink ? "text-gray-900" : "text-gray-100"}>
+              <path d="M3 7h18M3 12h18M3 17h18" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </button>
         </div>
       </div>

@@ -22,6 +22,34 @@ const ModelDetail = ({ onModelSelect }) => {
   // Inline editing and inline upload removed; edits happen in AdminModelEditor only
   const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
+  
+  // Touch/swipe handling for mobile image gallery
+  const [touchStart, setTouchStart] = useState(null)
+  const [touchEnd, setTouchEnd] = useState(null)
+  const minSwipeDistance = 50
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null)
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd || !model?.images) return
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > minSwipeDistance
+    const isRightSwipe = distance < -minSwipeDistance
+
+    if (isLeftSwipe) {
+      setCurrentImageIndex((prev) => (prev + 1) % model.images.length)
+    }
+    if (isRightSwipe) {
+      setCurrentImageIndex((prev) => (prev - 1 + model.images.length) % model.images.length)
+    }
+  }
 
   // Close viewer first on browser back
   useEffect(() => {
@@ -277,12 +305,19 @@ const ModelDetail = ({ onModelSelect }) => {
             {/* Main Image */}
             <div className="relative">
               {model.images && model.images.length > 0 ? (
-                <img
-                  src={model.images[currentImageIndex]?.url}
-                  alt={`${model.name} - Image ${currentImageIndex + 1}`}
-                  className="w-full h-96 object-cover rounded-lg shadow-lg cursor-zoom-in"
-                  onClick={() => setIsViewerOpen(true)}
-                />
+                <div
+                  onTouchStart={onTouchStart}
+                  onTouchMove={onTouchMove}
+                  onTouchEnd={onTouchEnd}
+                  className="relative"
+                >
+                  <img
+                    src={model.images[currentImageIndex]?.url}
+                    alt={`${model.name} - Image ${currentImageIndex + 1}`}
+                    className="w-full h-96 object-cover rounded-lg shadow-lg cursor-zoom-in"
+                    onClick={() => setIsViewerOpen(true)}
+                  />
+                </div>
               ) : (
                 <div className="w-full h-96 bg-gray-200 rounded-lg shadow-lg flex items-center justify-center">
                   <div className="text-center text-gray-500">
@@ -297,18 +332,18 @@ const ModelDetail = ({ onModelSelect }) => {
                 </div>
               )}
               
-              {/* Navigation Arrows */}
+              {/* Navigation Arrows - Hidden on mobile */}
               {model.images && model.images.length > 1 && (
                 <>
                   <button
                     onClick={prevImage}
-                    className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75"
+                    className="hidden md:block absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75"
                   >
                     ←
                   </button>
                   <button
                     onClick={nextImage}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75"
+                    className="hidden md:block absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75"
                   >
                     →
                   </button>

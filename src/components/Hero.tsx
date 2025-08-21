@@ -2,8 +2,8 @@ import React from 'react'
 export function Hero() {
   return (
     <section aria-labelledby="hero-heading" className="relative">
-      <div className="relative z-10 px-6 py-16 sm:px-10 sm:py-20">
-        <h1 id="hero-heading" className="-mt-12 text-3xl md:text-5xl font-bold text-white leading-tight">
+      <div className="relative z-10 px-6 py-24 sm:px-10 sm:py-20 md:py-20">
+        <h1 id="hero-heading" className="text-3xl md:text-5xl font-bold text-white leading-tight">
           Texas’s #1 Online Park Model Home Dealership
         </h1>
         <p className="mt-12 text-lg text-gray-200 max-w-3xl">

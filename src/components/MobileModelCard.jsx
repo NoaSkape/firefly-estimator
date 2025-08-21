@@ -78,6 +78,35 @@ export default function MobileModelCard({ model, onQuickView }) {
     }
   }
 
+  // Enhanced touch/swipe handling for images
+  const [touchStart, setTouchStart] = useState(null)
+  const [touchEnd, setTouchEnd] = useState(null)
+
+  const minSwipeDistance = 50
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null)
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > minSwipeDistance
+    const isRightSwipe = distance < -minSwipeDistance
+
+    if (isLeftSwipe) {
+      handleImageSwipe('left')
+    }
+    if (isRightSwipe) {
+      handleImageSwipe('right')
+    }
+  }
+
   const handleImageLoad = () => {
     setIsLoading(false)
   }
@@ -159,10 +188,12 @@ export default function MobileModelCard({ model, onQuickView }) {
           </div>
         </div>
         
-        {/* Swipe area for image navigation */}
+        {/* Touch/swipe area for image navigation */}
         <div 
           className="absolute inset-0"
-          data-swipe="left,right"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
           onClick={(e) => {
             const rect = e.currentTarget.getBoundingClientRect()
             const x = e.clientX - rect.left
