@@ -54,6 +54,7 @@ import { useUser } from '@clerk/clerk-react'
 import { canEditModelsClient } from './lib/canEditModels'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useGlobalAuthErrorInterceptor } from './components/AuthErrorHandler'
+import { useScrollToTop } from './hooks/useScrollToTop'
 
 import './utils/performance' // Initialize performance monitoring
 import './utils/accessibility' // Initialize accessibility features
@@ -69,6 +70,9 @@ function App() {
   
   // Initialize global auth error interceptor
   useGlobalAuthErrorInterceptor()
+  
+  // Scroll to top on route changes
+  useScrollToTop()
 
   const handleModelSelect = (modelCode) => {
     setSelectedModel(modelCode)
@@ -215,7 +219,7 @@ function App() {
               <MobileNavigation />
             </div>
 
-            <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-8 mobile-content-spacing">
+            <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-8">
                   <ResumeBanner />
                   <OfflineIndicator />
                   <Suspense fallback={<PageLoadingSpinner />}>
