@@ -274,23 +274,20 @@ const ModelDetail = ({ onModelSelect }) => {
         model={model}
       />
       
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-900/50 shadow-sm border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-end items-center py-4">
-            {isAdmin && (
-              <button
-                onClick={() => setIsEditorOpen(true)}
-                className="px-3 py-2 btn-primary rounded-md"
-              >
-                Edit
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Admin Edit Button */}
+        {isAdmin && (
+          <div className="flex justify-end mb-6">
+            <button
+              onClick={() => setIsEditorOpen(true)}
+              className="px-3 py-2 btn-primary rounded-md"
+            >
+              Edit
+            </button>
+          </div>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column - Image Gallery */}
           <div className="space-y-4">
