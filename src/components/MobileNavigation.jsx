@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { useUser } from '@clerk/clerk-react'
+import { useUser, useClerk } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
 import mobileOptimizations from '../utils/mobileOptimizations'
 import analytics from '../utils/analytics'
 
 export default function MobileNavigation() {
   const { user, isSignedIn } = useUser()
+  const { signOut } = useClerk()
   const location = useLocation()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -316,23 +317,23 @@ export default function MobileNavigation() {
             </div>
           </nav>
 
-          {/* Sign Out at Bottom */}
-          {isSignedIn && (
-            <div className="p-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  handleMenuLinkClick('sign-out')
-                  // Handle sign out
-                }}
-                className="mobile-menu-link text-red-600 w-full"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                <span>Sign Out</span>
-              </button>
-            </div>
-          )}
+                     {/* Sign Out at Bottom */}
+           {isSignedIn && (
+             <div className="p-4 border-t border-gray-200">
+               <button
+                 onClick={() => {
+                   handleMenuLinkClick('sign-out')
+                   signOut()
+                 }}
+                 className="mobile-menu-link text-red-600 w-full"
+               >
+                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                 </svg>
+                 <span>Sign Out</span>
+               </button>
+             </div>
+           )}
 
           {/* Menu Footer */}
           <div className="p-4 border-t border-gray-200">
@@ -344,20 +345,7 @@ export default function MobileNavigation() {
         </div>
       </div>
 
-      {/* Mobile-specific styles */}
-      <style jsx>{`
-        .mobile-menu-link {
-          @apply flex items-center space-x-3 w-full px-4 py-3 text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 mobile-button font-semibold;
-        }
-        
-        .mobile-menu-link svg {
-          @apply flex-shrink-0;
-        }
-        
-        .mobile-menu-link span {
-          @apply font-semibold;
-        }
-      `}</style>
+      
     </>
   )
 }

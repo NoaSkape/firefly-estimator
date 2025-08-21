@@ -370,6 +370,36 @@
   scroll-behavior: smooth;
 }
 
+/* Mobile menu link styles */
+.mobile-menu-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  color: #111827; /* text-gray-900 */
+  font-weight: 600; /* font-semibold */
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.mobile-menu-link:hover {
+  background-color: #f3f4f6; /* bg-gray-100 */
+}
+
+.mobile-menu-link svg {
+  flex-shrink: 0;
+}
+
+.mobile-menu-link span {
+  font-weight: 600; /* font-semibold */
+}
+
+.mobile-menu-link.text-red-600 {
+  color: #dc2626; /* text-red-600 */
+}
+
 /* Pull to refresh indicator */
 .pull-to-refresh {
   position: relative;
