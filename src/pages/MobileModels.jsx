@@ -106,7 +106,7 @@ export default function MobileModelsPage() {
       
       <div className="min-h-screen-mobile bg-gray-50">
         {/* Header */}
-        <div className="sticky top-0 z-20 bg-white border-b border-gray-200 px-4 py-3">
+        <div className="bg-white border-b border-gray-200 px-4 py-3">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-bold text-gray-900">Explore Homes</h1>

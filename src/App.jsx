@@ -215,7 +215,7 @@ function App() {
               <MobileNavigation />
             </div>
 
-            <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-8 mobile-content-spacing">
                   <ResumeBanner />
                   <OfflineIndicator />
                   <Suspense fallback={<PageLoadingSpinner />}>

@@ -209,6 +209,16 @@
   padding-right: env(safe-area-inset-right);
 }
 
+/* Mobile content spacing for fixed header */
+.mobile-content-spacing {
+  padding-top: calc(env(safe-area-inset-top) + 60px);
+}
+
+/* Mobile header height calculation */
+.mobile-header-height {
+  height: calc(env(safe-area-inset-top) + 60px);
+}
+
 /* Touch gesture feedback */
 .swipe-left {
   animation: swipeLeft 0.3s ease-out;
