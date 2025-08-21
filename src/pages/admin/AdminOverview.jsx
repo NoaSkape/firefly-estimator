@@ -265,7 +265,7 @@ export default function AdminOverview() {
             </p>
             <div className="flex flex-wrap gap-4">
               <a
-                href="mailto:admin@fireflytinyhomes.com"
+                href="mailto:office@fireflytinyhomes.com"
                 className="text-blue-600 hover:text-blue-500 font-medium"
               >
                 Contact Admin Support →

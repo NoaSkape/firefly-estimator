@@ -5,9 +5,9 @@ export function SiteSidebar() {
         <h3 className="text-sm font-semibold text-gray-100">Have Questions?</h3>
         <p className="text-sm text-gray-300 mt-2">We’re here to help.</p>
         <div className="mt-3 flex flex-col gap-2">
-          <a className="px-3 py-2 rounded border border-gray-700 text-white hover:bg-white/10" href="tel:+1-555-555-5555" aria-label="Call Firefly Tiny Homes">Call</a>
-          <a className="px-3 py-2 rounded border border-gray-700 text-white hover:bg-white/10" href="sms:+1-555-555-5555" aria-label="Text Firefly Tiny Homes">Text</a>
-          <a className="px-3 py-2 rounded border border-gray-700 text-white hover:bg-white/10" href="mailto:info@fireflyestimator.com" aria-label="Email Firefly Tiny Homes">Email</a>
+          <a className="px-3 py-2 rounded border border-gray-700 text-white hover:bg-white/10" href="tel:+18302412410" aria-label="Call Firefly Tiny Homes">Call</a>
+          <a className="px-3 py-2 rounded border border-gray-700 text-white hover:bg-white/10" href="sms:+18302412410" aria-label="Text Firefly Tiny Homes">Text</a>
+          <a className="px-3 py-2 rounded border border-gray-700 text-white hover:bg-white/10" href="mailto:office@fireflytinyhomes.com" aria-label="Email Firefly Tiny Homes">Email</a>
         </div>
       </div>
       <div className="rounded-lg border border-gray-800 bg-gray-900/60 p-4">

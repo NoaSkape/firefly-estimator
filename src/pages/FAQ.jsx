@@ -48,7 +48,7 @@ export default function FAQPage() {
             A park model home is a small, factory-built home on a wheeled chassis that is limited to 400 square feet of living space (not counting porches or lofts). Park models are perfect for downsizing, vacation properties, AirBNBs. or full-time living in areas where permitted.
           </QA>
           <QA q="Where can I place a park model home?">
-            Park models can be placed in RV resorts, tiny home communities, mobile home parks, or on private land, depending on local zoning rules. Always check your city or county requirements before setting up your home. <a className="text-yellow-400 hover:underline" href="mailto:info@fireflytinyhomes.com">Contact us</a> if you need help.
+            Park models can be placed in RV resorts, tiny home communities, mobile home parks, or on private land, depending on local zoning rules. Always check your city or county requirements before setting up your home. <a className="text-yellow-400 hover:underline" href="mailto:office@fireflytinyhomes.com">Contact us</a> if you need help.
           </QA>
           <QA q="Can I live in a park model full-time?">
             Yes, in many areas park models can be lived in full-time. Some places allow them only as seasonal or vacation residences. Firefly Tiny Homes can help you check local zoning to make sure your home is set up legally.
@@ -107,7 +107,7 @@ export default function FAQPage() {
         </Section>
 
         <div className="mt-10 p-4 rounded-lg border border-yellow-400/40 bg-yellow-400/10 text-sm text-gray-100">
-          Didn’t find the answer you were looking for? Call us at <a className="text-yellow-400 hover:underline" href="tel:+18302646924">830-264-6924</a> or email <a className="text-yellow-400 hover:underline" href="mailto:office@fireflytinyhomes.com">office@fireflytinyhomes.com</a>.
+          Didn’t find the answer you were looking for? Call us at <a className="text-yellow-400 hover:underline" href="tel:+18302412410">830-241-2410</a> or email <a className="text-yellow-400 hover:underline" href="mailto:office@fireflytinyhomes.com">office@fireflytinyhomes.com</a>.
         </div>
       </div>
     </>

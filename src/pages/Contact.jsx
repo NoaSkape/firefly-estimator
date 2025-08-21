@@ -12,7 +12,7 @@ export default function Contact() {
   }
   return (
     <>
-      <Seo title="Contact Firefly Tiny Homes" description="Call (830) 328-6109 or email info@fireflytinyhomes.com. Get pre‑approved to secure your Champion Park Model." />
+      <Seo title="Contact Firefly Tiny Homes" description="Call (830) 241-2410 or email office@fireflytinyhomes.com. Get pre‑approved to secure your Champion Park Model." />
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <header className="mb-8">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-100">Contact Us</h1>
@@ -32,8 +32,8 @@ export default function Contact() {
             <div className="card text-sm text-gray-300">
               <h2 className="text-lg font-semibold text-gray-100">Firefly Tiny Homes</h2>
               <p className="mt-1">6150 TX‑16, Pipe Creek, TX 78063</p>
-              <p className="mt-1">Phone: <a className="text-yellow-400 hover:underline" href="tel:+18303286109">(830) 328‑6109</a></p>
-              <p className="mt-1">Email: <a className="text-yellow-400 hover:underline" href="mailto:info@fireflytinyhomes.com">info@fireflytinyhomes.com</a></p>
+                      <p className="mt-1">Phone: <a className="text-yellow-400 hover:underline" href="tel:+18302412410">(830) 241‑2410</a></p>
+        <p className="mt-1">Email: <a className="text-yellow-400 hover:underline" href="mailto:office@fireflytinyhomes.com">office@fireflytinyhomes.com</a></p>
             </div>
             <div className="card">
               <h2 className="text-lg font-semibold text-gray-100">Our Location</h2>
