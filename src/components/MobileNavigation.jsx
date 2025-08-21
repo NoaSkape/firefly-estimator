@@ -106,7 +106,7 @@ export default function MobileNavigation() {
               alt="Firefly Tiny Homes" 
               className="h-8 w-auto"
             />
-            <span className="text-lg font-bold text-gray-900 hidden sm:block">
+            <span className={`text-lg font-bold hidden sm:block ${isScrolled ? 'text-gray-900' : 'text-gray-100'}`}>
               Firefly Tiny Homes
             </span>
           </Link>
@@ -116,7 +116,7 @@ export default function MobileNavigation() {
             ref={hamburgerRef}
             data-mobile-menu
             onClick={toggleMenu}
-            className="mobile-button hamburger p-2"
+            className={`mobile-button hamburger p-2 ${isScrolled ? 'text-gray-900' : 'text-gray-100'}`}
             aria-label="Toggle mobile menu"
             aria-expanded={isMenuOpen}
           >
