@@ -26,7 +26,7 @@ export default function Footer() {
             <address className="not-italic mt-3 text-sm leading-relaxed">
               6150 TX-16, Pipe Creek, TX 78063
               <br/>
-              Phone: <a className="underline-offset-2 hover:underline" href="tel:+18302412410">(830) 241-2410</a>
+              Phone: <a className="underline-offset-2 hover:underline" href="tel:+18302412410" title="Call Firefly Tiny Homes">(830) 241-2410</a>
               <br/>
               Email: <a className="underline-offset-2 hover:underline" href="mailto:office@fireflytinyhomes.com">office@fireflytinyhomes.com</a>
             </address>
@@ -39,7 +39,7 @@ export default function Footer() {
               <li><a className="hover:text-white" href="#models">Models &amp; Options</a></li>
               <li><a className="hover:text-white" href="/checkout?mode=finance">Financing / Purchase Info</a></li>
               <li><a className="hover:text-white" href="#faq">FAQs</a></li>
-              <li><a className="hover:text-white" href="mailto:office@fireflytinyhomes.com">Contact Us</a></li>
+              <li><a className="hover:text-white" href="mailto:office@fireflytinyhomes.com" title="Email Firefly Tiny Homes">Contact Us</a></li>
             </ul>
           </nav>
 

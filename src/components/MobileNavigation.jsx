@@ -294,6 +294,7 @@ export default function MobileNavigation() {
                                      <a
                      href="tel:+18302412410"
                      className="mobile-menu-link"
+                     title="Call Firefly Tiny Homes"
                      onClick={() => handleMenuLinkClick('phone')}
                    >
                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -305,6 +306,7 @@ export default function MobileNavigation() {
                    <a
                      href="mailto:office@fireflytinyhomes.com"
                      className="mobile-menu-link"
+                     title="Email Firefly Tiny Homes"
                      onClick={() => handleMenuLinkClick('email')}
                    >
                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
