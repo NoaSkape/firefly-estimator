@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useUser } from '@clerk/clerk-react'
+import { useUser, UserButton } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
 import AuthButton from './AuthButton'
 
@@ -91,29 +91,47 @@ export default function Header() {
       {open && (
         <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)}></div>
-          <div className="absolute right-0 top-0 h-full w-80 max-w-[80%] bg-gray-900 border-l border-gray-800 p-4">
-            <div className="flex items-center justify-between mb-4">
+          <div className="absolute right-0 top-0 h-full w-80 max-w-[80%] bg-white border-l border-gray-200 p-4 flex flex-col">
+            <div className="flex items-center justify-between mb-6">
               <div className="flex items-center">
                 <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" className="h-8 w-auto mr-2" />
-                <span className="text-sm font-semibold text-gray-100">Firefly Tiny Homes</span>
+                <span className="text-sm font-semibold text-gray-900">Firefly Tiny Homes</span>
               </div>
-              <button aria-label="Close menu" onClick={() => setOpen(false)} className="p-2 rounded hover:bg-white/10">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              <button aria-label="Close menu" onClick={() => setOpen(false)} className="p-2 rounded hover:bg-gray-100">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-900"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
-            <nav className="flex flex-col gap-3 text-sm">
-              <a href="/models" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>Explore Models</a>
+            
+            {/* Main Navigation */}
+            <nav className="flex flex-col gap-3 text-sm flex-1">
+              <a href="/models" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900" onClick={() => setOpen(false)}>Explore Models</a>
               {isSignedIn && (
-                <a href="/builds" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>My Home</a>
+                <a href="/builds" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900" onClick={() => setOpen(false)}>My Home</a>
               )}
-              <a href="/financing" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>Financing</a>
-              <a href="/how" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>How It Works</a>
-              <a href="/faq" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>FAQ</a>
-              <a href="/about" className="px-2 py-2 rounded hover:bg-white/10" onClick={() => setOpen(false)}>About</a>
+              <a href="/financing" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900" onClick={() => setOpen(false)}>Financing</a>
+              <a href="/how" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900" onClick={() => setOpen(false)}>How It Works</a>
+              <a href="/faq" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900" onClick={() => setOpen(false)}>FAQ</a>
+              <a href="/about" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900" onClick={() => setOpen(false)}>About</a>
               {isAdmin && (
                 <a href="/admin" className="px-2 py-2 rounded bg-yellow-500 text-gray-900 hover:bg-yellow-400" onClick={() => setOpen(false)}>Admin</a>
               )}
             </nav>
+            
+            {/* Sign Out at Bottom */}
+            {isSignedIn && (
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <div className="bg-white rounded-full p-1 shadow-lg inline-block">
+                  <UserButton 
+                    appearance={{
+                      elements: {
+                        userButtonAvatarBox: 'w-8 h-8',
+                        userButtonTrigger: 'focus:shadow-none hover:opacity-80'
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
