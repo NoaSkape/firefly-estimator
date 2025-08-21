@@ -81,7 +81,7 @@ export default function Header() {
           )}
           <AuthButton />
           <button aria-label="Open menu" className="md:hidden p-2 rounded hover:bg-white/10" onClick={() => setOpen(true)}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={shrink ? "currentColor" : "currentColor"} strokeWidth="3" className={shrink ? "text-gray-900" : "text-gray-100"}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={shrink ? "text-gray-900" : "text-gray-100"}>
               <path d="M3 8h18M3 12h18M3 16h18" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>

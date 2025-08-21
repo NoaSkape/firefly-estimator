@@ -11,8 +11,7 @@ export default function BackgroundImage({ src = '/hero/tiny-home-dusk.jpg', alt 
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{ 
-          backgroundImage: `url(${src})`,
-          backgroundAttachment: 'fixed'
+          backgroundImage: `url(${src})`
         }}
         role="img"
         aria-label={alt}
