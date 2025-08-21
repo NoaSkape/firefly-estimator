@@ -211,7 +211,7 @@
 
 /* Mobile content spacing for fixed header */
 .mobile-content-spacing {
-  padding-top: calc(env(safe-area-inset-top) + 60px);
+  padding-top: calc(env(safe-area-inset-top) + 80px);
 }
 
 /* Mobile header height calculation */

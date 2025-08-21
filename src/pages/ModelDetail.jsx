@@ -237,7 +237,7 @@ const ModelDetail = ({ onModelSelect }) => {
             onClick={() => navigate('/')}
             className="btn-primary"
           >
-            Back to Quote Builder
+            Back to Home
           </button>
         </div>
       </div>
@@ -277,15 +277,7 @@ const ModelDetail = ({ onModelSelect }) => {
       {/* Header */}
       <div className="bg-white dark:bg-gray-900/50 shadow-sm border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <button
-                onClick={() => navigate('/')}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white"
-              >
-                ← Back to Quote Builder
-              </button>
-            </div>
+          <div className="flex justify-end items-center py-4">
             {isAdmin && (
               <button
                 onClick={() => setIsEditorOpen(true)}
