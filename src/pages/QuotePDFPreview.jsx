@@ -165,7 +165,7 @@ const QuotePDFPreview = ({ quoteData, onBack }) => {
         {/* Footer */}
         <div className="mt-8 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
           <p>Firefly Tiny Homes | 123 Tiny Home Lane | Tiny Town, TT 12345</p>
-          <p>Phone: (555) 123-4567 | Email: info@fireflytinyhomes.com</p>
+          <p>Phone: (830) 241-2410 | Email: office@fireflytinyhomes.com</p>
         </div>
       </div>
     </div>

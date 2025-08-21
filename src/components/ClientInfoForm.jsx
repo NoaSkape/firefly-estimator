@@ -36,7 +36,7 @@ const ClientInfoForm = ({ value, onChange }) => {
             value={value.phone || ''}
             onChange={(e) => handleFieldChange('phone', e.target.value)}
             className="input-field"
-            placeholder="(555) 123-4567"
+            placeholder="(830) 241-2410"
           />
         </div>
       </div>
