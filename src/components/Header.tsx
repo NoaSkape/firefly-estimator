@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
-import { useUser, UserButton } from '@clerk/clerk-react'
+import { useUser, UserButton, useClerk } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
 import AuthButton from './AuthButton'
 
 export default function Header() {
   const { user, isSignedIn } = useUser()
+  const { signOut } = useClerk()
   const [isAdmin, setIsAdmin] = useState(false)
   const [open, setOpen] = useState(false)
   const [shrink, setShrink] = useState(false)
@@ -102,36 +103,38 @@ export default function Header() {
               </button>
             </div>
             
-            {/* Main Navigation */}
-            <nav className="flex flex-col gap-3 text-sm flex-1">
-              <a href="/models" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900" onClick={() => setOpen(false)}>Explore Models</a>
-              {isSignedIn && (
-                <a href="/builds" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900" onClick={() => setOpen(false)}>My Home</a>
-              )}
-              <a href="/financing" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900" onClick={() => setOpen(false)}>Financing</a>
-              <a href="/how" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900" onClick={() => setOpen(false)}>How It Works</a>
-              <a href="/faq" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900" onClick={() => setOpen(false)}>FAQ</a>
-              <a href="/about" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900" onClick={() => setOpen(false)}>About</a>
-              {isAdmin && (
-                <a href="/admin" className="px-2 py-2 rounded bg-yellow-500 text-gray-900 hover:bg-yellow-400" onClick={() => setOpen(false)}>Admin</a>
-              )}
-            </nav>
-            
-            {/* Sign Out at Bottom */}
-            {isSignedIn && (
-              <div className="border-t border-gray-200 pt-4 mt-4">
-                <div className="bg-white rounded-full p-1 shadow-lg inline-block">
-                  <UserButton 
-                    appearance={{
-                      elements: {
-                        userButtonAvatarBox: 'w-8 h-8',
-                        userButtonTrigger: 'focus:shadow-none hover:opacity-80'
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-            )}
+                         {/* Main Navigation */}
+             <nav className="flex flex-col gap-3 text-sm flex-1">
+               <a href="/models" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-medium" onClick={() => setOpen(false)}>Explore Models</a>
+               {isSignedIn && (
+                 <a href="/builds" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-medium" onClick={() => setOpen(false)}>My Home</a>
+               )}
+               <a href="/financing" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-medium" onClick={() => setOpen(false)}>Financing</a>
+               <a href="/how" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-medium" onClick={() => setOpen(false)}>How It Works</a>
+               <a href="/faq" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-medium" onClick={() => setOpen(false)}>FAQ</a>
+               <a href="/about" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-medium" onClick={() => setOpen(false)}>About</a>
+               {isAdmin && (
+                 <a href="/admin" className="px-2 py-2 rounded bg-yellow-500 text-gray-900 hover:bg-yellow-400 font-medium" onClick={() => setOpen(false)}>Admin</a>
+               )}
+             </nav>
+             
+             {/* Sign Out at Bottom */}
+             {isSignedIn && (
+               <div className="border-t border-gray-200 pt-4 mt-auto">
+                 <button 
+                   onClick={() => {
+                     signOut()
+                     setOpen(false)
+                   }}
+                   className="flex items-center gap-2 px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-medium"
+                 >
+                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                   </svg>
+                   Sign Out
+                 </button>
+               </div>
+             )}
           </div>
         </div>
       )}
