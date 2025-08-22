@@ -12,13 +12,13 @@
   "lang": "en",
   "icons": [
     {
-      "src": "/app-icon",
+      "src": "/app-icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/app-icon",
+      "src": "/app-icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
