@@ -19,19 +19,19 @@ export default function SignInPage() {
       <div className="min-h-screen flex items-center justify-center p-4 pt-20 md:pt-4 relative">
         <div className="w-full max-w-md">
           <div className="text-center mb-8 relative">
-            <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center shadow-lg overflow-hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+            <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center shadow-lg overflow-hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -mt-32">
               <img 
                 src="/app-icon.png" 
                 alt="Firefly Tiny Homes" 
                 className="w-full h-full object-contain p-1"
               />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-3 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-16">Welcome Back</h1>
-            <p className="text-gray-300 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-32">Sign in to your Firefly Tiny Homes account</p>
+            <h1 className="text-2xl font-bold text-white mb-3 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -mt-16">Welcome Back</h1>
+            <p className="text-gray-300 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -mt-8">Sign in to your Firefly Tiny Homes account</p>
           </div>
           
           <div className="w-full mb-8 relative">
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-48">
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-8">
               <SignIn
                 appearance={{
                   elements: {
@@ -63,7 +63,7 @@ export default function SignInPage() {
           </div>
           
           <div className="text-center relative">
-            <p className="text-sm text-gray-300 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-96">
+            <p className="text-sm text-gray-300 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-32">
               Don't have an account?{' '}
               <a href={`/sign-up?redirect=${encodeURIComponent(redirectUrl)}`} className="text-yellow-400 hover:text-yellow-300 font-medium">
                 Create one here
