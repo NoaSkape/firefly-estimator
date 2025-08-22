@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useToast } from './ToastProvider'
-import mobileOptimizations from '../utils/mobileOptimizations'
 import analytics from '../utils/analytics'
 
 export default function MobileQuickViewModal({ model, isOpen, onClose, onCustomize }) {
@@ -14,7 +13,6 @@ export default function MobileQuickViewModal({ model, isOpen, onClose, onCustomi
 
   useEffect(() => {
     if (isOpen) {
-      setupMobileOptimizations()
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = 'unset'
@@ -24,19 +22,6 @@ export default function MobileQuickViewModal({ model, isOpen, onClose, onCustomi
       document.body.style.overflow = 'unset'
     }
   }, [isOpen])
-
-  const setupMobileOptimizations = () => {
-    if (modalRef.current) {
-      // Register swipe down to close
-      mobileOptimizations.registerGestures(modalRef.current, {
-        swipe: (direction) => {
-          if (direction === 'down') {
-            onClose()
-          }
-        }
-      })
-    }
-  }
 
   const handleImageSwipe = (direction) => {
     if (!model.images || model.images.length <= 1) return

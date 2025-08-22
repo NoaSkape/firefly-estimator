@@ -1,7 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { useToast } from './ToastProvider'
-import mobileOptimizations from '../utils/mobileOptimizations'
+import { modelIdToSlug } from '../utils/modelUrlMapping'
 import analytics from '../utils/analytics'
 
 export default function MobileModelCard({ model, onQuickView }) {
@@ -14,26 +13,8 @@ export default function MobileModelCard({ model, onQuickView }) {
   const imageRef = useRef(null)
 
   useEffect(() => {
-    setupMobileOptimizations()
+    // Component initialization
   }, [])
-
-  const setupMobileOptimizations = () => {
-    if (cardRef.current) {
-      // Register swipe gestures for quick actions
-      mobileOptimizations.registerGestures(cardRef.current, {
-        swipe: (direction) => {
-          if (direction === 'left') {
-            handleQuickView()
-          } else if (direction === 'right') {
-            handleLike()
-          }
-        },
-        longPress: () => {
-          setIsExpanded(!isExpanded)
-        }
-      })
-    }
-  }
 
   const handleQuickView = () => {
     if (onQuickView) {

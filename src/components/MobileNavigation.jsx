@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useUser, useClerk } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
-import mobileOptimizations from '../utils/mobileOptimizations'
 import analytics from '../utils/analytics'
 
 export default function MobileNavigation() {
@@ -18,7 +17,6 @@ export default function MobileNavigation() {
   useEffect(() => {
     checkAdminStatus()
     setupScrollListener()
-    setupMobileOptimizations()
   }, [user])
 
   useEffect(() => {
@@ -43,22 +41,6 @@ export default function MobileNavigation() {
     
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
-  }
-
-  const setupMobileOptimizations = () => {
-    // Register gesture callbacks for mobile menu
-    if (menuRef.current) {
-      mobileOptimizations.registerGestures(menuRef.current, {
-        swipe: (direction) => {
-          if (direction === 'left') {
-            closeMenu()
-          }
-        }
-      })
-    }
-
-    // Setup mobile navigation
-    mobileOptimizations.setupMobileNavigation()
   }
 
   const toggleMenu = () => {
