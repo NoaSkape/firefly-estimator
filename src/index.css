@@ -42,6 +42,36 @@
   --mobile-vh: 1vh;
 }
 
+/* Full-screen mode detection and handling */
+@media (display-mode: standalone) {
+  /* Chrome header is completely hidden in full-screen mode */
+  html, body, #root {
+    height: 100vh !important;
+    min-height: 100vh !important;
+  }
+  
+  .fixed-background {
+    height: 100vh !important;
+  }
+}
+
+/* iOS Safari full-screen mode */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari full-screen optimizations */
+  html, body, #root {
+    height: 100vh !important;
+    min-height: 100vh !important;
+    padding-top: env(safe-area-inset-top) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+  }
+  
+  .fixed-background {
+    height: 100vh !important;
+    padding-top: env(safe-area-inset-top) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+  }
+}
+
 /* Mobile background image stabilization - Industry Standard Approach */
 .fixed-background {
   position: fixed !important;
@@ -98,6 +128,12 @@
   /* Stabilized state */
   .fixed-background.stabilized {
     transition: none !important;
+  }
+  
+  /* Full-screen mode styles */
+  .fixed-background.fullscreen {
+    height: 100vh !important;
+    min-height: 100vh !important;
   }
 }
 
