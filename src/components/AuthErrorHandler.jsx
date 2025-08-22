@@ -170,55 +170,13 @@ export function useGlobalAuthErrorInterceptor() {
       }
     }
 
-    // Intercept fetch errors specifically for Clerk API calls
-    const originalFetch = window.fetch
-    window.fetch = async (...args) => {
-      try {
-        const response = await originalFetch(...args)
-        
-        // Check if this is a Clerk API call that failed
-        const url = args[0]
-        if (typeof url === 'string' && url.includes('clerk.fireflyestimator.com') && !response.ok) {
-          console.log('Clerk API error detected:', response.status, response.statusText)
-          
-          // For 422 and 429 errors, handle them specifically
-          if (response.status === 422 || response.status === 429) {
-            try {
-              const errorData = await response.clone().json()
-              console.log('Clerk error data:', errorData)
-              
-              // Create a more specific error based on the response
-              let specificError = new Error('Authentication failed')
-              
-              if (errorData && errorData.errors && errorData.errors.length > 0) {
-                const firstError = errorData.errors[0]
-                if (firstError.message) {
-                  specificError = new Error(firstError.message)
-                }
-              }
-              
-              handleAuthError(specificError)
-            } catch (parseError) {
-              handleAuthError(new Error('Authentication failed'))
-            }
-          }
-        }
-        
-        return response
-      } catch (error) {
-        // Handle network errors
-        if (error.message.includes('fetch') || error.message.includes('network')) {
-          handleAuthError(new Error('Network error - please check your connection'))
-        }
-        throw error
-      }
-    }
+    // Note: fetch interception is handled by NetworkErrorHandler component
+    // which properly excludes Clerk API calls from generic error handling
 
     window.addEventListener('unhandledrejection', handleUnhandledRejection)
 
     return () => {
       console.error = originalError
-      window.fetch = originalFetch
       window.removeEventListener('unhandledrejection', handleUnhandledRejection)
     }
   }, [handleAuthError])
