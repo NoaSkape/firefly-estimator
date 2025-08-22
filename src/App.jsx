@@ -59,6 +59,12 @@ import { useScrollToTop } from './hooks/useScrollToTop'
 import './utils/performance' // Initialize performance monitoring
 import './utils/accessibility' // Initialize accessibility features
 
+// Component that handles scroll-to-top within Router context
+function ScrollToTop() {
+  useScrollToTop()
+  return null
+}
+
 function App() {
   const [quoteData, setQuoteData] = useState(null)
   const [selectedModel, setSelectedModel] = useState(null)
@@ -70,9 +76,6 @@ function App() {
   
   // Initialize global auth error interceptor
   useGlobalAuthErrorInterceptor()
-  
-  // Scroll to top on route changes
-  useScrollToTop()
 
   const handleModelSelect = (modelCode) => {
     setSelectedModel(modelCode)
@@ -167,23 +170,20 @@ function App() {
             return '<svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>'
           }
           function setButtonLabel() {
-            const toDark = !dark
-            const label = toDark ? 'Switch to dark mode' : 'Switch to light mode'
-            btn.innerHTML = '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;margin-right:12px;opacity:.9">' + iconSvg(toDark) + '</span><span>' + label + '</span>'
+            const isDark = document.documentElement.classList.contains('dark')
+            btn.innerHTML = `${iconSvg(!isDark)} ${isDark ? 'Switch to light mode' : 'Switch to dark mode'}`
           }
           setButtonLabel()
           btn.onclick = () => {
             toggleTheme()
-            // update label shortly after theme flips
-            setTimeout(() => {
-              setButtonLabel()
-            }, 0)
+            setTimeout(setButtonLabel, 50)
           }
-
           wrapper.appendChild(btn)
           list.insertBefore(wrapper, listItem)
-        } catch {}
-      }, 50)
+        } catch (error) {
+          console.log('Failed to inject theme toggle:', error)
+        }
+      }, 100)
     }
 
     document.addEventListener('click', tryInjectThemeRow)
@@ -196,6 +196,7 @@ function App() {
     <ErrorBoundary>
       <NetworkErrorHandler>
         <Router>
+          <ScrollToTop />
           <div className="min-h-screen transition-colors duration-300" data-app-container>
             {/* Skip links for accessibility */}
             <a href="#main-content" className="skip-link sr-only-focusable">
