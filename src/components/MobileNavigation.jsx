@@ -150,8 +150,8 @@ export default function MobileNavigation() {
       } safe-area-top`}>
         <div className="flex items-center justify-between px-4 py-3">
           {/* Logo */}
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="flex items-center space-x-2"
             onClick={() => handleMenuLinkClick('logo')}
           >
@@ -160,9 +160,6 @@ export default function MobileNavigation() {
               alt="Firefly Tiny Homes" 
               className="h-8 w-auto"
             />
-            <span className="text-lg font-bold hidden sm:block text-gray-100">
-              Firefly Tiny Homes
-            </span>
           </Link>
 
           {/* Try the App Link - Center with consistent underline */}
@@ -211,9 +208,6 @@ export default function MobileNavigation() {
                 alt="Firefly Tiny Homes" 
                 className="h-8 w-auto"
               />
-              <span className="text-lg font-bold text-gray-900">
-                Firefly Tiny Homes
-              </span>
             </div>
             <button
               onClick={closeMenu}
