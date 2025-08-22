@@ -17,20 +17,20 @@ export default function SignInPage() {
       </Helmet>
       
       <div className="min-h-screen flex items-center justify-center p-4 pt-20 md:pt-4">
-        <div className="w-full max-w-md space-y-6">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden">
               <img 
                 src="/app-icon.png" 
                 alt="Firefly Tiny Homes" 
                 className="w-full h-full object-contain p-1"
               />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">Welcome Back</h1>
+            <h1 className="text-2xl font-bold text-white mb-3">Welcome Back</h1>
             <p className="text-gray-300">Sign in to your Firefly Tiny Homes account</p>
           </div>
           
-          <div className="w-full">
+          <div className="w-full mb-8">
             <SignIn
               appearance={{
                 elements: {
