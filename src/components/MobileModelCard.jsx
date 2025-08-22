@@ -4,7 +4,7 @@ import { modelIdToSlug } from '../utils/modelUrlMapping'
 import { useToast } from '../components/ToastProvider'
 import analytics from '../utils/analytics'
 
-export default function MobileModelCard({ model, onQuickView }) {
+export default function MobileModelCard({ model }) {
   const { addToast } = useToast()
   const [isLiked, setIsLiked] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
@@ -16,18 +16,6 @@ export default function MobileModelCard({ model, onQuickView }) {
   useEffect(() => {
     // Component initialization
   }, [])
-
-  const handleQuickView = () => {
-    if (onQuickView) {
-      onQuickView(model)
-    }
-    
-    analytics.trackEvent('mobile_model_quick_view', {
-      modelSlug: model.slug,
-      modelName: model.name,
-      action: 'swipe_left'
-    })
-  }
 
   const handleLike = () => {
     setIsLiked(!isLiked)
@@ -105,83 +93,80 @@ export default function MobileModelCard({ model, onQuickView }) {
   const handleViewDetails = () => {
     // Ensure scroll to top when navigating to model details
     window.scrollTo(0, 0)
-    
+
     analytics.trackEvent('mobile_model_view_details', {
       modelSlug: model.slug,
       modelName: model.name
     })
   }
 
+  // Get the current image to display
+  const getCurrentImage = () => {
+    if (!model.images || model.images.length === 0) {
+      return null
+    }
+    return model.images[currentImageIndex]
+  }
+
+  const currentImage = getCurrentImage()
+
   return (
-    <div
+    <div 
       ref={cardRef}
-      data-swipe="left,right"
-      data-longpress="true"
-      className="mobile-card bg-white rounded-xl shadow-lg overflow-hidden transition-all duration-300"
+      className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200"
+      data-model-card="true"
     >
       {/* Image Section */}
-      <div className="relative">
-        <div className="relative overflow-hidden">
-          {model.images && model.images.length > 0 ? (
-            <img
-              ref={imageRef}
-              src={model.images[currentImageIndex]}
-              alt={model.name}
-              className="mobile-image w-full h-48 object-cover transition-transform duration-300 hover:scale-105"
-              onLoad={handleImageLoad}
-              onError={() => setIsLoading(false)}
-            />
-          ) : (
-            <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
-              <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="relative h-48 bg-gray-100">
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
+          </div>
+        )}
+        
+        {currentImage ? (
+          <img
+            ref={imageRef}
+            src={currentImage.url}
+            alt={`${model.name} - Image ${currentImageIndex + 1}`}
+            className="w-full h-full object-cover"
+            onLoad={handleImageLoad}
+            onError={() => setIsLoading(false)}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-200">
+            <div className="text-center">
+              <svg className="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-            </div>
-          )}
-          
-          {/* Loading overlay */}
-          {isLoading && (
-            <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
-              <div className="mobile-loading-spinner"></div>
-            </div>
-          )}
-          
-          {/* Image navigation dots */}
-          {model.images && model.images.length > 1 && (
-            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
-              {model.images.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentImageIndex(index)}
-                  className={`w-2 h-2 rounded-full transition-colors ${
-                    index === currentImageIndex ? 'bg-white' : 'bg-white/50'
-                  }`}
-                  aria-label={`Go to image ${index + 1}`}
-                />
-              ))}
-            </div>
-          )}
-          
-          {/* Quick action indicators */}
-          <div className="absolute top-2 right-2 flex space-x-1">
-            <div className="bg-black/50 text-white text-xs px-2 py-1 rounded-full">
-              ← Quick View
-            </div>
-            <div className="bg-black/50 text-white text-xs px-2 py-1 rounded-full">
-              Like →
+              <p className="text-gray-500 text-sm">No image available</p>
             </div>
           </div>
-          
-          {/* Price badge */}
-          <div className="absolute top-2 left-2">
-            <div className="bg-yellow-500 text-gray-900 font-bold px-3 py-1 rounded-full text-sm">
-              {formatPrice(model.basePrice)}
-            </div>
+        )}
+
+        {/* Image Navigation Dots */}
+        {model.images && model.images.length > 1 && (
+          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
+            {model.images.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentImageIndex(index)}
+                className={`w-2 h-2 rounded-full transition-colors ${
+                  index === currentImageIndex ? 'bg-white' : 'bg-white/50'
+                }`}
+                aria-label={`Go to image ${index + 1}`}
+              />
+            ))}
           </div>
+        )}
+
+        {/* Price Badge */}
+        <div className="absolute top-3 right-3 bg-yellow-500 text-gray-900 px-3 py-1 rounded-full font-semibold text-sm">
+          {formatPrice(model.basePrice || 0)}
         </div>
-        
-        {/* Touch/swipe area for image navigation */}
-        <div 
+
+        {/* Swipe Area for Image Navigation */}
+        <div
           className="absolute inset-0"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
@@ -260,27 +245,15 @@ export default function MobileModelCard({ model, onQuickView }) {
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="flex space-x-2 mt-4">
+        {/* Action Button - Simplified to just View Details */}
+        <div className="mt-4">
           <Link
             to={`/models/${model.slug}`}
-            className="flex-1 mobile-button bg-yellow-500 text-gray-900 font-semibold py-3 px-4 rounded-lg text-center transition-colors hover:bg-yellow-400"
+            className="w-full mobile-button bg-yellow-500 text-gray-900 font-semibold py-3 px-4 rounded-lg text-center transition-colors hover:bg-yellow-400 block"
             onClick={handleViewDetails}
           >
             View Details
           </Link>
-          
-          <button
-            onClick={handleQuickView}
-            className="mobile-button bg-gray-100 text-gray-700 font-semibold py-3 px-4 rounded-lg transition-colors hover:bg-gray-200"
-          >
-            Quick View
-          </button>
-        </div>
-
-        {/* Swipe hints */}
-        <div className="mt-3 text-xs text-gray-500 text-center">
-          <p>Swipe left for Quick View • Swipe right to Like • Long press for more info</p>
         </div>
       </div>
     </div>

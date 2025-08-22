@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { MODELS } from '../data/models'
 import { Seo } from '../components/Seo'
 import MobileModelCard from '../components/MobileModelCard'
-import MobileQuickViewModal from '../components/MobileQuickViewModal'
 import { useToast } from '../components/ToastProvider'
 import analytics from '../utils/analytics'
 
@@ -33,8 +32,6 @@ export default function MobileModelsPage() {
   const [filters, setFilters] = useState(parseQuery())
   const [all, setAll] = useState(MODELS)
   const [showFilters, setShowFilters] = useState(false)
-  const [quickViewModel, setQuickViewModel] = useState(null)
-  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false)
 
   useEffect(() => { 
     updateQuery(filters) 
@@ -76,11 +73,6 @@ export default function MobileModelsPage() {
       value: v,
       resultCount: models.length
     })
-  }
-
-  const handleQuickView = (model) => {
-    setQuickViewModel(model)
-    setIsQuickViewOpen(true)
   }
 
   const handleCustomize = (model) => {
@@ -206,7 +198,6 @@ export default function MobileModelsPage() {
             <MobileModelCard
               key={model.id}
               model={model}
-              onQuickView={handleQuickView}
             />
           ))}
         </div>
@@ -226,16 +217,6 @@ export default function MobileModelsPage() {
           </div>
         )}
       </div>
-
-      {/* Quick View Modal */}
-      {isQuickViewOpen && quickViewModel && (
-        <MobileQuickViewModal
-          model={quickViewModel}
-          isOpen={isQuickViewOpen}
-          onClose={() => setIsQuickViewOpen(false)}
-          onCustomize={handleCustomize}
-        />
-      )}
     </>
   )
 }
