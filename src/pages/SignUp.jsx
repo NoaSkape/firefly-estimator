@@ -18,8 +18,8 @@ export default function SignUpPage() {
       
       <div className="min-h-screen flex items-center justify-center p-4 pt-20 md:pt-4">
         <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden -ml-8">
+          <div className="text-center mb-8 relative">
+            <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center shadow-lg overflow-hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
               <img 
                 src="/app-icon.png" 
                 alt="Firefly Tiny Homes" 
