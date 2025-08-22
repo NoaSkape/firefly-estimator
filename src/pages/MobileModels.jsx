@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { MODELS } from '../data/models'
 import { Seo } from '../components/Seo'
 import MobileModelCard from '../components/MobileModelCard'
@@ -27,6 +28,7 @@ function updateQuery(q) {
 }
 
 export default function MobileModelsPage() {
+  const navigate = useNavigate()
   const { addToast } = useToast()
   const [filters, setFilters] = useState(parseQuery())
   const [all, setAll] = useState(MODELS)
@@ -82,8 +84,8 @@ export default function MobileModelsPage() {
   }
 
   const handleCustomize = (model) => {
-    // Navigate to customize page
-    window.location.href = `/builds/new?model=${model.slug}`
+    // Use React Router navigation instead of window.location.href
+    navigate(`/builds/new?model=${model.slug}`)
   }
 
   const clearFilters = () => {
@@ -104,157 +106,136 @@ export default function MobileModelsPage() {
         description="Browse all Champion Park Model Homes. Filter by price, size, loft, and porches. Buy online with Firefly Tiny Homes."
       />
       
-      <div className="min-h-screen-mobile bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">Explore Homes</h1>
-              <p className="text-sm text-gray-500">
-                {models.length} {models.length === 1 ? 'home' : 'homes'} available
-              </p>
-            </div>
-            
+        <header className="mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-100">Explore Park Model Homes</h1>
+          <p className="text-gray-300 mt-2">Filter by price, loft, or porch to find the perfect Champion Park Model.</p>
+        </header>
+
+        {/* Filter Toggle Button */}
+        <div className="mb-4 flex items-center justify-between">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 bg-gray-800 text-gray-100 px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            Filters {activeFiltersCount > 0 && `(${activeFiltersCount})`}
+          </button>
+          
+          {activeFiltersCount > 0 && (
             <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="mobile-button flex items-center space-x-2 px-3 py-2 bg-gray-100 rounded-lg text-sm font-medium text-gray-700"
+              onClick={clearFilters}
+              className="text-yellow-400 hover:text-yellow-300 text-sm"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-              </svg>
-              <span>Filters</span>
-              {activeFiltersCount > 0 && (
-                <span className="bg-yellow-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {activeFiltersCount}
-                </span>
-              )}
+              Clear All
             </button>
-          </div>
+          )}
         </div>
 
         {/* Filters Panel */}
         {showFilters && (
-          <div className="bg-white border-b border-gray-200 px-4 py-4">
-            <div className="space-y-4">
-              {/* Price Range */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Price Range
-                </label>
+          <div className="mb-6 p-4 bg-gray-800 rounded-lg">
+            <div className="grid grid-cols-2 gap-4">
+              <label className="flex flex-col text-sm text-gray-200">
+                Price Range
                 <select 
                   value={filters.price} 
                   onChange={e => setFilter('price', e.target.value)} 
-                  className="mobile-input w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm"
+                  className="mt-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100"
                 >
-                  <option value="">Any Price</option>
+                  <option value="">Any</option>
                   <option value="50-70">$50k – $70k</option>
                   <option value="70-90">$70k – $90k</option>
                   <option value="90-120">$90k – $120k</option>
-                  <option value="120-150">$120k – $150k</option>
                 </select>
-              </div>
-
-              {/* Loft */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Loft
-                </label>
+              </label>
+              
+              <label className="flex flex-col text-sm text-gray-200">
+                Loft
                 <select 
                   value={filters.loft} 
                   onChange={e => setFilter('loft', e.target.value)} 
-                  className="mobile-input w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm"
+                  className="mt-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100"
                 >
                   <option value="">Any</option>
-                  <option value="true">Has loft</option>
-                  <option value="false">No loft</option>
+                  <option value="true">With Loft</option>
+                  <option value="false">Without Loft</option>
                 </select>
-              </div>
-
-              {/* Porch */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Porch
-                </label>
+              </label>
+              
+              <label className="flex flex-col text-sm text-gray-200">
+                Porch
                 <select 
                   value={filters.porch} 
                   onChange={e => setFilter('porch', e.target.value)} 
-                  className="mobile-input w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm"
+                  className="mt-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100"
                 >
                   <option value="">Any</option>
-                  <option value="true">Has porch</option>
-                  <option value="false">No porch</option>
+                  <option value="true">With Porch</option>
+                  <option value="false">Without Porch</option>
                 </select>
-              </div>
-
-              {/* Sort */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sort By
-                </label>
+              </label>
+              
+              <label className="flex flex-col text-sm text-gray-200">
+                Sort By
                 <select 
                   value={filters.sort} 
                   onChange={e => setFilter('sort', e.target.value)} 
-                  className="mobile-input w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm"
+                  className="mt-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100"
                 >
                   <option value="">Default</option>
                   <option value="price-asc">Price: Low to High</option>
                   <option value="price-desc">Price: High to Low</option>
                 </select>
-              </div>
-
-              {/* Clear Filters */}
-              {activeFiltersCount > 0 && (
-                <button
-                  onClick={clearFilters}
-                  className="w-full mobile-button px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium"
-                >
-                  Clear All Filters
-                </button>
-              )}
+              </label>
             </div>
           </div>
         )}
 
-        {/* Models Grid */}
-        <div className="px-4 py-4">
-          {models.length === 0 ? (
-            <div className="text-center py-12">
-              <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No homes found</h3>
-              <p className="text-gray-500 mb-4">Try adjusting your filters to see more options.</p>
-              <button
-                onClick={clearFilters}
-                className="mobile-button px-4 py-2 bg-yellow-500 text-gray-900 rounded-lg font-medium"
-              >
-                Clear Filters
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {models.map((model) => (
-                <MobileModelCard
-                  key={model.slug}
-                  model={model}
-                  onQuickView={handleQuickView}
-                />
-              ))}
-            </div>
-          )}
+        {/* Results Count */}
+        <div className="mb-4 text-gray-300">
+          {models.length} model{models.length !== 1 ? 's' : ''} found
         </div>
 
-        {/* Quick View Modal */}
+        {/* Models Grid */}
+        <div className="grid grid-cols-1 gap-6">
+          {models.map((model) => (
+            <MobileModelCard
+              key={model.id}
+              model={model}
+              onQuickView={handleQuickView}
+            />
+          ))}
+        </div>
+
+        {/* No Results */}
+        {models.length === 0 && (
+          <div className="text-center py-12">
+            <div className="text-gray-400 text-6xl mb-4">🏠</div>
+            <h3 className="text-xl font-semibold text-gray-200 mb-2">No models found</h3>
+            <p className="text-gray-400 mb-4">Try adjusting your filters to see more results.</p>
+            <button
+              onClick={clearFilters}
+              className="bg-yellow-500 text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-yellow-400 transition-colors"
+            >
+              Clear All Filters
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Quick View Modal */}
+      {isQuickViewOpen && quickViewModel && (
         <MobileQuickViewModal
           model={quickViewModel}
           isOpen={isQuickViewOpen}
-          onClose={() => {
-            setIsQuickViewOpen(false)
-            setQuickViewModel(null)
-          }}
+          onClose={() => setIsQuickViewOpen(false)}
           onCustomize={handleCustomize}
         />
-      </div>
+      )}
     </>
   )
 }

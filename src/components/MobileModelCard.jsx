@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { modelIdToSlug } from '../utils/modelUrlMapping'
+import { useToast } from '../components/ToastProvider'
 import analytics from '../utils/analytics'
 
 export default function MobileModelCard({ model, onQuickView }) {

@@ -142,11 +142,11 @@ export default function MobileNavigation() {
 
   return (
     <>
-      {/* Mobile Header - Fixed with proper dark background when scrolled */}
+      {/* Mobile Header - Fixed with proper dark background by default */}
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 
           ? 'bg-gray-900/95 backdrop-blur-md shadow-lg border-b border-gray-800' 
-          : 'bg-transparent'
+          : 'bg-gray-900/60 backdrop-blur-sm border-b border-gray-800'
       } safe-area-top`}>
         <div className="flex items-center justify-between px-4 py-3">
           {/* Logo */}
@@ -160,7 +160,7 @@ export default function MobileNavigation() {
               alt="Firefly Tiny Homes" 
               className="h-8 w-auto"
             />
-            <span className={`text-lg font-bold hidden sm:block ${isScrolled ? 'text-gray-100' : 'text-gray-100'}`}>
+            <span className="text-lg font-bold hidden sm:block text-gray-100">
               Firefly Tiny Homes
             </span>
           </Link>
@@ -169,9 +169,7 @@ export default function MobileNavigation() {
           {!isInstalled && (isInstallable || navigator.userAgent.includes('Chrome')) && (
             <button
               onClick={handleInstallClick}
-              className={`text-sm font-medium underline text-gray-100 hover:text-yellow-400 ${
-                isScrolled ? 'text-gray-100' : 'text-gray-100'
-              }`}
+              className="text-sm font-medium underline text-gray-100 hover:text-yellow-400"
             >
               Try the app!
             </button>
@@ -182,7 +180,7 @@ export default function MobileNavigation() {
             ref={hamburgerRef}
             data-mobile-menu
             onClick={toggleMenu}
-            className={`mobile-button hamburger p-2 ${isScrolled ? 'text-gray-100' : 'text-gray-100'}`}
+            className="mobile-button hamburger p-2 text-gray-100"
             aria-label="Toggle mobile menu"
             aria-expanded={isMenuOpen}
           >
