@@ -82,23 +82,29 @@ const ModelDetail = ({ onModelSelect }) => {
 
   // Auto-scroll thumbnail into view when current image changes
   useEffect(() => {
-    if (thumbnailRefs.current[currentImageIndex] && thumbnailContainerRef.current) {
-      const thumbnail = thumbnailRefs.current[currentImageIndex]
-      const container = thumbnailContainerRef.current
-      
-      // Calculate if thumbnail is visible
-      const containerRect = container.getBoundingClientRect()
-      const thumbnailRect = thumbnail.getBoundingClientRect()
-      
-      // Check if thumbnail is outside the visible area
-      if (thumbnailRect.left < containerRect.left || thumbnailRect.right > containerRect.right) {
-        thumbnail.scrollIntoView({
-          behavior: 'smooth',
-          block: 'nearest',
-          inline: 'center'
-        })
+    // Only auto-scroll thumbnails if the component has been loaded for a moment
+    // This prevents interference with initial page scroll-to-top
+    const timer = setTimeout(() => {
+      if (thumbnailRefs.current[currentImageIndex] && thumbnailContainerRef.current) {
+        const thumbnail = thumbnailRefs.current[currentImageIndex]
+        const container = thumbnailContainerRef.current
+        
+        // Calculate if thumbnail is visible
+        const containerRect = container.getBoundingClientRect()
+        const thumbnailRect = thumbnail.getBoundingClientRect()
+        
+        // Check if thumbnail is outside the visible area
+        if (thumbnailRect.left < containerRect.left || thumbnailRect.right > containerRect.right) {
+          thumbnail.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'center'
+          })
+        }
       }
-    }
+    }, 100) // Small delay to ensure page scroll-to-top completes first
+
+    return () => clearTimeout(timer)
   }, [currentImageIndex])
 
   // Initialize thumbnail refs array

@@ -6,6 +6,9 @@ export const useScrollToTop = () => {
 
   useEffect(() => {
     // Scroll to top when pathname changes
-    window.scrollTo(0, 0)
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0)
+    })
   }, [pathname])
 }

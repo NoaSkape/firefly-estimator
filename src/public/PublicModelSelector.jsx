@@ -6,7 +6,11 @@ export default function PublicModelSelector({ models }) {
   const navigate = useNavigate()
   const goConfigure = (modelId) => {
     const slug = modelIdToSlug(modelId)
-    if (slug) navigate(`/models/${slug}`)
+    if (slug) {
+      // Ensure scroll to top when navigating to model details
+      window.scrollTo(0, 0)
+      navigate(`/models/${slug}`)
+    }
   }
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
