@@ -35,18 +35,18 @@ export default function Header() {
   function NavLinks() {
     return (
       <nav className="hidden md:flex items-center gap-6 text-sm">
-        <a href="/models" className="hover:text-yellow-400">Explore Models</a>
+        <a href="/models" className={`hover:text-yellow-400 ${shrink ? 'text-gray-700' : 'text-gray-300'}`}>Explore Models</a>
         {isSignedIn && (
-          <a href="/builds" className="hover:text-yellow-400">My Home</a>
+          <a href="/builds" className={`hover:text-yellow-400 ${shrink ? 'text-gray-700' : 'text-gray-300'}`}>My Home</a>
         )}
-        <a href="/financing" className="hover:text-yellow-400">Financing</a>
-        <a href="/how" className="hover:text-yellow-400">How It Works</a>
+        <a href="/financing" className={`hover:text-yellow-400 ${shrink ? 'text-gray-700' : 'text-gray-300'}`}>Financing</a>
+        <a href="/how" className={`hover:text-yellow-400 ${shrink ? 'text-gray-700' : 'text-gray-300'}`}>How It Works</a>
         <div 
           className="relative"
           onMouseEnter={() => setAboutDropdownOpen(true)}
           onMouseLeave={() => setAboutDropdownOpen(false)}
         >
-          <button className="hover:text-yellow-400 flex items-center gap-1">
+          <button className={`hover:text-yellow-400 flex items-center gap-1 ${shrink ? 'text-gray-700' : 'text-gray-300'}`}>
             About
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -64,7 +64,7 @@ export default function Header() {
   }
 
   return (
-    <header className={`sticky top-0 z-40 transition-all ${shrink ? 'py-3 bg-white/95 border-b border-gray-200 backdrop-blur-sm' : 'py-5 bg-gray-900/60 border-b border-gray-800 backdrop-blur-sm'}`}>
+    <header className={`sticky top-0 z-40 transition-all ${shrink ? 'py-3 bg-gray-100/95 border-b border-gray-300 backdrop-blur-sm' : 'py-5 bg-gray-900/60 border-b border-gray-800 backdrop-blur-sm'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         <div className="flex items-center">
           <a href="/" className="flex items-center">

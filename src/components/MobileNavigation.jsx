@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useUser, useClerk } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
 import analytics from '../utils/analytics'
+import InstallAppButton from './InstallAppButton'
 
 export default function MobileNavigation() {
   const { user, isSignedIn } = useUser()
@@ -172,6 +173,11 @@ export default function MobileNavigation() {
                 </Link>
 
 
+              </div>
+
+              {/* Install App Section */}
+              <div className="pt-4 border-t border-gray-200">
+                <InstallAppButton variant="mobile" />
               </div>
 
               {/* User Section */}
