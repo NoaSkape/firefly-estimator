@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useToast } from '../../components/ToastProvider'
 import { trackEvent } from '../../utils/analytics'
 import ConfirmLeaveModal from '../../components/ConfirmLeaveModal'
-import CheckoutProgress from '../../components/CheckoutProgress'
+import FunnelProgress from '../../components/FunnelProgress'
 import Breadcrumbs from '../../components/Breadcrumbs'
 
 export default function Buyer() {
@@ -92,14 +92,7 @@ export default function Buyer() {
   return (
     <div>
       <Breadcrumbs items={[{ label: 'My Builds', to: '/builds' }, { label: 'Checkout', to: `/checkout/${buildId}/buyer` }, { label: 'Buyer Info' }]} />
-      <CheckoutProgress
-        step={3}
-        getBlockReason={(n)=> (n>=4 && (!form.firstName || !form.lastName || !form.email || !form.address)) ? 'Complete required fields' : ''}
-        onNavigate={async (n)=>{
-          if (n===2) { navigate(`/checkout/${buildId}/payment`); return }
-          if (n===4) { await next(); return }
-        }}
-      />
+      <FunnelProgress current="Delivery Address" isSignedIn={true} onNavigate={()=>{}} />
       <div className="max-w-3xl mx-auto">
         {!isSignedIn && (
           <div className="card mb-6">

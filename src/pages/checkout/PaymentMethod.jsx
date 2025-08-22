@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { useToast } from '../../components/ToastProvider'
 import analytics from '../../utils/analytics'
-import CheckoutProgress from '../../components/CheckoutProgress'
+import FunnelProgress from '../../components/FunnelProgress'
 import Breadcrumbs from '../../components/Breadcrumbs'
 import offlineQueue from '../../utils/offlineQueue'
 
@@ -195,14 +195,7 @@ export default function PaymentMethod() {
   return (
     <div>
       <Breadcrumbs items={[{ label: 'My Builds', to: '/builds' }, { label: 'Checkout', to: `/checkout/${buildId}/payment` }, { label: 'Payment' }]} />
-      <CheckoutProgress
-        step={2}
-        getBlockReason={(n)=> (n>=3 && !choice) ? 'Select a payment method first' : ''}
-        onNavigate={async (n)=>{
-          if (n === 1) { navigate(`/builds/${buildId}`); return }
-          if (n === 3) { await continueNext(); return }
-        }}
-      />
+      <FunnelProgress current="Payment Method" isSignedIn={true} onNavigate={()=>{}} />
       <div className="max-w-3xl mx-auto">
         <h1 className="section-header">Payment Method</h1>
         

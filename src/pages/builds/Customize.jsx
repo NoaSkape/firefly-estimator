@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
-import CheckoutProgress from '../../components/CheckoutProgress'
+import FunnelProgress from '../../components/FunnelProgress'
 import PriceSummary from '../../components/PriceSummary'
 import OptionsPicker from '../../components/OptionsPicker'
 import Breadcrumbs from '../../components/Breadcrumbs'
@@ -136,16 +136,13 @@ export default function BuildCustomize() {
   return (
     <div>
       <Breadcrumbs items={[{ label: 'Models', to: '/models' }, { label: 'My Builds', to: '/builds' }, { label: build.modelName || build.modelSlug }]} />
-      <CheckoutProgress step={1} onNavigate={async (n)=>{
-        if (n===2) {
-          try {
-            const token = await getToken()
-            const res = await fetch(`/api/builds/${buildId}/checkout-step`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }: {}) }, body: JSON.stringify({ step: 2 }) })
-            if (!res.ok) { const j = await res.json().catch(()=>({})); addToast({ type:'error', message: j?.error || 'Complete your customization before continuing.' }); return }
-            navigate(`/checkout/${buildId}/payment`)
-          } catch { addToast({ type:'error', message:'Unable to validate step' }) }
-        }
-      }} />
+      <FunnelProgress
+        current="Customize!"
+        isSignedIn={true}
+        onNavigate={(label)=>{
+          if (label === 'Choose Your Home') navigate('/models')
+        }}
+      />
       <div className="flex items-start justify-between gap-4">
         <div className="card flex-1">
           <h1 className="section-header">Customize: {build.modelName || build.modelSlug}</h1>

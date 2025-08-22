@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
-import CheckoutProgress from '../../components/CheckoutProgress'
+import FunnelProgress from '../../components/FunnelProgress'
 import { useToast } from '../../components/ToastProvider'
 
 export default function Agreement() {
@@ -38,7 +38,7 @@ export default function Agreement() {
 
   return (
     <div>
-      <CheckoutProgress step={4} />
+      <FunnelProgress current="Contract & Signature" isSignedIn={true} onNavigate={()=>{}} />
       <div className="max-w-4xl mx-auto space-y-4">
         <h1 className="section-header">Agreement & Signature</h1>
         <div className="card">

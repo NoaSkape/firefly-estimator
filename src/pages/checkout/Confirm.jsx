@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import Breadcrumbs from '../../components/Breadcrumbs'
 
-import CheckoutProgress from '../../components/CheckoutProgress'
+import FunnelProgress from '../../components/FunnelProgress'
 export default function Confirm() {
   const { search } = useLocation()
   const params = new URLSearchParams(search)
@@ -26,7 +26,7 @@ export default function Confirm() {
   return (
     <div className="max-w-2xl mx-auto">
       <Breadcrumbs items={[{ label: 'My Builds', to: '/builds' }, { label: 'Checkout', to: `/checkout/${buildId}/confirm` }, { label: 'Confirmation' }]} />
-      <CheckoutProgress step={5} />
+      <FunnelProgress current="Order Confirmation" isSignedIn={true} onNavigate={()=>{}} />
       <div className="card text-center">
         <h2 className="section-header">Order Received</h2>
         <p className="text-gray-600 dark:text-gray-300">Thank you! Your order has been submitted.</p>
