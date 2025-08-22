@@ -32,7 +32,7 @@ export default function SignInPage() {
             appearance={{
               elements: {
                 rootBox: 'w-full',
-                card: 'bg-white shadow-lg rounded-lg p-6 w-full max-w-full -ml-2',
+                card: 'bg-white shadow-lg rounded-lg p-6 w-full max-w-full -ml-3.5',
                 formButtonPrimary: 'btn-primary w-full',
                 headerTitle: 'text-xl font-semibold text-gray-900 text-center',
                 headerSubtitle: 'text-gray-600 text-center',

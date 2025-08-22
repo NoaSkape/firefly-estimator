@@ -28,7 +28,7 @@ function QA({ q, children }) {
   )
 }
 
-export default function FAQPage() {
+ export default function FAQPage() {
   return (
     <>
       <Seo
