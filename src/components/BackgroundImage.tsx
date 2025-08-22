@@ -22,8 +22,8 @@ export default function BackgroundImage({ src = '/hero/tiny-home-dusk.jpg', alt 
         resizeTimeout = setTimeout(() => {
           if (backgroundRef.current) {
             // Force the background to maintain its position with smooth transitions
-            backgroundRef.current.style.transform = 'translateZ(0) scale(1.01)'
-            backgroundRef.current.style.transition = 'transform 0.3s ease-out, background-size 0.3s ease-out'
+            backgroundRef.current.style.transform = 'translateZ(0)'
+            backgroundRef.current.style.transition = 'transform 0.3s ease-out'
             setIsStabilized(true)
           }
         }, 50)
@@ -54,7 +54,7 @@ export default function BackgroundImage({ src = '/hero/tiny-home-dusk.jpg', alt 
   }, [])
 
   // Fixed, covers viewport, sits behind fireflies and content
-  // Mobile-optimized to prevent viewport-based repositioning
+  // Mobile-optimized to prevent viewport-based repositioning while maintaining aspect ratio
   return (
     <div aria-hidden="true" className="fixed inset-0 -z-10">
       <div
@@ -65,7 +65,7 @@ export default function BackgroundImage({ src = '/hero/tiny-home-dusk.jpg', alt 
           // Ensure background stays in place on mobile
           backgroundPosition: 'center center',
           // Prevent any scaling or zooming effects
-          transform: 'translateZ(0) scale(1.01)',
+          transform: 'translateZ(0)',
           // Force hardware acceleration to prevent repositioning
           willChange: 'auto',
           // Prevent mobile browser from affecting positioning
@@ -73,7 +73,7 @@ export default function BackgroundImage({ src = '/hero/tiny-home-dusk.jpg', alt 
           // Ensure proper stacking context
           zIndex: -1,
           // Smooth transitions for viewport changes
-          transition: 'transform 0.3s ease-out, background-size 0.3s ease-out'
+          transition: 'transform 0.3s ease-out'
         }}
         role="img"
         aria-label={alt}
