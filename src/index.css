@@ -61,6 +61,75 @@
   }
 }
 
+/* Smooth viewport transitions to prevent jarring background jumps */
+@media (max-width: 768px) {
+  /* Smooth transitions for viewport changes */
+  html, body {
+    transition: height 0.3s ease-out, width 0.3s ease-out;
+  }
+  
+  /* Smooth background scaling during viewport changes */
+  .fixed-background {
+    transition: transform 0.3s ease-out, background-size 0.3s ease-out;
+  }
+  
+  /* Prevent background repositioning during scroll */
+  .fixed-background {
+    background-attachment: local !important;
+    transform: translateZ(0) scale(1.01) !important;
+  }
+  
+  /* Lock viewport height to prevent browser header interference */
+  html {
+    height: 100vh;
+    height: -webkit-fill-available;
+    overflow-x: hidden;
+  }
+  
+  body {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    overflow-x: hidden;
+  }
+  
+  /* Smooth scaling for background during viewport changes */
+  .fixed-background {
+    background-size: 101% 101% !important;
+    transform: translateZ(0) scale(1.01) !important;
+  }
+  
+  /* Additional stabilization for iOS Safari */
+  @supports (-webkit-touch-callout: none) {
+    .fixed-background {
+      background-attachment: scroll !important;
+      transform: translateZ(0) scale(1.02) !important;
+      background-size: 102% 102% !important;
+    }
+  }
+  
+  /* Stabilized state for background */
+  .fixed-background.stabilized {
+    transition: transform 0.3s ease-out, background-size 0.3s ease-out !important;
+  }
+  
+  /* Prevent viewport height changes from affecting layout */
+  #root {
+    height: 100vh;
+    height: -webkit-fill-available;
+    overflow-x: hidden;
+  }
+  
+  /* Smooth viewport height transitions */
+  * {
+    transition: height 0.3s ease-out, width 0.3s ease-out;
+  }
+  
+  /* Prevent content jumping during viewport changes */
+  main {
+    transition: padding-top 0.3s ease-out;
+  }
+}
+
 /* Theme tokens applied via [data-theme] attribute */
 [data-theme="dark"] body, body[data-theme="dark"] {
   color: #E5E7EB; /* text-gray-200 */

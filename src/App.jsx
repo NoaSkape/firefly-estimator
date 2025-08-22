@@ -58,6 +58,7 @@ import { useScrollToTop } from './hooks/useScrollToTop'
 
 import './utils/performance' // Initialize performance monitoring
 import './utils/accessibility' // Initialize accessibility features
+import { initializeMobileOptimizations } from './utils/mobileOptimizations' // Initialize mobile optimizations
 
 // Component that handles scroll-to-top within Router context
 function ScrollToTop() {
@@ -93,6 +94,11 @@ function App() {
   
   // Initialize global auth error interceptor
   useGlobalAuthErrorInterceptor()
+
+  // Initialize mobile optimizations for smooth viewport handling
+  useEffect(() => {
+    initializeMobileOptimizations()
+  }, [])
 
   const handleModelSelect = (modelCode) => {
     setSelectedModel(modelCode)
