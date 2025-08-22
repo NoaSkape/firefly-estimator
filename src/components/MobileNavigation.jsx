@@ -105,7 +105,8 @@ export default function MobileNavigation() {
 
   const setupScrollListener = () => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10)
+      // Increased threshold to 20px for better consistency across mobile browsers
+      setIsScrolled(window.scrollY > 20)
     }
     
     window.addEventListener('scroll', handleScroll, { passive: true })
@@ -141,9 +142,11 @@ export default function MobileNavigation() {
 
   return (
     <>
-      {/* Mobile Header */}
+      {/* Mobile Header - Fixed with proper dark background when scrolled */}
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? 'bg-white/95 backdrop-blur-md shadow-md' : 'bg-transparent'
+        isScrolled 
+          ? 'bg-gray-900/95 backdrop-blur-md shadow-lg border-b border-gray-800' 
+          : 'bg-transparent'
       } safe-area-top`}>
         <div className="flex items-center justify-between px-4 py-3">
           {/* Logo */}
@@ -157,17 +160,17 @@ export default function MobileNavigation() {
               alt="Firefly Tiny Homes" 
               className="h-8 w-auto"
             />
-            <span className={`text-lg font-bold hidden sm:block ${isScrolled ? 'text-gray-900' : 'text-gray-100'}`}>
+            <span className={`text-lg font-bold hidden sm:block ${isScrolled ? 'text-gray-100' : 'text-gray-100'}`}>
               Firefly Tiny Homes
             </span>
           </Link>
 
-          {/* Try the App Link - Center */}
+          {/* Try the App Link - Center with consistent underline */}
           {!isInstalled && (isInstallable || navigator.userAgent.includes('Chrome')) && (
             <button
               onClick={handleInstallClick}
-              className={`text-sm font-medium underline hover:no-underline transition-all ${
-                isScrolled ? 'text-gray-700' : 'text-gray-100'
+              className={`text-sm font-medium underline text-gray-100 hover:text-yellow-400 ${
+                isScrolled ? 'text-gray-100' : 'text-gray-100'
               }`}
             >
               Try the app!
@@ -179,7 +182,7 @@ export default function MobileNavigation() {
             ref={hamburgerRef}
             data-mobile-menu
             onClick={toggleMenu}
-            className={`mobile-button hamburger p-2 ${isScrolled ? 'text-gray-900' : 'text-gray-100'}`}
+            className={`mobile-button hamburger p-2 ${isScrolled ? 'text-gray-100' : 'text-gray-100'}`}
             aria-label="Toggle mobile menu"
             aria-expanded={isMenuOpen}
           >
