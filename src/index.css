@@ -36,7 +36,7 @@
 [data-theme="dark"] .section-header { @apply text-gray-100; }
 }
 
-/* Mobile background image stabilization */
+/* Mobile background image stabilization with overflow buffer technique */
 .fixed-background {
   position: fixed !important;
   top: 0 !important;
@@ -44,11 +44,11 @@
   right: 0 !important;
   bottom: 0 !important;
   transform: translateZ(0) !important;
-  will-change: auto !important;
+  will-change: transform !important;
   backface-visibility: hidden !important;
   -webkit-backface-visibility: hidden !important;
   -webkit-transform: translateZ(0) !important;
-  -webkit-will-change: auto !important;
+  -webkit-will-change: transform !important;
 }
 
 /* Prevent mobile viewport changes from affecting fixed backgrounds */
@@ -61,16 +61,16 @@
   }
 }
 
-/* Smooth viewport transitions to prevent jarring background jumps */
+/* Smooth viewport transitions with overflow buffer technique */
 @media (max-width: 768px) {
   /* Smooth transitions for viewport changes */
   html, body {
     transition: height 0.3s ease-out, width 0.3s ease-out;
   }
   
-  /* Smooth background transitions during viewport changes */
+  /* Enhanced background transitions for overflow buffer */
   .fixed-background {
-    transition: transform 0.3s ease-out !important;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
   
   /* Prevent background repositioning during scroll */
@@ -92,7 +92,7 @@
     overflow-x: hidden;
   }
   
-  /* Maintain native aspect ratio while covering viewport */
+  /* Maintain native aspect ratio while covering viewport with overflow buffer */
   .fixed-background {
     background-size: cover !important;
     background-position: center center !important;
@@ -108,9 +108,9 @@
     }
   }
   
-  /* Stabilized state for background */
+  /* Stabilized state for background with overflow buffer */
   .fixed-background.stabilized {
-    transition: transform 0.3s ease-out !important;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
   
   /* Prevent viewport height changes from affecting layout */
