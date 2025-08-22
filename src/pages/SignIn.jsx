@@ -30,33 +30,35 @@ export default function SignInPage() {
             <p className="text-gray-300">Sign in to your Firefly Tiny Homes account</p>
           </div>
           
-          <SignIn
-            appearance={{
-              elements: {
-                formButtonPrimary: 'btn-primary w-full',
-                card: 'bg-white shadow-lg rounded-lg p-6 w-full',
-                headerTitle: 'text-xl font-semibold text-gray-900',
-                headerSubtitle: 'text-gray-600',
-                socialButtonsBlockButton: 'btn-secondary w-full',
-                formFieldInput: 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-gray-900',
-                formFieldLabel: 'block text-sm font-medium text-gray-700 mb-1',
-                footerActionLink: 'text-yellow-600 hover:text-yellow-500',
-                dividerLine: 'bg-gray-300',
-                dividerText: 'text-gray-500 bg-white px-4'
-              }
-            }}
-            signUpUrl="/sign-up"
-            fallbackRedirectUrl={redirectUrl}
-            routing="hash"
-            showOptionalFields={true}
-            initialValues={{
-              emailAddress: '',
-              password: ''
-            }}
-            onError={(error) => {
-              handleAuthError(error)
-            }}
-          />
+          <div className="w-full">
+            <SignIn
+              appearance={{
+                elements: {
+                  formButtonPrimary: 'btn-primary w-full',
+                  card: 'bg-white shadow-lg rounded-lg p-6 w-full max-w-full overflow-hidden',
+                  headerTitle: 'text-xl font-semibold text-gray-900 text-center',
+                  headerSubtitle: 'text-gray-600 text-center',
+                  socialButtonsBlockButton: 'btn-secondary w-full',
+                  formFieldInput: 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-gray-900',
+                  formFieldLabel: 'block text-sm font-medium text-gray-700 mb-1',
+                  footerActionLink: 'text-yellow-600 hover:text-yellow-500',
+                  dividerLine: 'bg-gray-300',
+                  dividerText: 'text-gray-500 bg-white px-2 text-center'
+                }
+              }}
+              signUpUrl="/sign-up"
+              fallbackRedirectUrl={redirectUrl}
+              routing="hash"
+              showOptionalFields={true}
+              initialValues={{
+                emailAddress: '',
+                password: ''
+              }}
+              onError={(error) => {
+                handleAuthError(error)
+              }}
+            />
+          </div>
           
           <div className="text-center">
             <p className="text-sm text-gray-300">
