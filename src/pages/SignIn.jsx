@@ -17,8 +17,8 @@ export default function SignInPage() {
 			</Helmet>
 			
 			<div className="min-h-screen p-4 pt-20 md:pt-4 relative">
-				{/* Icon */}
-				<div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center shadow-lg overflow-hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -mt-[121px]">
+				{/* Icon - centered on x with auto margins, y via translate */}
+				<div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center shadow-lg overflow-hidden absolute top-1/2 left-0 right-0 transform -translate-y-1/2 mx-auto -mt-[121px]">
 					<img 
 						src="/app-icon.png" 
 						alt="Firefly Tiny Homes" 
@@ -27,17 +27,17 @@ export default function SignInPage() {
 				</div>
 
 				{/* Title */}
-				<h1 className="text-2xl font-bold text-white text-center absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -mt-16">
+				<h1 className="text-2xl font-bold text-white text-center absolute top-1/2 left-0 right-0 transform -translate-y-1/2 mx-auto -mt-16">
 					Welcome Back
 				</h1>
 
 				{/* Subtitle */}
-				<p className="text-gray-300 text-center absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -mt-8">
+				<p className="text-gray-300 text-center absolute top-1/2 left-0 right-0 transform -translate-y-1/2 mx-auto -mt-8">
 					Sign in to your Firefly Tiny Homes account
 				</p>
 
 				{/* Sign In Card */}
-				<div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-8 w-full max-w-sm px-4">
+				<div className="absolute top-1/2 left-0 right-0 transform -translate-y-1/2 mx-auto mt-8 w-full max-w-sm px-4">
 					<SignIn
 						appearance={{
 							elements: {
@@ -67,14 +67,6 @@ export default function SignInPage() {
 						}}
 					/>
 				</div>
-
-				{/* Bottom text */}
-				<p className="text-sm text-gray-300 text-center absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-32">
-					Don't have an account?{' '}
-					<a href={`/sign-up?redirect=${encodeURIComponent(redirectUrl)}`} className="text-yellow-400 hover:text-yellow-300 font-medium">
-						Create one here
-					</a>
-				</p>
 			</div>
 		</>
 	)
