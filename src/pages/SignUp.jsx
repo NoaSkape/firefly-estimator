@@ -59,7 +59,7 @@ export default function SignUpPage() {
             }}
           />
 
-          <p className="mt-6 text-center text-sm text-gray-300">
+          <p className="mt-6 text-center text-sm text-gray-300 transform md:-translate-x-4">
             Already have an account?{' '}
             <a href={`/sign-in?redirect=${encodeURIComponent(redirectUrl)}`} className="text-yellow-400 hover:text-yellow-300 font-medium">
               Sign in here

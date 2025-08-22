@@ -53,7 +53,7 @@ export default function SignInPage() {
             }}
           />
 
-          <p className="mt-6 text-center text-sm text-gray-300">
+          <p className="mt-6 text-center text-sm text-gray-300 transform md:-translate-x-4">
             Don't have an account?{' '}
             <a href={`/sign-up?redirect=${encodeURIComponent(redirectUrl)}`} className="text-yellow-400 hover:text-yellow-300 font-medium">
               Create one here
