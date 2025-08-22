@@ -18,8 +18,7 @@ export default function SignInPage() {
       
       <main className="min-h-screen grid place-items-center px-4 pt-24 md:pt-8 overflow-x-hidden">
         <section className="w-full max-w-md mx-auto">
-          <div className="-translate-x-4">
-          <header className="text-center mb-6">
+          <header className="text-center mb-6 transform -translate-x-4">
             <div className="flex justify-center mb-3">
               <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center shadow-lg overflow-hidden">
                 <img src="/app-icon.png" alt="Firefly Tiny Homes" className="w-full h-full object-contain p-1" />
@@ -32,7 +31,7 @@ export default function SignInPage() {
           <SignIn
             appearance={{
               elements: {
-                rootBox: 'w-full',
+                rootBox: 'w-full -translate-x-4',
                 card: 'bg-white shadow-lg rounded-lg overflow-hidden p-6 w-full max-w-full',
                 formButtonPrimary: 'btn-primary w-full',
                 headerTitle: 'text-xl font-semibold text-gray-900 text-center',
@@ -54,13 +53,12 @@ export default function SignInPage() {
             }}
           />
 
-          <p className="mt-6 text-center text-sm text-gray-300">
+          <p className="mt-6 text-center text-sm text-gray-300 transform md:-translate-x-4">
             Don't have an account?{' '}
             <a href={`/sign-up?redirect=${encodeURIComponent(redirectUrl)}`} className="text-yellow-400 hover:text-yellow-300 font-medium">
               Create one here
             </a>
           </p>
-          </div>
         </section>
       </main>
     </>
