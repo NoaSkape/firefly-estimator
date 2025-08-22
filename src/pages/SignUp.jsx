@@ -20,8 +20,12 @@ export default function SignUpPage() {
         
         <div className="max-w-md w-full space-y-6">
           <div className="text-center">
-            <div className="w-16 h-16 bg-yellow-500 rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <span className="text-white font-bold text-xl">F</span>
+            <div className="w-16 h-16 bg-yellow-500 rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden">
+              <img 
+                src="/app-icon.png" 
+                alt="Firefly Tiny Homes" 
+                className="w-full h-full object-contain p-1"
+              />
             </div>
             <h1 className="text-2xl font-bold text-white mb-2">Create Your Firefly Account</h1>
             <p className="text-gray-300">To save your customizations and calculate delivery costs</p>
