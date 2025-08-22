@@ -1,0 +1,25 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="#1F2937"/>
+  
+  <!-- Firefly body -->
+  <ellipse cx="256" cy="280" rx="80" ry="40" fill="#F59E0B"/>
+  
+  <!-- Firefly glow -->
+  <circle cx="256" cy="240" r="30" fill="#FCD34D" opacity="0.8"/>
+  <circle cx="256" cy="240" r="20" fill="#FEF3C7" opacity="0.9"/>
+  
+  <!-- Wings -->
+  <path d="M176 260 Q156 240 176 220 Q196 200 216 220 Q196 240 176 260" fill="#374151" opacity="0.7"/>
+  <path d="M336 260 Q356 240 336 220 Q316 200 296 220 Q316 240 336 260" fill="#374151" opacity="0.7"/>
+  
+  <!-- Antennae -->
+  <path d="M240 200 Q230 180 240 160" stroke="#F59E0B" stroke-width="4" stroke-linecap="round"/>
+  <path d="M272 200 Q282 180 272 160" stroke="#F59E0B" stroke-width="4" stroke-linecap="round"/>
+  
+  <!-- Sparkles -->
+  <circle cx="200" cy="180" r="3" fill="#FCD34D"/>
+  <circle cx="312" cy="180" r="3" fill="#FCD34D"/>
+  <circle cx="180" cy="320" r="2" fill="#FCD34D"/>
+  <circle cx="332" cy="320" r="2" fill="#FCD34D"/>
+</svg>

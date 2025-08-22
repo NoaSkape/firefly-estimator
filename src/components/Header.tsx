@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useUser, UserButton, useClerk } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
 import AuthButton from './AuthButton'
@@ -10,6 +10,11 @@ export default function Header() {
   const [open, setOpen] = useState(false)
   const [shrink, setShrink] = useState(false)
   const [aboutDropdownOpen, setAboutDropdownOpen] = useState(false)
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [isInstallable, setIsInstallable] = useState(false)
+  const [isInstalled, setIsInstalled] = useState(false)
+  const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function onScroll() {
@@ -32,6 +37,95 @@ export default function Header() {
     checkAdminStatus()
   }, [user])
 
+  useEffect(() => {
+    // Setup install listener
+    const checkIfInstalled = () => {
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        setIsInstalled(true)
+        setIsInstallable(false)
+        return
+      }
+      
+      // Check for iOS standalone mode
+      if ('standalone' in window.navigator && (window.navigator as any).standalone === true) {
+        setIsInstalled(true)
+        setIsInstallable(false)
+        return
+      }
+    }
+
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+      setIsInstallable(true)
+    }
+
+    const handleAppInstalled = () => {
+      setIsInstalled(true)
+      setIsInstallable(false)
+      setDeferredPrompt(null)
+    }
+
+    checkIfInstalled()
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    window.addEventListener('appinstalled', handleAppInstalled)
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', handleAppInstalled)
+    }
+  }, [])
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) {
+      if (navigator.userAgent.includes('Chrome')) {
+        alert('To install the Firefly app:\n\n1. Click the menu (⋮) in your browser\n2. Select "Install Firefly Tiny Homes"\n3. Click "Install"')
+      } else {
+        alert('To install the Firefly app, look for the install option in your browser menu.')
+      }
+      return
+    }
+
+    try {
+      deferredPrompt.prompt()
+      const { outcome } = await deferredPrompt.userChoice
+      
+      if (outcome === 'accepted') {
+        setIsInstalled(true)
+        setIsInstallable(false)
+      }
+      
+      setDeferredPrompt(null)
+    } catch (error) {
+      console.error('Error during installation:', error)
+    }
+  }
+
+  const handleAboutMouseEnter = () => {
+    if (dropdownTimeoutRef.current) {
+      clearTimeout(dropdownTimeoutRef.current)
+    }
+    setAboutDropdownOpen(true)
+  }
+
+  const handleAboutMouseLeave = () => {
+    dropdownTimeoutRef.current = setTimeout(() => {
+      setAboutDropdownOpen(false)
+    }, 300) // 300ms delay before closing
+  }
+
+  const handleDropdownMouseEnter = () => {
+    if (dropdownTimeoutRef.current) {
+      clearTimeout(dropdownTimeoutRef.current)
+    }
+  }
+
+  const handleDropdownMouseLeave = () => {
+    dropdownTimeoutRef.current = setTimeout(() => {
+      setAboutDropdownOpen(false)
+    }, 300) // 300ms delay before closing
+  }
+
   function NavLinks() {
     return (
       <nav className="hidden md:flex items-center gap-6 text-sm">
@@ -43,8 +137,8 @@ export default function Header() {
         <a href="/how" className={`hover:text-yellow-400 ${shrink ? 'text-gray-700' : 'text-gray-300'}`}>How It Works</a>
         <div 
           className="relative"
-          onMouseEnter={() => setAboutDropdownOpen(true)}
-          onMouseLeave={() => setAboutDropdownOpen(false)}
+          onMouseEnter={handleAboutMouseEnter}
+          onMouseLeave={handleAboutMouseLeave}
         >
           <button className={`hover:text-yellow-400 flex items-center gap-1 ${shrink ? 'text-gray-700' : 'text-gray-300'}`}>
             About
@@ -53,9 +147,22 @@ export default function Header() {
             </svg>
           </button>
           {aboutDropdownOpen && (
-            <div className="absolute top-full left-0 mt-1 w-48 bg-gray-900 border border-gray-800 rounded-lg shadow-lg z-50">
+            <div 
+              ref={dropdownRef}
+              className="absolute top-full left-0 mt-1 w-48 bg-gray-900 border border-gray-800 rounded-lg shadow-lg z-50"
+              onMouseEnter={handleDropdownMouseEnter}
+              onMouseLeave={handleDropdownMouseLeave}
+            >
               <a href="/faq" className="block px-4 py-2 text-sm text-gray-300 hover:text-yellow-400 hover:bg-gray-800">FAQ</a>
               <a href="/about" className="block px-4 py-2 text-sm text-gray-300 hover:text-yellow-400 hover:bg-gray-800">About Us</a>
+              {!isInstalled && (isInstallable || navigator.userAgent.includes('Chrome')) && (
+                <button
+                  onClick={handleInstallClick}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:text-yellow-400 hover:bg-gray-800"
+                >
+                  Install App
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -88,56 +195,56 @@ export default function Header() {
         </div>
       </div>
 
-             {/* Mobile Drawer */}
-       {open && (
-         <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true">
-           <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)}></div>
-           <div className="absolute right-0 top-0 h-full w-80 max-w-[80%] bg-white border-l border-gray-200 p-4 flex flex-col">
-             <div className="flex items-center justify-between mb-6">
-               <div className="flex items-center">
-                 <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" className="h-8 w-auto mr-2" />
-                 <span className="text-sm font-semibold text-gray-900">Firefly Tiny Homes</span>
-               </div>
-               <button aria-label="Close menu" onClick={() => setOpen(false)} className="p-2 rounded hover:bg-gray-100">
-                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-900"><path d="M18 6L6 18M6 6l12 12"/></svg>
-               </button>
-             </div>
-             
-             {/* Main Navigation */}
-             <nav className="flex flex-col gap-3 text-sm flex-1">
-               <a href="/models" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-semibold" onClick={() => setOpen(false)}>Explore Models</a>
-               {isSignedIn && (
-                 <a href="/builds" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-semibold" onClick={() => setOpen(false)}>My Home</a>
-               )}
-               <a href="/financing" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-semibold" onClick={() => setOpen(false)}>Financing</a>
-               <a href="/how" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-semibold" onClick={() => setOpen(false)}>How It Works</a>
-               <a href="/faq" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-semibold" onClick={() => setOpen(false)}>FAQ</a>
-               <a href="/about" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-semibold" onClick={() => setOpen(false)}>About</a>
-               {isAdmin && (
-                 <a href="/admin" className="px-2 py-2 rounded bg-yellow-500 text-gray-900 hover:bg-yellow-400 font-semibold" onClick={() => setOpen(false)}>Admin</a>
-               )}
-             </nav>
-             
-             {/* Sign Out at Bottom */}
-             {isSignedIn && (
-               <div className="border-t border-gray-200 pt-4 mt-auto">
-                 <button 
-                   onClick={() => {
-                     signOut()
-                     setOpen(false)
-                   }}
-                   className="flex items-center gap-2 px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-semibold"
-                 >
-                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                   </svg>
-                   Sign Out
-                 </button>
-               </div>
-             )}
-           </div>
-         </div>
-       )}
+      {/* Mobile Drawer */}
+      {open && (
+        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)}></div>
+          <div className="absolute right-0 top-0 h-full w-80 max-w-[80%] bg-white border-l border-gray-200 p-4 flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center">
+                <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" className="h-8 w-auto mr-2" />
+                <span className="text-sm font-semibold text-gray-900">Firefly Tiny Homes</span>
+              </div>
+              <button aria-label="Close menu" onClick={() => setOpen(false)} className="p-2 rounded hover:bg-gray-100">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-900"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            
+            {/* Main Navigation */}
+            <nav className="flex flex-col gap-3 text-sm flex-1">
+              <a href="/models" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-semibold" onClick={() => setOpen(false)}>Explore Models</a>
+              {isSignedIn && (
+                <a href="/builds" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-semibold" onClick={() => setOpen(false)}>My Home</a>
+              )}
+              <a href="/financing" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-semibold" onClick={() => setOpen(false)}>Financing</a>
+              <a href="/how" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-semibold" onClick={() => setOpen(false)}>How It Works</a>
+              <a href="/faq" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-semibold" onClick={() => setOpen(false)}>FAQ</a>
+              <a href="/about" className="px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-semibold" onClick={() => setOpen(false)}>About</a>
+              {isAdmin && (
+                <a href="/admin" className="px-2 py-2 rounded bg-yellow-500 text-gray-900 hover:bg-yellow-400 font-semibold" onClick={() => setOpen(false)}>Admin</a>
+              )}
+            </nav>
+            
+            {/* Sign Out at Bottom */}
+            {isSignedIn && (
+              <div className="border-t border-gray-200 pt-4 mt-auto">
+                <button 
+                  onClick={() => {
+                    signOut()
+                    setOpen(false)
+                  }}
+                  className="flex items-center gap-2 px-2 py-2 rounded hover:bg-gray-100 text-gray-900 font-semibold"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  Sign Out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   )
 }
