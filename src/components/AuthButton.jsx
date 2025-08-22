@@ -2,7 +2,6 @@ import React from 'react'
 import { useUser } from '@clerk/clerk-react'
 import { UserButton } from '@clerk/clerk-react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import InstallAppButton from './InstallAppButton'
 
 export default function AuthButton() {
   const { isSignedIn } = useUser()
@@ -20,18 +19,16 @@ export default function AuthButton() {
   if (isSignedIn) {
     // Show Clerk's UserButton for signed-in users
     return (
-      <div className="flex items-center space-x-2">
-        <InstallAppButton />
-        <div className="bg-white rounded-full p-1 shadow-lg">
-          <UserButton 
-            appearance={{
-              elements: {
-                userButtonAvatarBox: 'w-8 h-8',
-                userButtonTrigger: 'focus:shadow-none hover:opacity-80'
-              }
-            }}
-          />
-        </div>
+      <div className="bg-white rounded-full p-1 shadow-lg">
+        <UserButton 
+          appearance={{
+            elements: {
+              userButtonAvatarBox: 'w-8 h-8',
+              userButtonTrigger: 'focus:shadow-none hover:opacity-80'
+            }
+          }}
+          afterSignOutUrl="/"
+        />
       </div>
     )
   }
@@ -39,7 +36,6 @@ export default function AuthButton() {
   // Show custom sign-in/sign-up buttons for public users
   return (
     <div className="flex items-center space-x-2">
-      <InstallAppButton />
       <button
         onClick={handleSignIn}
         className="px-4 py-2 text-sm font-medium text-white bg-transparent border border-white rounded-md hover:bg-white hover:text-gray-900 transition-colors"

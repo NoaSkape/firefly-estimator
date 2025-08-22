@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom'
 import { useUser, useClerk } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
 import analytics from '../utils/analytics'
-import InstallAppButton from './InstallAppButton'
 
 export default function MobileNavigation() {
   const { user, isSignedIn } = useUser()
@@ -12,12 +11,16 @@ export default function MobileNavigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
+  const [deferredPrompt, setDeferredPrompt] = useState(null)
+  const [isInstallable, setIsInstallable] = useState(false)
+  const [isInstalled, setIsInstalled] = useState(false)
   const menuRef = useRef(null)
   const hamburgerRef = useRef(null)
 
   useEffect(() => {
     checkAdminStatus()
     setupScrollListener()
+    setupInstallListener()
   }, [user])
 
   useEffect(() => {
@@ -25,10 +28,75 @@ export default function MobileNavigation() {
     setIsMenuOpen(false)
   }, [location])
 
-      const checkAdminStatus = () => {
+  const setupInstallListener = () => {
+    // Check if app is already installed
+    const checkIfInstalled = () => {
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        setIsInstalled(true)
+        setIsInstallable(false)
+        return
+      }
+      
+      if (window.navigator.standalone === true) {
+        setIsInstalled(true)
+        setIsInstallable(false)
+        return
+      }
+    }
+
+    // Listen for beforeinstallprompt event
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+      setIsInstallable(true)
+    }
+
+    // Listen for appinstalled event
+    const handleAppInstalled = () => {
+      setIsInstalled(true)
+      setIsInstallable(false)
+      setDeferredPrompt(null)
+    }
+
+    checkIfInstalled()
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    window.addEventListener('appinstalled', handleAppInstalled)
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', handleAppInstalled)
+    }
+  }
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) {
+      if (navigator.userAgent.includes('Chrome')) {
+        alert('To install the Firefly app:\n\n1. Click the menu (⋮) in your browser\n2. Select "Install Firefly Tiny Homes"\n3. Click "Install"')
+      } else {
+        alert('To install the Firefly app, look for the install option in your browser menu.')
+      }
+      return
+    }
+
+    try {
+      deferredPrompt.prompt()
+      const { outcome } = await deferredPrompt.userChoice
+      
+      if (outcome === 'accepted') {
+        setIsInstalled(true)
+        setIsInstallable(false)
+      }
+      
+      setDeferredPrompt(null)
+    } catch (error) {
+      console.error('Error during installation:', error)
+    }
+  }
+
+  const checkAdminStatus = () => {
     if (!user) return
     try {
-              const adminStatus = canEditModelsClient(user)
+      const adminStatus = canEditModelsClient(user)
       setIsAdmin(adminStatus)
     } catch (error) {
       console.error('Admin status check failed:', error)
@@ -93,6 +161,18 @@ export default function MobileNavigation() {
               Firefly Tiny Homes
             </span>
           </Link>
+
+          {/* Try the App Link - Center */}
+          {!isInstalled && (isInstallable || navigator.userAgent.includes('Chrome')) && (
+            <button
+              onClick={handleInstallClick}
+              className={`text-sm font-medium underline hover:no-underline transition-all ${
+                isScrolled ? 'text-gray-700' : 'text-gray-100'
+              }`}
+            >
+              Try the app!
+            </button>
+          )}
 
           {/* Hamburger Menu */}
           <button
@@ -171,13 +251,6 @@ export default function MobileNavigation() {
                   </svg>
                   <span>Explore Models</span>
                 </Link>
-
-
-              </div>
-
-              {/* Install App Section */}
-              <div className="pt-4 border-t border-gray-200">
-                <InstallAppButton variant="mobile" />
               </div>
 
               {/* User Section */}
@@ -207,20 +280,18 @@ export default function MobileNavigation() {
                       <span>My Orders</span>
                     </Link>
 
-                                         {isAdmin && (
-                       <Link
-                         to="/admin"
-                         className="mobile-menu-link"
-                         onClick={() => handleMenuLinkClick('admin')}
-                       >
-                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                         </svg>
-                         <span>Admin</span>
-                       </Link>
-                     )}
-
-
+                    {isAdmin && (
+                      <Link
+                        to="/admin"
+                        className="mobile-menu-link"
+                        onClick={() => handleMenuLinkClick('admin')}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                        <span>Admin</span>
+                      </Link>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-1">
@@ -279,51 +350,51 @@ export default function MobileNavigation() {
               {/* Contact Section */}
               <div className="pt-4 border-t border-gray-200">
                 <div className="space-y-1">
-                                     <a
-                     href="tel:+18302412410"
-                     className="mobile-menu-link"
-                     title="Call Firefly Tiny Homes"
-                     onClick={() => handleMenuLinkClick('phone')}
-                   >
-                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                     </svg>
-                     <span>Call Us</span>
-                   </a>
+                  <a
+                    href="tel:+18302412410"
+                    className="mobile-menu-link"
+                    title="Call Firefly Tiny Homes"
+                    onClick={() => handleMenuLinkClick('phone')}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    <span>Call Us</span>
+                  </a>
 
-                   <a
-                     href="mailto:office@fireflytinyhomes.com"
-                     className="mobile-menu-link"
-                     title="Email Firefly Tiny Homes"
-                     onClick={() => handleMenuLinkClick('email')}
-                   >
-                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                     </svg>
-                     <span>Email Us</span>
-                   </a>
+                  <a
+                    href="mailto:office@fireflytinyhomes.com"
+                    className="mobile-menu-link"
+                    title="Email Firefly Tiny Homes"
+                    onClick={() => handleMenuLinkClick('email')}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <span>Email Us</span>
+                  </a>
                 </div>
               </div>
             </div>
           </nav>
 
-                     {/* Sign Out at Bottom */}
-           {isSignedIn && (
-             <div className="p-4 border-t border-gray-200">
-               <button
-                 onClick={() => {
-                   handleMenuLinkClick('sign-out')
-                   signOut()
-                 }}
-                 className="mobile-menu-link text-red-600 w-full"
-               >
-                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                 </svg>
-                 <span>Sign Out</span>
-               </button>
-             </div>
-           )}
+          {/* Sign Out at Bottom */}
+          {isSignedIn && (
+            <div className="p-4 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  handleMenuLinkClick('sign-out')
+                  signOut()
+                }}
+                className="mobile-menu-link text-red-600 w-full"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span>Sign Out</span>
+              </button>
+            </div>
+          )}
 
           {/* Menu Footer */}
           <div className="p-4 border-t border-gray-200">
@@ -334,8 +405,6 @@ export default function MobileNavigation() {
           </div>
         </div>
       </div>
-
-      
     </>
   )
 }
