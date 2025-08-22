@@ -70,9 +70,10 @@ function ScrollToTop() {
 function MobileSpacingWrapper({ children }) {
   const location = useLocation()
   const isHomePage = location.pathname === '/'
+  const isAuthPage = location.pathname.startsWith('/sign-in') || location.pathname.startsWith('/sign-up')
   
-  // Apply mobile-content-spacing to all pages except homepage
-  const mainClassName = isHomePage 
+  // Apply mobile-content-spacing to all pages except homepage and auth pages
+  const mainClassName = isHomePage || isAuthPage
     ? "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-8"
     : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-8 mobile-content-spacing"
   

@@ -16,8 +16,8 @@ export default function SignInPage() {
         <meta name="description" content="Sign in to your Firefly Tiny Homes account to access your saved customizations and continue your home building journey." />
       </Helmet>
       
-      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
-        <div className="w-full max-w-md mx-auto space-y-6">
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-6">
           <div className="text-center">
             <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden">
               <img 
@@ -34,7 +34,7 @@ export default function SignInPage() {
             appearance={{
               elements: {
                 formButtonPrimary: 'btn-primary w-full',
-                card: 'bg-white shadow-lg rounded-lg p-6 w-full max-w-md mx-auto',
+                card: 'bg-white shadow-lg rounded-lg p-6 w-full',
                 headerTitle: 'text-xl font-semibold text-gray-900',
                 headerSubtitle: 'text-gray-600',
                 socialButtonsBlockButton: 'btn-secondary w-full',
