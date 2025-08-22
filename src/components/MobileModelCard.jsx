@@ -102,6 +102,16 @@ export default function MobileModelCard({ model, onQuickView }) {
     }).format(price)
   }
 
+  const handleViewDetails = () => {
+    // Ensure scroll to top when navigating to model details
+    window.scrollTo(0, 0)
+    
+    analytics.trackEvent('mobile_model_view_details', {
+      modelSlug: model.slug,
+      modelName: model.name
+    })
+  }
+
   return (
     <div
       ref={cardRef}
@@ -255,12 +265,7 @@ export default function MobileModelCard({ model, onQuickView }) {
           <Link
             to={`/models/${model.slug}`}
             className="flex-1 mobile-button bg-yellow-500 text-gray-900 font-semibold py-3 px-4 rounded-lg text-center transition-colors hover:bg-yellow-400"
-            onClick={() => {
-              analytics.trackEvent('mobile_model_view_details', {
-                modelSlug: model.slug,
-                modelName: model.name
-              })
-            }}
+            onClick={handleViewDetails}
           >
             View Details
           </Link>

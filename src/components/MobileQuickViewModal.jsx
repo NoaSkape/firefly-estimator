@@ -67,6 +67,17 @@ export default function MobileQuickViewModal({ model, isOpen, onClose, onCustomi
     })
   }
 
+  const handleViewDetails = () => {
+    // Ensure scroll to top when navigating to model details
+    window.scrollTo(0, 0)
+    onClose()
+    
+    analytics.trackEvent('mobile_quick_view_view_details', {
+      modelSlug: model.slug,
+      modelName: model.name
+    })
+  }
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -104,9 +115,10 @@ export default function MobileQuickViewModal({ model, isOpen, onClose, onCustomi
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            <h2 className="text-lg font-semibold text-gray-900 mobile-text">
-              {model.name}
-            </h2>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">{model.name}</h2>
+              <p className="text-sm text-gray-500">Quick View</p>
+            </div>
           </div>
           
           <button
@@ -123,7 +135,7 @@ export default function MobileQuickViewModal({ model, isOpen, onClose, onCustomi
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto h-full sm:max-h-[calc(90vh-120px)]">
+        <div className="flex-1 overflow-y-auto">
           {/* Image Gallery */}
           <div className="relative">
             <div className="relative overflow-hidden">
@@ -132,12 +144,12 @@ export default function MobileQuickViewModal({ model, isOpen, onClose, onCustomi
                   ref={imageRef}
                   src={model.images[currentImageIndex]}
                   alt={model.name}
-                  className="mobile-image w-full h-64 sm:h-80 object-cover"
+                  className="w-full h-64 object-cover"
                   onLoad={handleImageLoad}
                   onError={() => setIsLoading(false)}
                 />
               ) : (
-                <div className="w-full h-64 sm:h-80 bg-gray-200 flex items-center justify-center">
+                <div className="w-full h-64 bg-gray-200 flex items-center justify-center">
                   <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
@@ -151,7 +163,7 @@ export default function MobileQuickViewModal({ model, isOpen, onClose, onCustomi
                 </div>
               )}
               
-              {/* Image navigation arrows */}
+              {/* Navigation arrows */}
               {model.images && model.images.length > 1 && (
                 <>
                   <button
@@ -163,7 +175,6 @@ export default function MobileQuickViewModal({ model, isOpen, onClose, onCustomi
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                   </button>
-                  
                   <button
                     onClick={() => handleImageSwipe('left')}
                     className="absolute right-2 top-1/2 transform -translate-y-1/2 mobile-button bg-black/50 text-white p-2 rounded-full"
@@ -193,10 +204,46 @@ export default function MobileQuickViewModal({ model, isOpen, onClose, onCustomi
               )}
             </div>
             
-            {/* Swipe area for image navigation */}
+            {/* Touch/swipe area for image navigation */}
             <div 
               className="absolute inset-0"
-              data-swipe="left,right"
+              onTouchStart={(e) => {
+                const touch = e.targetTouches[0]
+                const startX = touch.clientX
+                const startY = touch.clientY
+                
+                const handleTouchMove = (e) => {
+                  const touch = e.targetTouches[0]
+                  const deltaX = touch.clientX - startX
+                  const deltaY = touch.clientY - startY
+                  
+                  // If horizontal swipe is greater than vertical, prevent default
+                  if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                    e.preventDefault()
+                  }
+                }
+                
+                const handleTouchEnd = (e) => {
+                  const touch = e.changedTouches[0]
+                  const deltaX = touch.clientX - startX
+                  const deltaY = touch.clientY - startY
+                  
+                  // Minimum swipe distance
+                  if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
+                    if (deltaX > 0) {
+                      handleImageSwipe('right')
+                    } else {
+                      handleImageSwipe('left')
+                    }
+                  }
+                  
+                  document.removeEventListener('touchmove', handleTouchMove, { passive: false })
+                  document.removeEventListener('touchend', handleTouchEnd)
+                }
+                
+                document.addEventListener('touchmove', handleTouchMove, { passive: false })
+                document.addEventListener('touchend', handleTouchEnd)
+              }}
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect()
                 const x = e.clientX - rect.left
@@ -284,7 +331,7 @@ export default function MobileQuickViewModal({ model, isOpen, onClose, onCustomi
             
             <Link
               to={`/models/${model.slug}`}
-              onClick={onClose}
+              onClick={handleViewDetails}
               className="flex-1 mobile-button bg-gray-100 text-gray-700 font-semibold py-3 px-4 rounded-lg text-center transition-colors hover:bg-gray-200"
             >
               View Details
