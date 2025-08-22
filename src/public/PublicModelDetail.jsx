@@ -50,6 +50,33 @@ export default function PublicModelDetail() {
     }
   }
 
+  // Fullscreen viewer swipe handling
+  const [viewerTouchStart, setViewerTouchStart] = useState(null)
+  const [viewerTouchEnd, setViewerTouchEnd] = useState(null)
+
+  const onViewerTouchStart = (e) => {
+    setViewerTouchEnd(null)
+    setViewerTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const onViewerTouchMove = (e) => {
+    setViewerTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const onViewerTouchEnd = () => {
+    if (!viewerTouchStart || !viewerTouchEnd || !model?.images) return
+    const distance = viewerTouchStart - viewerTouchEnd
+    const isLeftSwipe = distance > minSwipeDistance
+    const isRightSwipe = distance < -minSwipeDistance
+
+    if (isLeftSwipe) {
+      setCurrentImageIndex((prev) => (prev + 1) % model.images.length)
+    }
+    if (isRightSwipe) {
+      setCurrentImageIndex((prev) => (prev - 1 + model.images.length) % model.images.length)
+    }
+  }
+
   useEffect(() => {
     if (!isViewerOpen) return
     function onPop() { setIsViewerOpen(false) }
@@ -373,18 +400,23 @@ export default function PublicModelDetail() {
       )}
 
       {isViewerOpen && model?.images?.length > 0 && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 flex flex-col"
+          onTouchStart={onViewerTouchStart}
+          onTouchMove={onViewerTouchMove}
+          onTouchEnd={onViewerTouchEnd}
+        >
           {model.images.length > 1 && (<>
-            <button onClick={prevImage} aria-label="Previous image" className="absolute left-4 top-1/2 -translate-y-1/2 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded">←</button>
-            <button onClick={nextImage} aria-label="Next image" className="absolute right-4 top-1/2 -translate-y-1/2 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded">→</button>
+            <button onClick={prevImage} aria-label="Previous image" className="absolute left-4 top-1/2 -translate-y-1/2 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded hidden md:block">←</button>
+            <button onClick={nextImage} aria-label="Next image" className="absolute right-4 top-1/2 -translate-y-1/2 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded hidden md:block">→</button>
           </>)}
-          <button aria-label="Close" className="absolute top-4 right-4 text-white bg-black/60 hover:bg-black/80 rounded px-3 py-1" onClick={() => setIsViewerOpen(false)}>✕</button>
+          <button aria-label="Close" className="absolute top-4 right-4 text-white bg-black/60 hover:bg-black/80 rounded px-3 py-1 z-10" onClick={() => setIsViewerOpen(false)}>✕</button>
           <div className="flex-1 flex items-center justify-center select-none">
             <img src={model.images[currentImageIndex]?.url} alt={`${model.name} - Image ${currentImageIndex + 1}`} className="max-h-[85vh] max-w-[90vw] object-contain" />
           </div>
           {model.images.length > 1 && (
             <div className="p-4 flex items-center justify-between text-white">
-              <button onClick={prevImage} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded">Prev</button>
+              <button onClick={prevImage} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded hidden md:block">Prev</button>
               <div className="space-x-2 overflow-x-auto">
                 {model.images.map((img, idx) => (
                   <button key={idx} onClick={() => setCurrentImageIndex(idx)} className={`inline-block w-16 h-16 rounded overflow-hidden ${idx===currentImageIndex?'ring-2 ring-yellow-400':''}`}>
@@ -392,7 +424,7 @@ export default function PublicModelDetail() {
                   </button>
                 ))}
               </div>
-              <button onClick={nextImage} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded">Next</button>
+              <button onClick={nextImage} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded hidden md:block">Next</button>
             </div>
           )}
         </div>

@@ -51,6 +51,33 @@ const ModelDetail = ({ onModelSelect }) => {
     }
   }
 
+  // Fullscreen viewer swipe handling
+  const [viewerTouchStart, setViewerTouchStart] = useState(null)
+  const [viewerTouchEnd, setViewerTouchEnd] = useState(null)
+
+  const onViewerTouchStart = (e) => {
+    setViewerTouchEnd(null)
+    setViewerTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const onViewerTouchMove = (e) => {
+    setViewerTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const onViewerTouchEnd = () => {
+    if (!viewerTouchStart || !viewerTouchEnd || !model?.images) return
+    const distance = viewerTouchStart - viewerTouchEnd
+    const isLeftSwipe = distance > minSwipeDistance
+    const isRightSwipe = distance < -minSwipeDistance
+
+    if (isLeftSwipe) {
+      setCurrentImageIndex((prev) => (prev + 1) % model.images.length)
+    }
+    if (isRightSwipe) {
+      setCurrentImageIndex((prev) => (prev - 1 + model.images.length) % model.images.length)
+    }
+  }
+
   // Close viewer first on browser back
   useEffect(() => {
     if (!isViewerOpen) return
@@ -473,21 +500,26 @@ const ModelDetail = ({ onModelSelect }) => {
 
       {/* Fullscreen Image Viewer */}
       {isViewerOpen && model?.images?.length > 0 && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
-          {/* Side arrows for better UX */}
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 flex flex-col"
+          onTouchStart={onViewerTouchStart}
+          onTouchMove={onViewerTouchMove}
+          onTouchEnd={onViewerTouchEnd}
+        >
+          {/* Side arrows for better UX - hidden on mobile */}
           {model.images.length > 1 && (
             <>
               <button
                 onClick={prevImage}
                 aria-label="Previous image"
-                className="absolute left-4 top-1/2 -translate-y-1/2 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded"
+                className="absolute left-4 top-1/2 -translate-y-1/2 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded hidden md:block"
               >
                 ←
               </button>
               <button
                 onClick={nextImage}
                 aria-label="Next image"
-                className="absolute right-4 top-1/2 -translate-y-1/2 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded"
+                className="absolute right-4 top-1/2 -translate-y-1/2 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded hidden md:block"
               >
                 →
               </button>
@@ -495,7 +527,7 @@ const ModelDetail = ({ onModelSelect }) => {
           )}
           <button
             aria-label="Close"
-            className="absolute top-4 right-4 text-white bg-black/60 hover:bg-black/80 rounded px-3 py-1"
+            className="absolute top-4 right-4 text-white bg-black/60 hover:bg-black/80 rounded px-3 py-1 z-10"
             onClick={() => setIsViewerOpen(false)}
           >
             ✕
@@ -511,7 +543,7 @@ const ModelDetail = ({ onModelSelect }) => {
             <div className="p-4 flex items-center justify-between text-white">
               <button
                 onClick={prevImage}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded"
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded hidden md:block"
               >
                 Prev
               </button>
@@ -528,7 +560,7 @@ const ModelDetail = ({ onModelSelect }) => {
               </div>
               <button
                 onClick={nextImage}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded"
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded hidden md:block"
               >
                 Next
               </button>
