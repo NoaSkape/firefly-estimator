@@ -9,11 +9,11 @@ export default function AuthButton() {
   const location = useLocation()
 
   const handleSignIn = () => {
-    navigate(`/sign-in?redirect=${encodeURIComponent(location.pathname)}`)
+    navigate(`/sign-in?redirect=${encodeURIComponent(location.pathname + location.search)}`)
   }
 
   const handleSignUp = () => {
-    navigate(`/sign-up?redirect=${encodeURIComponent(location.pathname)}`)
+    navigate(`/sign-up?redirect=${encodeURIComponent(location.pathname + location.search)}`)
   }
 
   if (isSignedIn) {

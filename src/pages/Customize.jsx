@@ -137,7 +137,7 @@ const Customize = () => {
   const handleSaveCustomization = async () => {
     if (!isSignedIn) {
       // Redirect to sign-in page
-      navigate('/sign-in?redirect=' + encodeURIComponent(window.location.pathname))
+      navigate('/sign-in?redirect=' + encodeURIComponent(window.location.pathname + window.location.search))
       return
     }
 
@@ -192,7 +192,7 @@ const Customize = () => {
   }
 
   const handleCreateAccount = () => {
-    navigate('/sign-up?redirect=' + encodeURIComponent(window.location.pathname))
+    navigate('/sign-up?redirect=' + encodeURIComponent(window.location.pathname + window.location.search))
   }
 
   if (loading) {

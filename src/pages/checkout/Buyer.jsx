@@ -106,8 +106,9 @@ export default function Buyer() {
             <h2 className="text-lg font-semibold text-gray-100 mb-2">Create Your Account</h2>
             <p className="text-sm text-gray-300 mb-3">Sign in or create an account so your design and checkout progress are saved.</p>
             <SignIn 
-              fallbackRedirectUrl="/checkout/buyer" 
-              signUpUrl="/sign-up?redirect=/checkout/buyer"
+              fallbackRedirectUrl={location.pathname + location.search}
+              afterSignInUrl={location.pathname + location.search}
+              signUpUrl={`/sign-up?redirect=${encodeURIComponent(location.pathname + location.search)}`}
               appearance={{
                 elements: {
                   formButtonPrimary: 'btn-primary w-full',

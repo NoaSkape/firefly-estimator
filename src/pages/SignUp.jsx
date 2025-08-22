@@ -45,9 +45,9 @@ export default function SignUpPage() {
                 dividerText: 'text-gray-500 bg-white px-2 text-center'
               }
             }}
-            signInUrl="/sign-in"
+            signInUrl={`/sign-in?redirect=${encodeURIComponent(redirectUrl)}`}
             fallbackRedirectUrl={redirectUrl}
-            routing="hash"
+            afterSignUpUrl={redirectUrl}
             showOptionalFields
             initialValues={{
               emailAddress: '',
