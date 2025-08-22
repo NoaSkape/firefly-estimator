@@ -1,4 +1,5 @@
 import CheckoutProgress from '../../components/CheckoutProgress'
+import FunnelProgress from '../../components/FunnelProgress'
 import Breadcrumbs from '../../components/Breadcrumbs'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
@@ -26,6 +27,7 @@ export default function Review() {
   if (!build) return (
     <div>
       <Breadcrumbs items={[{ label: 'My Builds', to: '/builds' }, { label: 'Checkout', to: `/checkout/${buildId}/review` }, { label: 'Review & Sign' }]} />
+      <FunnelProgress current="Overview" isSignedIn={!!build} onNavigate={(label)=>{}} />
       <CheckoutProgress step={4} getBlockReason={(n)=> n===5 ? 'Complete required items before confirming' : ''} onNavigate={async (n)=>{
         if (n<=3) navigate(`/checkout/${buildId}/${n===2?'payment':'buyer'}`)
         if (n===4) navigate(`/checkout/${buildId}/agreement`)

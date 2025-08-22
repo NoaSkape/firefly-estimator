@@ -9,6 +9,7 @@ import { slugToModelId, isValidSlug, getModelBySlug } from '../utils/modelUrlMap
 import { MODELS } from '../data/models'
 import { OPTIONS } from '../data/options'
 import SEOHead from '../components/SEOHead'
+import FunnelProgress from '../components/FunnelProgress'
 import { useToast } from '../components/ToastProvider'
 
 const Customize = () => {
@@ -237,6 +238,14 @@ const Customize = () => {
 
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <FunnelProgress
+          current="Customize!"
+          isSignedIn={isSignedIn}
+          onNavigate={(label)=>{
+            if (label === 'Choose Your Home') navigate(`/models/${modelId}`)
+            if (label === 'Sign in/up' && !isSignedIn) navigate('/sign-in?redirect=' + encodeURIComponent(window.location.pathname + window.location.search))
+          }}
+        />
         {/* Navigation Header */}
         <div className="flex justify-between items-center mb-6">
           <button

@@ -8,6 +8,7 @@ import { createHeroImage, createThumbnailImage, createGalleryImage } from '../ut
 import { slugToModelId, isValidSlug, getModelBySlug } from '../utils/modelUrlMapping'
 import { MODELS } from '../data/models'
 import SEOHead from '../components/SEOHead'
+import FunnelProgress from '../components/FunnelProgress'
 import AdminModelEditor from '../components/AdminModelEditor'
 
 const ModelDetail = ({ onModelSelect }) => {
@@ -340,6 +341,14 @@ const ModelDetail = ({ onModelSelect }) => {
 
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <FunnelProgress
+          current="Choose Your Home"
+          isSignedIn={isSignedIn}
+          onNavigate={(label)=>{
+            // support quick back to home/explore
+            if (label === 'Choose Your Home') navigate('/models')
+          }}
+        />
         {/* Admin Edit Button */}
         {isAdmin && (
           <div className="flex justify-end mb-6">
