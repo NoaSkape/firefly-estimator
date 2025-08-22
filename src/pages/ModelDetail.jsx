@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useUser, useAuth } from '@clerk/clerk-react'
 
@@ -22,6 +22,8 @@ const ModelDetail = ({ onModelSelect }) => {
   // Inline editing and inline upload removed; edits happen in AdminModelEditor only
   const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
+  const thumbnailContainerRef = useRef(null)
+  const thumbnailRefs = useRef([])
   
   // Touch/swipe handling for mobile image gallery
   const [touchStart, setTouchStart] = useState(null)
@@ -77,6 +79,34 @@ const ModelDetail = ({ onModelSelect }) => {
       setCurrentImageIndex((prev) => (prev - 1 + model.images.length) % model.images.length)
     }
   }
+
+  // Auto-scroll thumbnail into view when current image changes
+  useEffect(() => {
+    if (thumbnailRefs.current[currentImageIndex] && thumbnailContainerRef.current) {
+      const thumbnail = thumbnailRefs.current[currentImageIndex]
+      const container = thumbnailContainerRef.current
+      
+      // Calculate if thumbnail is visible
+      const containerRect = container.getBoundingClientRect()
+      const thumbnailRect = thumbnail.getBoundingClientRect()
+      
+      // Check if thumbnail is outside the visible area
+      if (thumbnailRect.left < containerRect.left || thumbnailRect.right > containerRect.right) {
+        thumbnail.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'center'
+        })
+      }
+    }
+  }, [currentImageIndex])
+
+  // Initialize thumbnail refs array
+  useEffect(() => {
+    if (model?.images) {
+      thumbnailRefs.current = thumbnailRefs.current.slice(0, model.images.length)
+    }
+  }, [model?.images])
 
   // Close viewer first on browser back
   useEffect(() => {
@@ -369,14 +399,15 @@ const ModelDetail = ({ onModelSelect }) => {
 
             {/* Thumbnail Gallery */}
             {model.images && model.images.length > 1 && (
-              <div className="flex space-x-2 overflow-x-auto">
+              <div className="flex space-x-2 overflow-x-auto" ref={thumbnailContainerRef}>
                 {model.images.map((image, index) => (
                   <button
                     key={index}
                     onClick={() => setCurrentImageIndex(index)}
                     className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden ${
-                      currentImageIndex === index ? 'ring-2 ring-primary-500' : ''
+                      currentImageIndex === index ? 'ring-2 ring-yellow-500' : ''
                     }`}
+                    ref={el => thumbnailRefs.current[index] = el}
                   >
                     <img
                       src={image.url}
