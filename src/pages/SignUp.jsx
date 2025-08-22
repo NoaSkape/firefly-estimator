@@ -16,9 +16,8 @@ export default function SignUpPage() {
         <meta name="description" content="Create your account to save your custom home designs and continue your journey with Firefly Tiny Homes." />
       </Helmet>
       
-             <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
-        
-        <div className="max-w-md w-full space-y-6">
+      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative mobile-content-spacing">
+        <div className="w-full max-w-md mx-auto space-y-6">
           <div className="text-center">
             <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden">
               <img 
@@ -35,7 +34,7 @@ export default function SignUpPage() {
             appearance={{
               elements: {
                 formButtonPrimary: 'btn-primary w-full',
-                card: 'bg-white shadow-lg rounded-lg p-6',
+                card: 'bg-white shadow-lg rounded-lg p-6 w-full max-w-md mx-auto',
                 headerTitle: 'text-xl font-semibold text-gray-900',
                 headerSubtitle: 'text-gray-600',
                 socialButtonsBlockButton: 'btn-secondary w-full',
