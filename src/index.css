@@ -36,70 +36,57 @@
 [data-theme="dark"] .section-header { @apply text-gray-100; }
 }
 
-/* Mobile background image stabilization with overflow buffer technique */
+/* CSS Custom Properties for dynamic viewport handling */
+:root {
+  --vh: 1vh;
+  --mobile-vh: 1vh;
+}
+
+/* Mobile background image stabilization - Industry Standard Approach */
 .fixed-background {
   position: fixed !important;
   top: 0 !important;
   left: 0 !important;
   right: 0 !important;
   bottom: 0 !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
   transform: translateZ(0) !important;
-  will-change: transform !important;
+  will-change: auto !important;
   backface-visibility: hidden !important;
   -webkit-backface-visibility: hidden !important;
   -webkit-transform: translateZ(0) !important;
-  -webkit-will-change: transform !important;
+  z-index: -1 !important;
 }
 
-/* Prevent mobile viewport changes from affecting fixed backgrounds */
+/* Mobile-specific optimizations */
 @media (max-width: 768px) {
-  .fixed-background {
-    background-attachment: scroll !important;
-    background-position: center center !important;
-    background-size: cover !important;
-    background-repeat: no-repeat !important;
-  }
-}
-
-/* Smooth viewport transitions with overflow buffer technique */
-@media (max-width: 768px) {
-  /* Smooth transitions for viewport changes */
-  html, body {
-    transition: height 0.3s ease-out, width 0.3s ease-out;
-  }
-  
-  /* Enhanced background transitions for overflow buffer */
-  .fixed-background {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  }
-  
-  /* Prevent background repositioning during scroll */
-  .fixed-background {
-    background-attachment: local !important;
-    transform: translateZ(0) !important;
-  }
-  
-  /* Lock viewport height to prevent browser header interference */
+  /* Use CSS custom properties for dynamic viewport height */
   html {
-    height: 100vh;
-    height: -webkit-fill-available;
+    height: calc(var(--mobile-vh) * 100);
     overflow-x: hidden;
   }
   
   body {
-    min-height: 100vh;
-    min-height: -webkit-fill-available;
+    min-height: calc(var(--mobile-vh) * 100);
     overflow-x: hidden;
   }
   
-  /* Maintain native aspect ratio while covering viewport with overflow buffer */
+  #root {
+    height: calc(var(--mobile-vh) * 100);
+    overflow-x: hidden;
+  }
+  
+  /* Background attachment strategy for mobile */
   .fixed-background {
+    background-attachment: scroll !important;
     background-size: cover !important;
     background-position: center center !important;
     transform: translateZ(0) !important;
   }
   
-  /* Additional stabilization for iOS Safari */
+  /* iOS Safari specific optimizations */
   @supports (-webkit-touch-callout: none) {
     .fixed-background {
       background-attachment: scroll !important;
@@ -108,26 +95,9 @@
     }
   }
   
-  /* Stabilized state for background with overflow buffer */
+  /* Stabilized state */
   .fixed-background.stabilized {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  }
-  
-  /* Prevent viewport height changes from affecting layout */
-  #root {
-    height: 100vh;
-    height: -webkit-fill-available;
-    overflow-x: hidden;
-  }
-  
-  /* Smooth viewport height transitions */
-  * {
-    transition: height 0.3s ease-out, width 0.3s ease-out;
-  }
-  
-  /* Prevent content jumping during viewport changes */
-  main {
-    transition: padding-top 0.3s ease-out;
+    transition: none !important;
   }
 }
 
