@@ -33,6 +33,7 @@ export default function SignUpPage() {
               elements: {
                 rootBox: 'w-full -translate-x-4',
                 card: 'bg-white shadow-lg rounded-lg overflow-hidden p-6 w-full max-w-full',
+                footer: 'md:w-[calc(100%-1px)] mx-auto',
                 formButtonPrimary: 'btn-primary w-full',
                 headerTitle: 'text-xl font-semibold text-gray-900 text-center',
                 headerSubtitle: 'text-gray-600 text-center',
