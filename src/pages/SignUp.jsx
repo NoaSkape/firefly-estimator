@@ -20,7 +20,7 @@ export default function SignUpPage() {
         
         <div className="max-w-md w-full space-y-6">
           <div className="text-center">
-            <div className="w-16 h-16 bg-yellow-500 rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden">
+            <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden">
               <img 
                 src="/app-icon.png" 
                 alt="Firefly Tiny Homes" 
