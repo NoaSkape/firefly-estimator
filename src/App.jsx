@@ -13,6 +13,7 @@ const ModelsPage = lazy(() => import('./pages/Models'))
 const PaymentMethod = lazy(() => import('./pages/checkout/PaymentMethod'))
 const Buyer = lazy(() => import('./pages/checkout/Buyer'))
 const Review = lazy(() => import('./pages/checkout/Review'))
+const Agreement = lazy(() => import('./pages/checkout/Agreement'))
 const AccountCreate = lazy(() => import('./pages/checkout/Account'))
 const HowItWorks = lazy(() => import('./pages/how/HowItWorks'))
 const Ordering = lazy(() => import('./pages/how/Ordering'))
@@ -302,6 +303,11 @@ function App() {
               <Route path="/checkout/:buildId/review" element={
                 <ProtectedRoute>
                   <Review />
+                </ProtectedRoute>
+              } />
+              <Route path="/checkout/:buildId/agreement" element={
+                <ProtectedRoute>
+                  <Agreement />
                 </ProtectedRoute>
               } />
               <Route path="/checkout/:buildId/confirm" element={

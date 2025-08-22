@@ -3,7 +3,7 @@ export default function CheckoutProgress({ step = 1, onNavigate, canNavigateTo, 
     'Customize',
     'Create Account',
     'Payment Method',
-    'Review & Sign',
+    'Agreement & Signature',
     'Confirmation',
   ]
   function canGo(target) {

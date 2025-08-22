@@ -3,11 +3,16 @@ import { Link } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../../lib/canEditModels'
 import { Seo } from '../../components/Seo'
+import { useEffect, useState } from 'react'
+import { useAuth } from '@clerk/clerk-react'
 
 export default function AdminOverview() {
   const { user } = useUser()
   const [isAdmin, setIsAdmin] = React.useState(false)
   const [loading, setLoading] = React.useState(true)
+  const { getToken } = useAuth()
+  const [settings, setSettings] = useState(null)
+  const [saving, setSaving] = useState(false)
 
   React.useEffect(() => {
     const checkAdminStatus = () => {
@@ -21,6 +26,31 @@ export default function AdminOverview() {
     }
     checkAdminStatus()
   }, [user])
+
+  useEffect(() => {
+    (async ()=>{
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/admin/settings', { headers: token?{ Authorization:`Bearer ${token}` }:{} })
+        if (res.ok) setSettings(await res.json())
+      } catch {}
+    })()
+  }, [getToken])
+
+  async function save() {
+    try {
+      setSaving(true)
+      const token = await getToken()
+      await fetch('/api/admin/settings', { method:'PUT', headers: { 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, body: JSON.stringify({
+        pricing: settings?.pricing,
+        factory: settings?.factory,
+      }) })
+    } catch {} finally { setSaving(false) }
+  }
+
+  function setPricingField(key, val) {
+    setSettings(s => ({ ...s, pricing: { ...(s?.pricing||{}), [key]: val } }))
+  }
 
   if (loading) {
     return (
@@ -46,6 +76,8 @@ export default function AdminOverview() {
       </div>
     )
   }
+
+  if (!settings) return <div className="text-gray-400">Loading settings…</div>
 
   const adminFeatures = [
     {
@@ -276,6 +308,31 @@ export default function AdminOverview() {
               >
                 Start with Dashboard →
               </Link>
+            </div>
+          </div>
+
+          {/* Pricing & Fees */}
+          <div className="card mt-6">
+            <h2 className="text-lg font-semibold text-gray-100">Pricing & Fees</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+              <label className="text-sm text-gray-300">Delivery rate per mile (USD)
+                <input className="input-field" type="number" step="0.01" value={settings?.pricing?.delivery_rate_per_mile||''} onChange={e=>setPricingField('delivery_rate_per_mile', Number(e.target.value))} />
+              </label>
+              <label className="text-sm text-gray-300">Delivery minimum (USD)
+                <input className="input-field" type="number" step="1" value={settings?.pricing?.delivery_minimum||''} onChange={e=>setPricingField('delivery_minimum', Number(e.target.value))} />
+              </label>
+              <label className="text-sm text-gray-300">Title fee (USD)
+                <input className="input-field" type="number" step="1" value={settings?.pricing?.title_fee_default||''} onChange={e=>setPricingField('title_fee_default', Number(e.target.value))} />
+              </label>
+              <label className="text-sm text-gray-300">Setup fee (USD)
+                <input className="input-field" type="number" step="1" value={settings?.pricing?.setup_fee_default||''} onChange={e=>setPricingField('setup_fee_default', Number(e.target.value))} />
+              </label>
+              <label className="text-sm text-gray-300 md:col-span-2">Factory address (origin)
+                <input className="input-field" type="text" value={settings?.factory?.address||''} onChange={e=>setSettings(s => ({ ...s, factory: { ...(s?.factory||{}), address: e.target.value } }))} />
+              </label>
+            </div>
+            <div className="mt-4">
+              <button className="btn-primary" disabled={saving} onClick={save}>{saving?'Saving…':'Save Settings'}</button>
             </div>
           </div>
         </div>

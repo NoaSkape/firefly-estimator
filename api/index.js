@@ -8,10 +8,14 @@ import { getDb } from '../lib/db.js'
 import { requireAuth } from '../lib/auth.js'
 import { applyCors } from '../lib/cors.js'
 import { findModelById, ensureModelIndexes, findOrCreateModel, COLLECTION } from '../lib/model-utils.js'
-import { ensureOrderIndexes, createOrderDraft, getOrderById, updateOrder, listOrdersForUser, listOrdersAdmin } from '../lib/orders.js'
+import { ensureOrderIndexes, createOrderDraft, getOrderById, updateOrder, listOrdersForUser, listOrdersAdmin, ORDERS_COLLECTION, setOrderPricingSnapshot, setOrderDelivery } from '../lib/orders.js'
 import { ensureBuildIndexes, createBuild, getBuildById, listBuildsForUser, updateBuild, duplicateBuild, deleteBuild, renameBuild } from '../lib/builds.js'
+// ensure mongodb import is only used where needed to avoid bundling issues
 import { ensureIdempotencyIndexes, withIdempotency } from '../lib/idempotency.js'
 import { quoteDelivery } from '../lib/delivery.js'
+import { getOrgSettings, updateOrgSettings } from '../lib/settings.js'
+import { getDeliveryQuote, roundToCents } from '../lib/delivery-quote.js'
+import { createSubmission, downloadFile, uploadPdfToCloudinary, signedCloudinaryUrl } from '../lib/docuseal.js'
 import { z } from 'zod'
 // import { Webhook } from 'svix' // Temporarily disabled - causing deployment crashes
 
@@ -28,6 +32,126 @@ export const stripe = new Stripe(stripeSecret)
 
 const getOrigin = (req) => {
   return req.headers.origin || process.env.APP_URL || 'http://localhost:5173'
+}
+
+function buildPrefillFromOrder(o, settings) {
+  const buyer = o?.buyer || {}
+  const snap = o?.pricingSnapshot || {}
+  const rate = Number(snap.delivery_rate_per_mile || settings?.pricing?.delivery_rate_per_mile || 0)
+  const minimum = Number(snap.delivery_minimum || settings?.pricing?.delivery_minimum || 0)
+  const titleFee = Number(snap.title_fee || settings?.pricing?.title_fee_default || 0)
+  const setupFee = Number(snap.setup_fee || settings?.pricing?.setup_fee_default || 0)
+  const taxRatePct = Number(snap.tax_rate_percent || settings?.pricing?.tax_rate_percent || 0)
+  const depositPct = Number(snap.deposit_percent || settings?.pricing?.deposit_percent || 0)
+
+  const basePrice = Number(o?.pricing?.base || 0)
+  const optionsSubtotal = Number(o?.pricing?.options || 0)
+  const deliveryFee = Number(o?.delivery?.fee || 0)
+  const taxableSubtotal = basePrice + optionsSubtotal + deliveryFee + titleFee + setupFee
+  const salesTax = roundToCents(taxableSubtotal * (taxRatePct / 100))
+  const totalPurchasePrice = roundToCents(taxableSubtotal + salesTax)
+  const depositDue = roundToCents(totalPurchasePrice * (depositPct / 100))
+  const finalPayment = roundToCents(totalPurchasePrice - depositDue)
+
+  // Options arrays
+  const opts = Array.isArray(o?.selections) ? o.selections : []
+  const option_category = opts.map(_ => 'Options')
+  const option_description = opts.map(x => x.label || x.name || '')
+  const option_variant = opts.map(_ => '')
+  const option_quantity = opts.map(x => Number(x.quantity || 1))
+  const option_unit_price = opts.map(x => roundToCents(x.priceDelta || x.price || 0))
+  const option_line_total = option_unit_price.map((p, i) => roundToCents(p * option_quantity[i]))
+
+  return {
+    order_number: o.orderId || String(o?._id || ''),
+    order_date: new Date(o?.createdAt || Date.now()).toISOString().slice(0, 10),
+    buyer1_full_name: [buyer.firstName, buyer.lastName].filter(Boolean).join(' ').trim(),
+    buyer1_email: buyer.email || '',
+    buyer1_phone: buyer.phone || '',
+    buyer1_mailing_address: [buyer.address, buyer.city, buyer.state, buyer.zip].filter(Boolean).join(', '),
+    buyer2_full_name: buyer?.coBuyer?.fullName || '',
+    buyer2_email: buyer?.coBuyer?.email || '',
+    buyer2_phone: buyer?.coBuyer?.phone || '',
+    buyer2_mailing_address: buyer?.coBuyer?.address || '',
+    delivery_address: o?.delivery?.address || '',
+
+    brand: 'Firefly Tiny Homes',
+    model_no: o?.model?.slug || o?.model?.modelCode || '',
+    model_year: String(new Date().getFullYear()),
+    model_size: o?.model?.size || '',
+    base_home: basePrice,
+    unit_serial: o?.unit_serial || '',
+
+    option_category,
+    option_description,
+    option_variant,
+    option_quantity,
+    option_unit_price,
+    option_line_total,
+
+    base_price: basePrice,
+    options_subtotal: optionsSubtotal,
+    delivery_fee: deliveryFee,
+    title_fee: titleFee,
+    setup_fee: setupFee,
+    tax_rate: taxRatePct,
+    sales_tax: salesTax,
+    total_purchase_price: totalPurchasePrice,
+    deposit_percent: depositPct,
+    deposit_due_amount: depositDue,
+    final_payment_total: finalPayment,
+
+    delivery_miles: Number(o?.delivery?.miles || 0),
+    delivery_rate_per_mile: rate,
+    delivery_minimum: minimum,
+  }
+}
+
+async function startContractFlow(orderId, req) {
+  await ensureOrderIndexes()
+  const order = await getOrderById(orderId)
+  if (!order) throw new Error('order_not_found')
+  const settings = await getOrgSettings()
+  // Ensure snapshot
+  if (!order.pricingSnapshot) {
+    const snap = {
+      delivery_rate_per_mile: Number(settings?.pricing?.delivery_rate_per_mile || 0),
+      delivery_minimum: Number(settings?.pricing?.delivery_minimum || 0),
+      title_fee: Number(settings?.pricing?.title_fee_default || 0),
+      setup_fee: Number(settings?.pricing?.setup_fee_default || 0),
+      tax_rate_percent: Number(settings?.pricing?.tax_rate_percent || 0),
+      deposit_percent: Number(settings?.pricing?.deposit_percent || 0),
+    }
+    await setOrderPricingSnapshot(orderId, snap)
+  }
+  const fresh = await getOrderById(orderId)
+  if (!fresh?.delivery?.miles || !fresh?.delivery?.fee) {
+    const addr = fresh?.delivery?.address
+    if (addr) {
+      const dq = await getDeliveryQuote(addr, settings)
+      await setOrderDelivery(orderId, { address: dq.destinationAddress, miles: dq.miles, fee: dq.fee })
+    }
+  }
+  const o = await getOrderById(orderId)
+  const templateId = Number(process.env.DOCUSEAL_PURCHASE_TEMPLATE_ID || o?.contract?.templateId || 0)
+  if (!templateId) throw new Error('missing_template')
+  const prefill = buildPrefillFromOrder(o, settings)
+  const redirectBase = getOrigin(req)
+  const redirectCompleted = `${redirectBase}/checkout/${encodeURIComponent(String(o._id))}/confirm`
+  const redirectCancel = `${redirectBase}/checkout/${encodeURIComponent(String(o._id))}/review`
+  const { submissionId, signerUrl, raw } = await createSubmission({ templateId, prefill, sendEmail: false, order: 'preserved', completedRedirectUrl: redirectCompleted, cancelRedirectUrl: redirectCancel })
+  const buyerUrl = signerUrl
+  await updateOrder(orderId, {
+    contract: {
+      templateId,
+      submissionId,
+      status: 'OUT_FOR_SIGNATURE',
+      signerLinks: { buyer1: buyerUrl },
+      versions: Array.isArray(o?.contract?.versions) ? o.contract.versions : [{ type: 'base', total: prefill.total_purchase_price, signedAt: null }],
+      events: [{ type: 'sent', at: new Date().toISOString() }],
+    }
+  })
+  return { submissionId, signerUrl: buyerUrl, order: o, raw }
 }
 
 async function createCheckoutSession(req, res) {
@@ -134,6 +258,22 @@ app.get(['/api/delivery/quote', '/delivery/quote'], async (req, res) => {
   return res.status(200).json(q)
 })
 
+// ===== Contracts status proxy for portal card (signed download URL short link)
+app.get(['/api/contracts/:orderId/download', '/contracts/:orderId/download'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  const o = await getOrderById(req.params.orderId)
+  if (!o) return res.status(404).json({ error: 'not_found' })
+  if (o.userId !== auth.userId) {
+    const admin = await requireAuth(req, res, true)
+    if (!admin?.userId) return
+  }
+  const pubId = o?.contract?.signedPdfPublicId
+  if (!pubId) return res.status(404).json({ error: 'no_signed_pdf' })
+  const url = signedCloudinaryUrl(pubId)
+  return res.redirect(302, url)
+})
+
 // ----- Orders -----
 const OrderDraftSchema = z.object({
   model: z.object({ modelCode: z.string(), slug: z.string(), name: z.string(), basePrice: z.number() }),
@@ -200,6 +340,26 @@ app.get(['/api/admin/orders', '/admin/orders'], async (req, res) => {
   return res.status(200).json(list)
 })
 
+// ===== Admin Settings (Pricing & Fees) =====
+app.get(['/api/admin/settings', '/admin/settings'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  const s = await getOrgSettings()
+  return res.status(200).json(s)
+})
+
+app.put(['/api/admin/settings', '/admin/settings'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  try {
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+    const updated = await updateOrgSettings(body, auth.userId)
+    return res.status(200).json(updated)
+  } catch (err) {
+    return res.status(400).json({ error: 'invalid_settings', message: String(err?.message || err) })
+  }
+})
+
 // ----- Stripe Checkout (test item) -----
 app.post(['/api/checkout/create-checkout-session', '/checkout/create-checkout-session'], createCheckoutSession)
 
@@ -254,6 +414,140 @@ app.post(['/api/esign/webhook', '/esign/webhook'], async (req, res) => {
     return res.status(200).json({ ok: true })
   } catch (err) {
     console.error('esign webhook error', err)
+    return res.status(200).json({ ok: true })
+  }
+})
+
+// ===== Contracts (DocuSeal) =====
+app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  try {
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+    const { orderId } = body
+    if (!orderId) return res.status(400).json({ error: 'missing_orderId' })
+
+    await ensureOrderIndexes()
+    const order = await getOrderById(orderId)
+    if (!order) return res.status(404).json({ error: 'order_not_found' })
+    const isOwner = order.userId && auth.userId === order.userId
+    if (!isOwner) {
+      const admin = await requireAuth(req, res, true)
+      if (!admin?.userId) return
+    }
+
+    // Reuse existing submission if not completed
+    if (order?.contract?.submissionId && order?.contract?.status !== 'COMPLETED') {
+      return res.status(200).json({ signerUrl: order?.contract?.signerLinks?.buyer1, submissionId: order.contract.submissionId })
+    }
+
+    const { signerUrl, submissionId, raw } = await startContractFlow(orderId, req)
+    return res.status(200).json({ signerUrl, submissionId, raw })
+  } catch (err) {
+    console.error('contracts/create error', err)
+    return res.status(500).json({ error: 'contracts_create_failed', message: String(err?.message || err) })
+  }
+})
+
+app.get(['/api/contracts/status', '/contracts/status'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  const orderId = String(req.query?.orderId || '')
+  if (!orderId) return res.status(400).json({ error: 'missing_orderId' })
+  const o = await getOrderById(orderId)
+  if (!o) return res.status(404).json({ error: 'not_found' })
+  if (o.userId !== auth.userId) {
+    const admin = await requireAuth(req, res, true)
+    if (!admin?.userId) return
+  }
+  const { status, signedPdfUrl, auditTrailUrl } = o.contract || {}
+  return res.status(200).json({ status, signedPdfUrl, auditTrailUrl })
+})
+
+app.get(['/api/contracts/download-signed', '/contracts/download-signed'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  const orderId = String(req.query?.orderId || '')
+  if (!orderId) return res.status(400).json({ error: 'missing_orderId' })
+  const o = await getOrderById(orderId)
+  if (!o) return res.status(404).json({ error: 'not_found' })
+  if (o.userId !== auth.userId) {
+    const admin = await requireAuth(req, res, true)
+    if (!admin?.userId) return
+  }
+  const pubId = o?.contract?.signedPdfPublicId
+  if (!pubId) return res.status(404).json({ error: 'no_signed_pdf' })
+  const url = signedCloudinaryUrl(pubId)
+  return res.status(200).json({ url })
+})
+
+app.post(['/api/contracts/change-order', '/contracts/change-order'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  // Minimal stub – compute delta using pricingSnapshot and create a new submission
+  try {
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+    const { orderId, deltaTotal = 0 } = body
+    if (!orderId) return res.status(400).json({ error: 'missing_orderId' })
+    const o = await getOrderById(orderId)
+    if (!o) return res.status(404).json({ error: 'not_found' })
+    if (o.userId !== auth.userId) {
+      const admin = await requireAuth(req, res, true)
+      if (!admin?.userId) return
+    }
+    const settings = await getOrgSettings()
+    const templateId = Number(process.env.DOCUSEAL_ADDENDUM_TEMPLATE_ID || 0)
+    if (!templateId) return res.status(500).json({ error: 'missing_template' })
+    const prefill = { order_number: o.orderId || String(o._id), addendum_delta: roundToCents(deltaTotal) }
+    const { submissionId, signerUrl } = await createSubmission({ templateId, prefill, sendEmail: false, order: 'preserved', completedRedirectUrl: `${getOrigin(req)}/portal`, cancelRedirectUrl: `${getOrigin(req)}/portal` })
+    const code = `CO-${String((o?.contract?.versions||[]).filter(v=>v.type==='addendum').length+1).padStart(3,'0')}`
+    await updateOrder(orderId, { contract: { ...(o.contract||{}), status: 'OUT_FOR_SIGNATURE', submissionId, signerLinks: { buyer1: signerUrl }, versions: [ ...(o.contract?.versions||[]), { type: 'addendum', code, delta: roundToCents(deltaTotal), signedAt: null } ] } })
+    return res.status(200).json({ signerUrl, submissionId, code })
+  } catch (err) {
+    console.error('change-order error', err)
+    return res.status(500).json({ error: 'change_order_failed', message: String(err?.message || err) })
+  }
+})
+
+app.post(['/api/webhooks/docuseal', '/webhooks/docuseal'], async (req, res) => {
+  try {
+    const secret = process.env.DOCUSEAL_WEBHOOK_SECRET || ''
+    const header = req.headers['x-docuseal-signature'] || req.headers['X-DocuSeal-Signature']
+    if (!secret || header !== secret) return res.status(401).json({ error: 'unauthorized' })
+
+    const db = await getDb()
+    const col = db.collection(ORDERS_COLLECTION)
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+    const type = body?.event || body?.type || ''
+    const submissionId = body?.submission_id || body?.submission?.id || body?.data?.submission_id
+    if (!submissionId) return res.status(200).json({ ok: true })
+
+    const order = await col.findOne({ 'contract.submissionId': submissionId })
+    if (!order) return res.status(200).json({ ok: true })
+
+    // Log event
+    await col.updateOne({ _id: order._id }, { $push: { 'contract.events': { type, at: new Date().toISOString(), raw: body } } })
+
+    if (type === 'form.completed' || type === 'completed') {
+      const fileUrl = body?.file_url || body?.document_url || body?.data?.files?.[0]?.download_url || body?.data?.document_url
+      const certUrl = body?.certificate_url || body?.data?.certificate_url || body?.audit_trail_url
+      let signedPdfPublicId = order?.contract?.signedPdfPublicId
+      let signedPdfUrl
+      if (fileUrl) {
+        try {
+          const buf = await downloadFile(fileUrl)
+          const up = await uploadPdfToCloudinary({ buffer: buf, folder: 'firefly-estimator/contracts', publicId: `order_${String(order._id)}_${Date.now()}` })
+          signedPdfPublicId = up.public_id
+          signedPdfUrl = signedCloudinaryUrl(signedPdfPublicId)
+        } catch (e) {
+          console.error('Upload signed PDF failed', e)
+        }
+      }
+      await col.updateOne({ _id: order._id }, { $set: { 'contract.status': 'COMPLETED', 'contract.auditTrailUrl': certUrl || order?.contract?.auditTrailUrl || null, 'contract.signedPdfPublicId': signedPdfPublicId, 'contract.signedPdfUrl': signedPdfUrl } })
+    }
+    return res.status(200).json({ ok: true })
+  } catch (err) {
+    console.error('docuseal webhook error', err)
     return res.status(200).json({ ok: true })
   }
 })
@@ -408,58 +702,46 @@ app.post(['/api/builds/:id/checkout-step', '/builds/:id/checkout-step'], async (
   return res.status(200).json(updated)
 })
 
-// Generate contract and return signing URL using Adobe Sign
+// Bridge: create order from build and start DocuSeal; returns signer url
 app.post(['/api/builds/:id/contract', '/builds/:id/contract'], async (req, res) => {
   const auth = await requireAuth(req, res, false)
   if (!auth?.userId) return
-  
+
   try {
     const b = await getBuildById(req.params.id)
     if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
-    
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { buyerInfo } = body
-    
-    if (!buyerInfo) {
-      return res.status(400).json({ error: 'missing_buyer_info', message: 'Buyer information is required' })
+
+    const db = await getDb()
+    const orders = db.collection(ORDERS_COLLECTION)
+
+    // Find existing order linked to build
+    let order = await orders.findOne({ userId: auth.userId, buildId: String(b._id) })
+    if (!order) {
+      // Create minimal order document from build
+      const now = new Date()
+      const doc = {
+        userId: auth.userId,
+        buildId: String(b._id),
+        status: 'draft',
+        model: { name: b.modelName, slug: b.modelSlug },
+        selections: Array.isArray(b?.selections?.options) ? b.selections.options.map(o=>({ key: o.id||o.key, label: o.name||o.label, priceDelta: Number(o.price||o.priceDelta||0), quantity: Number(o.quantity||1) })) : [],
+        pricing: b.pricing || {},
+        buyer: b.buyerInfo || {},
+        delivery: { address: b?.buyerInfo?.deliveryAddress || b?.buyerInfo?.address || '' },
+        timeline: [{ event: 'created_from_build', at: now }],
+        createdAt: now,
+        updatedAt: now,
+      }
+      const r = await orders.insertOne(doc)
+      order = { ...doc, _id: r.insertedId }
     }
 
-    // Import Adobe Sign integration
-    const { default: adobeSign } = await import('../src/utils/adobeSign.js')
-    
-    // Generate contract document
-    const documentId = await adobeSign.generateContract(b, buyerInfo)
-    
-    // Create signing agreement
-    const agreementId = await adobeSign.createSigningAgreement(b, buyerInfo, documentId)
-    
-    // Get signing URL
-    const signingUrl = await adobeSign.getSigningUrl(agreementId)
-    
-    // Update build with contract information
-    await updateBuild(req.params.id, { 
-      contract: { 
-        status: 'pending', 
-        agreementId,
-        documentId,
-        signingUrl,
-        createdAt: new Date()
-      },
-      step: 8
-    })
-    
-    return res.status(200).json({ 
-      signingUrl, 
-      agreementId,
-      status: 'pending'
-    })
-    
+    // Call unified contracts/create endpoint
+    req.body = JSON.stringify({ orderId: String(order._id) })
+    return app._router.handle(req, res, () => {})
   } catch (error) {
-    console.error('Contract generation error:', error)
-    return res.status(500).json({ 
-      error: 'contract_generation_failed', 
-      message: error.message || 'Failed to generate contract'
-    })
+    console.error('Build→contract error:', error)
+    return res.status(500).json({ error: 'contract_bridge_failed', message: error.message || 'Failed to start contract' })
   }
 })
 

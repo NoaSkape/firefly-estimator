@@ -28,6 +28,7 @@ export default function Review() {
       <Breadcrumbs items={[{ label: 'My Builds', to: '/builds' }, { label: 'Checkout', to: `/checkout/${buildId}/review` }, { label: 'Review & Sign' }]} />
       <CheckoutProgress step={4} getBlockReason={(n)=> n===5 ? 'Complete required items before confirming' : ''} onNavigate={async (n)=>{
         if (n<=3) navigate(`/checkout/${buildId}/${n===2?'payment':'buyer'}`)
+        if (n===4) navigate(`/checkout/${buildId}/agreement`)
         if (n===5) {
           try {
             const token = await getToken()
@@ -53,7 +54,7 @@ export default function Review() {
     <div>
       <CheckoutProgress step={4} />
       <div className="max-w-3xl mx-auto space-y-6">
-        <h1 className="section-header">Review & Sign</h1>
+        <h1 className="section-header">Review</h1>
         <div className="card">
           <h2 className="text-lg font-semibold text-gray-100">Order Summary</h2>
           <p className="text-sm text-gray-300">{build?.modelName} ({build?.modelSlug})</p>
@@ -74,20 +75,7 @@ export default function Review() {
           <p className="text-sm text-gray-300 mt-1">Payment Method: <span className="font-medium">{build?.financing?.method || '—'}</span></p>
         </div>
         <div className="flex gap-3">
-          <button
-            className="btn-primary"
-            onClick={async () => {
-              try {
-                const token = await getToken()
-                const res = await fetch(`/api/builds/${buildId}/contract`, { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {} })
-                const data = await res.json()
-                if (data?.signingUrl) { trackEvent('contract_started', { buildId }); window.location.assign(data.signingUrl) }
-                else addToast({ type:'error', message:'Could not start signing' })
-              } catch (e) { addToast({ type:'error', message:'Could not start signing' }) }
-            }}
-          >
-            Sign & Submit
-          </button>
+          <button className="btn-primary" onClick={()=> navigate(`/checkout/${buildId}/agreement`)}>Agreement & Signature</button>
           <button
             className="px-4 py-2 rounded border border-gray-700 text-white"
             onClick={async ()=>{
