@@ -249,7 +249,7 @@ export default function PublicModelDetail() {
       <SEOHead title={model ? `${model.name} - Firefly Tiny Homes` : 'Model Not Found - Firefly Tiny Homes'} description={model ? `${model.name} - ${model.description || 'Explore this beautiful tiny home model from Firefly Tiny Homes.'}` : 'The model you\'re looking for doesn\'t exist.'} model={model} />
 
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mobile-content-spacing">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Admin Edit Button */}
         {isAdmin && (
           <div className="flex justify-end mb-6">

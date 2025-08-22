@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense, lazy } from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 
 // Lazy load all page components for better performance
 const QuoteBuilder = lazy(() => import('./pages/QuoteBuilder'))
@@ -63,6 +63,23 @@ import './utils/accessibility' // Initialize accessibility features
 function ScrollToTop() {
   useScrollToTop()
   return null
+}
+
+// Component that determines mobile spacing based on route
+function MobileSpacingWrapper({ children }) {
+  const location = useLocation()
+  const isHomePage = location.pathname === '/'
+  
+  // Apply mobile-content-spacing to all pages except homepage
+  const mainClassName = isHomePage 
+    ? "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-8"
+    : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-8 mobile-content-spacing"
+  
+  return (
+    <main id="main-content" className={mainClassName}>
+      {children}
+    </main>
+  )
 }
 
 function App() {
@@ -220,11 +237,11 @@ function App() {
               <MobileNavigation />
             </div>
 
-            <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-8">
-                  <ResumeBanner />
-                  <OfflineIndicator />
-                  <Suspense fallback={<PageLoadingSpinner />}>
-                    <Routes>
+            <MobileSpacingWrapper>
+              <ResumeBanner />
+              <OfflineIndicator />
+              <Suspense fallback={<PageLoadingSpinner />}>
+                <Routes>
               <Route 
                 path="/" 
                 element={<Home />} 
@@ -343,7 +360,7 @@ function App() {
               <Route path="/faq" element={<FAQPage />} />
                                 </Routes>
                   </Suspense>
-                </main>
+                </MobileSpacingWrapper>
           <Footer />
                   </div>
         </Router>
