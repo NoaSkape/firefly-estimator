@@ -16,7 +16,7 @@ export default function SignInPage() {
         <meta name="description" content="Sign in to your Firefly Tiny Homes account to access your saved customizations and continue your home building journey." />
       </Helmet>
       
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 pt-20 md:pt-4">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center">
             <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden">
@@ -35,16 +35,15 @@ export default function SignInPage() {
               appearance={{
                 elements: {
                   formButtonPrimary: 'btn-primary w-full',
-                  card: 'bg-white shadow-lg rounded-lg w-full max-w-full overflow-hidden',
-                  headerTitle: 'text-xl font-semibold text-gray-900 text-center mt-6',
-                  headerSubtitle: 'text-gray-600 text-center mt-2',
+                  card: 'bg-white shadow-lg rounded-lg p-6 w-full max-w-full overflow-hidden',
+                  headerTitle: 'text-xl font-semibold text-gray-900 text-center',
+                  headerSubtitle: 'text-gray-600 text-center',
                   socialButtonsBlockButton: 'btn-secondary w-full',
                   formFieldInput: 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-gray-900',
                   formFieldLabel: 'block text-sm font-medium text-gray-700 mb-1',
                   footerActionLink: 'text-yellow-600 hover:text-yellow-500',
                   dividerLine: 'bg-gray-300',
-                  dividerText: 'text-gray-500 bg-white px-2 text-center',
-                  form: 'px-6 pb-6'
+                  dividerText: 'text-gray-500 bg-white px-2 text-center'
                 }
               }}
               signUpUrl="/sign-up"
