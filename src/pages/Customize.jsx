@@ -447,8 +447,14 @@ const Customize = () => {
       hasBuildDeliveryCost: currentBuild?.pricing?.delivery !== undefined && currentBuild?.pricing?.delivery !== null
     })
     
-    // Only calculate if signed in, customization is loaded, deliveryCost is null, AND we don't have delivery cost from build
+    // If we have a build with delivery cost and our local deliveryCost is null, use the build's delivery cost
     if (isSignedIn && customizationLoaded && deliveryCost === null && 
+        currentBuild?.pricing?.delivery !== undefined && currentBuild?.pricing?.delivery !== null) {
+      console.log('Setting delivery cost from build:', currentBuild.pricing.delivery)
+      setDeliveryCost(roundToCents(currentBuild.pricing.delivery))
+    }
+    // Only calculate if signed in, customization is loaded, deliveryCost is null, AND we don't have delivery cost from build
+    else if (isSignedIn && customizationLoaded && deliveryCost === null && 
         (currentBuild?.pricing?.delivery === undefined || currentBuild?.pricing?.delivery === null)) {
       console.log('Triggering delivery cost calculation')
       calculateDeliveryCost()
