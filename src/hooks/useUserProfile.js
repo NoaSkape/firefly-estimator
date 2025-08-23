@@ -21,22 +21,16 @@ export function useUserProfile() {
       setLoading(true)
       setError(null)
       
-      console.log('Fetching user profile...')
       const token = await getToken()
       const headers = token ? { Authorization: `Bearer ${token}` } : {}
       
       const response = await fetch('/api/profile', { headers })
-      console.log('Profile API response status:', response.status)
       
       if (!response.ok) throw new Error('Failed to fetch profile')
       
       const profileData = await response.json()
-      console.log('Profile data received:', profileData)
-      console.log('Profile addresses:', profileData.addresses)
-      console.log('Profile basic info:', profileData.basicInfo)
       setProfile(profileData)
       setAddresses(profileData.addresses || [])
-      console.log('Addresses set:', profileData.addresses || [])
       
     } catch (err) {
       setError(err.message)
@@ -229,12 +223,9 @@ export function useUserProfile() {
 
   // Load profile on sign in
   useEffect(() => {
-    console.log('useUserProfile useEffect triggered:', { isSignedIn })
     if (isSignedIn) {
-      console.log('User is signed in, fetching profile...')
       fetchProfile()
     } else {
-      console.log('User is not signed in, clearing profile data')
       setProfile(null)
       setAddresses([])
       setError(null)

@@ -127,12 +127,14 @@ const Customize = () => {
           setSelectedOptions(options)
           setSelectedPackage(selectedPackage)
           
-          // Initialize delivery cost from loaded build if available
-          if (latestBuild.pricing?.delivery !== undefined && latestBuild.pricing.delivery !== null) {
+          // Initialize delivery cost from loaded build if available AND user has addresses
+          // Only use saved delivery cost if user has addresses to calculate from
+          if (latestBuild.pricing?.delivery !== undefined && latestBuild.pricing.delivery !== null && addresses && addresses.length > 0) {
             setDeliveryCost(roundToCents(latestBuild.pricing.delivery))
             console.log('Initialized delivery cost from loaded build:', latestBuild.pricing.delivery)
           } else {
-            console.log('No delivery cost found in loaded build')
+            console.log('No delivery cost found in loaded build or no addresses available')
+            setDeliveryCost(null) // Reset to null when no addresses available
           }
           
           addToast({
