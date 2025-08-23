@@ -6,7 +6,13 @@
 // Map step names to their corresponding routes
 const STEP_ROUTES = {
   'Choose Your Home': (buildId, build = null) => `/models`,
-  'Customize!': (buildId, build = null) => `/customize/${build?.modelSlug || 'magnolia'}`,
+  'Customize!': (buildId, build = null) => {
+    // If we have a build ID and it's part of a checkout flow, include it as a query parameter
+    if (buildId && buildId !== 'magnolia') {
+      return `/customize/${build?.modelSlug || 'magnolia'}?buildId=${buildId}`
+    }
+    return `/customize/${build?.modelSlug || 'magnolia'}`
+  },
   'Sign In': (buildId, build = null) => `/sign-in?redirect=${encodeURIComponent(`/checkout/${buildId}/buyer`)}`,
   'Delivery Address': (buildId, build = null) => `/checkout/${buildId}/buyer`,
   'Overview': (buildId, build = null) => `/checkout/${buildId}/review`,
