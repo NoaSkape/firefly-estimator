@@ -274,8 +274,16 @@ app.post(['/api/delivery/quote', '/delivery/quote'], async (req, res) => {
   if (!zip) return res.status(400).json({ error: 'missing_zip' })
   
   try {
-    const q = quoteDelivery(String(zip))
-    return res.status(200).json(q)
+    // Build full address string
+    const fullAddress = [address, city, state, zip].filter(Boolean).join(', ')
+    
+    // Get settings for delivery calculation
+    const settings = await getOrgSettings()
+    
+    // Use the proper delivery quote function
+    const result = await getDeliveryQuote(fullAddress, settings)
+    
+    return res.status(200).json(result)
   } catch (error) {
     console.error('Delivery quote error:', error)
     return res.status(500).json({ error: 'delivery_calculation_failed' })

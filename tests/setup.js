@@ -2,7 +2,7 @@
 import { vi } from 'vitest'
 
 // Mock environment variables for tests
-process.env.SALES_TAX_RATE = '0.0825'
+process.env.SALES_TAX_RATE = '0.0625'
 process.env.MONGODB_URI = 'mongodb://localhost:27017/test'
 process.env.CLERK_SECRET_KEY = 'test_secret_key'
 process.env.STRIPE_SECRET_KEY = 'sk_test_test'

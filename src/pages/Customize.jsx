@@ -36,7 +36,7 @@ const Customize = () => {
   const [selectedPackage, setSelectedPackage] = useState('')
   const [saving, setSaving] = useState(false)
   const [customizationLoaded, setCustomizationLoaded] = useState(false)
-  const [deliveryCost, setDeliveryCost] = useState(0)
+  const [deliveryCost, setDeliveryCost] = useState(null) // null = not calculated, 0 = calculated as 0, number = actual cost
   const [deliveryLoading, setDeliveryLoading] = useState(false)
 
   // Determine the actual model code from URL parameters
@@ -198,7 +198,7 @@ const Customize = () => {
       
       if (!primaryAddress) {
         console.log('No primary address found for delivery calculation')
-        setDeliveryCost(0)
+        setDeliveryCost(null) // Set to null when no address available
         return
       }
 
@@ -223,11 +223,11 @@ const Customize = () => {
         console.log('Delivery cost calculated:', deliveryData.fee)
       } else {
         console.error('Failed to calculate delivery cost')
-        setDeliveryCost(0)
+        setDeliveryCost(null) // Set to null on error
       }
     } catch (error) {
       console.error('Error calculating delivery cost:', error)
-      setDeliveryCost(0)
+      setDeliveryCost(null) // Set to null on error
     } finally {
       setDeliveryLoading(false)
     }
@@ -238,7 +238,7 @@ const Customize = () => {
     if (isSignedIn && addresses && addresses.length > 0) {
       calculateDeliveryCost()
     } else if (!isSignedIn) {
-      setDeliveryCost(0)
+      setDeliveryCost(null) // Reset to null when not signed in
     }
   }, [isSignedIn, addresses]) // Trigger when addresses become available
 
@@ -314,10 +314,10 @@ const Customize = () => {
     const subtotal = base + optionsTotal + pkgDelta
     
     // Delivery cost (will be calculated based on address for signed-in users)
-    const delivery = isSignedIn ? deliveryCost : 0
+    const delivery = isSignedIn && deliveryCost !== null ? deliveryCost : 0
     
-    // Calculate taxes (8.25% for Texas)
-    const taxRate = 0.0825
+    // Calculate taxes (6.25% for Texas)
+    const taxRate = 0.0625
     const taxableAmount = subtotal + delivery
     const taxes = taxableAmount * taxRate
     
@@ -616,6 +616,8 @@ const Customize = () => {
                   {isSignedIn ? (
                     deliveryLoading ? (
                       <span className="text-sm text-gray-500">Calculating...</span>
+                    ) : deliveryCost === null ? (
+                      <span className="text-sm text-gray-500">N/A</span>
                     ) : (
                       <span className="font-medium">${deliveryCost.toLocaleString()}</span>
                     )
@@ -635,7 +637,7 @@ const Customize = () => {
                 
                 {/* Taxes */}
                 <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Taxes (8.25%)</span>
+                  <span className="text-gray-600 dark:text-gray-400">Taxes (6.25%)</span>
                   <span className="font-medium">${pricing.taxes.toLocaleString()}</span>
                 </div>
                 

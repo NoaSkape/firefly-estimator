@@ -18,10 +18,10 @@ describe('Builds', () => {
     const result = repriceBuild(build)
     
     expect(result.pricing.subtotal).toBe(58000)
-    expect(result.pricing.tax).toBe(58000 * 0.0825) // 8.25% tax
+    expect(result.pricing.tax).toBe(58000 * 0.0625) // 6.25% tax
     expect(result.pricing.delivery).toBe(1500)
     expect(result.pricing.setup).toBe(500)
-    expect(result.pricing.total).toBe(58000 + (58000 * 0.0825) + 1500 + 500)
+    expect(result.pricing.total).toBe(58000 + (58000 * 0.0625) + 1500 + 500)
   })
 
   test('PATCH build validates required fields', () => {

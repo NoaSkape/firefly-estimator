@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { reprice } from '../lib/builds.js'
 
 // Mock environment variables
-process.env.SALES_TAX_RATE = '0.0825'
+process.env.SALES_TAX_RATE = '0.0625'
 
 describe('Builds - Pricing Function', () => {
   describe('reprice()', () => {
@@ -24,10 +24,10 @@ describe('Builds - Pricing Function', () => {
         base: 71475,
         options: 0,
         subtotal: 73475, // 71475 + 1500 + 500
-        tax: 6062, // 73475 * 0.0825 rounded
+        tax: 4592, // 73475 * 0.0625 rounded
         delivery: 1500,
         setup: 500,
-        total: 79537 // 73475 + 6062
+        total: 78067 // 73475 + 4592
       })
     })
 
@@ -51,8 +51,8 @@ describe('Builds - Pricing Function', () => {
       expect(result.base).toBe(71475)
       expect(result.options).toBe(5300) // 3500 + (900 * 2)
       expect(result.subtotal).toBe(77775) // 71475 + 5300 + 1500 + 500
-      expect(result.tax).toBe(6416) // 77775 * 0.0825 rounded
-      expect(result.total).toBe(84191) // 77775 + 6416
+      expect(result.tax).toBe(4861) // 77775 * 0.0625 rounded
+      expect(result.total).toBe(82636) // 77775 + 4861
     })
 
     it('should handle missing base price', () => {
@@ -181,8 +181,8 @@ describe('Builds - Edge Cases', () => {
     expect(result.base).toBe(999999)
     expect(result.options).toBe(500000) // 50000 * 10
     expect(result.subtotal).toBe(1507499) // 999999 + 500000 + 5000 + 2500
-    expect(result.tax).toBe(124369) // 1507499 * 0.0825 rounded
-    expect(result.total).toBe(1631868) // 1507499 + 124369
+    expect(result.tax).toBe(94219) // 1507499 * 0.0625 rounded
+    expect(result.total).toBe(1601718) // 1507499 + 94219
   })
 
   it('should handle decimal prices correctly', () => {
@@ -202,8 +202,8 @@ describe('Builds - Edge Cases', () => {
     expect(result.base).toBe(71475.50)
     expect(result.options).toBe(3500.25)
     expect(result.subtotal).toBe(76975.75) // 71475.50 + 3500.25 + 1500 + 500
-    expect(result.tax).toBe(6350) // 76975.75 * 0.0825 rounded
-    expect(result.total).toBe(83325.75) // 76975.75 + 6350
+    expect(result.tax).toBe(4811) // 76975.75 * 0.0625 rounded
+    expect(result.total).toBe(81786.75) // 76975.75 + 4811
   })
 })
 
@@ -232,7 +232,7 @@ describe('Builds - Tax Rate Variations', () => {
     process.env.SALES_TAX_RATE = originalTaxRate
   })
 
-  it('should default to 8.25% when no tax rate is set', () => {
+  it('should default to 6.25% when no tax rate is set', () => {
     // Temporarily remove tax rate
     const originalTaxRate = process.env.SALES_TAX_RATE
     delete process.env.SALES_TAX_RATE
@@ -250,7 +250,7 @@ describe('Builds - Tax Rate Variations', () => {
     
     const result = reprice(buildLike)
     
-    expect(result.tax).toBe(6062) // 73475 * 0.0825 rounded
+    expect(result.tax).toBe(4592) // 73475 * 0.0625 rounded
     
     // Restore original tax rate
     process.env.SALES_TAX_RATE = originalTaxRate

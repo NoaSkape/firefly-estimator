@@ -16,7 +16,7 @@ const QuoteBuilder = () => {
   const [clientInfo, setClientInfo] = useState({})
   const [deliveryFee, setDeliveryFee] = useState(0)
   const [searchParams] = useSearchParams()
-  const taxRate = parseFloat(import.meta.env.VITE_TAX_RATE) || 0.08 // Default 8% tax rate
+  const taxRate = parseFloat(import.meta.env.VITE_TAX_RATE) || 0.0625 // Default 6.25% tax rate
 
   // Load latest model data from API and merge over local definitions
   useEffect(() => {
