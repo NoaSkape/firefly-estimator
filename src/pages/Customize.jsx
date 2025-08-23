@@ -207,14 +207,14 @@ const Customize = () => {
           setSelectedOptions(options)
           setSelectedPackage(selectedPackage)
           
-          // Initialize delivery cost from loaded build if available
-          if (latestBuild.pricing?.delivery !== undefined && latestBuild.pricing.delivery !== null) {
-            setDeliveryCost(roundToCents(latestBuild.pricing.delivery))
-            console.log('Initialized delivery cost from loaded build:', latestBuild.pricing.delivery)
-          } else {
-            console.log('No valid delivery cost found in loaded build, will calculate fresh')
-            setDeliveryCost(null) // Reset to null to trigger fresh calculation
-          }
+                     // Initialize delivery cost from loaded build if available
+           if (latestBuild.pricing?.delivery !== undefined && latestBuild.pricing.delivery !== null) {
+             setDeliveryCost(roundToCents(latestBuild.pricing.delivery))
+             console.log('Initialized delivery cost from loaded build:', latestBuild.pricing.delivery)
+           } else {
+             console.log('No valid delivery cost found in loaded build, keeping current delivery cost')
+             // Don't reset deliveryCost to null if we already have a value
+           }
           
           addToast({
             type: 'info',
@@ -362,17 +362,19 @@ const Customize = () => {
     console.log('Delivery cost useEffect triggered:', {
       isSignedIn,
       deliveryCost,
-      customizationLoaded
+      customizationLoaded,
+      hasBuildDeliveryCost: currentBuild?.pricing?.delivery !== undefined && currentBuild?.pricing?.delivery !== null
     })
     
-    // Only calculate if signed in, customization is loaded, and deliveryCost is null
-    if (isSignedIn && customizationLoaded && deliveryCost === null) {
+    // Only calculate if signed in, customization is loaded, deliveryCost is null, AND we don't have delivery cost from build
+    if (isSignedIn && customizationLoaded && deliveryCost === null && 
+        (currentBuild?.pricing?.delivery === undefined || currentBuild?.pricing?.delivery === null)) {
       console.log('Triggering delivery cost calculation')
       calculateDeliveryCost()
     } else if (!isSignedIn) {
       setDeliveryCost(null) // Reset to null when not signed in
     }
-  }, [isSignedIn, deliveryCost, customizationLoaded]) // Add customizationLoaded dependency
+  }, [isSignedIn, deliveryCost, customizationLoaded, currentBuild?.pricing?.delivery]) // Add build delivery cost dependency
 
   const fetchModel = async () => {
     try {

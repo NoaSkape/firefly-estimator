@@ -24,8 +24,8 @@ export function useBuildData(buildId) {
 
   // Fetch build data with proper caching and deduplication
   const fetchBuild = useCallback(async (forceRefresh = false) => {
-    // Early return if no buildId or not signed in
-    if (!buildId || !isSignedIn) {
+    // Early return if no buildId, not signed in, or buildId is not a valid MongoDB ObjectId
+    if (!buildId || !isSignedIn || buildId.length !== 24) {
       setBuild(null)
       setLoading(false)
       setError(null)
@@ -175,11 +175,11 @@ export function useBuildData(buildId) {
 
   // Load build on mount and when dependencies change
   useEffect(() => {
-    // Only fetch if we have a valid buildId and user is signed in
-    if (buildId && isSignedIn) {
+    // Only fetch if we have a valid buildId (24 chars) and user is signed in
+    if (buildId && buildId.length === 24 && isSignedIn) {
       fetchBuild()
     } else {
-      // Clear state if no buildId or not signed in
+      // Clear state if no buildId, invalid buildId, or not signed in
       setBuild(null)
       setLoading(false)
       setError(null)
