@@ -276,6 +276,51 @@ const Customize = () => {
     }
   }, [selectedOptions, selectedPackage, isSignedIn, actualModelCode, customizationLoaded])
 
+  // Define computePricing BEFORE the useEffect that uses it
+  const computePricing = useCallback(() => {
+    if (!model) {
+      return {
+        base: 0,
+        options: 0,
+        package: 0,
+        subtotal: 0,
+        delivery: 0,
+        taxes: 0,
+        total: 0
+      }
+    }
+
+    const base = roundToCents(Number(model.basePrice || 0))
+    const optionsTotal = roundToCents(selectedOptions.reduce((s, o) => s + (o.price || 0), 0))
+    const pkgDelta = roundToCents((() => {
+      const pkg = (model.packages || []).find(p => (p.key || p.name) === selectedPackage)
+      return pkg ? Number(pkg.priceDelta || 0) : 0
+    })())
+    
+    // Calculate subtotal before delivery and taxes
+    const subtotal = roundToCents(base + optionsTotal + pkgDelta)
+    
+    // Delivery cost (will be calculated based on address for signed-in users)
+    const delivery = isSignedIn && deliveryCost !== null ? roundToCents(deliveryCost) : 0
+    
+    // Calculate taxes (6.25% for Texas)
+    const taxRate = 0.0625
+    const taxableAmount = roundToCents(subtotal + delivery)
+    const taxes = roundToCents(taxableAmount * taxRate)
+    
+    const total = roundToCents(subtotal + delivery + taxes)
+    
+    return { 
+      base, 
+      options: optionsTotal, 
+      package: pkgDelta, 
+      subtotal,
+      delivery, 
+      taxes, 
+      total 
+    }
+  }, [model, selectedOptions, selectedPackage, isSignedIn, deliveryCost])
+
   // Auto-save customization changes for signed-in users
   useEffect(() => {
     if (isSignedIn && currentBuild && currentBuild._id && customizationLoaded && model) {
@@ -376,7 +421,7 @@ const Customize = () => {
     }
   }, [isSignedIn, deliveryCost, customizationLoaded, currentBuild?.pricing?.delivery]) // Add build delivery cost dependency
 
-  const fetchModel = async () => {
+    const fetchModel = async () => {
     try {
       setLoading(true)
       setError(null)
@@ -397,13 +442,13 @@ const Customize = () => {
             const localModel = MODELS.find(m => m.id === actualModelCode)
             if (localModel) {
                           const transformedModel = {
-              ...localModel,
-              modelCode: localModel.subtitle,
-              images: [],
-              features: localModel.features || [],
-              packages: []
-            }
-              setModel(transformedModel)
+                ...localModel,
+                modelCode: localModel.subtitle,
+                images: [],
+                features: localModel.features || [],
+                packages: []
+              }
+                setModel(transformedModel)
             } else {
               setError('Model not found')
             }
@@ -435,50 +480,6 @@ const Customize = () => {
       setLoading(false)
     }
   }
-
-  const computePricing = useCallback(() => {
-    if (!model) {
-      return {
-        base: 0,
-        options: 0,
-        package: 0,
-        subtotal: 0,
-        delivery: 0,
-        taxes: 0,
-        total: 0
-      }
-    }
-
-    const base = roundToCents(Number(model.basePrice || 0))
-    const optionsTotal = roundToCents(selectedOptions.reduce((s, o) => s + (o.price || 0), 0))
-    const pkgDelta = roundToCents((() => {
-      const pkg = (model.packages || []).find(p => (p.key || p.name) === selectedPackage)
-      return pkg ? Number(pkg.priceDelta || 0) : 0
-    })())
-    
-    // Calculate subtotal before delivery and taxes
-    const subtotal = roundToCents(base + optionsTotal + pkgDelta)
-    
-    // Delivery cost (will be calculated based on address for signed-in users)
-    const delivery = isSignedIn && deliveryCost !== null ? roundToCents(deliveryCost) : 0
-    
-    // Calculate taxes (6.25% for Texas)
-    const taxRate = 0.0625
-    const taxableAmount = roundToCents(subtotal + delivery)
-    const taxes = roundToCents(taxableAmount * taxRate)
-    
-    const total = roundToCents(subtotal + delivery + taxes)
-    
-    return { 
-      base, 
-      options: optionsTotal, 
-      package: pkgDelta, 
-      subtotal,
-      delivery, 
-      taxes, 
-      total 
-    }
-  }, [model, selectedOptions, selectedPackage, isSignedIn, deliveryCost])
 
   const handleSaveCustomization = async () => {
     if (!isSignedIn) {
