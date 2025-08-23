@@ -25,7 +25,8 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
 
   return (
     <div className="mb-6">
-      <div className="flex items-center justify-center text-xs sm:text-sm text-gray-200 w-full overflow-x-hidden">
+      {/* Desktop: Single row layout */}
+      <div className="hidden md:flex items-center justify-center text-xs sm:text-sm text-gray-200 w-full overflow-x-hidden">
         {steps.map((label, idx) => {
           const active = idx <= currentIndex
           const enabled = canGo(idx)
@@ -49,6 +50,32 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
             </div>
           )
         })}
+      </div>
+
+      {/* Mobile: 2-row grid layout */}
+      <div className="md:hidden">
+        <div className="grid grid-cols-4 gap-2 text-xs text-gray-200">
+          {steps.map((label, idx) => {
+            const active = idx <= currentIndex
+            const enabled = canGo(idx)
+            const reason = !enabled && typeof disabledReason === 'function' ? disabledReason(label, idx) : ''
+            return (
+              <button
+                key={label}
+                type="button"
+                onClick={() => enabled && typeof onNavigate === 'function' && onNavigate(label, idx)}
+                className={`flex flex-col items-center p-2 rounded ${active ? 'text-yellow-300 bg-yellow-400/10' : 'text-gray-200'} ${enabled ? '' : 'opacity-60 cursor-not-allowed'}`}
+                title={reason || undefined}
+                aria-disabled={!enabled}
+              >
+                <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full mb-1 text-xs font-medium ${active ? 'bg-yellow-400 text-gray-900' : 'bg-gray-500 text-white'}`}>
+                  {idx+1}
+                </span>
+                <span className="text-center leading-tight">{label}</span>
+              </button>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
