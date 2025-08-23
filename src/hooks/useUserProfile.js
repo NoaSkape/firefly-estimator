@@ -32,6 +32,8 @@ export function useUserProfile() {
       
       const profileData = await response.json()
       console.log('Profile data received:', profileData)
+      console.log('Profile addresses:', profileData.addresses)
+      console.log('Profile basic info:', profileData.basicInfo)
       setProfile(profileData)
       setAddresses(profileData.addresses || [])
       console.log('Addresses set:', profileData.addresses || [])
