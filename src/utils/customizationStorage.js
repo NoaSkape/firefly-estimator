@@ -136,12 +136,14 @@ export async function migrateAnonymousCustomizations(userId, token) {
       return []
     }
     
-    console.log('Migrating anonymous customizations:', customizations.length)
+    console.log('Migrating anonymous customizations:', customizations.length, customizations)
     
     const migrated = []
     
     for (const { modelId, customization } of customizations) {
       try {
+        console.log('Attempting to migrate customization for model:', modelId, customization)
+        
         // Create build for this customization
         const response = await fetch('/api/builds', {
           method: 'POST',
@@ -155,14 +157,19 @@ export async function migrateAnonymousCustomizations(userId, token) {
             modelName: modelId, // Will be updated with actual model name
             basePrice: 0, // Will be updated with actual base price
             selections: {
-              options: customization.selectedOptions,
-              package: customization.selectedPackage
-            }
+              options: customization.selectedOptions || [],
+              package: customization.selectedPackage || ''
+            },
+            financing: {},
+            buyerInfo: {}
           })
         })
         
+        console.log('Migration response status:', response.status)
+        
         if (response.ok) {
           const result = await response.json()
+          console.log('Migration response data:', result)
           migrated.push({
             modelId,
             buildId: result.buildId,
@@ -170,10 +177,16 @@ export async function migrateAnonymousCustomizations(userId, token) {
           })
           console.log('Successfully migrated customization:', { modelId, buildId: result.buildId })
         } else {
-          console.error('Failed to migrate customization:', { modelId, status: response.status })
+          const errorText = await response.text()
+          console.error('Failed to migrate customization:', { 
+            modelId, 
+            status: response.status, 
+            statusText: response.statusText,
+            error: errorText
+          })
         }
       } catch (error) {
-        console.error('Error migrating customization:', { modelId, error })
+        console.error('Error migrating customization:', { modelId, error: error.message, stack: error.stack })
       }
     }
     
@@ -185,6 +198,7 @@ export async function migrateAnonymousCustomizations(userId, token) {
       console.log('Cleared all anonymous customizations after migration')
     }
     
+    console.log('Migration completed. Migrated:', migrated.length, 'of', customizations.length)
     return migrated
   } catch (error) {
     console.error('Failed to migrate anonymous customizations:', error)

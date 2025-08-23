@@ -12,13 +12,25 @@ const CustomizationMigration = () => {
 
   useEffect(() => {
     const handleMigration = async () => {
+      console.log('CustomizationMigration: Checking migration conditions', {
+        isSignedIn,
+        hasUser: !!user,
+        migrated,
+        migrating,
+        userId: user?.id
+      })
+      
       // Only migrate if user is signed in and we haven't migrated yet
       if (isSignedIn && user && !migrated && !migrating) {
+        console.log('CustomizationMigration: Starting migration for user:', user.id)
         setMigrating(true)
         
         try {
           const token = await getToken()
+          console.log('CustomizationMigration: Got token, starting migration')
           const migratedCustomizations = await migrateAnonymousCustomizations(user.id, token)
+          
+          console.log('CustomizationMigration: Migration result:', migratedCustomizations)
           
           if (migratedCustomizations.length > 0) {
             addToast({
@@ -31,6 +43,8 @@ const CustomizationMigration = () => {
             // The customizations are now saved to their account and can be accessed
             // If they're on a customization page, their work is preserved
             console.log('Customizations migrated successfully:', migratedCustomizations.length)
+          } else {
+            console.log('No customizations were migrated')
           }
           
           setMigrated(true)
