@@ -27,15 +27,10 @@ const CustomizationMigration = () => {
               message: `Successfully restored ${migratedCustomizations.length} customization${migratedCustomizations.length > 1 ? 's' : ''} to your account.`
             })
             
-            // If we're on a customization page, redirect to the first migrated build
-            if (window.location.pathname.includes('/customize/')) {
-              const firstBuild = migratedCustomizations[0]
-              if (firstBuild?.buildId) {
-                // Redirect to the build customization page
-                window.location.href = `/builds/${firstBuild.buildId}`
-                return
-              }
-            }
+            // Don't redirect - let the user stay on their current page
+            // The customizations are now saved to their account and can be accessed
+            // If they're on a customization page, their work is preserved
+            console.log('Customizations migrated successfully:', migratedCustomizations.length)
           }
           
           setMigrated(true)
