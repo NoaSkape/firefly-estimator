@@ -34,6 +34,7 @@ export default function Buyer() {
         // Priority 1: Load from user profile if signed in (most reliable)
         if (isSignedIn && !autoFillLoaded) {
           const autoFillData = await getAutoFillData()
+          console.log('Loaded auto-fill data:', autoFillData)
           setForm(f => ({
             ...f,
             firstName: autoFillData.firstName || user?.firstName || '',
@@ -46,7 +47,7 @@ export default function Buyer() {
             zip: autoFillData.zip || ''
           }))
           setAutoFillLoaded(true)
-        } else if (user) {
+        } else if (user && !autoFillLoaded) {
           // Priority 2: Fallback to Clerk user data
           setForm(f => ({
             ...f,
@@ -54,12 +55,16 @@ export default function Buyer() {
             lastName: f.lastName || user.lastName || '',
             email: f.email || user.primaryEmailAddress?.emailAddress || ''
           }))
+          setAutoFillLoaded(true)
         }
         
-        // Priority 3: Load from localStorage as fallback (least reliable)
-        const saved = JSON.parse(localStorage.getItem('ff.checkout.buyer') || '{}')
-        if (Object.keys(saved).length > 0) {
-          setForm(f => ({ ...f, ...saved }))
+        // Priority 3: Load from localStorage as fallback (only if no profile data)
+        if (!isSignedIn || !autoFillLoaded) {
+          const saved = JSON.parse(localStorage.getItem('ff.checkout.buyer') || '{}')
+          if (Object.keys(saved).length > 0) {
+            console.log('Loading from localStorage:', saved)
+            setForm(f => ({ ...f, ...saved }))
+          }
         }
       } catch (error) {
         console.error('Error loading auto-fill data:', error)
@@ -67,19 +72,22 @@ export default function Buyer() {
     }
     
     loadInitialData()
-  }, [user, isSignedIn, autoFillLoaded])
+  }, [user, isSignedIn, autoFillLoaded, getAutoFillData])
 
   function setField(k, v) { 
-    setForm(f => ({ ...f, [k]: v })); 
+    setForm(f => {
+      const updatedForm = { ...f, [k]: v }
+      
+      // Auto-save to localStorage as user types (for better UX)
+      try {
+        localStorage.setItem('ff.checkout.buyer', JSON.stringify(updatedForm))
+      } catch (error) {
+        console.error('Error auto-saving to localStorage:', error)
+      }
+      
+      return updatedForm
+    })
     setDirty(true)
-    
-    // Auto-save to localStorage as user types (for better UX)
-    try {
-      const updatedForm = { ...form, [k]: v }
-      localStorage.setItem('ff.checkout.buyer', JSON.stringify(updatedForm))
-    } catch (error) {
-      console.error('Error auto-saving to localStorage:', error)
-    }
   }
   
   const handleAddressSelect = (addressObj, fullAddressString) => {
@@ -207,6 +215,30 @@ export default function Buyer() {
 
   const handleFunnelNavigation = (stepName, stepIndex) => {
     navigateToStep(stepName, 'Delivery Address', buildId, isSignedIn, null, navigate, addToast)
+  }
+
+  // Debug function to test profile system
+  const debugProfile = async () => {
+    try {
+      const token = await getToken()
+      const response = await fetch('/api/profile/debug', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      const debugData = await response.json()
+      console.log('DEBUG Profile Data:', debugData)
+      addToast({
+        type: 'info',
+        title: 'Debug Data',
+        message: `Profile: ${!!debugData.profile}, AutoFill: ${!!debugData.autoFillData}, Primary Address: ${!!debugData.primaryAddress}`
+      })
+    } catch (error) {
+      console.error('Debug error:', error)
+      addToast({
+        type: 'error',
+        title: 'Debug Failed',
+        message: error.message
+      })
+    }
   }
 
   return (
