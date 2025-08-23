@@ -1526,182 +1526,28 @@ app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
       </html>
     `
 
-    // Convert HTML to PDF using @react-pdf/renderer (serverless compatible)
+    // Convert HTML to PDF using Puppeteer (serverless compatible)
     try {
-      const { Document, Page, Text, View, StyleSheet, pdf } = await import('@react-pdf/renderer')
-      
-      // Create styles for the PDF
-      const styles = StyleSheet.create({
-        page: {
-          flexDirection: 'column',
-          backgroundColor: '#ffffff',
-          padding: 30,
-          fontSize: 12,
-          fontFamily: 'Helvetica'
-        },
-        header: {
-          textAlign: 'center',
-          marginBottom: 30,
-          borderBottom: '2px solid #f59e0b',
-          paddingBottom: 20
-        },
-        logo: {
-          fontSize: 24,
-          fontWeight: 'bold',
-          color: '#f59e0b',
-          marginBottom: 10
-        },
-        section: {
-          marginBottom: 20
-        },
-        sectionTitle: {
-          fontSize: 18,
-          fontWeight: 'bold',
-          marginBottom: 15,
-          color: '#f59e0b'
-        },
-        row: {
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          marginBottom: 8,
-          borderBottom: '1px solid #eee',
-          paddingBottom: 5
-        },
-        total: {
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          marginTop: 20,
-          paddingTop: 10,
-          borderTop: '2px solid #ccc',
-          fontSize: 16,
-          fontWeight: 'bold'
-        },
-        buyerInfo: {
-          backgroundColor: '#f9f9f9',
-          padding: 15,
-          marginTop: 20
-        }
+      const puppeteer = await import('puppeteer')
+      const browser = await puppeteer.default.launch({ 
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
       })
-      
-      // Create PDF document
-      const MyDocument = () => (
-        <Document>
-          <Page size="A4" style={styles.page}>
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.logo}>FIREFLY TINY HOMES</Text>
-              <Text>Order Summary</Text>
-            </View>
-            
-            {/* Order Info */}
-            <View style={styles.section}>
-              <View style={styles.row}>
-                <Text><Text style={{fontWeight: 'bold'}}>Order ID:</Text> {id}</Text>
-              </View>
-              <View style={styles.row}>
-                <Text><Text style={{fontWeight: 'bold'}}>Date:</Text> {new Date().toLocaleDateString()}</Text>
-              </View>
-            </View>
-            
-            {/* Model Configuration */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Model Configuration</Text>
-              <Text style={{fontSize: 16, marginBottom: 20}}>
-                <Text style={{fontWeight: 'bold'}}>{build.modelName}</Text> ({build.modelSlug})
-              </Text>
-              <View style={styles.row}>
-                <Text>Base Price</Text>
-                <Text>${basePrice.toLocaleString()}</Text>
-              </View>
-            </View>
-            
-            {/* Options */}
-            {Object.keys(optionsByCategory).length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Selected Options</Text>
-                {Object.entries(optionsByCategory).map(([category, categoryOptions]) => (
-                  <View key={category}>
-                    <Text style={{fontWeight: 'bold', marginBottom: 8, color: '#666'}}>{category}</Text>
-                    {categoryOptions.map((option, index) => (
-                      <View key={`${option.code}-${index}`} style={{marginBottom: 10, padding: 8, backgroundColor: '#f9f9f9'}}>
-                        <View style={styles.row}>
-                          <Text>{option.name || option.code}{option.quantity > 1 ? ` (×${option.quantity})` : ''}</Text>
-                          <Text>${(Number(option.price || 0) * (option.quantity || 1)).toLocaleString()}</Text>
-                        </View>
-                        {option.description && (
-                          <Text style={{fontSize: 10, color: '#666', marginTop: 4}}>{option.description}</Text>
-                        )}
-                      </View>
-                    ))}
-                  </View>
-                ))}
-                <View style={styles.row}>
-                  <Text style={{fontWeight: 'bold'}}>Options Subtotal</Text>
-                  <Text style={{fontWeight: 'bold'}}>${optionsSubtotal.toLocaleString()}</Text>
-                </View>
-              </View>
-            )}
-            
-            {/* Fees */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Fees & Services</Text>
-              <View style={styles.row}>
-                <Text>Delivery{build.pricing?.deliveryMiles ? ` (${build.pricing.deliveryMiles} miles)` : ''}</Text>
-                <Text>${deliveryFee.toLocaleString()}</Text>
-              </View>
-              <View style={styles.row}>
-                <Text>Title & Registration</Text>
-                <Text>${titleFee.toLocaleString()}</Text>
-              </View>
-              <View style={styles.row}>
-                <Text>Setup & Installation</Text>
-                <Text>${setupFee.toLocaleString()}</Text>
-              </View>
-            </View>
-            
-            {/* Tax */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Tax Calculation</Text>
-              <View style={styles.row}>
-                <Text>Sales Tax ({(taxRate * 100).toFixed(2)}%)</Text>
-                <Text>${salesTax.toLocaleString()}</Text>
-              </View>
-            </View>
-            
-            {/* Total */}
-            <View style={styles.total}>
-              <Text>TOTAL PURCHASE PRICE</Text>
-              <Text>${total.toLocaleString()}</Text>
-            </View>
-            
-            {/* Buyer Info */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Buyer & Delivery Information</Text>
-              <View style={styles.buyerInfo}>
-                <Text><Text style={{fontWeight: 'bold'}}>Name:</Text> {build.buyerInfo?.firstName || ''} {build.buyerInfo?.lastName || ''}</Text>
-                <Text><Text style={{fontWeight: 'bold'}}>Email:</Text> {build.buyerInfo?.email || ''}</Text>
-                <Text><Text style={{fontWeight: 'bold'}}>Phone:</Text> {build.buyerInfo?.phone || 'Not provided'}</Text>
-                <Text><Text style={{fontWeight: 'bold'}}>Delivery Address:</Text> {build.buyerInfo?.deliveryAddress || [build.buyerInfo?.address, build.buyerInfo?.city, build.buyerInfo?.state, build.buyerInfo?.zip].filter(Boolean).join(', ') || 'Not specified'}</Text>
-              </View>
-            </View>
-            
-            {/* Footer */}
-            <View style={{marginTop: 40, textAlign: 'center'}}>
-              <Text style={{fontSize: 10, color: '#666'}}>This is a detailed summary of your Firefly Tiny Home order.</Text>
-              <Text style={{fontSize: 10, color: '#666'}}>Generated on {new Date().toLocaleString()}</Text>
-            </View>
-          </Page>
-        </Document>
-      )
-      
-      // Generate PDF buffer
-      const pdfBuffer = await pdf(<MyDocument />).toBuffer()
+      const page = await browser.newPage()
+      await page.setContent(pdfContent, { waitUntil: 'networkidle0' })
+      const pdfBuffer = await page.pdf({ 
+        format: 'A4', 
+        printBackground: true,
+        margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
+      })
+      await browser.close()
       
       res.setHeader('Content-Type', 'application/pdf')
       res.setHeader('Content-Disposition', `attachment; filename="firefly-order-${id}.pdf"`)
       res.send(pdfBuffer)
+      
     } catch (pdfError) {
-      console.error('PDF generation error:', pdfError)
+      console.error('Puppeteer PDF generation error:', pdfError)
       // Fallback to HTML if PDF generation fails
       res.setHeader('Content-Type', 'text/html')
       res.setHeader('Content-Disposition', `attachment; filename="firefly-order-${id}.html"`)
