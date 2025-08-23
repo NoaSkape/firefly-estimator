@@ -748,18 +748,26 @@ app.post(['/api/builds/:id/checkout-step', '/builds/:id/checkout-step'], async (
   if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
   const target = Number(body?.step || b.step)
-  if (target < 1 || target > 5) return res.status(400).json({ error: 'invalid_step' })
-  // simple guards
-  if (target >= 3 && !(b?.financing?.method)) return res.status(400).json({ error: 'missing_payment_method' })
+  if (target < 1 || target > 8) return res.status(400).json({ error: 'invalid_step' })
+  
+  // Validation logic - only check requirements for steps that actually need them
   if (target >= 4) {
     const bi = b?.buyerInfo || {}
     const ok = bi.firstName && bi.lastName && bi.email && bi.address
     if (!ok) return res.status(400).json({ error: 'incomplete_buyer' })
   }
-  if (target >= 5) {
+  
+  // Only check financing for payment method step (step 6)
+  if (target >= 6 && !(b?.financing?.method)) {
+    return res.status(400).json({ error: 'missing_payment_method' })
+  }
+  
+  // Only check contract for contract step (step 7)
+  if (target >= 7) {
     const c = b?.contract || {}
     if (c?.status !== 'signed') return res.status(400).json({ error: 'contract_not_signed' })
   }
+  
   const updated = await updateBuild(req.params.id, { step: target })
   return res.status(200).json(updated)
 })
@@ -865,6 +873,11 @@ app.patch(['/api/profile/basic', '/profile/basic'], async (req, res) => {
     
     console.log('DEBUG: Updating basic info for user:', auth.userId, { firstName, lastName, email, phone })
     
+    // Validate required fields
+    if (!firstName || !lastName || !email) {
+      return res.status(400).json({ error: 'missing_required_fields', message: 'First name, last name, and email are required' })
+    }
+    
     await ensureUserProfileIndexes()
     const profile = await updateUserBasicInfo(auth.userId, { firstName, lastName, email, phone })
     
@@ -872,6 +885,16 @@ app.patch(['/api/profile/basic', '/profile/basic'], async (req, res) => {
     return res.status(200).json(profile)
   } catch (error) {
     console.error('Update profile error:', error)
+    
+    // Provide more specific error messages
+    if (error.message.includes('userId is required')) {
+      return res.status(400).json({ error: 'invalid_user', message: 'User ID is required' })
+    }
+    
+    if (error.message.includes('database')) {
+      return res.status(503).json({ error: 'database_unavailable', message: 'Database temporarily unavailable' })
+    }
+    
     return res.status(500).json({ error: 'profile_update_failed', message: error.message })
   }
 })
@@ -904,7 +927,7 @@ app.post(['/api/profile/addresses', '/profile/addresses'], async (req, res) => {
     console.log('DEBUG: Adding address for user:', auth.userId, { address, city, state, zip, label })
     
     if (!address || !city || !state || !zip) {
-      return res.status(400).json({ error: 'address_fields_required' })
+      return res.status(400).json({ error: 'address_fields_required', message: 'Address, city, state, and zip are required' })
     }
     
     await ensureUserProfileIndexes()
@@ -914,6 +937,16 @@ app.post(['/api/profile/addresses', '/profile/addresses'], async (req, res) => {
     return res.status(200).json(profile)
   } catch (error) {
     console.error('Add address error:', error)
+    
+    // Provide more specific error messages
+    if (error.message.includes('userId and address are required')) {
+      return res.status(400).json({ error: 'invalid_request', message: 'User ID and address are required' })
+    }
+    
+    if (error.message.includes('database')) {
+      return res.status(503).json({ error: 'database_unavailable', message: 'Database temporarily unavailable' })
+    }
+    
     return res.status(500).json({ error: 'address_add_failed', message: error.message })
   }
 })

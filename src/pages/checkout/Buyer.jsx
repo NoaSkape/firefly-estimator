@@ -126,39 +126,40 @@ export default function Buyer() {
       const token = await getToken()
       setSaving(true)
       
-      // Save to user profile for future auto-fill
+      // Save to user profile for future auto-fill (non-blocking)
       if (isSignedIn) {
-        try {
-          console.log('Saving to user profile:', form)
-          
-          // Update basic info
-          const basicInfoResult = await updateBasicInfo({
-            firstName: form.firstName,
-            lastName: form.lastName,
-            email: form.email,
-            phone: form.phone
-          })
-          console.log('Basic info saved:', basicInfoResult)
-          
-          // Add address to address book
-          if (form.address && form.city && form.state && form.zip) {
-            const addressResult = await addAddress({
-              address: form.address,
-              city: form.city,
-              state: form.state,
-              zip: form.zip,
-              label: 'Home'
-            })
-            console.log('Address saved:', addressResult)
-          }
-        } catch (profileError) {
-          console.error('Error saving to profile:', profileError)
-          addToast({ 
-            type: 'warning', 
-            message: 'Profile save failed, but checkout will continue' 
-          })
-          // Don't block checkout if profile save fails
-        }
+        // Use Promise.allSettled to not block checkout if profile save fails
+        Promise.allSettled([
+          (async () => {
+            try {
+              console.log('Saving to user profile:', form)
+              
+              // Update basic info
+              const basicInfoResult = await updateBasicInfo({
+                firstName: form.firstName,
+                lastName: form.lastName,
+                email: form.email,
+                phone: form.phone
+              })
+              console.log('Basic info saved:', basicInfoResult)
+              
+              // Add address to address book
+              if (form.address && form.city && form.state && form.zip) {
+                const addressResult = await addAddress({
+                  address: form.address,
+                  city: form.city,
+                  state: form.state,
+                  zip: form.zip,
+                  label: 'Home'
+                })
+                console.log('Address saved:', addressResult)
+              }
+            } catch (profileError) {
+              console.error('Error saving to profile:', profileError)
+              // Don't show error toast - profile save is optional
+            }
+          })()
+        ])
       }
       
       // Save to localStorage for immediate persistence
@@ -169,16 +170,35 @@ export default function Buyer() {
         console.error('Error saving to localStorage:', localStorageError)
       }
       
+      // Update build with buyer info
       const res = await fetch(`/api/builds/${buildId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ buyerInfo: form, step: 4 })
       })
-      if (!res.ok) { addToast({ type: 'error', message: 'Please complete required fields' }); return }
+      
+      if (!res.ok) { 
+        const errorData = await res.json().catch(() => ({}))
+        addToast({ type: 'error', message: errorData.error || 'Please complete required fields' }); 
+        return 
+      }
+      
       addToast({ type: 'success', message: 'Saved' })
       trackEvent('buyer_saved', { buildId })
-      const res2 = await fetch(`/api/builds/${buildId}/checkout-step`, { method:'POST', headers: { 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, body: JSON.stringify({ step: 4 }) })
-      if (!res2.ok) { const j = await res2.json().catch(()=>({})); addToast({ type:'error', message: j?.error || 'Complete previous steps' }); return }
+      
+      // Advance checkout step
+      const res2 = await fetch(`/api/builds/${buildId}/checkout-step`, { 
+        method:'POST', 
+        headers: { 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, 
+        body: JSON.stringify({ step: 4 }) 
+      })
+      
+      if (!res2.ok) { 
+        const j = await res2.json().catch(()=>({})); 
+        addToast({ type:'error', message: j?.error || 'Complete previous steps' }); 
+        return 
+      }
+      
       trackEvent('step_changed', { buildId, step: 4 })
     } catch (error) {
       console.error('Error in next function:', error)
