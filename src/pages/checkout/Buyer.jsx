@@ -261,7 +261,7 @@ export default function Buyer() {
   }, [dirty])
 
   const handleFunnelNavigation = (stepName, stepIndex) => {
-    navigateToStep(stepName, 'Delivery Address', buildId, isSignedIn, null, navigate, addToast)
+    navigateToStep(stepName, 'Delivery Address', buildId, isSignedIn, build, navigate, addToast)
   }
 
   // Debug function to test profile system

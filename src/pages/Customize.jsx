@@ -679,10 +679,12 @@ const Customize = () => {
           current="Customize!"
           isSignedIn={isSignedIn}
           onNavigate={(stepName, stepIndex) => {
-            navigateToStep(stepName, 'Customize!', modelId, isSignedIn, currentBuild, navigate, addToast)
+            // Use the actual build ID from currentBuild if available, otherwise use modelId
+            const actualBuildId = currentBuild?._id || modelId
+            navigateToStep(stepName, 'Customize!', actualBuildId, isSignedIn, currentBuild, navigate, addToast)
           }}
           build={currentBuild}
-          buildId={modelId}
+          buildId={currentBuild?._id || modelId}
         />
         {/* Navigation Header */}
         <div className="flex justify-between items-center mb-6">
