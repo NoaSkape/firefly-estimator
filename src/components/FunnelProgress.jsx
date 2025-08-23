@@ -27,7 +27,7 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
   }
 
   return (
-    <div className="mb-6 pt-8">
+    <div className="mb-6 pt-12">
       {/* Desktop: Single row layout */}
       <div className="hidden md:flex items-center justify-center text-xs sm:text-sm text-gray-200 w-full overflow-x-hidden">
         {steps.map((label, idx) => {
