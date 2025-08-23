@@ -107,15 +107,47 @@ const Customize = () => {
 
       if (response.ok) {
         const builds = await response.json()
-        // Find the most recent build for this model
+        // Find builds for this model, prioritizing those in progress (step > 1)
         const modelBuilds = builds.filter(b => 
           b.modelSlug === modelCode || b.modelSlug === modelId
-        ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        )
+        
+        // Sort by: 1) builds in progress (step > 1), 2) most recent
+        const sortedBuilds = modelBuilds.sort((a, b) => {
+          const aInProgress = (a.step || 1) > 1
+          const bInProgress = (b.step || 1) > 1
+          
+          if (aInProgress && !bInProgress) return -1
+          if (!aInProgress && bInProgress) return 1
+          
+          // If both are in progress or both are not, sort by most recent
+          return new Date(b.createdAt) - new Date(a.createdAt)
+        })
 
-        if (modelBuilds.length > 0) {
-          const latestBuild = modelBuilds[0]
+        if (sortedBuilds.length > 0) {
+          const latestBuild = sortedBuilds[0]
           const options = latestBuild.selections?.options || []
           const selectedPackage = latestBuild.selections?.package || ''
+          
+          console.log('Found builds for model:', {
+            modelCode,
+            modelId,
+            totalBuilds: builds.length,
+            modelBuilds: modelBuilds.length,
+            sortedBuilds: sortedBuilds.map(b => ({
+              id: b._id,
+              modelSlug: b.modelSlug,
+              step: b.step,
+              createdAt: b.createdAt,
+              inProgress: (b.step || 1) > 1
+            })),
+            selectedBuild: {
+              id: latestBuild._id,
+              modelSlug: latestBuild.modelSlug,
+              step: latestBuild.step,
+              inProgress: (latestBuild.step || 1) > 1
+            }
+          })
           
           console.log('Loading build data:', {
             buildId: latestBuild._id,
