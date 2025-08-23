@@ -407,8 +407,22 @@ const Customize = () => {
 
       if (response.ok) {
         const deliveryData = await response.json()
-        setDeliveryCost(deliveryData.fee || 0)
-        console.log('Delivery cost calculated:', deliveryData.fee)
+        const calculatedCost = deliveryData.fee || 0
+        setDeliveryCost(calculatedCost)
+        console.log('Delivery cost calculated:', calculatedCost)
+        
+        // Update the build with the new delivery cost if we have a current build
+        if (currentBuild && currentBuild._id) {
+          try {
+            const pricing = computePricing()
+            await updateBuild({
+              pricing
+            }, { skipRefetch: true })
+            console.log('Updated build with new delivery cost')
+          } catch (error) {
+            console.error('Error updating build with delivery cost:', error)
+          }
+        }
       } else {
         console.error('Failed to calculate delivery cost')
         setDeliveryCost(null) // Set to null on error

@@ -14,6 +14,59 @@ export default function Review() {
   const { getToken, userId } = useAuth()
   const { addToast } = useToast()
   
+  // Function to calculate delivery cost if missing
+  const calculateDeliveryCost = async () => {
+    if (!build || !build.buyerInfo) return
+    
+    try {
+      const buyerInfo = build.buyerInfo
+      if (!buyerInfo.address || !buyerInfo.city || !buyerInfo.state || !buyerInfo.zip) {
+        console.log('Incomplete address for delivery calculation')
+        return
+      }
+      
+      const addressData = {
+        address: buyerInfo.address,
+        city: buyerInfo.city,
+        state: buyerInfo.state,
+        zip: buyerInfo.zip
+      }
+      
+      console.log('Calculating delivery cost from Review component:', addressData)
+      
+      const token = await getToken()
+      const response = await fetch('/api/delivery/quote', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(addressData)
+      })
+      
+      if (response.ok) {
+        const deliveryData = await response.json()
+        const calculatedCost = deliveryData.fee || 0
+        console.log('Delivery cost calculated from Review:', calculatedCost)
+        
+        // Update the build with the new delivery cost
+        const pricing = {
+          ...build.pricing,
+          delivery: calculatedCost
+        }
+        
+        await updateBuild({
+          pricing
+        }, { skipRefetch: true })
+        console.log('Updated build with delivery cost from Review component')
+      } else {
+        console.error('Failed to calculate delivery cost from Review component')
+      }
+    } catch (error) {
+      console.error('Error calculating delivery cost from Review component:', error)
+    }
+  }
+  
   // Use centralized build data management with force refresh to ensure latest data
   const { 
     build, 
@@ -48,6 +101,15 @@ export default function Review() {
     
     loadSettings()
   }, [getToken])
+  
+  // Calculate delivery cost if missing when build loads
+  useEffect(() => {
+    if (buildLoaded && build && build.buyerInfo && 
+        (build.pricing?.delivery === undefined || build.pricing?.delivery === null)) {
+      console.log('Build loaded but missing delivery cost, calculating...')
+      calculateDeliveryCost()
+    }
+  }, [buildLoaded, build])
 
   const handleDownloadPDF = async () => {
     try {
