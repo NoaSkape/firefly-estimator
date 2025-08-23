@@ -6,7 +6,7 @@ import FunnelProgress from '../../components/FunnelProgress'
 import { useToast } from '../../components/ToastProvider'
 import { trackEvent } from '../../utils/analytics'
 import { navigateToStep, updateBuildStep } from '../../utils/checkoutNavigation'
-import { useBuildData } from '../../hooks/useBuildData'
+import { useBuildData, buildCache } from '../../hooks/useBuildData'
 
 export default function Review() {
   const { buildId } = useParams()
@@ -14,14 +14,14 @@ export default function Review() {
   const { getToken, userId } = useAuth()
   const { addToast } = useToast()
   
-  // Use centralized build data management
+  // Use centralized build data management with force refresh to ensure latest data
   const { 
     build, 
     loading: buildLoading, 
     error: buildError, 
     updateBuild, 
     isLoaded: buildLoaded 
-  } = useBuildData(buildId)
+  } = useBuildData(buildId, true) // Force refresh to ensure we have latest data
   
   const [settings, setSettings] = useState(null)
   const [settingsLoading, setSettingsLoading] = useState(true)
@@ -84,7 +84,10 @@ export default function Review() {
   }
 
   const handleFunnelNavigation = (stepName, stepIndex) => {
-    navigateToStep(stepName, 'Overview', buildId, true, build, navigate, addToast)
+    navigateToStep(stepName, 'Overview', buildId, true, build, navigate, addToast, () => {
+      // Invalidate cache before navigation to ensure fresh data
+      buildCache.delete(buildId)
+    })
   }
 
   // Show loading state

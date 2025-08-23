@@ -8,7 +8,7 @@ import FunnelProgress from '../../components/FunnelProgress'
 import Breadcrumbs from '../../components/Breadcrumbs'
 import AddressSelectionModal from '../../components/AddressSelectionModal'
 import useUserProfile from '../../hooks/useUserProfile'
-import { useBuildData } from '../../hooks/useBuildData'
+import { useBuildData, buildCache } from '../../hooks/useBuildData'
 import { navigateToStep, updateBuildStep } from '../../utils/checkoutNavigation'
 
 export default function Buyer() {
@@ -29,14 +29,14 @@ export default function Buyer() {
   const [showAddressModal, setShowAddressModal] = useState(false)
   const [autoFillLoaded, setAutoFillLoaded] = useState(false)
   
-  // Use centralized build data management
+  // Use centralized build data management with force refresh to ensure latest data
   const { 
     build, 
     loading: buildLoading, 
     error: buildError, 
     updateBuild, 
     isLoaded: buildLoaded 
-  } = useBuildData(buildId)
+  } = useBuildData(buildId, true) // Force refresh to ensure we have latest data
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -248,7 +248,10 @@ export default function Buyer() {
   }, [dirty])
 
   const handleFunnelNavigation = (stepName, stepIndex) => {
-    navigateToStep(stepName, 'Delivery Address', buildId, isSignedIn, build, navigate, addToast)
+    navigateToStep(stepName, 'Delivery Address', buildId, isSignedIn, build, navigate, addToast, () => {
+      // Invalidate cache before navigation to ensure fresh data
+      buildCache.delete(buildId)
+    })
   }
 
   // Debug function to test profile system

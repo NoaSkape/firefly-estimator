@@ -8,10 +8,10 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 
 // Global cache to prevent duplicate requests
-const buildCache = new Map()
+export const buildCache = new Map()
 const pendingRequests = new Map()
 
-export function useBuildData(buildId) {
+export function useBuildData(buildId, forceRefresh = false) {
   const { getToken, isSignedIn } = useAuth()
   const [build, setBuild] = useState(null)
   const [loading, setLoading] = useState(false) // Start as false, not true
@@ -177,7 +177,7 @@ export function useBuildData(buildId) {
   useEffect(() => {
     // Only fetch if we have a valid buildId (24 chars) and user is signed in
     if (buildId && buildId.length === 24 && isSignedIn) {
-      fetchBuild()
+      fetchBuild(forceRefresh)
     } else {
       // Clear state if no buildId, invalid buildId, or not signed in
       setBuild(null)
@@ -191,7 +191,7 @@ export function useBuildData(buildId) {
         abortControllerRef.current.abort()
       }
     }
-  }, [buildId, isSignedIn, fetchBuild])
+  }, [buildId, isSignedIn, fetchBuild, forceRefresh])
 
   // Cleanup on unmount
   useEffect(() => {

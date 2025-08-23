@@ -169,9 +169,10 @@ export function canNavigateToStep(targetStep, currentStep, isSignedIn, build = n
  * @param {object} build - The build data for validation
  * @param {function} navigate - React Router navigate function
  * @param {function} addToast - Toast function for error messages
+ * @param {function} onBeforeNavigate - Optional callback to run before navigation (e.g., cache invalidation)
  * @returns {boolean} Whether navigation was successful
  */
-export function navigateToStep(targetStep, currentStep, buildId, isSignedIn, build, navigate, addToast) {
+export function navigateToStep(targetStep, currentStep, buildId, isSignedIn, build, navigate, addToast, onBeforeNavigate = null) {
   const validation = canNavigateToStep(targetStep, currentStep, isSignedIn, build)
   
   if (!validation.canNavigate) {
@@ -181,6 +182,11 @@ export function navigateToStep(targetStep, currentStep, buildId, isSignedIn, bui
       message: validation.reason || 'Cannot navigate to this step'
     })
     return false
+  }
+  
+  // Run pre-navigation callback if provided
+  if (onBeforeNavigate) {
+    onBeforeNavigate()
   }
   
   const route = getStepRoute(targetStep, buildId, build)

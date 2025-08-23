@@ -13,7 +13,7 @@ import FunnelProgress from '../components/FunnelProgress'
 import { useToast } from '../components/ToastProvider'
 import { navigateToStep, updateBuildStep } from '../utils/checkoutNavigation'
 import { useUserProfile } from '../hooks/useUserProfile'
-import { useBuildData } from '../hooks/useBuildData'
+import { useBuildData, buildCache } from '../hooks/useBuildData'
 import { formatCurrency, roundToCents } from '../utils/currency'
 import { 
   saveAnonymousCustomization, 
@@ -681,7 +681,12 @@ const Customize = () => {
           onNavigate={(stepName, stepIndex) => {
             // Use the actual build ID from currentBuild if available, otherwise use modelId
             const actualBuildId = currentBuild?._id || modelId
-            navigateToStep(stepName, 'Customize!', actualBuildId, isSignedIn, currentBuild, navigate, addToast)
+            navigateToStep(stepName, 'Customize!', actualBuildId, isSignedIn, currentBuild, navigate, addToast, () => {
+              // Invalidate cache before navigation to ensure fresh data
+              if (currentBuild?._id) {
+                buildCache.delete(currentBuild._id)
+              }
+            })
           }}
           build={currentBuild}
           buildId={currentBuild?._id || modelId}
