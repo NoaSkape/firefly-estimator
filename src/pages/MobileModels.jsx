@@ -120,7 +120,7 @@ export default function MobileModelsPage() {
           {activeFiltersCount > 0 && (
             <button
               onClick={clearFilters}
-              className="text-yellow-400 hover:text-yellow-300 text-sm"
+              className="text-yellow-500 hover:text-yellow-400 text-sm"
             >
               Clear All
             </button>

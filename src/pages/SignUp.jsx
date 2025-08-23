@@ -40,7 +40,7 @@ export default function SignUpPage() {
                 socialButtonsBlockButton: 'btn-secondary w-full',
                 formFieldInput: 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-gray-900',
                 formFieldLabel: 'block text-sm font-medium text-gray-700 mb-1',
-                footerActionLink: 'text-yellow-600 hover:text-yellow-500',
+                footerActionLink: 'text-yellow-500 hover:text-yellow-400',
                 dividerLine: 'bg-gray-300',
                 dividerText: 'text-gray-500 bg-white px-2 text-center'
               }
@@ -62,7 +62,7 @@ export default function SignUpPage() {
 
           <p className="mt-6 text-center text-sm text-gray-300 transform md:-translate-x-4">
             Already have an account?{' '}
-            <a href={`/sign-in?redirect=${encodeURIComponent(redirectUrl)}`} className="text-yellow-400 hover:text-yellow-300 font-medium">
+            <a href={`/sign-in?redirect=${encodeURIComponent(redirectUrl)}`} className="text-yellow-500 hover:text-yellow-400 font-medium">
               Sign in here
             </a>
           </p>

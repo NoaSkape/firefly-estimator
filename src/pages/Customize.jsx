@@ -200,7 +200,7 @@ const Customize = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading model...</p>
         </div>
       </div>
@@ -254,9 +254,6 @@ const Customize = () => {
           >
             ← Back to {model.name}
           </button>
-          <div className="text-sm text-gray-500">
-            Step 1 of 5: Customize
-          </div>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Model Details */}
@@ -266,7 +263,7 @@ const Customize = () => {
               <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                 {model.name}
               </h1>
-              <p className="text-xl text-yellow-600 font-semibold mb-4">
+              <p className="text-xl text-yellow-500 font-semibold mb-4">
                 Starting at ${Number(model.basePrice || 0).toLocaleString()}
               </p>
               <p className="text-gray-700 dark:text-gray-300">
@@ -342,7 +339,7 @@ const Customize = () => {
               <ul className="space-y-2">
                 {model.features.map((feature, index) => (
                   <li key={index} className="flex items-center text-gray-700 dark:text-gray-300">
-                    <svg className="w-5 h-5 text-yellow-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-5 h-5 text-yellow-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                     {feature}
@@ -403,7 +400,7 @@ const Customize = () => {
                   {isSignedIn ? (
                     <span className="font-medium">${pricing.delivery.toLocaleString()}</span>
                   ) : (
-                    <span className="text-sm text-yellow-500 font-medium bg-yellow-500/10 px-3 py-1.5 rounded">
+                    <span className="text-sm text-yellow-500 font-medium bg-yellow-500/10 px-3 py-1.5 rounded text-right ml-4">
                       Create Account to discover delivery cost
                     </span>
                   )}

@@ -44,7 +44,7 @@ export default function AuthButton() {
       </button>
       <button
         onClick={handleSignUp}
-        className="px-4 py-2 text-sm font-medium text-gray-900 bg-yellow-400 border border-yellow-400 rounded-md hover:bg-yellow-500 hover:border-yellow-500 transition-colors"
+        className="px-4 py-2 text-sm font-medium text-gray-900 bg-yellow-500 border border-yellow-500 rounded-md hover:bg-yellow-400 hover:border-yellow-400 transition-colors"
       >
         Sign Up
       </button>

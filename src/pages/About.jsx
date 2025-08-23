@@ -47,7 +47,7 @@ export default function About() {
           <h3 className="text-base font-semibold text-gray-100">Proudly Serving the Texas Hill Country</h3>
           <p className="mt-2 text-sm text-gray-300">
             Based in Pipe Creek, our team supports customers across Texas—from design through delivery and setup.
-            Visit our FAQ, explore models, or <a className="text-yellow-400 hover:underline" href="/contact">contact us</a> for help.
+            Visit our FAQ, explore models, or <a className="text-yellow-500 hover:underline" href="/contact">contact us</a> for help.
           </p>
         </section>
       </div>

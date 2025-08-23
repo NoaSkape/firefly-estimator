@@ -17,7 +17,7 @@ function QA({ q, children }) {
     <details className="group rounded-lg border border-gray-800 bg-gray-900/50 p-4 open:bg-gray-900/70 transition-colors">
       <summary className="list-none cursor-pointer flex items-start justify-between gap-3">
         <h3 className="text-base font-medium text-gray-100">{q}</h3>
-        <span className="ml-2 mt-0.5 text-yellow-400 group-open:rotate-180 transition-transform" aria-hidden>
+        <span className="ml-2 mt-0.5 text-yellow-500 group-open:rotate-180 transition-transform" aria-hidden>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
         </span>
       </summary>
@@ -48,7 +48,7 @@ function QA({ q, children }) {
             A park model home is a small, factory-built home on a wheeled chassis that is limited to 400 square feet of living space (not counting porches or lofts). Park models are perfect for downsizing, vacation properties, AirBNBs. or full-time living in areas where permitted.
           </QA>
           <QA q="Where can I place a park model home?">
-            Park models can be placed in RV resorts, tiny home communities, mobile home parks, or on private land, depending on local zoning rules. Always check your city or county requirements before setting up your home. <a className="text-yellow-400 hover:underline" href="mailto:office@fireflytinyhomes.com">Contact us</a> if you need help.
+            Park models can be placed in RV resorts, tiny home communities, mobile home parks, or on private land, depending on local zoning rules. Always check your city or county requirements before setting up your home. <a className="text-yellow-500 hover:underline" href="mailto:office@fireflytinyhomes.com">Contact us</a> if you need help.
           </QA>
           <QA q="Can I live in a park model full-time?">
             Yes, in many areas park models can be lived in full-time. Some places allow them only as seasonal or vacation residences. Firefly Tiny Homes can help you check local zoning to make sure your home is set up legally.
@@ -57,7 +57,7 @@ function QA({ q, children }) {
             By definition, park models are 399 sq. ft. or less, but many include lofts or porches that add usable space without counting toward that limit. Most are around 11–12 feet wide and 34–39 feet long.
           </QA>
           <QA q="How much do park model homes cost?">
-            Prices vary widely by size, features, and finishes. Entry-level homes may start around $50,000–$70,000, while more upgraded or luxury models can exceed $100,000. Firefly Tiny Homes provides clear, upfront pricing with no hidden overhead costs. See our <a className="text-yellow-400 hover:underline" href="#models">Models &amp; Options</a>.
+            Prices vary widely by size, features, and finishes. Entry-level homes may start around $50,000–$70,000, while more upgraded or luxury models can exceed $100,000. Firefly Tiny Homes provides clear, upfront pricing with no hidden overhead costs. See our <a className="text-yellow-500 hover:underline" href="#models">Models &amp; Options</a>.
           </QA>
           <QA q="Can I finance a park model home?">
             Yes. Park models can qualify for RV loans, personal loans, or financing through specialty lenders. While they don’t always qualify for traditional mortgages, our team can connect you with financing options to make ownership simple.
@@ -106,8 +106,8 @@ function QA({ q, children }) {
           </QA>
         </Section>
 
-        <div className="mt-10 p-4 rounded-lg border border-yellow-400/40 bg-yellow-400/10 text-sm text-gray-100">
-          Didn’t find the answer you were looking for? Call us at <a className="text-yellow-400 hover:underline" href="tel:+18302412410">830-241-2410</a> or email <a className="text-yellow-400 hover:underline" href="mailto:office@fireflytinyhomes.com">office@fireflytinyhomes.com</a>.
+        <div className="mt-10 p-4 rounded-lg border border-yellow-500/40 bg-yellow-500/10 text-sm text-gray-100">
+          Didn’t find the answer you were looking for? Call us at <a className="text-yellow-500 hover:underline" href="tel:+18302412410">830-241-2410</a> or email <a className="text-yellow-500 hover:underline" href="mailto:office@fireflytinyhomes.com">office@fireflytinyhomes.com</a>.
         </div>
       </div>
     </>

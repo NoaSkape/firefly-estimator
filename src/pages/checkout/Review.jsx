@@ -1,4 +1,3 @@
-import CheckoutProgress from '../../components/CheckoutProgress'
 import FunnelProgress from '../../components/FunnelProgress'
 import Breadcrumbs from '../../components/Breadcrumbs'
 import { useParams, useNavigate } from 'react-router-dom'
@@ -28,27 +27,9 @@ export default function Review() {
     <div>
       <Breadcrumbs items={[{ label: 'My Builds', to: '/builds' }, { label: 'Checkout', to: `/checkout/${buildId}/review` }, { label: 'Review & Sign' }]} />
       <FunnelProgress current="Overview" isSignedIn={!!build} onNavigate={(label)=>{}} />
-      {/* Legacy 5-step hidden: relying on FunnelProgress only */}
-      {/* <CheckoutProgress step={4} ... /> */}
-      <div className="hidden">
-        <CheckoutProgress step={4} />
-      </div>
       <div className="max-w-3xl mx-auto space-y-6">
         <h1 className="section-header">Review</h1>
       </div>
-      <CheckoutProgress step={4} getBlockReason={(n)=> n===5 ? 'Complete required items before confirming' : ''} onNavigate={async (n)=>{
-        if (n<=3) navigate(`/checkout/${buildId}/${n===2?'payment':'buyer'}`)
-        if (n===4) navigate(`/checkout/${buildId}/agreement`)
-        if (n===5) {
-          try {
-            const token = await getToken()
-            const res = await fetch(`/api/builds/${buildId}/checkout-step`, { method:'POST', headers:{ 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, body: JSON.stringify({ step: 5 }) })
-            if (!res.ok) { const j = await res.json().catch(()=>({})); addToast({ type:'error', message: j?.error || 'Complete previous steps' }); return }
-            trackEvent('step_changed', { buildId, step: 5 })
-            navigate(`/checkout/${buildId}/confirm`)
-          } catch { addToast({ type:'error', message:'Unable to continue' }) }
-        }
-      }} />
       <div className="text-gray-400">Loading…</div>
     </div>
   )
@@ -62,7 +43,8 @@ export default function Review() {
 
   return (
     <div>
-      <CheckoutProgress step={4} />
+      <Breadcrumbs items={[{ label: 'My Builds', to: '/builds' }, { label: 'Checkout', to: `/checkout/${buildId}/review` }, { label: 'Review & Sign' }]} />
+      <FunnelProgress current="Overview" isSignedIn={!!build} onNavigate={(label)=>{}} />
       <div className="max-w-3xl mx-auto space-y-6">
         <h1 className="section-header">Review</h1>
         <div className="card">

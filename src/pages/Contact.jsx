@@ -25,15 +25,15 @@ export default function Contact() {
             <textarea className="input-field h-32" placeholder="How can we help?" value={form.message} onChange={e=>setField('message', e.target.value)} />
             <div className="flex gap-3">
               <button className="btn-primary" type="submit">Send</button>
-              <a href="/checkout?mode=finance" className="px-4 py-2 rounded bg-yellow-400 text-gray-900 hover:bg-yellow-300">Get Pre‑Approved</a>
+              <a href="/checkout?mode=finance" className="px-4 py-2 rounded bg-yellow-500 text-gray-900 hover:bg-yellow-400">Get Pre‑Approved</a>
             </div>
           </form>
           <div className="space-y-4">
             <div className="card text-sm text-gray-300">
               <h2 className="text-lg font-semibold text-gray-100">Firefly Tiny Homes</h2>
               <p className="mt-1">6150 TX‑16, Pipe Creek, TX 78063</p>
-                      <p className="mt-1">Phone: <a className="text-yellow-400 hover:underline" href="tel:+18302412410">(830) 241‑2410</a></p>
-        <p className="mt-1">Email: <a className="text-yellow-400 hover:underline" href="mailto:office@fireflytinyhomes.com">office@fireflytinyhomes.com</a></p>
+                      <p className="mt-1">Phone: <a className="text-yellow-500 hover:underline" href="tel:+18302412410">(830) 241‑2410</a></p>
+        <p className="mt-1">Email: <a className="text-yellow-500 hover:underline" href="mailto:office@fireflytinyhomes.com">office@fireflytinyhomes.com</a></p>
             </div>
             <div className="card">
               <h2 className="text-lg font-semibold text-gray-100">Our Location</h2>

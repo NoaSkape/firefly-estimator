@@ -8,7 +8,7 @@ export default function Breadcrumbs({ items = [] }) {
         {items.map((it, idx) => (
           <li key={idx} className="flex items-center gap-2">
             {it.to ? (
-              <Link to={it.to} className="hover:underline text-yellow-400">{it.label}</Link>
+              <Link to={it.to} className="hover:underline text-yellow-500">{it.label}</Link>
             ) : (
               <span className="text-gray-400">{it.label}</span>
             )}
