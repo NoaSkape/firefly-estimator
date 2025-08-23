@@ -25,14 +25,14 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
 
   return (
     <div className="mb-6">
-      <div className="flex items-center justify-center text-xs sm:text-sm text-gray-200 w-full overflow-x-auto">
+      <div className="flex items-center justify-center text-xs sm:text-sm text-gray-200 w-full overflow-x-hidden">
         {steps.map((label, idx) => {
           const active = idx <= currentIndex
           const enabled = canGo(idx)
           const reason = !enabled && typeof disabledReason === 'function' ? disabledReason(label, idx) : ''
           const isLast = idx === steps.length - 1
           return (
-            <div key={label} className="flex items-center">
+            <div key={label} className="flex items-center min-w-0">
               <button
                 type="button"
                 onClick={() => enabled && typeof onNavigate === 'function' && onNavigate(label, idx)}
@@ -43,7 +43,7 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
                 <span className="whitespace-nowrap">{label}</span>
               </button>
               {!isLast && (
-                <div className={`mx-3 h-0.5 w-10 sm:w-14 md:w-20 lg:w-24 ${active ? 'bg-yellow-300/80' : 'bg-gray-400/70'}`} />
+                <div className={`mx-3 h-0.5 flex-1 ${active ? 'bg-yellow-300/80' : 'bg-gray-400/70'}`} />
               )}
             </div>
           )
