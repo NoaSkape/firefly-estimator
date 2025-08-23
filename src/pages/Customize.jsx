@@ -39,6 +39,7 @@ const Customize = () => {
   const [customizationLoaded, setCustomizationLoaded] = useState(false)
   const [deliveryCost, setDeliveryCost] = useState(null) // null = not calculated, 0 = calculated as 0, number = actual cost
   const [deliveryLoading, setDeliveryLoading] = useState(false)
+  const [currentBuild, setCurrentBuild] = useState(null) // Store the current build for funnel navigation
 
   // Determine the actual model code from URL parameters
   const getModelCode = () => {
@@ -158,6 +159,9 @@ const Customize = () => {
           
           setSelectedOptions(options)
           setSelectedPackage(selectedPackage)
+          
+          // Store the current build for funnel navigation
+          setCurrentBuild(latestBuild)
           
           // Initialize delivery cost from loaded build if available
           // Use saved delivery cost if it exists and is not the default $2000
@@ -518,8 +522,9 @@ const Customize = () => {
           current="Customize!"
           isSignedIn={isSignedIn}
           onNavigate={(stepName, stepIndex) => {
-            navigateToStep(stepName, 'Customize!', modelId, isSignedIn, null, navigate, addToast)
+            navigateToStep(stepName, 'Customize!', modelId, isSignedIn, currentBuild, navigate, addToast)
           }}
+          build={currentBuild}
           buildId={modelId}
         />
         {/* Navigation Header */}

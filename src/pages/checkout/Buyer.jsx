@@ -27,6 +27,30 @@ export default function Buyer() {
   const [saving, setSaving] = useState(false)
   const [showAddressModal, setShowAddressModal] = useState(false)
   const [autoFillLoaded, setAutoFillLoaded] = useState(false)
+  const [build, setBuild] = useState(null)
+
+  // Load build data
+  useEffect(() => {
+    const loadBuildData = async () => {
+      if (!buildId || !isSignedIn) return
+      
+      try {
+        const token = await getToken()
+        const response = await fetch(`/api/builds/${buildId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        
+        if (response.ok) {
+          const buildData = await response.json()
+          setBuild(buildData)
+        }
+      } catch (error) {
+        console.error('Failed to load build data:', error)
+      }
+    }
+    
+    loadBuildData()
+  }, [buildId, isSignedIn, getToken])
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -269,6 +293,7 @@ export default function Buyer() {
         current="Delivery Address" 
         isSignedIn={isSignedIn} 
         onNavigate={handleFunnelNavigation}
+        build={build}
         buildId={buildId}
       />
       <div className="max-w-3xl mx-auto">

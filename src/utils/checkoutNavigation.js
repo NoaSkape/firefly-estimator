@@ -95,11 +95,6 @@ export function canNavigateToStep(targetStep, currentStep, isSignedIn, build = n
     return { canNavigate: true }
   }
   
-  // Cannot go forward without completing current step
-  if (targetIndex > currentIndex) {
-    return { canNavigate: false, reason: 'Complete current step first' }
-  }
-  
   // Special case: Sign In step
   if (targetStep === 'Sign In') {
     if (isSignedIn) {
@@ -108,34 +103,50 @@ export function canNavigateToStep(targetStep, currentStep, isSignedIn, build = n
     return { canNavigate: true }
   }
   
-  // Special case: Delivery Address requires buyer info
-  if (targetStep === 'Delivery Address') {
-    if (!isSignedIn) {
-      return { canNavigate: false, reason: 'Sign in required' }
+  // If we have build data, allow navigation to any step that has been reached
+  if (build && build.step) {
+    const buildStep = build.step
+    const targetStepNumber = targetIndex + 1 // Convert to 1-based step numbers
+    
+    // Allow navigation to any step that has been reached (step <= build.step)
+    if (targetStepNumber <= buildStep) {
+      return { canNavigate: true }
     }
-    return { canNavigate: true }
   }
   
-  // Special case: Overview requires delivery address
-  if (targetStep === 'Overview') {
-    if (!isSignedIn) {
-      return { canNavigate: false, reason: 'Sign in required' }
+  // For steps that haven't been reached yet, apply validation
+  if (targetIndex > currentIndex) {
+    // Special case: Delivery Address requires sign in
+    if (targetStep === 'Delivery Address') {
+      if (!isSignedIn) {
+        return { canNavigate: false, reason: 'Sign in required' }
+      }
+      return { canNavigate: true }
     }
-    if (!build?.buyerInfo?.deliveryAddress && !build?.buyerInfo?.address) {
-      return { canNavigate: false, reason: 'Delivery address required' }
+    
+    // Special case: Overview requires delivery address
+    if (targetStep === 'Overview') {
+      if (!isSignedIn) {
+        return { canNavigate: false, reason: 'Sign in required' }
+      }
+      if (!build?.buyerInfo?.deliveryAddress && !build?.buyerInfo?.address) {
+        return { canNavigate: false, reason: 'Delivery address required' }
+      }
+      return { canNavigate: true }
     }
-    return { canNavigate: true }
-  }
-  
-  // Special case: Payment Method requires overview completion
-  if (targetStep === 'Payment Method') {
-    if (!isSignedIn) {
-      return { canNavigate: false, reason: 'Sign in required' }
+    
+    // Special case: Payment Method requires overview completion
+    if (targetStep === 'Payment Method') {
+      if (!isSignedIn) {
+        return { canNavigate: false, reason: 'Sign in required' }
+      }
+      if (!build?.buyerInfo?.deliveryAddress && !build?.buyerInfo?.address) {
+        return { canNavigate: false, reason: 'Delivery address required' }
+      }
+      return { canNavigate: true }
     }
-    if (!build?.buyerInfo?.deliveryAddress && !build?.buyerInfo?.address) {
-      return { canNavigate: false, reason: 'Delivery address required' }
-    }
-    return { canNavigate: true }
+    
+    return { canNavigate: false, reason: 'Complete current step first' }
   }
   
   return { canNavigate: true }
@@ -192,14 +203,22 @@ export function getStepName(index) {
  * @param {number} stepIndex - The step index
  * @param {string} currentStep - The current step
  * @param {boolean} isSignedIn - Whether the user is signed in
+ * @param {object} build - The build data (optional, for more accurate completion status)
  * @returns {boolean} Whether the step is completed
  */
-export function isStepCompleted(stepIndex, currentStep, isSignedIn) {
+export function isStepCompleted(stepIndex, currentStep, isSignedIn, build = null) {
   const currentIndex = getStepIndex(currentStep)
   
   // Sign In is completed if user is signed in
   if (stepIndex === 2) return isSignedIn
   
-  // All previous steps are completed
+  // If we have build data, use the actual build step for more accurate completion
+  if (build && build.step) {
+    const buildStep = build.step
+    // A step is completed if the build has progressed past it
+    return stepIndex < buildStep
+  }
+  
+  // Fallback: All previous steps are completed
   return stepIndex < currentIndex
 }

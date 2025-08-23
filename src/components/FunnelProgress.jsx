@@ -39,7 +39,7 @@ export default function FunnelProgress({
   }
 
   function isCompleted(stepIndex) {
-    return isStepCompleted(stepIndex, current, isSignedIn)
+    return isStepCompleted(stepIndex, current, isSignedIn, build)
   }
 
   return (
