@@ -137,7 +137,7 @@ export function canNavigateToStep(targetStep, currentStep, isSignedIn, build = n
       if (!isSignedIn) {
         return { canNavigate: false, reason: 'Sign in required' }
       }
-      if (!build?.buyerInfo?.deliveryAddress && !build?.buyerInfo?.address) {
+      if (!build?.buyerInfo?.address && !build?.buyerInfo?.deliveryAddress) {
         return { canNavigate: false, reason: 'Delivery address required' }
       }
       return { canNavigate: true }
@@ -148,7 +148,7 @@ export function canNavigateToStep(targetStep, currentStep, isSignedIn, build = n
       if (!isSignedIn) {
         return { canNavigate: false, reason: 'Sign in required' }
       }
-      if (!build?.buyerInfo?.deliveryAddress && !build?.buyerInfo?.address) {
+      if (!build?.buyerInfo?.address && !build?.buyerInfo?.deliveryAddress) {
         return { canNavigate: false, reason: 'Delivery address required' }
       }
       return { canNavigate: true }
@@ -231,6 +231,33 @@ export function isStepCompleted(stepIndex, currentStep, isSignedIn, build = null
     const buildStep = build.step
     // A step is completed if the build has progressed past it
     return stepIndex < buildStep
+  }
+  
+  // Additional validation based on build data for more accurate completion status
+  if (build) {
+    // Step 1 (Choose Your Home): Always completed if we have a build
+    if (stepIndex === 0) return true
+    
+    // Step 2 (Customize): Completed if we have selections
+    if (stepIndex === 1) return !!(build.selections?.options || build.selections?.package)
+    
+    // Step 3 (Sign In): Completed if user is signed in
+    if (stepIndex === 2) return isSignedIn
+    
+    // Step 4 (Delivery Address): Completed if we have buyer info with address
+    if (stepIndex === 3) return !!(build.buyerInfo?.address && build.buyerInfo?.city && build.buyerInfo?.state && build.buyerInfo?.zip)
+    
+    // Step 5 (Overview): Completed if we have buyer info and pricing
+    if (stepIndex === 4) return !!(build.buyerInfo?.address && build.pricing?.total)
+    
+    // Step 6 (Payment Method): Completed if we have financing info
+    if (stepIndex === 5) return !!(build.financing?.method)
+    
+    // Step 7 (Contract): Completed if we have contract info
+    if (stepIndex === 6) return !!(build.contract?.signed)
+    
+    // Step 8 (Confirmation): Completed if we have confirmation
+    if (stepIndex === 7) return !!(build.status === 'CONFIRMED')
   }
   
   // Fallback: All previous steps are completed
