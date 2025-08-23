@@ -127,14 +127,14 @@ const Customize = () => {
           setSelectedOptions(options)
           setSelectedPackage(selectedPackage)
           
-          // Initialize delivery cost from loaded build if available AND user has addresses
-          // Only use saved delivery cost if user has addresses to calculate from
-          if (latestBuild.pricing?.delivery !== undefined && latestBuild.pricing.delivery !== null && addresses && addresses.length > 0) {
+          // Initialize delivery cost from loaded build if available
+          // Use saved delivery cost if it exists and is not the default $2000
+          if (latestBuild.pricing?.delivery !== undefined && latestBuild.pricing.delivery !== null && latestBuild.pricing.delivery > 0) {
             setDeliveryCost(roundToCents(latestBuild.pricing.delivery))
             console.log('Initialized delivery cost from loaded build:', latestBuild.pricing.delivery)
           } else {
-            console.log('No delivery cost found in loaded build or no addresses available')
-            setDeliveryCost(null) // Reset to null when no addresses available
+            console.log('No valid delivery cost found in loaded build, will calculate fresh')
+            setDeliveryCost(null) // Reset to null to trigger fresh calculation
           }
           
           addToast({
@@ -205,17 +205,17 @@ const Customize = () => {
 
     try {
       setDeliveryLoading(true)
-      const primaryAddress = getPrimaryAddress()
       
-      console.log('Calculating delivery cost:', {
+      // Use getAutoFillData instead of getPrimaryAddress since addresses state is empty
+      const autoFillData = await getAutoFillData()
+      
+      console.log('Calculating delivery cost with auto-fill data:', {
         isSignedIn,
-        hasAddresses: addresses?.length > 0,
-        primaryAddress,
-        addresses
+        autoFillData
       })
       
-      if (!primaryAddress) {
-        console.log('No primary address found for delivery calculation')
+      if (!autoFillData.address || !autoFillData.city || !autoFillData.state || !autoFillData.zip) {
+        console.log('No complete address found for delivery calculation')
         setDeliveryCost(null) // Set to null when no address available
         return
       }
@@ -228,10 +228,10 @@ const Customize = () => {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
-          address: primaryAddress.address,
-          city: primaryAddress.city,
-          state: primaryAddress.state,
-          zip: primaryAddress.zip
+          address: autoFillData.address,
+          city: autoFillData.city,
+          state: autoFillData.state,
+          zip: autoFillData.zip
         })
       })
 
@@ -251,23 +251,21 @@ const Customize = () => {
     }
   }
 
-  // Calculate delivery cost when user signs in or address changes
+  // Calculate delivery cost when user signs in
   useEffect(() => {
     console.log('Delivery cost useEffect triggered:', {
       isSignedIn,
-      hasAddresses: addresses?.length > 0,
-      deliveryCost,
-      addresses
+      deliveryCost
     })
     
-    // Only calculate if signed in, addresses are available, AND deliveryCost hasn't been set from a loaded build
-    if (isSignedIn && addresses && addresses.length > 0 && deliveryCost === null) {
+    // Calculate if signed in AND deliveryCost hasn't been set from a loaded build
+    if (isSignedIn && deliveryCost === null) {
       console.log('Triggering delivery cost calculation')
       calculateDeliveryCost()
     } else if (!isSignedIn) {
       setDeliveryCost(null) // Reset to null when not signed in
     }
-  }, [isSignedIn, addresses, deliveryCost]) // Add deliveryCost to dependencies
+  }, [isSignedIn, deliveryCost]) // Remove addresses dependency since we're using getAutoFillData
 
   const fetchModel = async () => {
     try {
