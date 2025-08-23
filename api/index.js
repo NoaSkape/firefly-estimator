@@ -868,30 +868,42 @@ app.patch(['/api/profile/basic', '/profile/basic'], async (req, res) => {
   if (!auth?.userId) return
 
   try {
+    console.log('DEBUG: Starting profile/basic update for user:', auth.userId)
+    
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
     const { firstName, lastName, email, phone } = body
     
-    console.log('DEBUG: Updating basic info for user:', auth.userId, { firstName, lastName, email, phone })
+    console.log('DEBUG: Request body:', { firstName, lastName, email, phone })
     
     // Validate required fields
     if (!firstName || !lastName || !email) {
+      console.log('DEBUG: Missing required fields')
       return res.status(400).json({ error: 'missing_required_fields', message: 'First name, last name, and email are required' })
     }
     
+    console.log('DEBUG: Ensuring user profile indexes...')
     await ensureUserProfileIndexes()
+    console.log('DEBUG: Indexes ensured successfully')
+    
+    console.log('DEBUG: Updating user basic info...')
     const profile = await updateUserBasicInfo(auth.userId, { firstName, lastName, email, phone })
     
     console.log('DEBUG: Basic info updated successfully:', profile)
     return res.status(200).json(profile)
   } catch (error) {
     console.error('Update profile error:', error)
+    console.error('Error stack:', error.stack)
     
-    // Provide more specific error messages
+    // Check for specific error types
+    if (error.message.includes('MONGODB_URI is not configured')) {
+      return res.status(503).json({ error: 'database_config_missing', message: 'Database configuration is missing' })
+    }
+    
     if (error.message.includes('userId is required')) {
       return res.status(400).json({ error: 'invalid_user', message: 'User ID is required' })
     }
     
-    if (error.message.includes('database')) {
+    if (error.message.includes('database') || error.message.includes('MongoDB')) {
       return res.status(503).json({ error: 'database_unavailable', message: 'Database temporarily unavailable' })
     }
     
@@ -921,29 +933,41 @@ app.post(['/api/profile/addresses', '/profile/addresses'], async (req, res) => {
   if (!auth?.userId) return
 
   try {
+    console.log('DEBUG: Starting addUserAddress for user:', auth.userId)
+    
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
     const { address, city, state, zip, label } = body
     
-    console.log('DEBUG: Adding address for user:', auth.userId, { address, city, state, zip, label })
+    console.log('DEBUG: Request body:', { address, city, state, zip, label })
     
     if (!address || !city || !state || !zip) {
+      console.log('DEBUG: Missing address fields')
       return res.status(400).json({ error: 'address_fields_required', message: 'Address, city, state, and zip are required' })
     }
     
+    console.log('DEBUG: Ensuring user profile indexes...')
     await ensureUserProfileIndexes()
+    console.log('DEBUG: Indexes ensured successfully')
+    
+    console.log('DEBUG: Adding user address...')
     const profile = await addUserAddress(auth.userId, { address, city, state, zip, label })
     
     console.log('DEBUG: Address added successfully:', profile)
     return res.status(200).json(profile)
   } catch (error) {
     console.error('Add address error:', error)
+    console.error('Error stack:', error.stack)
     
-    // Provide more specific error messages
+    // Check for specific error types
+    if (error.message.includes('MONGODB_URI is not configured')) {
+      return res.status(503).json({ error: 'database_config_missing', message: 'Database configuration is missing' })
+    }
+    
     if (error.message.includes('userId and address are required')) {
       return res.status(400).json({ error: 'invalid_request', message: 'User ID and address are required' })
     }
     
-    if (error.message.includes('database')) {
+    if (error.message.includes('database') || error.message.includes('MongoDB')) {
       return res.status(503).json({ error: 'database_unavailable', message: 'Database temporarily unavailable' })
     }
     
@@ -1016,21 +1040,54 @@ app.get(['/api/profile/debug', '/profile/debug'], async (req, res) => {
   if (!auth?.userId) return
 
   try {
+    console.log('DEBUG: Testing profile system for user:', auth.userId)
+    
+    // Test database connection
+    console.log('DEBUG: Testing database connection...')
+    const db = await getDb()
+    console.log('DEBUG: Database connection successful')
+    
+    // Test profile indexes
+    console.log('DEBUG: Testing profile indexes...')
     await ensureUserProfileIndexes()
+    console.log('DEBUG: Profile indexes ensured')
+    
+    // Test getting profile
+    console.log('DEBUG: Testing get profile...')
     const profile = await getUserProfile(auth.userId)
+    console.log('DEBUG: Profile retrieved:', !!profile)
+    
+    // Test getting auto-fill data
+    console.log('DEBUG: Testing auto-fill data...')
     const autoFillData = await getAutoFillData(auth.userId)
+    console.log('DEBUG: Auto-fill data retrieved:', !!autoFillData)
+    
+    // Test getting primary address
+    console.log('DEBUG: Testing primary address...')
     const primaryAddress = await getPrimaryAddress(auth.userId)
+    console.log('DEBUG: Primary address retrieved:', !!primaryAddress)
     
     return res.status(200).json({
       userId: auth.userId,
-      profile,
-      autoFillData,
-      primaryAddress,
+      databaseConnected: true,
+      profileExists: !!profile,
+      autoFillDataExists: !!autoFillData,
+      primaryAddressExists: !!primaryAddress,
+      profile: profile || null,
+      autoFillData: autoFillData || {},
+      primaryAddress: primaryAddress || null,
       timestamp: new Date().toISOString()
     })
   } catch (error) {
     console.error('Profile debug error:', error)
-    return res.status(500).json({ error: 'debug_failed', message: error.message })
+    console.error('Error stack:', error.stack)
+    
+    return res.status(500).json({ 
+      error: 'debug_failed', 
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    })
   }
 })
 
