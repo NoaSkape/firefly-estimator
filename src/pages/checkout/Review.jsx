@@ -336,7 +336,7 @@ export default function Review() {
           </button>
           <button
             className="btn-secondary"
-            onClick={() => navigate(`/customize/${build?.modelSlug}`)}
+            onClick={() => navigate(`/customize/${build?.modelSlug}?buildId=${buildId}`)}
           >
             Edit Customization
           </button>
@@ -353,7 +353,7 @@ export default function Review() {
               ← Edit Delivery Address
             </button>
             <button
-              onClick={() => navigate(`/customize/${build?.modelSlug}`)}
+              onClick={() => navigate(`/customize/${build?.modelSlug}?buildId=${buildId}`)}
               className="text-sm text-yellow-500 hover:text-yellow-400 underline"
             >
               ← Edit Customization

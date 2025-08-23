@@ -323,7 +323,7 @@ const Customize = () => {
 
   // Auto-save customization changes for signed-in users
   useEffect(() => {
-    if (isSignedIn && currentBuild && currentBuild._id && customizationLoaded && model) {
+    if (isSignedIn && currentBuild && currentBuild._id && customizationLoaded && model && !saving) {
       const timeoutId = setTimeout(async () => {
         try {
           const pricing = computePricing()
@@ -343,7 +343,7 @@ const Customize = () => {
 
       return () => clearTimeout(timeoutId)
     }
-  }, [selectedOptions, selectedPackage, isSignedIn, currentBuild, customizationLoaded, updateBuild, computePricing, model])
+  }, [selectedOptions, selectedPackage, isSignedIn, currentBuild, customizationLoaded, updateBuild, computePricing, model, saving])
 
   // Clean up expired customizations on mount
   useEffect(() => {

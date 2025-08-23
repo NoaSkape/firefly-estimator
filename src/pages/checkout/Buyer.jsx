@@ -195,11 +195,11 @@ export default function Buyer() {
         console.error('Error saving to localStorage:', localStorageError)
       }
       
-      // Update build with buyer info
+      // Update build with buyer info and advance to step 5 (Overview)
       const res = await fetch(`/api/builds/${buildId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ buyerInfo: form, step: 4 })
+        body: JSON.stringify({ buyerInfo: form })
       })
       
       if (!res.ok) { 
@@ -210,19 +210,6 @@ export default function Buyer() {
       
       addToast({ type: 'success', message: 'Saved' })
       trackEvent('buyer_saved', { buildId })
-      
-      // Advance checkout step
-      const res2 = await fetch(`/api/builds/${buildId}/checkout-step`, { 
-        method:'POST', 
-        headers: { 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, 
-        body: JSON.stringify({ step: 4 }) 
-      })
-      
-      if (!res2.ok) { 
-        const j = await res2.json().catch(()=>({})); 
-        addToast({ type:'error', message: j?.error || 'Complete previous steps' }); 
-        return 
-      }
       
       // Update build step to 5 (Overview)
       await updateBuildStep(buildId, 5, token)
