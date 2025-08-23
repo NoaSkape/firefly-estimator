@@ -196,6 +196,10 @@ const Customize = () => {
     navigate('/sign-up?redirect=' + encodeURIComponent(window.location.pathname + window.location.search))
   }
 
+  const handleSignIn = () => {
+    navigate('/sign-in?redirect=' + encodeURIComponent(window.location.pathname + window.location.search))
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -459,7 +463,7 @@ const Customize = () => {
                     Create Account
                   </button>
                   <p className="text-sm text-gray-600 mt-2 text-center">
-                    Already have an account? <button onClick={handleCreateAccount} className="text-yellow-500 hover:text-yellow-400 underline">Sign in here</button>
+                    Already have an account? <button onClick={handleSignIn} className="text-yellow-500 hover:text-yellow-400 underline">Sign in here</button>
                   </p>
                 </div>
               )}
