@@ -150,6 +150,34 @@ const Customize = () => {
     }
   }, [isSignedIn, actualModelCode, customizationLoaded, addToast, buildLoaded, currentBuild, specificBuildId])
 
+  // Additional effect to ensure customizations are loaded when navigating back from step 5
+  useEffect(() => {
+    // If we have a specific buildId (from step 5 navigation) and we're signed in but customizations aren't loaded yet
+    if (isSignedIn && specificBuildId && buildLoaded && !customizationLoaded && currentBuild) {
+      console.log('Ensuring customizations are loaded for specific buildId:', specificBuildId)
+      
+      // Check if currentBuild has selections data
+      if (currentBuild.selections) {
+        const options = currentBuild.selections.options || []
+        const selectedPackage = currentBuild.selections.package || ''
+        
+        console.log('Loading customizations from currentBuild for specific buildId:', {
+          buildId: currentBuild._id,
+          options: options.length,
+          selectedPackage
+        })
+        
+        setSelectedOptions(options)
+        setSelectedPackage(selectedPackage)
+        setCustomizationLoaded(true)
+      } else {
+        // If currentBuild doesn't have selections, try to load it directly
+        console.log('CurrentBuild missing selections, loading directly for buildId:', specificBuildId)
+        loadSpecificBuildData(specificBuildId)
+      }
+    }
+  }, [isSignedIn, specificBuildId, buildLoaded, customizationLoaded, currentBuild])
+
   // Handle redirect back after sign-in
   useEffect(() => {
     if (isSignedIn && actualModelCode && customizationLoaded) {
@@ -410,6 +438,17 @@ const Customize = () => {
       const timeoutId = setTimeout(async () => {
         try {
           const pricing = computePricing()
+          console.log('Auto-saving customization changes:', {
+            buildId: currentBuild._id,
+            options: selectedOptions.length,
+            selectedPackage,
+            pricing: {
+              subtotal: pricing.subtotal,
+              delivery: pricing.delivery,
+              total: pricing.total
+            }
+          })
+          
           await updateBuild({
             selections: {
               options: selectedOptions,
@@ -418,7 +457,7 @@ const Customize = () => {
             pricing
           }, { skipRefetch: true }) // Skip refetch to prevent infinite loops
           
-          console.log('Auto-saved customization changes')
+          console.log('Auto-saved customization changes successfully')
         } catch (error) {
           console.error('Error auto-saving customization:', error)
         }
