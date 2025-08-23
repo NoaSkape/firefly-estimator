@@ -267,6 +267,21 @@ app.get(['/api/delivery/quote', '/delivery/quote'], async (req, res) => {
   return res.status(200).json(q)
 })
 
+app.post(['/api/delivery/quote', '/delivery/quote'], async (req, res) => {
+  const auth = await requireAuth(req, res, false) // Optional auth for signed-in users
+  const { address, city, state, zip } = req.body || {}
+  
+  if (!zip) return res.status(400).json({ error: 'missing_zip' })
+  
+  try {
+    const q = quoteDelivery(String(zip))
+    return res.status(200).json(q)
+  } catch (error) {
+    console.error('Delivery quote error:', error)
+    return res.status(500).json({ error: 'delivery_calculation_failed' })
+  }
+})
+
 // ===== Contracts status proxy for portal card (signed download URL short link)
 app.get(['/api/contracts/:orderId/download', '/contracts/:orderId/download'], async (req, res) => {
   const auth = await requireAuth(req, res, true)

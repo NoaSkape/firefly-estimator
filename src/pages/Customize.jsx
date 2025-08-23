@@ -12,6 +12,7 @@ import SEOHead from '../components/SEOHead'
 import FunnelProgress from '../components/FunnelProgress'
 import { useToast } from '../components/ToastProvider'
 import { navigateToStep } from '../utils/checkoutNavigation'
+import { useUserProfile } from '../hooks/useUserProfile'
 import { 
   saveAnonymousCustomization, 
   loadAnonymousCustomization, 
@@ -26,6 +27,7 @@ const Customize = () => {
   const { user, isSignedIn } = useUser()
   const { getToken } = useAuth()
   const { addToast } = useToast()
+  const { getPrimaryAddress } = useUserProfile()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [model, setModel] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -34,6 +36,8 @@ const Customize = () => {
   const [selectedPackage, setSelectedPackage] = useState('')
   const [saving, setSaving] = useState(false)
   const [customizationLoaded, setCustomizationLoaded] = useState(false)
+  const [deliveryCost, setDeliveryCost] = useState(0)
+  const [deliveryLoading, setDeliveryLoading] = useState(false)
 
   // Determine the actual model code from URL parameters
   const getModelCode = () => {
@@ -177,6 +181,60 @@ const Customize = () => {
     cleanupExpiredCustomizations()
   }, [])
 
+  // Calculate delivery cost for signed-in users
+  const calculateDeliveryCost = async () => {
+    if (!isSignedIn) return
+
+    try {
+      setDeliveryLoading(true)
+      const primaryAddress = getPrimaryAddress()
+      
+      if (!primaryAddress) {
+        console.log('No primary address found for delivery calculation')
+        setDeliveryCost(0)
+        return
+      }
+
+      const token = await getToken()
+      const response = await fetch('/api/delivery/quote', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          address: primaryAddress.address,
+          city: primaryAddress.city,
+          state: primaryAddress.state,
+          zip: primaryAddress.zip
+        })
+      })
+
+      if (response.ok) {
+        const deliveryData = await response.json()
+        setDeliveryCost(deliveryData.fee || 0)
+        console.log('Delivery cost calculated:', deliveryData.fee)
+      } else {
+        console.error('Failed to calculate delivery cost')
+        setDeliveryCost(0)
+      }
+    } catch (error) {
+      console.error('Error calculating delivery cost:', error)
+      setDeliveryCost(0)
+    } finally {
+      setDeliveryLoading(false)
+    }
+  }
+
+  // Calculate delivery cost when user signs in or address changes
+  useEffect(() => {
+    if (isSignedIn) {
+      calculateDeliveryCost()
+    } else {
+      setDeliveryCost(0)
+    }
+  }, [isSignedIn])
+
   const fetchModel = async () => {
     try {
       setLoading(true)
@@ -249,7 +307,7 @@ const Customize = () => {
     const subtotal = base + optionsTotal + pkgDelta
     
     // Delivery cost (will be calculated based on address for signed-in users)
-    const delivery = isSignedIn ? 0 : 0 // TODO: Calculate based on user's delivery address
+    const delivery = isSignedIn ? deliveryCost : 0
     
     // Calculate taxes (8.25% for Texas)
     const taxRate = 0.0825
@@ -549,7 +607,11 @@ const Customize = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">Delivery</span>
                   {isSignedIn ? (
-                    <span className="font-medium">${pricing.delivery.toLocaleString()}</span>
+                    deliveryLoading ? (
+                      <span className="text-sm text-gray-500">Calculating...</span>
+                    ) : (
+                      <span className="font-medium">${deliveryCost.toLocaleString()}</span>
+                    )
                   ) : (
                     <span className="text-sm text-yellow-500 font-medium text-center ml-4">
                       <button 
@@ -585,17 +647,17 @@ const Customize = () => {
               {isSignedIn ? (
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                    To Keep Your Customizations
+                    To Continue Click
                   </h3>
                   <button
                     onClick={handleSaveCustomization}
                     disabled={saving}
                     className="w-full btn-primary text-lg py-4 disabled:opacity-50"
                   >
-                    {saving ? 'Saving...' : 'Save'}
+                    {saving ? 'Saving...' : 'Next Step'}
                   </button>
                   <p className="text-sm text-gray-600 mt-2 text-center">
-                    Your customization will be saved to your account.
+                    Your customization is automatically saved as you make changes.
                   </p>
                 </div>
               ) : (
