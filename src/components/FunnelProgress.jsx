@@ -40,7 +40,7 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
             <div key={label} className="flex items-center min-w-0 relative">
               {/* Green checkmark for completed steps */}
               {completed && (
-                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 z-10">
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
                   <div className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center">
                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -78,7 +78,7 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
               <div key={label} className="relative">
                 {/* Green checkmark for completed steps */}
                 {completed && (
-                  <div className="absolute -top-4 right-1 z-10">
+                  <div className="absolute -top-2 right-1 z-10">
                     <div className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center">
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
