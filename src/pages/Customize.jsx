@@ -52,22 +52,111 @@ const Customize = () => {
     fetchModel()
   }, [actualModelCode])
 
-  // Load anonymous customization on component mount
+  // Load customization on component mount (both anonymous and migrated)
   useEffect(() => {
-    if (!isSignedIn && actualModelCode && !customizationLoaded) {
-      const savedCustomization = loadAnonymousCustomization(actualModelCode)
-      if (savedCustomization) {
-        setSelectedOptions(savedCustomization.selectedOptions || [])
-        setSelectedPackage(savedCustomization.selectedPackage || '')
-        addToast({
-          type: 'info',
-          title: 'Customization Restored',
-          message: 'Your previous customization has been restored.'
-        })
+    if (actualModelCode && !customizationLoaded) {
+      if (!isSignedIn) {
+        // Load anonymous customization for non-signed-in users
+        const savedCustomization = loadAnonymousCustomization(actualModelCode)
+        if (savedCustomization) {
+          setSelectedOptions(savedCustomization.selectedOptions || [])
+          setSelectedPackage(savedCustomization.selectedPackage || '')
+          addToast({
+            type: 'info',
+            title: 'Customization Restored',
+            message: 'Your previous customization has been restored.'
+          })
+        }
+      } else {
+        // For signed-in users, try to load from their builds first
+        loadUserBuildsForModel(actualModelCode)
       }
       setCustomizationLoaded(true)
     }
   }, [isSignedIn, actualModelCode, customizationLoaded, addToast])
+
+  // Handle redirect back after sign-in
+  useEffect(() => {
+    if (isSignedIn && actualModelCode && customizationLoaded) {
+      // Check if we're returning from a sign-in redirect
+      const urlParams = new URLSearchParams(window.location.search)
+      const isRedirect = urlParams.get('redirect') || urlParams.get('from')
+      
+      if (isRedirect) {
+        console.log('Detected redirect back to customization page, ensuring customizations are loaded')
+        // Force reload of customizations
+        loadUserBuildsForModel(actualModelCode)
+      }
+    }
+  }, [isSignedIn, actualModelCode, customizationLoaded])
+
+  // Load user's builds for this model
+  const loadUserBuildsForModel = async (modelCode) => {
+    try {
+      const token = await getToken()
+      if (!token) return
+
+      const response = await fetch('/api/builds', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        const builds = await response.json()
+        // Find the most recent build for this model
+        const modelBuilds = builds.filter(b => 
+          b.modelSlug === modelCode || b.modelSlug === modelId
+        ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+
+        if (modelBuilds.length > 0) {
+          const latestBuild = modelBuilds[0]
+          const options = latestBuild.selections?.options || []
+          const selectedPackage = latestBuild.selections?.package || ''
+          
+          setSelectedOptions(options)
+          setSelectedPackage(selectedPackage)
+          
+          addToast({
+            type: 'info',
+            title: 'Build Restored',
+            message: 'Your previous build has been restored.'
+          })
+          
+          console.log('Restored build customization:', { options, selectedPackage })
+        } else {
+          // If no builds found, try to load from migrated anonymous customizations
+          const migratedCustomization = loadMigratedCustomization(modelCode)
+          if (migratedCustomization) {
+            setSelectedOptions(migratedCustomization.selectedOptions || [])
+            setSelectedPackage(migratedCustomization.selectedPackage || '')
+            addToast({
+              type: 'info',
+              title: 'Customization Restored',
+              message: 'Your previous customization has been restored.'
+            })
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load user builds:', error)
+    }
+  }
+
+  // Load migrated customization from localStorage (temporary storage after migration)
+  const loadMigratedCustomization = (modelCode) => {
+    try {
+      const key = `migrated_${modelCode}_${user?.id}`
+      const stored = localStorage.getItem(key)
+      if (stored) {
+        const data = JSON.parse(stored)
+        // Clear the temporary storage after loading
+        localStorage.removeItem(key)
+        return data
+      }
+    } catch (error) {
+      console.error('Failed to load migrated customization:', error)
+    }
+    return null
+  }
 
   // Auto-save customization changes for anonymous users
   useEffect(() => {

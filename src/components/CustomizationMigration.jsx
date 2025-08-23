@@ -39,6 +39,17 @@ const CustomizationMigration = () => {
               message: `Successfully restored ${migratedCustomizations.length} customization${migratedCustomizations.length > 1 ? 's' : ''} to your account.`
             })
             
+            // Trigger a page reload to ensure customizations are restored
+            // This is especially important if the user is on a customization page
+            const currentPath = window.location.pathname
+            if (currentPath.includes('/customize/')) {
+              console.log('User is on customization page, triggering reload to restore customizations')
+              // Small delay to ensure the toast is shown before reload
+              setTimeout(() => {
+                window.location.reload()
+              }, 1500)
+            }
+            
             // Don't redirect - let the user stay on their current page
             // The customizations are now saved to their account and can be accessed
             // If they're on a customization page, their work is preserved

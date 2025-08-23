@@ -176,6 +176,15 @@ export async function migrateAnonymousCustomizations(userId, token) {
             customization
           })
           console.log('Successfully migrated customization:', { modelId, buildId: result.buildId })
+          
+          // Store the migrated customization temporarily for immediate restoration
+          try {
+            const tempKey = `migrated_${modelId}_${userId}`
+            localStorage.setItem(tempKey, JSON.stringify(customization))
+            console.log('Stored migrated customization for immediate restoration:', tempKey)
+          } catch (storageError) {
+            console.error('Failed to store migrated customization for restoration:', storageError)
+          }
         } else {
           const errorText = await response.text()
           console.error('Failed to migrate customization:', { 
