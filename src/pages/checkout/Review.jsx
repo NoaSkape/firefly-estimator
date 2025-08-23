@@ -141,10 +141,10 @@ export default function Review() {
     }
   }
 
-  const handleRemoveOption = async (optionCode) => {
+  const handleRemoveOption = async (optionId) => {
     try {
       // Remove the option from the build's selections
-      const updatedOptions = build.selections.options.filter(opt => opt.code !== optionCode)
+      const updatedOptions = build.selections.options.filter(opt => opt.id !== optionId)
       
       // Update the build with the new options
       await updateBuild({
@@ -327,7 +327,7 @@ export default function Review() {
                             {formatCurrency(Number(option.price || 0) * (option.quantity || 1))}
                           </span>
                           <button
-                            onClick={() => handleRemoveOption(option.code)}
+                            onClick={() => handleRemoveOption(option.id)}
                             className="text-red-400 hover:text-red-300 text-sm font-medium"
                           >
                             Remove
