@@ -17,7 +17,7 @@ export default function Buyer() {
   const navigate = useNavigate()
   const { buildId } = useParams()
   const { addToast } = useToast()
-  const { getAutoFillData, updateBasicInfo, addAddress } = useUserProfile()
+  const { getAutoFillData, updateBasicInfo, addAddress, setPrimaryAddress } = useUserProfile()
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '',
     address: '', city: '', state: '', zip: ''
@@ -153,16 +153,31 @@ export default function Buyer() {
               })
               console.log('Basic info saved:', basicInfoResult)
               
-              // Add address to address book
+              // Add address to address book and set as primary
               if (form.address && form.city && form.state && form.zip) {
                 const addressResult = await addAddress({
                   address: form.address,
                   city: form.city,
                   state: form.state,
                   zip: form.zip,
-                  label: 'Home'
+                  label: 'Home',
+                  isPrimary: true // Set as primary address
                 })
                 console.log('Address saved:', addressResult)
+                
+                // If the address was added successfully and has an ID, set it as primary
+                if (addressResult && addressResult.addresses) {
+                  const newAddress = addressResult.addresses.find(addr => 
+                    addr.address === form.address && 
+                    addr.city === form.city && 
+                    addr.state === form.state && 
+                    addr.zip === form.zip
+                  )
+                  if (newAddress && newAddress.id) {
+                    await setPrimaryAddress(newAddress.id)
+                    console.log('Address set as primary:', newAddress.id)
+                  }
+                }
               }
             } catch (profileError) {
               console.error('Error saving to profile:', profileError)

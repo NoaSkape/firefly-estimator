@@ -357,19 +357,43 @@ const Customize = () => {
     try {
       setDeliveryLoading(true)
       
-      // Use getAutoFillData instead of getPrimaryAddress since addresses state is empty
+      // Try multiple sources for address data
+      let addressData = null
+      
+      // First, try getAutoFillData
       const autoFillData = await getAutoFillData()
+      console.log('Auto-fill data for delivery calculation:', autoFillData)
       
-      console.log('Calculating delivery cost with auto-fill data:', {
-        isSignedIn,
-        autoFillData
-      })
+      if (autoFillData.address && autoFillData.city && autoFillData.state && autoFillData.zip) {
+        addressData = {
+          address: autoFillData.address,
+          city: autoFillData.city,
+          state: autoFillData.state,
+          zip: autoFillData.zip
+        }
+      } else {
+        // Fallback: try to get from current build's buyer info
+        if (currentBuild?.buyerInfo) {
+          const buyerInfo = currentBuild.buyerInfo
+          if (buyerInfo.address && buyerInfo.city && buyerInfo.state && buyerInfo.zip) {
+            addressData = {
+              address: buyerInfo.address,
+              city: buyerInfo.city,
+              state: buyerInfo.state,
+              zip: buyerInfo.zip
+            }
+            console.log('Using address from build buyer info:', addressData)
+          }
+        }
+      }
       
-      if (!autoFillData.address || !autoFillData.city || !autoFillData.state || !autoFillData.zip) {
+      if (!addressData) {
         console.log('No complete address found for delivery calculation')
         setDeliveryCost(null) // Set to null when no address available
         return
       }
+
+      console.log('Calculating delivery cost with address:', addressData)
 
       const token = await getToken()
       const response = await fetch('/api/delivery/quote', {
@@ -378,12 +402,7 @@ const Customize = () => {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({
-          address: autoFillData.address,
-          city: autoFillData.city,
-          state: autoFillData.state,
-          zip: autoFillData.zip
-        })
+        body: JSON.stringify(addressData)
       })
 
       if (response.ok) {
@@ -514,44 +533,60 @@ const Customize = () => {
       const token = await getToken()
       let buildId = currentBuild?._id
       
-      // If we have an existing build in progress, update it instead of creating a new one
-      if (currentBuild && currentBuild._id) {
-        console.log('Updating existing build:', currentBuild._id)
-        const updateRes = await fetch(`/api/builds/${currentBuild._id}`, {
-          method: 'PATCH',
-          headers: { 
-            'Content-Type': 'application/json', 
-            ...(token ? { Authorization: `Bearer ${token}` } : {}) 
-          },
-          body: JSON.stringify(body)
-        })
-        
-        if (updateRes.ok) {
-          const updatedBuild = await updateRes.json()
-          buildId = updatedBuild._id
-          console.log('Build updated successfully:', buildId)
-        } else {
-          throw new Error('Failed to update build')
-        }
-      } else {
-        // Create new build if no existing build
-        console.log('Creating new build')
-        const key = `${Date.now()}-${user?.id || 'anon'}-${actualModelCode}`
-        const res = await fetch('/api/builds', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json', 
-            'Idempotency-Key': key, 
-            ...(token ? { Authorization: `Bearer ${token}` } : {}) 
-          },
-          body: JSON.stringify(body)
-        })
-        
-        if (!res.ok) throw new Error('Failed to save customization')
-        const data = await res.json()
-        buildId = data.buildId
-        console.log('New build created:', buildId)
-      }
+             // Always try to update existing build first, then create new if needed
+       if (currentBuild && currentBuild._id) {
+         console.log('Updating existing build:', currentBuild._id)
+         const updateRes = await fetch(`/api/builds/${currentBuild._id}`, {
+           method: 'PATCH',
+           headers: { 
+             'Content-Type': 'application/json', 
+             ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+           },
+           body: JSON.stringify(body)
+         })
+         
+         if (updateRes.ok) {
+           const updatedBuild = await updateRes.json()
+           buildId = updatedBuild._id
+           console.log('Build updated successfully:', buildId)
+         } else {
+           console.log('Failed to update build, creating new one')
+           // Fallback to creating new build
+           const key = `${Date.now()}-${user?.id || 'anon'}-${actualModelCode}`
+           const res = await fetch('/api/builds', {
+             method: 'POST',
+             headers: { 
+               'Content-Type': 'application/json', 
+               'Idempotency-Key': key, 
+               ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+             },
+             body: JSON.stringify(body)
+           })
+           
+           if (!res.ok) throw new Error('Failed to save customization')
+           const data = await res.json()
+           buildId = data.buildId
+           console.log('New build created:', buildId)
+         }
+       } else {
+         // Create new build if no existing build
+         console.log('Creating new build')
+         const key = `${Date.now()}-${user?.id || 'anon'}-${actualModelCode}`
+         const res = await fetch('/api/builds', {
+           method: 'POST',
+           headers: { 
+             'Content-Type': 'application/json', 
+             'Idempotency-Key': key, 
+             ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+           },
+           body: JSON.stringify(body)
+         })
+         
+         if (!res.ok) throw new Error('Failed to save customization')
+         const data = await res.json()
+         buildId = data.buildId
+         console.log('New build created:', buildId)
+       }
       
       // Clear anonymous customization after successful save
       clearAnonymousCustomization(actualModelCode)
