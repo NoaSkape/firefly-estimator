@@ -612,6 +612,37 @@ app.get(['/api/debug/maps', '/debug/maps'], async (req, res) => {
   }
 })
 
+// Debug endpoint to test delivery calculation for a specific address
+app.get(['/api/debug/delivery', '/debug/delivery'], async (req, res) => {
+  try {
+    const { address } = req.query
+    if (!address) {
+      return res.status(400).json({ error: 'address parameter required' })
+    }
+    
+    const { getDeliveryQuote } = await import('./lib/delivery-quote.js')
+    const { getOrgSettings } = await import('./lib/settings.js')
+    const settings = await getOrgSettings()
+    
+    const result = await getDeliveryQuote(address, settings)
+    
+    return res.status(200).json({
+      address,
+      result,
+      expectedCalculation: `${result.miles} miles × $${result.ratePerMile}/mile = $${result.miles * result.ratePerMile}`,
+      finalFee: result.fee,
+      settings: {
+        factoryAddress: settings?.factory?.address,
+        deliveryRate: settings?.pricing?.delivery_rate_per_mile,
+        deliveryMinimum: settings?.pricing?.delivery_minimum
+      }
+    })
+  } catch (error) {
+    console.error('Debug delivery error:', error)
+    return res.status(500).json({ error: 'debug_failed', message: error.message })
+  }
+})
+
 // ===== Builds (new) =====
 // Create build (from model or migrated guest draft)
 app.post(['/api/builds', '/builds'], async (req, res) => {

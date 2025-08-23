@@ -33,8 +33,9 @@ export default function Review() {
           const buildData = await buildRes.json()
           setBuild(buildData)
           
-          // If delivery fee hasn't been calculated and we have buyer info, trigger calculation
-          if ((!buildData?.pricing?.delivery || buildData?.pricing?.delivery === 0 || !buildData?.pricing?.deliveryMiles) && buildData?.buyerInfo) {
+          // Always recalculate delivery if we have buyer info with address
+          // This ensures existing builds with wrong calculations get fixed
+          if (buildData?.buyerInfo) {
             const address = buildData.buyerInfo.deliveryAddress || 
               [buildData.buyerInfo.address, buildData.buyerInfo.city, buildData.buyerInfo.state, buildData.buyerInfo.zip]
                 .filter(Boolean)
@@ -42,17 +43,28 @@ export default function Review() {
             
             if (address && address.trim()) {
               try {
+                console.log('Recalculating delivery for address:', address)
                 // Trigger delivery calculation by updating the build with current buyer info
-                await fetch(`/api/builds/${buildId}`, {
+                const updateRes = await fetch(`/api/builds/${buildId}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json', ...headers },
                   body: JSON.stringify({ buyerInfo: buildData.buyerInfo })
                 })
                 
-                // Refetch the build to get updated pricing
-                const updatedBuildRes = await fetch(`/api/builds/${buildId}`, { headers })
-                if (updatedBuildRes.ok) {
-                  setBuild(await updatedBuildRes.json())
+                if (updateRes.ok) {
+                  // Refetch the build to get updated pricing
+                  const updatedBuildRes = await fetch(`/api/builds/${buildId}`, { headers })
+                  if (updatedBuildRes.ok) {
+                    const updatedBuild = await updatedBuildRes.json()
+                    setBuild(updatedBuild)
+                    console.log('Delivery recalculated:', {
+                      oldDelivery: buildData?.pricing?.delivery,
+                      newDelivery: updatedBuild?.pricing?.delivery,
+                      miles: updatedBuild?.pricing?.deliveryMiles
+                    })
+                  }
+                } else {
+                  console.error('Failed to update build for delivery calculation')
                 }
               } catch (error) {
                 console.error('Error calculating delivery:', error)
