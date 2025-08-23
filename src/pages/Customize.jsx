@@ -403,7 +403,7 @@ const Customize = () => {
                   {isSignedIn ? (
                     <span className="font-medium">${pricing.delivery.toLocaleString()}</span>
                   ) : (
-                    <span className="text-sm text-yellow-500 font-medium bg-yellow-500/10 px-2 py-1 rounded">
+                    <span className="text-sm text-yellow-500 font-medium bg-yellow-500/10 px-3 py-1.5 rounded">
                       Create Account to discover delivery cost
                     </span>
                   )}
