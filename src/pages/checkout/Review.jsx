@@ -141,8 +141,36 @@ export default function Review() {
     }
   }
 
-  const handleEditOption = (optionId) => {
-    navigate(`/customize/${build?.modelSlug}?edit=${optionId}`)
+  const handleRemoveOption = async (optionCode) => {
+    try {
+      // Remove the option from the build's selections
+      const updatedOptions = build.selections.options.filter(opt => opt.code !== optionCode)
+      
+      // Update the build with the new options
+      await updateBuild({
+        selections: {
+          ...build.selections,
+          options: updatedOptions
+        }
+      }, { skipRefetch: true })
+      
+      addToast({
+        type: 'success',
+        title: 'Option Removed',
+        message: 'The option has been removed from your build.'
+      })
+    } catch (error) {
+      console.error('Error removing option:', error)
+      addToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to remove the option. Please try again.'
+      })
+    }
+  }
+
+  const handleEditCustomization = () => {
+    navigate(`/customize/${build?.modelSlug}?buildId=${buildId}`)
   }
 
   const handleFunnelNavigation = (stepName, stepIndex) => {
@@ -268,7 +296,15 @@ export default function Review() {
           {/* Options by Category */}
           {Object.keys(optionsByCategory).length > 0 && (
             <div className="border-b border-gray-700 pb-4 mb-4">
-              <h3 className="text-lg font-medium text-gray-100 mb-3">Selected Options</h3>
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-medium text-gray-100">Selected Options</h3>
+                <button
+                  onClick={handleEditCustomization}
+                  className="text-yellow-500 hover:text-yellow-400 text-sm font-medium"
+                >
+                  Edit
+                </button>
+              </div>
               {Object.entries(optionsByCategory).map(([category, categoryOptions]) => (
                 <div key={category} className="mb-4 last:mb-0">
                   <h4 className="text-md font-medium text-gray-200 mb-2">{category}</h4>
@@ -291,10 +327,10 @@ export default function Review() {
                             {formatCurrency(Number(option.price || 0) * (option.quantity || 1))}
                           </span>
                           <button
-                            onClick={() => handleEditOption(option.code)}
-                            className="text-yellow-500 hover:text-yellow-400 text-sm font-medium"
+                            onClick={() => handleRemoveOption(option.code)}
+                            className="text-red-400 hover:text-red-300 text-sm font-medium"
                           >
-                            Edit
+                            Remove
                           </button>
                         </div>
                       </div>
