@@ -14,7 +14,7 @@ const pendingRequests = new Map()
 export function useBuildData(buildId) {
   const { getToken, isSignedIn } = useAuth()
   const [build, setBuild] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false) // Start as false, not true
   const [error, setError] = useState(null)
   const [lastUpdated, setLastUpdated] = useState(null)
   
@@ -24,9 +24,11 @@ export function useBuildData(buildId) {
 
   // Fetch build data with proper caching and deduplication
   const fetchBuild = useCallback(async (forceRefresh = false) => {
+    // Early return if no buildId or not signed in
     if (!buildId || !isSignedIn) {
       setBuild(null)
       setLoading(false)
+      setError(null)
       return
     }
 
@@ -173,7 +175,15 @@ export function useBuildData(buildId) {
 
   // Load build on mount and when dependencies change
   useEffect(() => {
-    fetchBuild()
+    // Only fetch if we have a valid buildId and user is signed in
+    if (buildId && isSignedIn) {
+      fetchBuild()
+    } else {
+      // Clear state if no buildId or not signed in
+      setBuild(null)
+      setLoading(false)
+      setError(null)
+    }
     
     return () => {
       // Cleanup: abort pending request
@@ -181,7 +191,7 @@ export function useBuildData(buildId) {
         abortControllerRef.current.abort()
       }
     }
-  }, [fetchBuild])
+  }, [buildId, isSignedIn, fetchBuild])
 
   // Cleanup on unmount
   useEffect(() => {

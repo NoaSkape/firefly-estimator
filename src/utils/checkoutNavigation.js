@@ -8,7 +8,7 @@ const STEP_ROUTES = {
   'Choose Your Home': (buildId, build = null) => `/models`,
   'Customize!': (buildId, build = null) => {
     // If we have a build ID and it's part of a checkout flow, include it as a query parameter
-    if (buildId && buildId !== 'magnolia') {
+    if (buildId && buildId !== 'magnolia' && buildId.length > 10) { // Ensure it's a real build ID, not a slug
       return `/customize/${build?.modelSlug || 'magnolia'}?buildId=${buildId}`
     }
     return `/customize/${build?.modelSlug || 'magnolia'}`

@@ -85,6 +85,7 @@ const Customize = () => {
             message: 'Your previous customization has been restored.'
           })
         }
+        setCustomizationLoaded(true)
       } else if (buildLoaded && currentBuild) {
         // For signed-in users with build data, load from build
         const options = currentBuild.selections?.options || []
@@ -102,7 +103,7 @@ const Customize = () => {
         setSelectedPackage(selectedPackage)
         
         // Initialize delivery cost from loaded build if available
-        if (currentBuild.pricing?.delivery !== undefined && currentBuild.pricing.delivery !== null && currentBuild.pricing.delivery > 0) {
+        if (currentBuild.pricing?.delivery !== undefined && currentBuild.pricing.delivery !== null) {
           setDeliveryCost(roundToCents(currentBuild.pricing.delivery))
           console.log('Initialized delivery cost from build:', currentBuild.pricing.delivery)
         } else {
@@ -117,11 +118,11 @@ const Customize = () => {
         })
         
         console.log('Restored build customization:', { options, selectedPackage })
+        setCustomizationLoaded(true)
       } else if (isSignedIn && !specificBuildId) {
         // Fallback: load from user's builds if no specific buildId
         loadUserBuildsForModel(actualModelCode)
       }
-      setCustomizationLoaded(true)
     }
   }, [isSignedIn, actualModelCode, customizationLoaded, addToast, buildLoaded, currentBuild, specificBuildId])
 
@@ -206,12 +207,8 @@ const Customize = () => {
           setSelectedOptions(options)
           setSelectedPackage(selectedPackage)
           
-          // Store the current build for funnel navigation
-          setCurrentBuild(latestBuild)
-          
           // Initialize delivery cost from loaded build if available
-          // Use saved delivery cost if it exists and is not the default $2000
-          if (latestBuild.pricing?.delivery !== undefined && latestBuild.pricing.delivery !== null && latestBuild.pricing.delivery > 0) {
+          if (latestBuild.pricing?.delivery !== undefined && latestBuild.pricing.delivery !== null) {
             setDeliveryCost(roundToCents(latestBuild.pricing.delivery))
             console.log('Initialized delivery cost from loaded build:', latestBuild.pricing.delivery)
           } else {
@@ -226,6 +223,7 @@ const Customize = () => {
           })
           
           console.log('Restored build customization:', { options, selectedPackage })
+          setCustomizationLoaded(true)
         } else {
           // If no builds found, try to load from migrated anonymous customizations
           const migratedCustomization = loadMigratedCustomization(modelCode)
@@ -238,10 +236,12 @@ const Customize = () => {
               message: 'Your previous customization has been restored.'
             })
           }
+          setCustomizationLoaded(true)
         }
       }
     } catch (error) {
       console.error('Failed to load user builds:', error)
+      setCustomizationLoaded(true) // Set to true even on error to prevent infinite loading
     }
   }
 
@@ -298,7 +298,7 @@ const Customize = () => {
 
       return () => clearTimeout(timeoutId)
     }
-  }, [selectedOptions, selectedPackage, isSignedIn, currentBuild, customizationLoaded, updateBuild])
+  }, [selectedOptions, selectedPackage, isSignedIn, currentBuild, customizationLoaded, updateBuild, computePricing])
 
   // Clean up expired customizations on mount
   useEffect(() => {
@@ -361,17 +361,18 @@ const Customize = () => {
   useEffect(() => {
     console.log('Delivery cost useEffect triggered:', {
       isSignedIn,
-      deliveryCost
+      deliveryCost,
+      customizationLoaded
     })
     
-    // Calculate if signed in AND deliveryCost hasn't been set from a loaded build
-    if (isSignedIn && deliveryCost === null) {
+    // Only calculate if signed in, customization is loaded, and deliveryCost is null
+    if (isSignedIn && customizationLoaded && deliveryCost === null) {
       console.log('Triggering delivery cost calculation')
       calculateDeliveryCost()
     } else if (!isSignedIn) {
       setDeliveryCost(null) // Reset to null when not signed in
     }
-  }, [isSignedIn, deliveryCost]) // Remove addresses dependency since we're using getAutoFillData
+  }, [isSignedIn, deliveryCost, customizationLoaded]) // Add customizationLoaded dependency
 
   const fetchModel = async () => {
     try {
