@@ -1,5 +1,3 @@
-export const runtime = 'nodejs'
-
 import express from 'express'
 import Stripe from 'stripe'
 import { createHash } from 'node:crypto'
