@@ -28,7 +28,38 @@ export default function Review() {
           fetch('/api/admin/settings', { headers })
         ])
         
-        if (buildRes.ok) setBuild(await buildRes.json())
+        if (buildRes.ok) {
+          const buildData = await buildRes.json()
+          setBuild(buildData)
+          
+          // If delivery fee hasn't been calculated and we have buyer info, trigger calculation
+          if (!buildData?.pricing?.delivery && buildData?.buyerInfo) {
+            const address = buildData.buyerInfo.deliveryAddress || 
+              [buildData.buyerInfo.address, buildData.buyerInfo.city, buildData.buyerInfo.state, buildData.buyerInfo.zip]
+                .filter(Boolean)
+                .join(', ')
+            
+            if (address && address.trim()) {
+              try {
+                // Trigger delivery calculation by updating the build with current buyer info
+                await fetch(`/api/builds/${buildId}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json', ...headers },
+                  body: JSON.stringify({ buyerInfo: buildData.buyerInfo })
+                })
+                
+                // Refetch the build to get updated pricing
+                const updatedBuildRes = await fetch(`/api/builds/${buildId}`, { headers })
+                if (updatedBuildRes.ok) {
+                  setBuild(await updatedBuildRes.json())
+                }
+              } catch (error) {
+                console.error('Error calculating delivery:', error)
+              }
+            }
+          }
+        }
+        
         if (settingsRes.ok) setSettings(await settingsRes.json())
       } catch (error) {
         console.error('Error loading review data:', error)
@@ -123,6 +154,12 @@ export default function Review() {
     acc[category].push(option)
     return acc
   }, {})
+
+  // Construct delivery address from individual fields
+  const deliveryAddress = build?.buyerInfo?.deliveryAddress || 
+    [build?.buyerInfo?.address, build?.buyerInfo?.city, build?.buyerInfo?.state, build?.buyerInfo?.zip]
+      .filter(Boolean)
+      .join(', ') || 'Not specified'
 
   return (
     <div>
@@ -273,7 +310,7 @@ export default function Review() {
             <div>
               <h3 className="text-lg font-medium text-gray-200 mb-3">Delivery Address</h3>
               <div className="text-gray-300">
-                <p>{build?.buyerInfo?.deliveryAddress || 'Not specified'}</p>
+                <p>{deliveryAddress}</p>
                 {build?.pricing?.deliveryMiles && (
                   <p className="text-sm text-gray-400 mt-2">
                     Distance: {build.pricing.deliveryMiles} miles from factory

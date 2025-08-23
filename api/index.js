@@ -1492,7 +1492,7 @@ app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
             <div><strong>Name:</strong> ${build.buyerInfo?.firstName || ''} ${build.buyerInfo?.lastName || ''}</div>
             <div><strong>Email:</strong> ${build.buyerInfo?.email || ''}</div>
             <div><strong>Phone:</strong> ${build.buyerInfo?.phone || 'Not provided'}</div>
-            <div><strong>Delivery Address:</strong> ${build.buyerInfo?.deliveryAddress || 'Not specified'}</div>
+            <div><strong>Delivery Address:</strong> ${build.buyerInfo?.deliveryAddress || [build.buyerInfo?.address, build.buyerInfo?.city, build.buyerInfo?.state, build.buyerInfo?.zip].filter(Boolean).join(', ') || 'Not specified'}</div>
           </div>
         </div>
 
@@ -1504,10 +1504,32 @@ app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
       </html>
     `
 
-    // Convert HTML to PDF using a simple approach (you might want to use a proper PDF library)
-    res.setHeader('Content-Type', 'text/html')
-    res.setHeader('Content-Disposition', `attachment; filename="firefly-order-${id}.html"`)
-    res.send(pdfContent)
+    // Convert HTML to PDF using Puppeteer
+    try {
+      const puppeteer = await import('puppeteer')
+      const browser = await puppeteer.default.launch({ 
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      })
+      const page = await browser.newPage()
+      await page.setContent(pdfContent, { waitUntil: 'networkidle0' })
+      const pdfBuffer = await page.pdf({ 
+        format: 'A4', 
+        printBackground: true,
+        margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
+      })
+      await browser.close()
+      
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Disposition', `attachment; filename="firefly-order-${id}.pdf"`)
+      res.send(pdfBuffer)
+    } catch (pdfError) {
+      console.error('PDF generation error:', pdfError)
+      // Fallback to HTML if PDF generation fails
+      res.setHeader('Content-Type', 'text/html')
+      res.setHeader('Content-Disposition', `attachment; filename="firefly-order-${id}.html"`)
+      res.send(pdfContent)
+    }
 
   } catch (error) {
     console.error('PDF generation error:', error)
