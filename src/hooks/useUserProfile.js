@@ -29,6 +29,9 @@ export function useUserProfile() {
       if (!response.ok) throw new Error('Failed to fetch profile')
       
       const profileData = await response.json()
+      console.log('Profile data from API:', profileData)
+      console.log('Profile addresses:', profileData.addresses)
+      console.log('Profile structure:', Object.keys(profileData))
       setProfile(profileData)
       setAddresses(profileData.addresses || [])
       
