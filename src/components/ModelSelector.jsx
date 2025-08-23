@@ -37,7 +37,7 @@ const ModelSelector = ({ models, value, onChange }) => {
               />
             )}
             <h3 
-              className="font-semibold text-lg mb-1 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors duration-200"
+              className="font-semibold text-lg mb-1 hover:text-yellow-500 dark:hover:text-yellow-500 transition-colors duration-200"
               onClick={(e) => handleModelNameClick(e, model)}
               style={{ cursor: 'pointer' }}
             >
@@ -50,7 +50,7 @@ const ModelSelector = ({ models, value, onChange }) => {
               {model.description}
             </p>
             
-            <div className="text-2xl font-bold text-yellow-400 mb-3">
+            <div className="text-2xl font-bold text-yellow-500 mb-3">
               ${Number(model.basePrice || 0).toLocaleString()}
             </div>
             

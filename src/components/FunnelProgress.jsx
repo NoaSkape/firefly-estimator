@@ -37,15 +37,15 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
               <button
                 type="button"
                 onClick={() => enabled && typeof onNavigate === 'function' && onNavigate(label, idx)}
-                className={`flex items-center ${active ? 'text-yellow-300' : 'text-gray-200'} ${enabled ? '' : 'opacity-60 cursor-not-allowed'}`}
+                className={`flex items-center ${active ? 'text-yellow-500' : 'text-gray-200'} ${enabled ? '' : 'opacity-60 cursor-not-allowed'}`}
                 title={reason || undefined}
                 aria-disabled={!enabled}
               >
-                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full mr-2 ${active ? 'bg-yellow-400 text-gray-900' : 'bg-gray-500 text-white'}`}>{idx+1}</span>
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full mr-2 ${active ? 'bg-yellow-500 text-gray-900' : 'bg-gray-500 text-white'}`}>{idx+1}</span>
                 <span className="whitespace-nowrap">{label}</span>
               </button>
               {!isLast && (
-                <div className={`mx-3 h-0.5 flex-1 ${active ? 'bg-yellow-300/80' : 'bg-gray-400/70'}`} />
+                <div className={`mx-3 h-0.5 flex-1 ${active ? 'bg-yellow-500/80' : 'bg-gray-400/70'}`} />
               )}
             </div>
           )
@@ -64,11 +64,11 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
                 key={label}
                 type="button"
                 onClick={() => enabled && typeof onNavigate === 'function' && onNavigate(label, idx)}
-                className={`flex flex-col items-center p-2 rounded ${active ? 'text-yellow-300 bg-yellow-400/10' : 'text-gray-200'} ${enabled ? '' : 'opacity-60 cursor-not-allowed'}`}
+                className={`flex flex-col items-center p-2 rounded ${active ? 'text-yellow-500 bg-yellow-500/10' : 'text-gray-200'} ${enabled ? '' : 'opacity-60 cursor-not-allowed'}`}
                 title={reason || undefined}
                 aria-disabled={!enabled}
               >
-                <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full mb-1 text-xs font-medium ${active ? 'bg-yellow-400 text-gray-900' : 'bg-gray-500 text-white'}`}>
+                <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full mb-1 text-xs font-medium ${active ? 'bg-yellow-500 text-gray-900' : 'bg-gray-500 text-white'}`}>
                   {idx+1}
                 </span>
                 <span className="text-center leading-tight">{label}</span>

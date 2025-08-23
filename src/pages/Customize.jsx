@@ -398,12 +398,14 @@ const Customize = () => {
                 </div>
                 
                 {/* Delivery */}
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">Delivery</span>
                   {isSignedIn ? (
                     <span className="font-medium">${pricing.delivery.toLocaleString()}</span>
                   ) : (
-                    <span className="text-sm text-yellow-600 font-medium">Create Account to discover delivery cost</span>
+                    <span className="text-sm text-yellow-500 font-medium bg-yellow-500/10 px-2 py-1 rounded">
+                      Create Account to discover delivery cost
+                    </span>
                   )}
                 </div>
                 
@@ -417,7 +419,7 @@ const Customize = () => {
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
                   <div className="flex justify-between text-lg font-semibold">
                     <span>Total</span>
-                    <span className="text-yellow-600">${pricing.total.toLocaleString()}</span>
+                    <span className="text-yellow-500">${pricing.total.toLocaleString()}</span>
                   </div>
                 </div>
               </div>

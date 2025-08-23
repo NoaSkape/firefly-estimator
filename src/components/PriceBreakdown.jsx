@@ -35,12 +35,12 @@ const PriceBreakdown = ({ subtotal, tax, deliveryFee, total }) => {
 
         <div className="flex justify-between items-center pt-2">
           <div className="text-lg font-semibold">Total</div>
-          <div className="text-xl font-bold text-yellow-400">{formatCurrency(total)}</div>
+          <div className="text-xl font-bold text-yellow-500">{formatCurrency(total)}</div>
         </div>
       </div>
 
       {total > 0 && (
-        <div className="mt-4 p-3 rounded-lg border bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-500/10 dark:border-yellow-500/30 dark:text-yellow-300">
+        <div className="mt-4 p-3 rounded-lg border bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-500/10 dark:border-yellow-500/30 dark:text-yellow-500">
           <div className="text-sm">
             <div className="font-medium">Estimated Monthly Payment:</div>
             <div className="text-lg font-semibold">
