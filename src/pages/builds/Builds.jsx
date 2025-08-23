@@ -5,6 +5,33 @@ import CheckoutProgress from '../../components/CheckoutProgress'
 import RenameModal from '../../components/RenameModal'
 import { useToast } from '../../components/ToastProvider'
 
+// Function to get the correct route based on build step
+const getBuildStepRoute = (build) => {
+  const step = build.step || 1
+  
+  // Map step numbers to routes
+  switch (step) {
+    case 1: // Choose Your Home
+      return `/models`
+    case 2: // Customize!
+      return `/customize/${build.modelSlug}`
+    case 3: // Sign In
+      return `/sign-in?redirect=${encodeURIComponent(`/checkout/${build._id}/buyer`)}`
+    case 4: // Delivery Address
+      return `/checkout/${build._id}/buyer`
+    case 5: // Overview
+      return `/checkout/${build._id}/review`
+    case 6: // Payment Method
+      return `/checkout/${build._id}/payment-method`
+    case 7: // Contract
+      return `/checkout/${build._id}/agreement`
+    case 8: // Confirmation
+      return `/checkout/${build._id}/confirm`
+    default:
+      return `/checkout/${build._id}/review` // Default to overview
+  }
+}
+
 export default function BuildsDashboard() {
   const { isSignedIn, isLoaded } = useUser()
   const { getToken } = useAuth()
@@ -176,10 +203,10 @@ export default function BuildsDashboard() {
             <div key={b._id} className="card flex items-center justify-between">
               <div>
                 <div className="font-semibold">{b.modelName || b.modelSlug} {b.primary && <span className="ml-2 text-xs px-2 py-0.5 rounded bg-yellow-400 text-black">Primary</span>}</div>
-                <div className="text-xs text-gray-400">Step {b.step}/5 · {b.status} · Total ${Number(b?.pricing?.total||0).toLocaleString()} · Updated {(new Date(b.updatedAt)).toLocaleString()}</div>
+                <div className="text-xs text-gray-400">Step {b.step}/8 · {b.status} · Total ${Number(b?.pricing?.total||0).toLocaleString()} · Updated {(new Date(b.updatedAt)).toLocaleString()}</div>
               </div>
               <div className="flex items-center gap-2">
-                <button className="btn-primary" onClick={()=>navigate(`/builds/${b._id}`)}>Resume</button>
+                <button className="btn-primary" onClick={()=>navigate(getBuildStepRoute(b))}>Resume</button>
                 <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={()=>navigate(`/checkout/${b._id}/payment`)}>Checkout</button>
                 <button className="px-3 py-2 rounded border border-gray-700 text-white" onClick={async()=>{ const token = await getToken(); const r = await fetch(`/api/builds/${b._id}/duplicate`, { method:'POST', headers: token?{Authorization:`Bearer ${token}`}:{}}); const j=await r.json(); if(j?.buildId) navigate(`/builds/${j.buildId}`) }}>Duplicate</button>
                 <button className="px-3 py-2 rounded border border-red-800 text-red-300 hover:bg-red-900/30" onClick={async()=>{ 
