@@ -4,7 +4,7 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
   const baseSteps = useMemo(() => ([
     'Choose Your Home',
     'Customize!',
-    'Sign in/up',
+    'Sign In',
     'Delivery Address',
     'Overview',
     'Payment Method',
@@ -13,7 +13,7 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
   ]), [])
 
   const steps = useMemo(() => {
-    return isSignedIn ? baseSteps.filter(s => s !== 'Sign in/up') : baseSteps
+    return isSignedIn ? baseSteps.filter(s => s !== 'Sign In') : baseSteps
   }, [baseSteps, isSignedIn])
 
   const currentIndex = Math.max(0, steps.findIndex(s => s === current))
@@ -25,14 +25,14 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
 
   return (
     <div className="mb-6">
-      <div className="flex items-center justify-center text-xs sm:text-sm text-gray-200 w-full overflow-x-hidden">
+      <div className="flex items-center justify-center text-xs sm:text-sm text-gray-200 w-full overflow-x-auto">
         {steps.map((label, idx) => {
           const active = idx <= currentIndex
           const enabled = canGo(idx)
           const reason = !enabled && typeof disabledReason === 'function' ? disabledReason(label, idx) : ''
           const isLast = idx === steps.length - 1
           return (
-            <div key={label} className="flex items-center min-w-0">
+            <div key={label} className="flex items-center">
               <button
                 type="button"
                 onClick={() => enabled && typeof onNavigate === 'function' && onNavigate(label, idx)}
@@ -40,11 +40,10 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
                 title={reason || undefined}
                 aria-disabled={!enabled}
               >
-                <span className="hidden sm:inline whitespace-nowrap">{label}</span>
-                <span className="sm:hidden whitespace-nowrap">{label}</span>
+                <span className="whitespace-nowrap">{label}</span>
               </button>
               {!isLast && (
-                <div className={`mx-3 h-0.5 w-12 sm:w-16 md:w-20 lg:w-24 ${active ? 'bg-yellow-300/80' : 'bg-gray-400/70'}`} />
+                <div className={`mx-3 h-0.5 w-10 sm:w-14 md:w-20 lg:w-24 ${active ? 'bg-yellow-300/80' : 'bg-gray-400/70'}`} />
               )}
             </div>
           )
