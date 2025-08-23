@@ -91,7 +91,6 @@ export default function Buyer() {
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: 'My Builds', to: '/builds' }, { label: 'Checkout', to: `/checkout/${buildId}/buyer` }, { label: 'Buyer Info' }]} />
       <FunnelProgress current="Delivery Address" isSignedIn={true} onNavigate={()=>{}} />
       <div className="max-w-3xl mx-auto">
         {!isSignedIn && (

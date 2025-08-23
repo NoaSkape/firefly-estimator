@@ -29,7 +29,7 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
   return (
     <div className="mb-6">
       {/* Desktop: Single row layout */}
-      <div className="hidden md:flex items-center justify-center text-xs sm:text-sm text-gray-200 w-full overflow-x-hidden">
+      <div className="hidden md:flex items-center justify-center text-xs sm:text-sm text-gray-200 w-full overflow-x-hidden pt-4">
         {steps.map((label, idx) => {
           const active = idx <= currentIndex
           const completed = isCompleted(idx)
@@ -40,8 +40,8 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
             <div key={label} className="flex items-center min-w-0 relative">
               {/* Green checkmark for completed steps */}
               {completed && (
-                <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-10">
-                  <div className="bg-green-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
+                <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 z-10">
+                  <div className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center">
                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
@@ -67,7 +67,7 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
       </div>
 
       {/* Mobile: 2-row grid layout */}
-      <div className="md:hidden">
+      <div className="md:hidden pt-4">
         <div className="grid grid-cols-4 gap-2 text-xs text-gray-200">
           {steps.map((label, idx) => {
             const active = idx <= currentIndex
@@ -78,8 +78,8 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
               <div key={label} className="relative">
                 {/* Green checkmark for completed steps */}
                 {completed && (
-                  <div className="absolute -top-1 right-1 z-10">
-                    <div className="bg-green-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
+                  <div className="absolute -top-3 right-1 z-10">
+                    <div className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center">
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>

@@ -25,7 +25,6 @@ export default function Review() {
 
   if (!build) return (
     <div>
-      <Breadcrumbs items={[{ label: 'My Builds', to: '/builds' }, { label: 'Checkout', to: `/checkout/${buildId}/review` }, { label: 'Review & Sign' }]} />
       <FunnelProgress current="Overview" isSignedIn={!!build} onNavigate={(label)=>{}} />
       <div className="max-w-3xl mx-auto space-y-6">
         <h1 className="section-header">Review</h1>
@@ -43,7 +42,6 @@ export default function Review() {
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: 'My Builds', to: '/builds' }, { label: 'Checkout', to: `/checkout/${buildId}/review` }, { label: 'Review & Sign' }]} />
       <FunnelProgress current="Overview" isSignedIn={!!build} onNavigate={(label)=>{}} />
       <div className="max-w-3xl mx-auto space-y-6">
         <h1 className="section-header">Review</h1>
