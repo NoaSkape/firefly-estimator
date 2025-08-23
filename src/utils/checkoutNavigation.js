@@ -5,14 +5,14 @@
 
 // Map step names to their corresponding routes
 const STEP_ROUTES = {
-  'Choose Your Home': (buildId) => `/models`,
-  'Customize!': (buildId) => `/customize/${buildId}`,
-  'Sign In': (buildId) => `/sign-in?redirect=${encodeURIComponent(`/checkout/${buildId}/buyer`)}`,
-  'Delivery Address': (buildId) => `/checkout/${buildId}/buyer`,
-  'Overview': (buildId) => `/checkout/${buildId}/review`,
-  'Payment Method': (buildId) => `/checkout/${buildId}/payment-method`,
-  'Contract': (buildId) => `/checkout/${buildId}/agreement`,
-  'Confirmation': (buildId) => `/checkout/${buildId}/confirm`,
+  'Choose Your Home': (buildId, build = null) => `/models`,
+  'Customize!': (buildId, build = null) => `/customize/${build?.modelSlug || 'magnolia'}`,
+  'Sign In': (buildId, build = null) => `/sign-in?redirect=${encodeURIComponent(`/checkout/${buildId}/buyer`)}`,
+  'Delivery Address': (buildId, build = null) => `/checkout/${buildId}/buyer`,
+  'Overview': (buildId, build = null) => `/checkout/${buildId}/review`,
+  'Payment Method': (buildId, build = null) => `/checkout/${buildId}/payment-method`,
+  'Contract': (buildId, build = null) => `/checkout/${buildId}/agreement`,
+  'Confirmation': (buildId, build = null) => `/checkout/${buildId}/confirm`,
 }
 
 // Step order for validation
@@ -62,15 +62,16 @@ export async function updateBuildStep(buildId, step, token) {
  * Get the route for a specific step
  * @param {string} stepName - The name of the step
  * @param {string} buildId - The build ID
+ * @param {object} build - The build data (optional, needed for model slug)
  * @returns {string} The route for the step
  */
-export function getStepRoute(stepName, buildId) {
+export function getStepRoute(stepName, buildId, build = null) {
   const routeFunction = STEP_ROUTES[stepName]
   if (!routeFunction) {
     console.warn(`Unknown step: ${stepName}`)
     return `/checkout/${buildId}/review`
   }
-  return routeFunction(buildId)
+  return routeFunction(buildId, build)
 }
 
 /**
@@ -163,7 +164,7 @@ export function navigateToStep(targetStep, currentStep, buildId, isSignedIn, bui
     return false
   }
   
-  const route = getStepRoute(targetStep, buildId)
+  const route = getStepRoute(targetStep, buildId, build)
   navigate(route)
   return true
 }

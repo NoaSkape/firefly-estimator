@@ -28,7 +28,7 @@ const Customize = () => {
   const { user, isSignedIn } = useUser()
   const { getToken } = useAuth()
   const { addToast } = useToast()
-  const { getPrimaryAddress, profile, addresses } = useUserProfile()
+  const { getPrimaryAddress, profile, addresses, getAutoFillData } = useUserProfile()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [model, setModel] = useState(null)
   const [loading, setLoading] = useState(true)
