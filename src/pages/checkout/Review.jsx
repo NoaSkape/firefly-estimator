@@ -33,7 +33,7 @@ export default function Review() {
           setBuild(buildData)
           
           // If delivery fee hasn't been calculated and we have buyer info, trigger calculation
-          if (!buildData?.pricing?.delivery && buildData?.buyerInfo) {
+          if ((!buildData?.pricing?.delivery || buildData?.pricing?.delivery === 0 || !buildData?.pricing?.deliveryMiles) && buildData?.buyerInfo) {
             const address = buildData.buyerInfo.deliveryAddress || 
               [buildData.buyerInfo.address, buildData.buyerInfo.city, buildData.buyerInfo.state, buildData.buyerInfo.zip]
                 .filter(Boolean)
