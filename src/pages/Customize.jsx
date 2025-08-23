@@ -400,8 +400,15 @@ const Customize = () => {
                   {isSignedIn ? (
                     <span className="font-medium">${pricing.delivery.toLocaleString()}</span>
                   ) : (
-                    <span className="text-sm text-yellow-500 font-medium bg-yellow-500/10 px-3 py-1.5 rounded text-right ml-4">
-                      Create Account to discover delivery cost
+                    <span className="text-sm text-yellow-500 font-medium bg-yellow-500/10 px-3 py-1.5 rounded text-center ml-4">
+                      <button 
+                        onClick={handleCreateAccount}
+                        className="text-yellow-500 hover:text-yellow-400 underline cursor-pointer"
+                      >
+                        Create Account
+                      </button>
+                      <br />
+                      to discover delivery cost
                     </span>
                   )}
                 </div>
