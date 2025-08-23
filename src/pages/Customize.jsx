@@ -122,6 +122,9 @@ const Customize = () => {
       } else if (isSignedIn && !specificBuildId) {
         // Fallback: load from user's builds if no specific buildId
         loadUserBuildsForModel(actualModelCode)
+      } else {
+        // No build data available, set as loaded to prevent infinite loading
+        setCustomizationLoaded(true)
       }
     }
   }, [isSignedIn, actualModelCode, customizationLoaded, addToast, buildLoaded, currentBuild, specificBuildId])
