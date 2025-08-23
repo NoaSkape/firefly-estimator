@@ -117,6 +117,13 @@ const Customize = () => {
           const options = latestBuild.selections?.options || []
           const selectedPackage = latestBuild.selections?.package || ''
           
+          console.log('Loading build data:', {
+            buildId: latestBuild._id,
+            modelSlug: latestBuild.modelSlug,
+            pricing: latestBuild.pricing,
+            deliveryCost: latestBuild.pricing?.delivery
+          })
+          
           setSelectedOptions(options)
           setSelectedPackage(selectedPackage)
           
@@ -124,6 +131,8 @@ const Customize = () => {
           if (latestBuild.pricing?.delivery !== undefined && latestBuild.pricing.delivery !== null) {
             setDeliveryCost(roundToCents(latestBuild.pricing.delivery))
             console.log('Initialized delivery cost from loaded build:', latestBuild.pricing.delivery)
+          } else {
+            console.log('No delivery cost found in loaded build')
           }
           
           addToast({
@@ -242,8 +251,16 @@ const Customize = () => {
 
   // Calculate delivery cost when user signs in or address changes
   useEffect(() => {
+    console.log('Delivery cost useEffect triggered:', {
+      isSignedIn,
+      hasAddresses: addresses?.length > 0,
+      deliveryCost,
+      addresses
+    })
+    
     // Only calculate if signed in, addresses are available, AND deliveryCost hasn't been set from a loaded build
     if (isSignedIn && addresses && addresses.length > 0 && deliveryCost === null) {
+      console.log('Triggering delivery cost calculation')
       calculateDeliveryCost()
     } else if (!isSignedIn) {
       setDeliveryCost(null) // Reset to null when not signed in
@@ -488,7 +505,7 @@ const Customize = () => {
                 {model.name}
               </h1>
               <p className="text-xl text-yellow-500 font-semibold mb-4">
-                Starting at ${formatCurrency(Number(model.basePrice || 0))}
+                Starting at {formatCurrency(Number(model.basePrice || 0))}
               </p>
               <p className="text-gray-700 dark:text-gray-300">
                 {model.description || 'No description available.'}
@@ -595,18 +612,18 @@ const Customize = () => {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Base Price</span>
-                  <span className="font-medium">${formatCurrency(pricing.base)}</span>
+                  <span className="font-medium">{formatCurrency(pricing.base)}</span>
                 </div>
                 {pricing.package > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">Package</span>
-                    <span className="font-medium">+${formatCurrency(pricing.package)}</span>
+                    <span className="font-medium">+{formatCurrency(pricing.package)}</span>
                   </div>
                 )}
                 {pricing.options > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">Add-ons</span>
-                    <span className="font-medium">+${formatCurrency(pricing.options)}</span>
+                    <span className="font-medium">+{formatCurrency(pricing.options)}</span>
                   </div>
                 )}
                 
@@ -614,7 +631,7 @@ const Customize = () => {
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
                   <div className="flex justify-between font-medium">
                     <span>Subtotal</span>
-                    <span>${formatCurrency(pricing.subtotal)}</span>
+                    <span>{formatCurrency(pricing.subtotal)}</span>
                   </div>
                 </div>
                 
@@ -646,14 +663,14 @@ const Customize = () => {
                 {/* Taxes */}
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Taxes (6.25%)</span>
-                  <span className="font-medium">${formatCurrency(pricing.taxes)}</span>
+                  <span className="font-medium">{formatCurrency(pricing.taxes)}</span>
                 </div>
                 
                 {/* Total */}
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
                   <div className="flex justify-between text-lg font-semibold">
                     <span>Total</span>
-                    <span className="text-yellow-500">${formatCurrency(pricing.total)}</span>
+                    <span className="text-yellow-500">{formatCurrency(pricing.total)}</span>
                   </div>
                 </div>
               </div>
