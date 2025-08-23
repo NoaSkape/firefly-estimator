@@ -222,7 +222,7 @@ function App() {
       <NetworkErrorHandler>
         <Router>
           <ScrollToTop />
-          <div className="min-h-screen transition-colors duration-300" data-app-container>
+          <div className="min-h-screen flex flex-col transition-colors duration-300" data-app-container>
             {/* Skip links for accessibility */}
             <a href="#main-content" className="skip-link sr-only-focusable">
               Skip to main content
@@ -245,11 +245,12 @@ function App() {
               <MobileNavigation />
             </div>
 
-            <MobileSpacingWrapper>
-              <OfflineIndicator />
-              <CustomizationMigration />
-              <Suspense fallback={<PageLoadingSpinner />}>
-                <Routes>
+            <div className="flex-1">
+              <MobileSpacingWrapper>
+                <OfflineIndicator />
+                <CustomizationMigration />
+                <Suspense fallback={<PageLoadingSpinner />}>
+                  <Routes>
               <Route 
                 path="/" 
                 element={<Home />} 
@@ -374,6 +375,7 @@ function App() {
                                 </Routes>
                   </Suspense>
                 </MobileSpacingWrapper>
+              </div>
           <Footer />
                   </div>
         </Router>

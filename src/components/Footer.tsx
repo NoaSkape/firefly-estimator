@@ -18,7 +18,7 @@ export default function Footer() {
   }, [user])
 
   return (
-    <footer className="mt-16 border-t border-gray-800 bg-gray-900/60 text-gray-300">
+    <footer className="border-t border-gray-800 bg-gray-900/60 text-gray-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           <section aria-labelledby="footer-company">
