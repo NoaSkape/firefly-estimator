@@ -3,10 +3,5 @@
     { "source": "/checkout/create-checkout-session", "destination": "/api/checkout/create-checkout-session" },
     { "source": "/api/(.*)", "destination": "/api/index?path=/$1" },
     { "source": "/(.*)", "destination": "/" }
-  ],
-  "functions": {
-    "api/index.js": {
-      "runtime": "nodejs18.x"
-    }
-  }
+  ]
 }
