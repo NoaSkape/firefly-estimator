@@ -459,7 +459,7 @@ const Customize = () => {
                     Create Account
                   </button>
                   <p className="text-sm text-gray-600 mt-2 text-center">
-                    Create a free account to save your customization.
+                    Already have an account? <button onClick={handleCreateAccount} className="text-yellow-500 hover:text-yellow-400 underline">Sign in here</button>
                   </p>
                 </div>
               )}
