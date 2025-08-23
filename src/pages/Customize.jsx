@@ -120,6 +120,12 @@ const Customize = () => {
           setSelectedOptions(options)
           setSelectedPackage(selectedPackage)
           
+          // Initialize delivery cost from loaded build if available
+          if (latestBuild.pricing?.delivery !== undefined && latestBuild.pricing.delivery !== null) {
+            setDeliveryCost(roundToCents(latestBuild.pricing.delivery))
+            console.log('Initialized delivery cost from loaded build:', latestBuild.pricing.delivery)
+          }
+          
           addToast({
             type: 'info',
             title: 'Build Restored',
@@ -236,12 +242,13 @@ const Customize = () => {
 
   // Calculate delivery cost when user signs in or address changes
   useEffect(() => {
-    if (isSignedIn && addresses && addresses.length > 0) {
+    // Only calculate if signed in, addresses are available, AND deliveryCost hasn't been set from a loaded build
+    if (isSignedIn && addresses && addresses.length > 0 && deliveryCost === null) {
       calculateDeliveryCost()
     } else if (!isSignedIn) {
       setDeliveryCost(null) // Reset to null when not signed in
     }
-  }, [isSignedIn, addresses]) // Trigger when addresses become available
+  }, [isSignedIn, addresses, deliveryCost]) // Add deliveryCost to dependencies
 
   const fetchModel = async () => {
     try {
