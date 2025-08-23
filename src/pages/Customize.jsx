@@ -278,7 +278,7 @@ const Customize = () => {
 
   // Auto-save customization changes for signed-in users
   useEffect(() => {
-    if (isSignedIn && currentBuild && currentBuild._id && customizationLoaded) {
+    if (isSignedIn && currentBuild && currentBuild._id && customizationLoaded && model) {
       const timeoutId = setTimeout(async () => {
         try {
           const pricing = computePricing()
@@ -298,7 +298,7 @@ const Customize = () => {
 
       return () => clearTimeout(timeoutId)
     }
-  }, [selectedOptions, selectedPackage, isSignedIn, currentBuild, customizationLoaded, updateBuild, computePricing])
+  }, [selectedOptions, selectedPackage, isSignedIn, currentBuild, customizationLoaded, updateBuild, computePricing, model])
 
   // Clean up expired customizations on mount
   useEffect(() => {
@@ -437,10 +437,22 @@ const Customize = () => {
   }
 
   const computePricing = useCallback(() => {
-    const base = roundToCents(Number(model?.basePrice || 0))
+    if (!model) {
+      return {
+        base: 0,
+        options: 0,
+        package: 0,
+        subtotal: 0,
+        delivery: 0,
+        taxes: 0,
+        total: 0
+      }
+    }
+
+    const base = roundToCents(Number(model.basePrice || 0))
     const optionsTotal = roundToCents(selectedOptions.reduce((s, o) => s + (o.price || 0), 0))
     const pkgDelta = roundToCents((() => {
-      const pkg = (model?.packages || []).find(p => (p.key || p.name) === selectedPackage)
+      const pkg = (model.packages || []).find(p => (p.key || p.name) === selectedPackage)
       return pkg ? Number(pkg.priceDelta || 0) : 0
     })())
     
@@ -466,7 +478,7 @@ const Customize = () => {
       taxes, 
       total 
     }
-  }, [model?.basePrice, selectedOptions, selectedPackage, isSignedIn, deliveryCost])
+  }, [model, selectedOptions, selectedPackage, isSignedIn, deliveryCost])
 
   const handleSaveCustomization = async () => {
     if (!isSignedIn) {
@@ -475,13 +487,22 @@ const Customize = () => {
       return
     }
 
+    if (!model) {
+      addToast({ 
+        type: 'error', 
+        title: 'Cannot Save',
+        message: 'Model data is not loaded yet. Please wait and try again.'
+      })
+      return
+    }
+
     setSaving(true)
     try {
       const pricing = computePricing()
       const body = {
         modelSlug: modelId,
-        modelName: model?.name || '',
-        basePrice: Number(model?.basePrice || 0),
+        modelName: model.name || '',
+        basePrice: Number(model.basePrice || 0),
         selections: {
           options: selectedOptions,
           package: selectedPackage
