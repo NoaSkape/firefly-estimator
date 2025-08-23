@@ -46,7 +46,6 @@ import BackgroundImage from './components/BackgroundImage'
 import Header from './components/Header'
 import MobileNavigation from './components/MobileNavigation'
 import Footer from './components/Footer'
-import ResumeBanner from './components/ResumeBanner'
 import OfflineIndicator from './components/OfflineIndicator'
 import { PageLoadingSpinner } from './components/LoadingSpinner'
 import NetworkErrorHandler from './components/NetworkErrorHandler'
@@ -247,7 +246,6 @@ function App() {
             </div>
 
             <MobileSpacingWrapper>
-              <ResumeBanner />
               <OfflineIndicator />
               <CustomizationMigration />
               <Suspense fallback={<PageLoadingSpinner />}>
