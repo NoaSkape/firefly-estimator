@@ -34,9 +34,9 @@ export default function Review() {
           const buildData = await buildRes.json()
           setBuild(buildData)
           
-          // Always recalculate delivery if we have buyer info with address
-          // This ensures existing builds with wrong calculations get fixed
-          if (buildData?.buyerInfo) {
+          // Only recalculate delivery if it's missing or zero and we have buyer info
+          // This prevents infinite loops while ensuring delivery costs are calculated
+          if (buildData?.buyerInfo && (!buildData?.pricing?.delivery || buildData.pricing.delivery === 0)) {
             const address = buildData.buyerInfo.deliveryAddress || 
               [buildData.buyerInfo.address, buildData.buyerInfo.city, buildData.buyerInfo.state, buildData.buyerInfo.zip]
                 .filter(Boolean)
@@ -44,7 +44,7 @@ export default function Review() {
             
             if (address && address.trim()) {
               try {
-                console.log('Recalculating delivery for address:', address)
+                console.log('Recalculating missing delivery for address:', address)
                 // Trigger delivery calculation by updating the build with current buyer info
                 const updateRes = await fetch(`/api/builds/${buildId}`, {
                   method: 'PATCH',

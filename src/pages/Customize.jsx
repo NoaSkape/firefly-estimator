@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useUser, useAuth } from '@clerk/clerk-react'
 import PublicOptionSelector from '../public/PublicOptionSelector'
@@ -230,6 +230,44 @@ const Customize = () => {
     }
   }, [selectedOptions, selectedPackage, isSignedIn, actualModelCode, customizationLoaded])
 
+  // Auto-save customization changes for signed-in users
+  useEffect(() => {
+    if (isSignedIn && currentBuild && currentBuild._id && customizationLoaded) {
+      const timeoutId = setTimeout(async () => {
+        try {
+          const pricing = computePricing()
+          const body = {
+            selections: {
+              options: selectedOptions,
+              package: selectedPackage
+            },
+            pricing
+          }
+          
+          const token = await getToken()
+          const updateRes = await fetch(`/api/builds/${currentBuild._id}`, {
+            method: 'PATCH',
+            headers: { 
+              'Content-Type': 'application/json', 
+              ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+            },
+            body: JSON.stringify(body)
+          })
+          
+          if (updateRes.ok) {
+            console.log('Auto-saved customization changes')
+          } else {
+            console.error('Failed to auto-save customization')
+          }
+        } catch (error) {
+          console.error('Error auto-saving customization:', error)
+        }
+      }, 2000) // Debounce saves by 2 seconds
+
+      return () => clearTimeout(timeoutId)
+    }
+  }, [selectedOptions, selectedPackage, isSignedIn, currentBuild, customizationLoaded, computePricing, getToken])
+
   // Clean up expired customizations on mount
   useEffect(() => {
     cleanupExpiredCustomizations()
@@ -363,7 +401,7 @@ const Customize = () => {
     }
   }
 
-  const computePricing = () => {
+  const computePricing = useCallback(() => {
     const base = roundToCents(Number(model?.basePrice || 0))
     const optionsTotal = roundToCents(selectedOptions.reduce((s, o) => s + (o.price || 0), 0))
     const pkgDelta = roundToCents((() => {
@@ -393,7 +431,7 @@ const Customize = () => {
       taxes, 
       total 
     }
-  }
+  }, [model?.basePrice, selectedOptions, selectedPackage, isSignedIn, deliveryCost])
 
   const handleSaveCustomization = async () => {
     if (!isSignedIn) {
@@ -416,20 +454,47 @@ const Customize = () => {
         pricing
       }
       
-      const key = `${Date.now()}-${user?.id || 'anon'}-${actualModelCode}`
       const token = await getToken()
-      const res = await fetch('/api/builds', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Idempotency-Key': key, 
-          ...(token ? { Authorization: `Bearer ${token}` } : {}) 
-        },
-        body: JSON.stringify(body)
-      })
+      let buildId = currentBuild?._id
       
-      if (!res.ok) throw new Error('Failed to save customization')
-      const data = await res.json()
+      // If we have an existing build in progress, update it instead of creating a new one
+      if (currentBuild && currentBuild._id) {
+        console.log('Updating existing build:', currentBuild._id)
+        const updateRes = await fetch(`/api/builds/${currentBuild._id}`, {
+          method: 'PATCH',
+          headers: { 
+            'Content-Type': 'application/json', 
+            ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+          },
+          body: JSON.stringify(body)
+        })
+        
+        if (updateRes.ok) {
+          const updatedBuild = await updateRes.json()
+          buildId = updatedBuild._id
+          console.log('Build updated successfully:', buildId)
+        } else {
+          throw new Error('Failed to update build')
+        }
+      } else {
+        // Create new build if no existing build
+        console.log('Creating new build')
+        const key = `${Date.now()}-${user?.id || 'anon'}-${actualModelCode}`
+        const res = await fetch('/api/builds', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json', 
+            'Idempotency-Key': key, 
+            ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+          },
+          body: JSON.stringify(body)
+        })
+        
+        if (!res.ok) throw new Error('Failed to save customization')
+        const data = await res.json()
+        buildId = data.buildId
+        console.log('New build created:', buildId)
+      }
       
       // Clear anonymous customization after successful save
       clearAnonymousCustomization(actualModelCode)
@@ -441,10 +506,10 @@ const Customize = () => {
       })
       
       // Update build step to 4 (Delivery Address)
-      await updateBuildStep(data.buildId, 4, token)
+      await updateBuildStep(buildId, 4, token)
       
       // Navigate to the next step in the funnel (Buyer Info)
-      navigate(`/checkout/${data.buildId}/buyer`)
+      navigate(`/checkout/${buildId}/buyer`)
       
     } catch (e) {
       console.error(e)
