@@ -7,6 +7,7 @@ import { useToast } from '../../components/ToastProvider'
 import { trackEvent } from '../../utils/analytics'
 import { navigateToStep, updateBuildStep } from '../../utils/checkoutNavigation'
 import { useBuildData, buildCache } from '../../hooks/useBuildData'
+import { calculateTotalPurchasePrice } from '../../utils/calculateTotal'
 
 export default function Review() {
   const { buildId } = useParams()
@@ -210,7 +211,7 @@ export default function Review() {
     )
   }
 
-  // Calculate comprehensive pricing breakdown
+  // Calculate comprehensive pricing breakdown using utility function
   const basePrice = Number(build?.selections?.basePrice || 0)
   const options = build?.selections?.options || []
   const optionsSubtotal = options.reduce((sum, opt) => sum + Number(opt.price || 0) * (opt.quantity || 1), 0)
@@ -225,7 +226,7 @@ export default function Review() {
   const feesSubtotal = deliveryFee + titleFee + setupFee
   const subtotalBeforeTax = subtotalBeforeFees + feesSubtotal
   const salesTax = subtotalBeforeTax * taxRate
-  const total = subtotalBeforeTax + salesTax
+  const total = calculateTotalPurchasePrice(build, settings)
 
   // Group options by category for better organization
   const optionsByCategory = options.reduce((acc, option) => {

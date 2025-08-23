@@ -4,6 +4,7 @@ import { useUser, useAuth, SignUp, SignIn } from '@clerk/clerk-react'
 import CheckoutProgress from '../../components/CheckoutProgress'
 import RenameModal from '../../components/RenameModal'
 import { useToast } from '../../components/ToastProvider'
+import { calculateTotalPurchasePrice } from '../../utils/calculateTotal'
 
 // Function to get the correct route based on build step
 const getBuildStepRoute = (build) => {
@@ -37,9 +38,31 @@ export default function BuildsDashboard() {
   const { getToken } = useAuth()
   const [loading, setLoading] = useState(true)
   const [builds, setBuilds] = useState([])
+  const [settings, setSettings] = useState(null)
   const [renameModal, setRenameModal] = useState({ isOpen: false, build: null })
   const navigate = useNavigate()
   const { addToast } = useToast()
+
+  // Load settings
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const token = await getToken()
+        const headers = token ? { Authorization: `Bearer ${token}` } : {}
+        
+        const settingsRes = await fetch('/api/admin/settings', { headers })
+        if (settingsRes.ok) {
+          setSettings(await settingsRes.json())
+        }
+      } catch (error) {
+        console.error('Error loading settings:', error)
+      }
+    }
+    
+    if (isSignedIn) {
+      loadSettings()
+    }
+  }, [isSignedIn, getToken])
 
   useEffect(() => {
     console.log('[BuildsDashboard] useEffect triggered:', { isSignedIn, loading })
@@ -203,7 +226,7 @@ export default function BuildsDashboard() {
             <div key={b._id} className="card flex items-center justify-between">
               <div>
                 <div className="font-semibold">{b.modelName || b.modelSlug} {b.primary && <span className="ml-2 text-xs px-2 py-0.5 rounded bg-yellow-400 text-black">Primary</span>}</div>
-                <div className="text-xs text-gray-400">Step {b.step}/8 · {b.status} · Total ${Number(b?.pricing?.total||0).toLocaleString()} · Updated {(new Date(b.updatedAt)).toLocaleString()}</div>
+                <div className="text-xs text-gray-400">Step {b.step}/8 · {b.status} · Total ${calculateTotalPurchasePrice(b, settings).toLocaleString()} · Updated {(new Date(b.updatedAt)).toLocaleString()}</div>
               </div>
               <div className="flex items-center gap-2">
                 <button className="btn-primary" onClick={()=>navigate(getBuildStepRoute(b))}>Resume</button>
