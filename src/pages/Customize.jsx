@@ -27,7 +27,7 @@ const Customize = () => {
   const { user, isSignedIn } = useUser()
   const { getToken } = useAuth()
   const { addToast } = useToast()
-  const { getPrimaryAddress } = useUserProfile()
+  const { getPrimaryAddress, profile, addresses } = useUserProfile()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [model, setModel] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -189,6 +189,13 @@ const Customize = () => {
       setDeliveryLoading(true)
       const primaryAddress = getPrimaryAddress()
       
+      console.log('Calculating delivery cost:', {
+        isSignedIn,
+        hasAddresses: addresses?.length > 0,
+        primaryAddress,
+        addresses
+      })
+      
       if (!primaryAddress) {
         console.log('No primary address found for delivery calculation')
         setDeliveryCost(0)
@@ -228,12 +235,12 @@ const Customize = () => {
 
   // Calculate delivery cost when user signs in or address changes
   useEffect(() => {
-    if (isSignedIn) {
+    if (isSignedIn && addresses && addresses.length > 0) {
       calculateDeliveryCost()
-    } else {
+    } else if (!isSignedIn) {
       setDeliveryCost(0)
     }
-  }, [isSignedIn])
+  }, [isSignedIn, addresses]) // Trigger when addresses become available
 
   const fetchModel = async () => {
     try {
