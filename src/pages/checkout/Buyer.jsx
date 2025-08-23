@@ -8,6 +8,7 @@ import FunnelProgress from '../../components/FunnelProgress'
 import Breadcrumbs from '../../components/Breadcrumbs'
 import AddressSelectionModal from '../../components/AddressSelectionModal'
 import useUserProfile from '../../hooks/useUserProfile'
+import { useBuildData } from '../../hooks/useBuildData'
 import { navigateToStep, updateBuildStep } from '../../utils/checkoutNavigation'
 
 export default function Buyer() {
@@ -27,30 +28,15 @@ export default function Buyer() {
   const [saving, setSaving] = useState(false)
   const [showAddressModal, setShowAddressModal] = useState(false)
   const [autoFillLoaded, setAutoFillLoaded] = useState(false)
-  const [build, setBuild] = useState(null)
-
-  // Load build data
-  useEffect(() => {
-    const loadBuildData = async () => {
-      if (!buildId || !isSignedIn) return
-      
-      try {
-        const token = await getToken()
-        const response = await fetch(`/api/builds/${buildId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-        
-        if (response.ok) {
-          const buildData = await response.json()
-          setBuild(buildData)
-        }
-      } catch (error) {
-        console.error('Failed to load build data:', error)
-      }
-    }
-    
-    loadBuildData()
-  }, [buildId, isSignedIn, getToken])
+  
+  // Use centralized build data management
+  const { 
+    build, 
+    loading: buildLoading, 
+    error: buildError, 
+    updateBuild, 
+    isLoaded: buildLoaded 
+  } = useBuildData(buildId)
 
   useEffect(() => {
     const loadInitialData = async () => {

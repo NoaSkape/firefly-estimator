@@ -13,6 +13,7 @@ import FunnelProgress from '../components/FunnelProgress'
 import { useToast } from '../components/ToastProvider'
 import { navigateToStep, updateBuildStep } from '../utils/checkoutNavigation'
 import { useUserProfile } from '../hooks/useUserProfile'
+import { useBuildData } from '../hooks/useBuildData'
 import { formatCurrency, roundToCents } from '../utils/currency'
 import { 
   saveAnonymousCustomization, 
@@ -39,7 +40,18 @@ const Customize = () => {
   const [customizationLoaded, setCustomizationLoaded] = useState(false)
   const [deliveryCost, setDeliveryCost] = useState(null) // null = not calculated, 0 = calculated as 0, number = actual cost
   const [deliveryLoading, setDeliveryLoading] = useState(false)
-  const [currentBuild, setCurrentBuild] = useState(null) // Store the current build for funnel navigation
+  // Get buildId from query parameters (from checkout navigation)
+  const urlParams = new URLSearchParams(window.location.search)
+  const specificBuildId = urlParams.get('buildId')
+  
+  // Use centralized build data management
+  const { 
+    build: currentBuild, 
+    loading: buildLoading, 
+    error: buildError, 
+    updateBuild, 
+    isLoaded: buildLoaded 
+  } = useBuildData(specificBuildId)
 
   // Determine the actual model code from URL parameters
   const getModelCode = () => {
@@ -61,10 +73,6 @@ const Customize = () => {
   // Load customization on component mount (both anonymous and migrated)
   useEffect(() => {
     if (actualModelCode && !customizationLoaded) {
-      // Check if we have a specific buildId from query parameters (from checkout navigation)
-      const urlParams = new URLSearchParams(window.location.search)
-      const specificBuildId = urlParams.get('buildId')
-      
       if (!isSignedIn) {
         // Load anonymous customization for non-signed-in users
         const savedCustomization = loadAnonymousCustomization(actualModelCode)
@@ -77,19 +85,45 @@ const Customize = () => {
             message: 'Your previous customization has been restored.'
           })
         }
-      } else {
-        // For signed-in users, try to load from their builds first
-        if (specificBuildId) {
-          // Load specific build if buildId is provided
-          loadSpecificBuild(specificBuildId)
+      } else if (buildLoaded && currentBuild) {
+        // For signed-in users with build data, load from build
+        const options = currentBuild.selections?.options || []
+        const selectedPackage = currentBuild.selections?.package || ''
+        
+        console.log('Loading customization from build:', {
+          buildId: currentBuild._id,
+          modelSlug: currentBuild.modelSlug,
+          step: currentBuild.step,
+          options: options.length,
+          selectedPackage
+        })
+        
+        setSelectedOptions(options)
+        setSelectedPackage(selectedPackage)
+        
+        // Initialize delivery cost from loaded build if available
+        if (currentBuild.pricing?.delivery !== undefined && currentBuild.pricing.delivery !== null && currentBuild.pricing.delivery > 0) {
+          setDeliveryCost(roundToCents(currentBuild.pricing.delivery))
+          console.log('Initialized delivery cost from build:', currentBuild.pricing.delivery)
         } else {
-          // Otherwise load from user's builds
-          loadUserBuildsForModel(actualModelCode)
+          console.log('No valid delivery cost found in build, will calculate fresh')
+          setDeliveryCost(null)
         }
+        
+        addToast({
+          type: 'info',
+          title: 'Build Restored',
+          message: 'Your previous build has been restored.'
+        })
+        
+        console.log('Restored build customization:', { options, selectedPackage })
+      } else if (isSignedIn && !specificBuildId) {
+        // Fallback: load from user's builds if no specific buildId
+        loadUserBuildsForModel(actualModelCode)
       }
       setCustomizationLoaded(true)
     }
-  }, [isSignedIn, actualModelCode, customizationLoaded, addToast])
+  }, [isSignedIn, actualModelCode, customizationLoaded, addToast, buildLoaded, currentBuild, specificBuildId])
 
   // Handle redirect back after sign-in
   useEffect(() => {
@@ -106,60 +140,7 @@ const Customize = () => {
     }
   }, [isSignedIn, actualModelCode, customizationLoaded])
 
-  // Load specific build by ID
-  const loadSpecificBuild = async (buildId) => {
-    try {
-      const token = await getToken()
-      if (!token) return
 
-      const response = await fetch(`/api/builds/${buildId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-
-      if (response.ok) {
-        const buildData = await response.json()
-        const options = buildData.selections?.options || []
-        const selectedPackage = buildData.selections?.package || ''
-        
-        console.log('Loaded specific build:', {
-          buildId,
-          modelSlug: buildData.modelSlug,
-          step: buildData.step,
-          options: options.length,
-          selectedPackage
-        })
-        
-        setSelectedOptions(options)
-        setSelectedPackage(selectedPackage)
-        setCurrentBuild(buildData)
-        
-        // Initialize delivery cost from loaded build if available
-        if (buildData.pricing?.delivery !== undefined && buildData.pricing.delivery !== null && buildData.pricing.delivery > 0) {
-          setDeliveryCost(roundToCents(buildData.pricing.delivery))
-          console.log('Initialized delivery cost from specific build:', buildData.pricing.delivery)
-        } else {
-          console.log('No valid delivery cost found in specific build, will calculate fresh')
-          setDeliveryCost(null)
-        }
-        
-        addToast({
-          type: 'info',
-          title: 'Build Restored',
-          message: 'Your previous build has been restored.'
-        })
-        
-        console.log('Restored specific build customization:', { options, selectedPackage })
-      } else {
-        console.error('Failed to load specific build:', response.status)
-        // Fallback to loading from user's builds
-        loadUserBuildsForModel(actualModelCode)
-      }
-    } catch (error) {
-      console.error('Failed to load specific build:', error)
-      // Fallback to loading from user's builds
-      loadUserBuildsForModel(actualModelCode)
-    }
-  }
 
   // Load user's builds for this model
   const loadUserBuildsForModel = async (modelCode) => {
@@ -301,29 +282,15 @@ const Customize = () => {
       const timeoutId = setTimeout(async () => {
         try {
           const pricing = computePricing()
-          const body = {
+          await updateBuild({
             selections: {
               options: selectedOptions,
               package: selectedPackage
             },
             pricing
-          }
+          }, { skipRefetch: true }) // Skip refetch to prevent infinite loops
           
-          const token = await getToken()
-          const updateRes = await fetch(`/api/builds/${currentBuild._id}`, {
-            method: 'PATCH',
-            headers: { 
-              'Content-Type': 'application/json', 
-              ...(token ? { Authorization: `Bearer ${token}` } : {}) 
-            },
-            body: JSON.stringify(body)
-          })
-          
-          if (updateRes.ok) {
-            console.log('Auto-saved customization changes')
-          } else {
-            console.error('Failed to auto-save customization')
-          }
+          console.log('Auto-saved customization changes')
         } catch (error) {
           console.error('Error auto-saving customization:', error)
         }
@@ -331,7 +298,7 @@ const Customize = () => {
 
       return () => clearTimeout(timeoutId)
     }
-  }, [selectedOptions, selectedPackage, isSignedIn, currentBuild, customizationLoaded, getToken])
+  }, [selectedOptions, selectedPackage, isSignedIn, currentBuild, customizationLoaded, updateBuild])
 
   // Clean up expired customizations on mount
   useEffect(() => {

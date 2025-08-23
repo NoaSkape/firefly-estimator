@@ -6,83 +6,48 @@ import FunnelProgress from '../../components/FunnelProgress'
 import { useToast } from '../../components/ToastProvider'
 import { trackEvent } from '../../utils/analytics'
 import { navigateToStep, updateBuildStep } from '../../utils/checkoutNavigation'
+import { useBuildData } from '../../hooks/useBuildData'
 
 export default function Review() {
   const { buildId } = useParams()
   const navigate = useNavigate()
   const { getToken, userId } = useAuth()
-  const [build, setBuild] = useState(null)
-  const [settings, setSettings] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [pdfLoading, setPdfLoading] = useState(false)
   const { addToast } = useToast()
+  
+  // Use centralized build data management
+  const { 
+    build, 
+    loading: buildLoading, 
+    error: buildError, 
+    updateBuild, 
+    isLoaded: buildLoaded 
+  } = useBuildData(buildId)
+  
+  const [settings, setSettings] = useState(null)
+  const [settingsLoading, setSettingsLoading] = useState(true)
+  const [pdfLoading, setPdfLoading] = useState(false)
 
+  // Load settings
   useEffect(() => {
-    (async () => {
+    const loadSettings = async () => {
       try {
-        setLoading(true)
+        setSettingsLoading(true)
         const token = await getToken()
         const headers = token ? { Authorization: `Bearer ${token}` } : {}
         
-        // Fetch build and settings in parallel
-        const [buildRes, settingsRes] = await Promise.all([
-          fetch(`/api/builds/${buildId}`, { headers }),
-          fetch('/api/admin/settings', { headers })
-        ])
-        
-        if (buildRes.ok) {
-          const buildData = await buildRes.json()
-          setBuild(buildData)
-          
-          // Only recalculate delivery if it's missing or zero and we have buyer info
-          // This prevents infinite loops while ensuring delivery costs are calculated
-          if (buildData?.buyerInfo && (!buildData?.pricing?.delivery || buildData.pricing.delivery === 0)) {
-            const address = buildData.buyerInfo.deliveryAddress || 
-              [buildData.buyerInfo.address, buildData.buyerInfo.city, buildData.buyerInfo.state, buildData.buyerInfo.zip]
-                .filter(Boolean)
-                .join(', ')
-            
-            if (address && address.trim()) {
-              try {
-                console.log('Recalculating missing delivery for address:', address)
-                // Trigger delivery calculation by updating the build with current buyer info
-                const updateRes = await fetch(`/api/builds/${buildId}`, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json', ...headers },
-                  body: JSON.stringify({ buyerInfo: buildData.buyerInfo })
-                })
-                
-                if (updateRes.ok) {
-                  // Refetch the build to get updated pricing
-                  const updatedBuildRes = await fetch(`/api/builds/${buildId}`, { headers })
-                  if (updatedBuildRes.ok) {
-                    const updatedBuild = await updatedBuildRes.json()
-                    setBuild(updatedBuild)
-                    console.log('Delivery recalculated:', {
-                      oldDelivery: buildData?.pricing?.delivery,
-                      newDelivery: updatedBuild?.pricing?.delivery,
-                      miles: updatedBuild?.pricing?.deliveryMiles
-                    })
-                  }
-                } else {
-                  console.error('Failed to update build for delivery calculation')
-                }
-              } catch (error) {
-                console.error('Error calculating delivery:', error)
-              }
-            }
-          }
+        const settingsRes = await fetch('/api/admin/settings', { headers })
+        if (settingsRes.ok) {
+          setSettings(await settingsRes.json())
         }
-        
-        if (settingsRes.ok) setSettings(await settingsRes.json())
       } catch (error) {
-        console.error('Error loading review data:', error)
-        addToast({ type: 'error', message: 'Failed to load order details' })
+        console.error('Error loading settings:', error)
       } finally {
-        setLoading(false)
+        setSettingsLoading(false)
       }
-    })()
-  }, [buildId, getToken, addToast])
+    }
+    
+    loadSettings()
+  }, [getToken])
 
   const handleDownloadPDF = async () => {
     try {
@@ -122,7 +87,8 @@ export default function Review() {
     navigateToStep(stepName, 'Overview', buildId, true, build, navigate, addToast)
   }
 
-  if (loading) {
+  // Show loading state
+  if (buildLoading || settingsLoading) {
     return (
       <div>
         <FunnelProgress current="Overview" isSignedIn={true} onNavigate={() => {}} />
@@ -136,13 +102,16 @@ export default function Review() {
     )
   }
 
-  if (!build) {
+  // Show error state
+  if (buildError || !build) {
     return (
       <div>
         <FunnelProgress current="Overview" isSignedIn={true} onNavigate={() => {}} />
         <div className="max-w-4xl mx-auto space-y-6">
           <h1 className="section-header">Review</h1>
-          <div className="text-gray-400">Build not found</div>
+          <div className="text-gray-400">
+            {buildError ? `Error: ${buildError}` : 'Build not found'}
+          </div>
         </div>
       </div>
     )
