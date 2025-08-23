@@ -178,6 +178,16 @@ const Customize = () => {
     }
   }, [isSignedIn, specificBuildId, buildLoaded, customizationLoaded, currentBuild])
 
+  // Force refresh build data when navigating back to step 2 with a specific buildId
+  useEffect(() => {
+    if (isSignedIn && specificBuildId && buildLoaded) {
+      console.log('Force refreshing build data for specific buildId:', specificBuildId)
+      // Force invalidate cache and reload
+      buildCache.delete(specificBuildId)
+      loadSpecificBuildData(specificBuildId)
+    }
+  }, [isSignedIn, specificBuildId, buildLoaded])
+
   // Handle redirect back after sign-in
   useEffect(() => {
     if (isSignedIn && actualModelCode && customizationLoaded) {
@@ -768,11 +778,48 @@ const Customize = () => {
   // Handle option selection changes
   const handleOptionsChange = (newOptions) => {
     setSelectedOptions(newOptions)
+    // Immediately save customizations for signed-in users
+    if (isSignedIn && currentBuild && currentBuild._id && model) {
+      immediateSaveCustomizations(newOptions, selectedPackage)
+    }
   }
 
   // Handle package selection changes
   const handlePackageChange = (newPackage) => {
     setSelectedPackage(newPackage)
+    // Immediately save customizations for signed-in users
+    if (isSignedIn && currentBuild && currentBuild._id && model) {
+      immediateSaveCustomizations(selectedOptions, newPackage)
+    }
+  }
+
+  // Immediately save customizations without debouncing
+  const immediateSaveCustomizations = async (options, selectedPkg) => {
+    try {
+      const pricing = computePricing()
+      console.log('Immediately saving customization changes:', {
+        buildId: currentBuild._id,
+        options: options.length,
+        selectedPkg,
+        pricing: {
+          subtotal: pricing.subtotal,
+          delivery: pricing.delivery,
+          total: pricing.total
+        }
+      })
+      
+      await updateBuild({
+        selections: {
+          options: options,
+          package: selectedPkg
+        },
+        pricing
+      }, { skipRefetch: true })
+      
+      console.log('Immediately saved customization changes successfully')
+    } catch (error) {
+      console.error('Error immediately saving customization:', error)
+    }
   }
 
   if (loading) {
