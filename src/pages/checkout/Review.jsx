@@ -1,7 +1,8 @@
-import FunnelProgress from '../../components/FunnelProgress'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
-import { useAuth } from '@clerk/clerk-react'
+import { useUser, useAuth } from '@clerk/clerk-react'
+import { formatCurrency, formatMiles } from '../../utils/formatCurrency'
+import FunnelProgress from '../../components/FunnelProgress'
 import { useToast } from '../../components/ToastProvider'
 import { trackEvent } from '../../utils/analytics'
 
@@ -203,7 +204,7 @@ export default function Review() {
                 <h3 className="text-lg font-medium text-gray-100">Base Price</h3>
                 <p className="text-sm text-gray-400">Standard {build?.modelName} configuration</p>
               </div>
-              <span className="text-lg font-semibold text-gray-100">${basePrice.toLocaleString()}</span>
+              <span className="text-lg font-semibold text-gray-100">{formatCurrency(basePrice)}</span>
             </div>
           </div>
 
@@ -230,7 +231,7 @@ export default function Review() {
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-gray-100 font-medium">
-                            ${(Number(option.price || 0) * (option.quantity || 1)).toLocaleString()}
+                            {formatCurrency(Number(option.price || 0) * (option.quantity || 1))}
                           </span>
                           <button
                             onClick={() => handleEditOption(option.code)}
@@ -246,7 +247,7 @@ export default function Review() {
               ))}
               <div className="flex justify-between items-center pt-3 border-t border-gray-700">
                 <span className="text-gray-300">Options Subtotal</span>
-                <span className="text-gray-100 font-semibold">${optionsSubtotal.toLocaleString()}</span>
+                <span className="text-gray-100 font-semibold">{formatCurrency(optionsSubtotal)}</span>
               </div>
             </div>
           )}
@@ -258,21 +259,16 @@ export default function Review() {
               <div className="flex justify-between items-center">
                 <div>
                   <span className="text-gray-300">Delivery</span>
-                  {build?.pricing?.deliveryMiles && (
-                    <span className="text-sm text-gray-400 ml-2">
-                      ({build.pricing.deliveryMiles} miles × ${settings?.pricing?.delivery_rate_per_mile || 12.5}/mi)
-                    </span>
-                  )}
                 </div>
-                <span className="text-gray-100">${deliveryFee.toLocaleString()}</span>
+                <span className="text-gray-100">{formatCurrency(deliveryFee)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-300">Title & Registration</span>
-                <span className="text-gray-100">${titleFee.toLocaleString()}</span>
+                <span className="text-gray-100">{formatCurrency(titleFee)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-300">Setup & Installation</span>
-                <span className="text-gray-100">${setupFee.toLocaleString()}</span>
+                <span className="text-gray-100">{formatCurrency(setupFee)}</span>
               </div>
             </div>
           </div>
@@ -284,14 +280,14 @@ export default function Review() {
                 <span className="text-gray-300">Sales Tax</span>
                 <span className="text-sm text-gray-400 ml-2">({(taxRate * 100).toFixed(2)}%)</span>
               </div>
-              <span className="text-gray-100">${salesTax.toLocaleString()}</span>
+              <span className="text-gray-100">{formatCurrency(salesTax)}</span>
             </div>
           </div>
 
           {/* Total */}
           <div className="flex justify-between items-center text-xl font-bold">
             <span className="text-gray-100">Total Purchase Price</span>
-            <span className="text-yellow-500">${total.toLocaleString()}</span>
+            <span className="text-yellow-500">{formatCurrency(total)}</span>
           </div>
         </div>
 
@@ -313,7 +309,7 @@ export default function Review() {
                 <p>{deliveryAddress}</p>
                 {build?.pricing?.deliveryMiles && (
                   <p className="text-sm text-gray-400 mt-2">
-                    Distance: {build.pricing.deliveryMiles} miles from factory
+                    Distance: {formatMiles(build.pricing.deliveryMiles)} from factory
                   </p>
                 )}
               </div>

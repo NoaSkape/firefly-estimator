@@ -1405,27 +1405,94 @@ app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
       return acc
     }, {})
 
-    // Generate PDF content
-    const pdfContent = `
+    // Generate HTML content for PDF
+    const htmlContent = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
         <title>Firefly Tiny Homes - Order Summary</title>
         <style>
-          body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
-          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f59e0b; padding-bottom: 20px; }
-          .logo { font-size: 24px; font-weight: bold; color: #f59e0b; }
-          .order-info { margin-bottom: 30px; }
-          .section { margin-bottom: 25px; }
-          .section-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #f59e0b; }
-          .model-info { font-size: 16px; margin-bottom: 20px; }
-          .price-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
-          .price-total { font-weight: bold; font-size: 16px; border-top: 1px solid #ccc; padding-top: 10px; margin-top: 10px; }
-          .option-item { margin-bottom: 10px; padding: 8px; background: #f9f9f9; border-radius: 4px; }
-          .option-category { font-weight: bold; margin-bottom: 8px; color: #666; }
-          .buyer-info { background: #f9f9f9; padding: 15px; border-radius: 4px; }
-          .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+          body { 
+            font-family: Arial, sans-serif; 
+            margin: 40px; 
+            color: #333; 
+            line-height: 1.4;
+          }
+          .header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+            border-bottom: 2px solid #f59e0b; 
+            padding-bottom: 20px; 
+          }
+          .logo { 
+            font-size: 24px; 
+            font-weight: bold; 
+            color: #f59e0b; 
+          }
+          .order-info { 
+            margin-bottom: 30px; 
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+          }
+          .section { 
+            margin-bottom: 25px; 
+          }
+          .section-title { 
+            font-size: 18px; 
+            font-weight: bold; 
+            margin-bottom: 15px; 
+            color: #f59e0b; 
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+          }
+          .model-info { 
+            font-size: 16px; 
+            margin-bottom: 20px; 
+          }
+          .price-row { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 8px; 
+            padding: 4px 0;
+          }
+          .price-total { 
+            font-weight: bold; 
+            font-size: 16px; 
+            border-top: 2px solid #ccc; 
+            padding-top: 10px; 
+            margin-top: 10px; 
+          }
+          .option-item { 
+            margin-bottom: 10px; 
+            padding: 8px; 
+            background: #f9f9f9; 
+            border-radius: 4px; 
+          }
+          .option-category { 
+            font-weight: bold; 
+            margin-bottom: 8px; 
+            color: #666; 
+          }
+          .buyer-info { 
+            background: #f9f9f9; 
+            padding: 15px; 
+            border-radius: 4px; 
+          }
+          .footer { 
+            margin-top: 40px; 
+            text-align: center; 
+            font-size: 12px; 
+            color: #666; 
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+          }
+          .total-row {
+            font-size: 18px;
+            font-weight: bold;
+            color: #f59e0b;
+          }
         </style>
       </head>
       <body>
@@ -1451,7 +1518,7 @@ app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
           
           <div class="price-row">
             <span>Base Price</span>
-            <span>$${basePrice.toLocaleString()}</span>
+            <span>$${(Math.round(basePrice * 100) / 100).toLocaleString()}</span>
           </div>
         </div>
 
@@ -1464,7 +1531,7 @@ app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
               <div class="option-item">
                 <div class="price-row">
                   <span>${option.name || option.code}${option.quantity > 1 ? ` (×${option.quantity})` : ''}</span>
-                  <span>$${(Number(option.price || 0) * (option.quantity || 1)).toLocaleString()}</span>
+                  <span>$${(Math.round((Number(option.price || 0) * (option.quantity || 1)) * 100) / 100).toLocaleString()}</span>
                 </div>
                 ${option.description ? `<div style="font-size: 12px; color: #666; margin-top: 4px;">${option.description}</div>` : ''}
               </div>
@@ -1472,7 +1539,7 @@ app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
           `).join('')}
           <div class="price-row">
             <strong>Options Subtotal</strong>
-            <strong>$${optionsSubtotal.toLocaleString()}</strong>
+            <strong>$${(Math.round(optionsSubtotal * 100) / 100).toLocaleString()}</strong>
           </div>
         </div>
         ` : ''}
@@ -1480,16 +1547,16 @@ app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
         <div class="section">
           <div class="section-title">Fees & Services</div>
           <div class="price-row">
-            <span>Delivery${build.pricing?.deliveryMiles ? ` (${build.pricing.deliveryMiles} miles)` : ''}</span>
-            <span>$${deliveryFee.toLocaleString()}</span>
+            <span>Delivery${build.pricing?.deliveryMiles ? ` (${Math.round(build.pricing.deliveryMiles)} miles)` : ''}</span>
+            <span>$${(Math.round(deliveryFee * 100) / 100).toLocaleString()}</span>
           </div>
           <div class="price-row">
             <span>Title & Registration</span>
-            <span>$${titleFee.toLocaleString()}</span>
+            <span>$${(Math.round(titleFee * 100) / 100).toLocaleString()}</span>
           </div>
           <div class="price-row">
             <span>Setup & Installation</span>
-            <span>$${setupFee.toLocaleString()}</span>
+            <span>$${(Math.round(setupFee * 100) / 100).toLocaleString()}</span>
           </div>
         </div>
 
@@ -1497,14 +1564,14 @@ app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
           <div class="section-title">Tax Calculation</div>
           <div class="price-row">
             <span>Sales Tax (${(taxRate * 100).toFixed(2)}%)</span>
-            <span>$${salesTax.toLocaleString()}</span>
+            <span>$${(Math.round(salesTax * 100) / 100).toLocaleString()}</span>
           </div>
         </div>
 
         <div class="price-total">
-          <div class="price-row">
-            <span><strong>TOTAL PURCHASE PRICE</strong></span>
-            <span><strong>$${total.toLocaleString()}</strong></span>
+          <div class="price-row total-row">
+            <span>TOTAL PURCHASE PRICE</span>
+            <span>$${(Math.round(total * 100) / 100).toLocaleString()}</span>
           </div>
         </div>
 
@@ -1526,33 +1593,11 @@ app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
       </html>
     `
 
-    // Convert HTML to PDF using Puppeteer (serverless compatible)
-    try {
-      const puppeteer = await import('puppeteer')
-      const browser = await puppeteer.default.launch({ 
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-      })
-      const page = await browser.newPage()
-      await page.setContent(pdfContent, { waitUntil: 'networkidle0' })
-      const pdfBuffer = await page.pdf({ 
-        format: 'A4', 
-        printBackground: true,
-        margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
-      })
-      await browser.close()
-      
-      res.setHeader('Content-Type', 'application/pdf')
-      res.setHeader('Content-Disposition', `attachment; filename="firefly-order-${id}.pdf"`)
-      res.send(pdfBuffer)
-      
-    } catch (pdfError) {
-      console.error('Puppeteer PDF generation error:', pdfError)
-      // Fallback to HTML if PDF generation fails
-      res.setHeader('Content-Type', 'text/html')
-      res.setHeader('Content-Disposition', `attachment; filename="firefly-order-${id}.html"`)
-      res.send(pdfContent)
-    }
+    // For serverless environments, we'll return HTML that can be converted to PDF by the browser
+    // This is more reliable than trying to run Puppeteer in serverless
+    res.setHeader('Content-Type', 'text/html')
+    res.setHeader('Content-Disposition', `attachment; filename="firefly-order-${id}.html"`)
+    res.send(htmlContent)
 
   } catch (error) {
     console.error('PDF generation error:', error)
