@@ -178,7 +178,7 @@ async function createCheckoutSession(req, res) {
   }
 }
 
-// Preserve original path for deployments that rewrite to /api/index
+// Preserve original path for deployments that rewrite to /api/index/...
 app.use((req, _res, next) => {
   const debug = process.env.DEBUG_ADMIN === 'true'
   if (debug) console.log('[DEBUG_ADMIN] incoming', { method: req.method, url: req.url })
@@ -1345,6 +1345,176 @@ app.post(['/api/builds/:id/payment-method', '/builds/:id/payment-method'], async
   return res.status(200).json(updated)
 })
 
+// PDF Generation for Order Summary
+app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
+  try {
+    const { id } = req.params
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+    
+    const build = await getBuildById(id)
+    if (!build || build.userId !== auth.userId) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    const settings = await getOrgSettings()
+    
+    // Calculate comprehensive pricing
+    const basePrice = Number(build.selections?.basePrice || 0)
+    const options = build.selections?.options || []
+    const optionsSubtotal = options.reduce((sum, opt) => sum + Number(opt.price || 0) * (opt.quantity || 1), 0)
+    const subtotalBeforeFees = basePrice + optionsSubtotal
+    
+    const deliveryFee = Number(build.pricing?.delivery || 0)
+    const titleFee = Number(settings.pricing?.title_fee_default || 500)
+    const setupFee = Number(settings.pricing?.setup_fee_default || 3000)
+    const taxRate = Number(settings.pricing?.tax_rate_percent || 6.25) / 100
+    
+    const feesSubtotal = deliveryFee + titleFee + setupFee
+    const subtotalBeforeTax = subtotalBeforeFees + feesSubtotal
+    const salesTax = subtotalBeforeTax * taxRate
+    const total = subtotalBeforeTax + salesTax
+
+    // Group options by category
+    const optionsByCategory = options.reduce((acc, option) => {
+      const category = option.category || 'Other'
+      if (!acc[category]) acc[category] = []
+      acc[category].push(option)
+      return acc
+    }, {})
+
+    // Generate PDF content
+    const pdfContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Firefly Tiny Homes - Order Summary</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f59e0b; padding-bottom: 20px; }
+          .logo { font-size: 24px; font-weight: bold; color: #f59e0b; }
+          .order-info { margin-bottom: 30px; }
+          .section { margin-bottom: 25px; }
+          .section-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #f59e0b; }
+          .model-info { font-size: 16px; margin-bottom: 20px; }
+          .price-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+          .price-total { font-weight: bold; font-size: 16px; border-top: 1px solid #ccc; padding-top: 10px; margin-top: 10px; }
+          .option-item { margin-bottom: 10px; padding: 8px; background: #f9f9f9; border-radius: 4px; }
+          .option-category { font-weight: bold; margin-bottom: 8px; color: #666; }
+          .buyer-info { background: #f9f9f9; padding: 15px; border-radius: 4px; }
+          .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo">FIREFLY TINY HOMES</div>
+          <div>Order Summary</div>
+        </div>
+
+        <div class="order-info">
+          <div class="price-row">
+            <strong>Order ID:</strong> ${id}
+          </div>
+          <div class="price-row">
+            <strong>Date:</strong> ${new Date().toLocaleDateString()}
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Model Configuration</div>
+          <div class="model-info">
+            <strong>${build.modelName}</strong> (${build.modelSlug})
+          </div>
+          
+          <div class="price-row">
+            <span>Base Price</span>
+            <span>$${basePrice.toLocaleString()}</span>
+          </div>
+        </div>
+
+        ${Object.keys(optionsByCategory).length > 0 ? `
+        <div class="section">
+          <div class="section-title">Selected Options</div>
+          ${Object.entries(optionsByCategory).map(([category, categoryOptions]) => `
+            <div class="option-category">${category}</div>
+            ${categoryOptions.map(option => `
+              <div class="option-item">
+                <div class="price-row">
+                  <span>${option.name || option.code}${option.quantity > 1 ? ` (×${option.quantity})` : ''}</span>
+                  <span>$${(Number(option.price || 0) * (option.quantity || 1)).toLocaleString()}</span>
+                </div>
+                ${option.description ? `<div style="font-size: 12px; color: #666; margin-top: 4px;">${option.description}</div>` : ''}
+              </div>
+            `).join('')}
+          `).join('')}
+          <div class="price-row">
+            <strong>Options Subtotal</strong>
+            <strong>$${optionsSubtotal.toLocaleString()}</strong>
+          </div>
+        </div>
+        ` : ''}
+
+        <div class="section">
+          <div class="section-title">Fees & Services</div>
+          <div class="price-row">
+            <span>Delivery${build.pricing?.deliveryMiles ? ` (${build.pricing.deliveryMiles} miles)` : ''}</span>
+            <span>$${deliveryFee.toLocaleString()}</span>
+          </div>
+          <div class="price-row">
+            <span>Title & Registration</span>
+            <span>$${titleFee.toLocaleString()}</span>
+          </div>
+          <div class="price-row">
+            <span>Setup & Installation</span>
+            <span>$${setupFee.toLocaleString()}</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Tax Calculation</div>
+          <div class="price-row">
+            <span>Sales Tax (${(taxRate * 100).toFixed(2)}%)</span>
+            <span>$${salesTax.toLocaleString()}</span>
+          </div>
+        </div>
+
+        <div class="price-total">
+          <div class="price-row">
+            <span><strong>TOTAL PURCHASE PRICE</strong></span>
+            <span><strong>$${total.toLocaleString()}</strong></span>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Buyer & Delivery Information</div>
+          <div class="buyer-info">
+            <div><strong>Name:</strong> ${build.buyerInfo?.firstName || ''} ${build.buyerInfo?.lastName || ''}</div>
+            <div><strong>Email:</strong> ${build.buyerInfo?.email || ''}</div>
+            <div><strong>Phone:</strong> ${build.buyerInfo?.phone || 'Not provided'}</div>
+            <div><strong>Delivery Address:</strong> ${build.buyerInfo?.deliveryAddress || 'Not specified'}</div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>This is a detailed summary of your Firefly Tiny Home order.</p>
+          <p>Generated on ${new Date().toLocaleString()}</p>
+        </div>
+      </body>
+      </html>
+    `
+
+    // Convert HTML to PDF using a simple approach (you might want to use a proper PDF library)
+    res.setHeader('Content-Type', 'text/html')
+    res.setHeader('Content-Disposition', `attachment; filename="firefly-order-${id}.html"`)
+    res.send(pdfContent)
+
+  } catch (error) {
+    console.error('PDF generation error:', error)
+    res.status(500).json({ error: 'Failed to generate PDF' })
+  }
+})
+
 // ----- PATCH/PUT model -----
 async function handleModelWrite(req, res) {
   const debug = process.env.DEBUG_ADMIN === 'true'
@@ -1606,3 +1776,5 @@ app.use((req, res) => {
 
 // Vercel Node.js functions expect (req, res). Call Express directly.
 export default (req, res) => app(req, res)
+
+
