@@ -72,6 +72,23 @@ const Customize = () => {
 
   // Load customization on component mount (both anonymous and migrated)
   useEffect(() => {
+    console.log('Customization loading useEffect triggered:', {
+      actualModelCode,
+      customizationLoaded,
+      isSignedIn,
+      buildLoaded,
+      hasCurrentBuild: !!currentBuild,
+      specificBuildId,
+      currentBuildData: currentBuild ? {
+        id: currentBuild._id,
+        modelSlug: currentBuild.modelSlug,
+        step: currentBuild.step,
+        hasSelections: !!currentBuild.selections,
+        optionsCount: currentBuild.selections?.options?.length || 0,
+        selectedPackage: currentBuild.selections?.package || ''
+      } : null
+    })
+    
     if (actualModelCode && !customizationLoaded) {
       if (!isSignedIn) {
         // Load anonymous customization for non-signed-in users
@@ -119,6 +136,10 @@ const Customize = () => {
         
         console.log('Restored build customization:', { options, selectedPackage })
         setCustomizationLoaded(true)
+      } else if (isSignedIn && specificBuildId && buildLoaded && !currentBuild) {
+        // Fallback: if we have a specific buildId but no currentBuild data, try to load it directly
+        console.log('Fallback: Loading build data directly for specific buildId:', specificBuildId)
+        loadSpecificBuildData(specificBuildId)
       } else if (isSignedIn && !specificBuildId) {
         // Fallback: load from user's builds if no specific buildId
         loadUserBuildsForModel(actualModelCode)
@@ -245,6 +266,65 @@ const Customize = () => {
     } catch (error) {
       console.error('Failed to load user builds:', error)
       setCustomizationLoaded(true) // Set to true even on error to prevent infinite loading
+    }
+  }
+
+  // Load specific build data directly from API
+  const loadSpecificBuildData = async (buildId) => {
+    try {
+      const token = await getToken()
+      if (!token) {
+        console.log('No token available for loading specific build data')
+        setCustomizationLoaded(true)
+        return
+      }
+
+      console.log('Loading specific build data for buildId:', buildId)
+      const response = await fetch(`/api/builds/${buildId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        const buildData = await response.json()
+        console.log('Loaded specific build data:', {
+          buildId: buildData._id,
+          modelSlug: buildData.modelSlug,
+          step: buildData.step,
+          hasSelections: !!buildData.selections,
+          optionsCount: buildData.selections?.options?.length || 0,
+          selectedPackage: buildData.selections?.package || ''
+        })
+        
+        const options = buildData.selections?.options || []
+        const selectedPackage = buildData.selections?.package || ''
+        
+        setSelectedOptions(options)
+        setSelectedPackage(selectedPackage)
+        
+        // Initialize delivery cost from loaded build if available
+        if (buildData.pricing?.delivery !== undefined && buildData.pricing.delivery !== null) {
+          setDeliveryCost(roundToCents(buildData.pricing.delivery))
+          console.log('Initialized delivery cost from specific build:', buildData.pricing.delivery)
+        } else {
+          console.log('No valid delivery cost found in specific build, will calculate fresh')
+          setDeliveryCost(null)
+        }
+        
+        addToast({
+          type: 'info',
+          title: 'Build Restored',
+          message: 'Your previous build has been restored.'
+        })
+        
+        console.log('Restored specific build customization:', { options, selectedPackage })
+        setCustomizationLoaded(true)
+      } else {
+        console.error('Failed to load specific build data:', response.status)
+        setCustomizationLoaded(true)
+      }
+    } catch (error) {
+      console.error('Error loading specific build data:', error)
+      setCustomizationLoaded(true)
     }
   }
 
