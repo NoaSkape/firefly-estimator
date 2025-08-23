@@ -442,31 +442,6 @@ export default function Review() {
             Edit Customization
           </button>
         </div>
-        
-        {/* Quick Navigation Links */}
-        <div className="mt-6 pt-6 border-t border-gray-700">
-          <h3 className="text-sm font-medium text-gray-300 mb-3">Quick Navigation</h3>
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => navigate(`/checkout/${buildId}/buyer`)}
-              className="text-sm text-yellow-500 hover:text-yellow-400 underline"
-            >
-              ← Edit Delivery Address
-            </button>
-            <button
-              onClick={() => navigate(`/customize/${build?.modelSlug}?buildId=${buildId}`)}
-              className="text-sm text-yellow-500 hover:text-yellow-400 underline"
-            >
-              ← Edit Customization
-            </button>
-            <button
-              onClick={() => navigate(`/models/${build?.modelSlug}`)}
-              className="text-sm text-yellow-500 hover:text-yellow-400 underline"
-            >
-              ← Choose Different Model
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   )
