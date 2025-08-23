@@ -1,6 +1,14 @@
 import { useMemo } from 'react'
+import { canNavigateToStep, isStepCompleted } from '../utils/checkoutNavigation'
 
-export default function FunnelProgress({ current = 'Choose Your Home', isSignedIn = false, onNavigate, disabledReason }) {
+export default function FunnelProgress({ 
+  current = 'Choose Your Home', 
+  isSignedIn = false, 
+  onNavigate, 
+  disabledReason,
+  build = null,
+  buildId = null
+}) {
   const steps = useMemo(() => ([
     'Choose Your Home',
     'Customize!',
@@ -15,15 +23,23 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
   const currentIndex = Math.max(0, steps.findIndex(s => s === current))
 
   function canGo(targetIndex) {
-    // allow going back; forward allowed only by explicit handler
-    return targetIndex <= currentIndex
+    const targetStep = steps[targetIndex]
+    if (!targetStep) return false
+    
+    const validation = canNavigateToStep(targetStep, current, isSignedIn, build)
+    return validation.canNavigate
+  }
+
+  function getDisabledReason(targetIndex) {
+    const targetStep = steps[targetIndex]
+    if (!targetStep) return 'Invalid step'
+    
+    const validation = canNavigateToStep(targetStep, current, isSignedIn, build)
+    return validation.canNavigate ? '' : validation.reason
   }
 
   function isCompleted(stepIndex) {
-    // Sign In is completed if user is signed in
-    if (stepIndex === 2) return isSignedIn
-    // All previous steps are completed
-    return stepIndex < currentIndex
+    return isStepCompleted(stepIndex, current, isSignedIn)
   }
 
   return (
@@ -41,8 +57,8 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
               <button
                 type="button"
                 onClick={() => enabled && typeof onNavigate === 'function' && onNavigate(label, idx)}
-                className={`flex items-center ${active ? 'text-yellow-500' : 'text-gray-200'} ${enabled ? '' : 'opacity-60 cursor-not-allowed'}`}
-                title={reason || undefined}
+                className={`flex items-center ${active ? 'text-yellow-500' : 'text-gray-200'} ${enabled ? 'hover:text-yellow-400' : 'opacity-60 cursor-not-allowed'}`}
+                title={getDisabledReason(idx) || undefined}
                 aria-disabled={!enabled}
               >
                 <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full mr-2 ${
@@ -83,8 +99,8 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
                 <button
                   type="button"
                   onClick={() => enabled && typeof onNavigate === 'function' && onNavigate(label, idx)}
-                  className={`flex flex-col items-center p-2 rounded w-full ${active ? 'text-yellow-500 bg-yellow-500/10' : 'text-gray-200'} ${enabled ? '' : 'opacity-60 cursor-not-allowed'}`}
-                  title={reason || undefined}
+                  className={`flex flex-col items-center p-2 rounded w-full ${active ? 'text-yellow-500 bg-yellow-500/10' : 'text-gray-200'} ${enabled ? 'hover:bg-yellow-500/20' : 'opacity-60 cursor-not-allowed'}`}
+                  title={getDisabledReason(idx) || undefined}
                   aria-disabled={!enabled}
                 >
                   <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full mb-1 text-xs font-medium ${active ? 'bg-yellow-500 text-gray-900' : 'bg-gray-500 text-white'}`}>

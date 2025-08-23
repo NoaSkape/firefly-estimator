@@ -11,6 +11,14 @@ import { OPTIONS } from '../data/options'
 import SEOHead from '../components/SEOHead'
 import FunnelProgress from '../components/FunnelProgress'
 import { useToast } from '../components/ToastProvider'
+import { navigateToStep } from '../utils/checkoutNavigation'
+import { 
+  saveAnonymousCustomization, 
+  loadAnonymousCustomization, 
+  clearAnonymousCustomization,
+  migrateAnonymousCustomizations,
+  cleanupExpiredCustomizations
+} from '../utils/customizationStorage'
 
 const Customize = () => {
   const { modelId } = useParams()
@@ -25,6 +33,7 @@ const Customize = () => {
   const [selectedOptions, setSelectedOptions] = useState([])
   const [selectedPackage, setSelectedPackage] = useState('')
   const [saving, setSaving] = useState(false)
+  const [customizationLoaded, setCustomizationLoaded] = useState(false)
 
   // Determine the actual model code from URL parameters
   const getModelCode = () => {
@@ -42,6 +51,42 @@ const Customize = () => {
   useEffect(() => {
     fetchModel()
   }, [actualModelCode])
+
+  // Load anonymous customization on component mount
+  useEffect(() => {
+    if (!isSignedIn && actualModelCode && !customizationLoaded) {
+      const savedCustomization = loadAnonymousCustomization(actualModelCode)
+      if (savedCustomization) {
+        setSelectedOptions(savedCustomization.selectedOptions || [])
+        setSelectedPackage(savedCustomization.selectedPackage || '')
+        addToast({
+          type: 'info',
+          title: 'Customization Restored',
+          message: 'Your previous customization has been restored.'
+        })
+      }
+      setCustomizationLoaded(true)
+    }
+  }, [isSignedIn, actualModelCode, customizationLoaded, addToast])
+
+  // Auto-save customization changes for anonymous users
+  useEffect(() => {
+    if (!isSignedIn && actualModelCode && customizationLoaded) {
+      const timeoutId = setTimeout(() => {
+        saveAnonymousCustomization(actualModelCode, {
+          selectedOptions,
+          selectedPackage
+        })
+      }, 1000) // Debounce saves by 1 second
+
+      return () => clearTimeout(timeoutId)
+    }
+  }, [selectedOptions, selectedPackage, isSignedIn, actualModelCode, customizationLoaded])
+
+  // Clean up expired customizations on mount
+  useEffect(() => {
+    cleanupExpiredCustomizations()
+  }, [])
 
   const fetchModel = async () => {
     try {
@@ -171,6 +216,9 @@ const Customize = () => {
       if (!res.ok) throw new Error('Failed to save customization')
       const data = await res.json()
       
+      // Clear anonymous customization after successful save
+      clearAnonymousCustomization(actualModelCode)
+      
       addToast({ 
         type: 'success', 
         title: 'Customization Saved!',
@@ -198,6 +246,16 @@ const Customize = () => {
 
   const handleSignIn = () => {
     navigate('/sign-in?redirect=' + encodeURIComponent(window.location.pathname + window.location.search))
+  }
+
+  // Handle option selection changes
+  const handleOptionsChange = (newOptions) => {
+    setSelectedOptions(newOptions)
+  }
+
+  // Handle package selection changes
+  const handlePackageChange = (newPackage) => {
+    setSelectedPackage(newPackage)
   }
 
   if (loading) {
@@ -245,10 +303,10 @@ const Customize = () => {
         <FunnelProgress
           current="Customize!"
           isSignedIn={isSignedIn}
-          onNavigate={(label)=>{
-            if (label === 'Choose Your Home') navigate(`/models/${modelId}`)
-            if (label === 'Sign in/up' && !isSignedIn) navigate('/sign-in?redirect=' + encodeURIComponent(window.location.pathname + window.location.search))
+          onNavigate={(stepName, stepIndex) => {
+            navigateToStep(stepName, 'Customize!', modelId, isSignedIn, null, navigate, addToast)
           }}
+          buildId={modelId}
         />
         {/* Navigation Header */}
         <div className="flex justify-between items-center mb-6">
@@ -356,14 +414,14 @@ const Customize = () => {
             {Array.isArray(model?.packages) && model.packages.length > 0 && (
               <div className="card">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Popular Add-on Packages</h2>
-                <PackagesSelector packages={model.packages} value={selectedPackage} onChange={setSelectedPackage} />
+                <PackagesSelector packages={model.packages} value={selectedPackage} onChange={handlePackageChange} />
               </div>
             )}
 
             {/* Additional Add-Ons */}
             <div className="card">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Additional Add-Ons</h2>
-              <PublicOptionSelector options={OPTIONS} value={selectedOptions} onChange={setSelectedOptions} />
+              <PublicOptionSelector options={OPTIONS} value={selectedOptions} onChange={handleOptionsChange} />
             </div>
           </div>
 
@@ -464,6 +522,9 @@ const Customize = () => {
                   </button>
                   <p className="text-sm text-gray-600 mt-2 text-center">
                     Already have an account? <button onClick={handleSignIn} className="text-yellow-500 hover:text-yellow-400 underline">Sign in here</button>
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2 text-center">
+                    Your customization is automatically saved and will be restored when you return.
                   </p>
                 </div>
               )}

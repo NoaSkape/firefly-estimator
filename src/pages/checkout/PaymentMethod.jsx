@@ -6,6 +6,7 @@ import analytics from '../../utils/analytics'
 import FunnelProgress from '../../components/FunnelProgress'
 import Breadcrumbs from '../../components/Breadcrumbs'
 import offlineQueue from '../../utils/offlineQueue'
+import { navigateToStep } from '../../utils/checkoutNavigation'
 
 export default function PaymentMethod() {
   const navigate = useNavigate()
@@ -182,6 +183,10 @@ export default function PaymentMethod() {
     )
   }
 
+  const handleFunnelNavigation = (stepName, stepIndex) => {
+    navigateToStep(stepName, 'Payment Method', buildId, true, build, navigate, addToast)
+  }
+
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto">
@@ -195,7 +200,13 @@ export default function PaymentMethod() {
   return (
     <div>
       <Breadcrumbs items={[{ label: 'My Builds', to: '/builds' }, { label: 'Checkout', to: `/checkout/${buildId}/payment` }, { label: 'Payment' }]} />
-      <FunnelProgress current="Payment Method" isSignedIn={true} onNavigate={()=>{}} />
+      <FunnelProgress 
+        current="Payment Method" 
+        isSignedIn={true} 
+        onNavigate={handleFunnelNavigation}
+        build={build}
+        buildId={buildId}
+      />
       <div className="max-w-3xl mx-auto">
         <h1 className="section-header">Payment Method</h1>
         
@@ -227,6 +238,31 @@ export default function PaymentMethod() {
           <a href="/faq" className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10">
             Questions? Read FAQs
           </a>
+        </div>
+        
+        {/* Quick Navigation Links */}
+        <div className="mt-6 pt-6 border-t border-gray-700">
+          <h3 className="text-sm font-medium text-gray-300 mb-3">Quick Navigation</h3>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => navigate(`/checkout/${buildId}/review`)}
+              className="text-sm text-yellow-500 hover:text-yellow-400 underline"
+            >
+              ← Back to Overview
+            </button>
+            <button
+              onClick={() => navigate(`/checkout/${buildId}/buyer`)}
+              className="text-sm text-yellow-500 hover:text-yellow-400 underline"
+            >
+              ← Edit Delivery Address
+            </button>
+            <button
+              onClick={() => navigate(`/customize/${build?.modelSlug}`)}
+              className="text-sm text-yellow-500 hover:text-yellow-400 underline"
+            >
+              ← Edit Customization
+            </button>
+          </div>
         </div>
       </div>
     </div>

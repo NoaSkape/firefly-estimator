@@ -16,6 +16,17 @@ import { quoteDelivery } from '../lib/delivery.js'
 import { getOrgSettings, updateOrgSettings } from '../lib/settings.js'
 import { getDeliveryQuote, roundToCents } from '../lib/delivery-quote.js'
 import { createSubmission, downloadFile, uploadPdfToCloudinary, signedCloudinaryUrl } from '../lib/docuseal.js'
+import { 
+  ensureUserProfileIndexes, 
+  getUserProfile, 
+  updateUserProfile, 
+  addUserAddress, 
+  setPrimaryAddress, 
+  getPrimaryAddress, 
+  removeUserAddress, 
+  updateUserBasicInfo, 
+  getAutoFillData 
+} from '../lib/user-profile.js'
 import { z } from 'zod'
 // import { Webhook } from 'svix' // Temporarily disabled - causing deployment crashes
 
@@ -207,10 +218,8 @@ app.use((req, res, next) => {
 // Handle explicit rewrite target /api/index?path=/...
 app.use('/api/index', (req, _res, next) => {
   const p = (req.query && (req.query.path || req.query.p)) || null
-  const debug = process.env.DEBUG_ADMIN === 'true'
   if (p) {
     req.url = String(p).startsWith('/') ? String(p) : `/${String(p)}`
-    if (debug) console.log('[DEBUG_ADMIN] rewrite middleware set url from query', req.url)
   }
   next()
 })
@@ -825,6 +834,170 @@ app.post(['/api/analytics/event', '/analytics/event'], async (req, res) => {
   } catch (error) {
     console.error('Analytics event error:', error)
     return res.status(500).json({ error: 'analytics_failed' })
+  }
+})
+
+// ----- User Profile Management -----
+
+// Get user profile
+app.get(['/api/profile', '/profile'], async (req, res) => {
+  const auth = await requireAuth(req, res, false)
+  if (!auth?.userId) return
+
+  try {
+    await ensureUserProfileIndexes()
+    const profile = await getUserProfile(auth.userId)
+    return res.status(200).json(profile || {})
+  } catch (error) {
+    console.error('Get profile error:', error)
+    return res.status(500).json({ error: 'profile_fetch_failed' })
+  }
+})
+
+// Update user profile basic info
+app.patch(['/api/profile/basic', '/profile/basic'], async (req, res) => {
+  const auth = await requireAuth(req, res, false)
+  if (!auth?.userId) return
+
+  try {
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+    const { firstName, lastName, email, phone } = body
+    
+    console.log('DEBUG: Updating basic info for user:', auth.userId, { firstName, lastName, email, phone })
+    
+    await ensureUserProfileIndexes()
+    const profile = await updateUserBasicInfo(auth.userId, { firstName, lastName, email, phone })
+    
+    console.log('DEBUG: Basic info updated successfully:', profile)
+    return res.status(200).json(profile)
+  } catch (error) {
+    console.error('Update profile error:', error)
+    return res.status(500).json({ error: 'profile_update_failed', message: error.message })
+  }
+})
+
+// Get user addresses
+app.get(['/api/profile/addresses', '/profile/addresses'], async (req, res) => {
+  const auth = await requireAuth(req, res, false)
+  if (!auth?.userId) return
+
+  try {
+    await ensureUserProfileIndexes()
+    const profile = await getUserProfile(auth.userId)
+    const addresses = profile?.addresses || []
+    return res.status(200).json(addresses)
+  } catch (error) {
+    console.error('Get addresses error:', error)
+    return res.status(500).json({ error: 'addresses_fetch_failed' })
+  }
+})
+
+// Add new address
+app.post(['/api/profile/addresses', '/profile/addresses'], async (req, res) => {
+  const auth = await requireAuth(req, res, false)
+  if (!auth?.userId) return
+
+  try {
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+    const { address, city, state, zip, label } = body
+    
+    console.log('DEBUG: Adding address for user:', auth.userId, { address, city, state, zip, label })
+    
+    if (!address || !city || !state || !zip) {
+      return res.status(400).json({ error: 'address_fields_required' })
+    }
+    
+    await ensureUserProfileIndexes()
+    const profile = await addUserAddress(auth.userId, { address, city, state, zip, label })
+    
+    console.log('DEBUG: Address added successfully:', profile)
+    return res.status(200).json(profile)
+  } catch (error) {
+    console.error('Add address error:', error)
+    return res.status(500).json({ error: 'address_add_failed', message: error.message })
+  }
+})
+
+// Set primary address
+app.patch(['/api/profile/addresses/:addressId/primary', '/profile/addresses/:addressId/primary'], async (req, res) => {
+  const auth = await requireAuth(req, res, false)
+  if (!auth?.userId) return
+
+  try {
+    const { addressId } = req.params
+    if (!addressId) {
+      return res.status(400).json({ error: 'address_id_required' })
+    }
+    
+    await ensureUserProfileIndexes()
+    const profile = await setPrimaryAddress(auth.userId, addressId)
+    
+    return res.status(200).json(profile)
+  } catch (error) {
+    console.error('Set primary address error:', error)
+    return res.status(500).json({ error: 'set_primary_failed' })
+  }
+})
+
+// Remove address
+app.delete(['/api/profile/addresses/:addressId', '/profile/addresses/:addressId'], async (req, res) => {
+  const auth = await requireAuth(req, res, false)
+  if (!auth?.userId) return
+
+  try {
+    const { addressId } = req.params
+    if (!addressId) {
+      return res.status(400).json({ error: 'address_id_required' })
+    }
+    
+    await ensureUserProfileIndexes()
+    const profile = await removeUserAddress(auth.userId, addressId)
+    
+    return res.status(200).json(profile)
+  } catch (error) {
+    console.error('Remove address error:', error)
+    return res.status(500).json({ error: 'address_remove_failed' })
+  }
+})
+
+// Get auto-fill data
+app.get(['/api/profile/autofill', '/profile/autofill'], async (req, res) => {
+  const auth = await requireAuth(req, res, false)
+  if (!auth?.userId) return
+
+  try {
+    console.log('DEBUG: Getting autofill data for user:', auth.userId)
+    await ensureUserProfileIndexes()
+    const autoFillData = await getAutoFillData(auth.userId)
+    console.log('DEBUG: Autofill data:', autoFillData)
+    return res.status(200).json(autoFillData)
+  } catch (error) {
+    console.error('Get autofill error:', error)
+    return res.status(500).json({ error: 'autofill_fetch_failed', message: error.message })
+  }
+})
+
+// Debug endpoint to test profile system
+app.get(['/api/profile/debug', '/profile/debug'], async (req, res) => {
+  const auth = await requireAuth(req, res, false)
+  if (!auth?.userId) return
+
+  try {
+    await ensureUserProfileIndexes()
+    const profile = await getUserProfile(auth.userId)
+    const autoFillData = await getAutoFillData(auth.userId)
+    const primaryAddress = await getPrimaryAddress(auth.userId)
+    
+    return res.status(200).json({
+      userId: auth.userId,
+      profile,
+      autoFillData,
+      primaryAddress,
+      timestamp: new Date().toISOString()
+    })
+  } catch (error) {
+    console.error('Profile debug error:', error)
+    return res.status(500).json({ error: 'debug_failed', message: error.message })
   }
 })
 

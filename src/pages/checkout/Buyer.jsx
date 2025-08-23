@@ -6,6 +6,9 @@ import { trackEvent } from '../../utils/analytics'
 import ConfirmLeaveModal from '../../components/ConfirmLeaveModal'
 import FunnelProgress from '../../components/FunnelProgress'
 import Breadcrumbs from '../../components/Breadcrumbs'
+import AddressSelectionModal from '../../components/AddressSelectionModal'
+import useUserProfile from '../../hooks/useUserProfile'
+import { navigateToStep } from '../../utils/checkoutNavigation'
 
 export default function Buyer() {
   const { user, isSignedIn } = useUser()
@@ -13,6 +16,7 @@ export default function Buyer() {
   const navigate = useNavigate()
   const { buildId } = useParams()
   const { addToast } = useToast()
+  const { getAutoFillData, updateBasicInfo, addAddress } = useUserProfile()
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '',
     address: '', city: '', state: '', zip: ''
@@ -21,21 +25,83 @@ export default function Buyer() {
   const [dirty, setDirty] = useState(false)
   const [showLeave, setShowLeave] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [showAddressModal, setShowAddressModal] = useState(false)
+  const [autoFillLoaded, setAutoFillLoaded] = useState(false)
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('ff.checkout.buyer') || '{}')
-      setForm(f => ({ ...f, ...saved }))
-    } catch {}
-    if (user) setForm(f => ({
-      ...f,
-      firstName: f.firstName || user.firstName || '',
-      lastName: f.lastName || user.lastName || '',
-      email: f.email || user.primaryEmailAddress?.emailAddress || ''
-    }))
-  }, [user])
+    const loadInitialData = async () => {
+      try {
+        // Priority 1: Load from user profile if signed in (most reliable)
+        if (isSignedIn && !autoFillLoaded) {
+          const autoFillData = await getAutoFillData()
+          setForm(f => ({
+            ...f,
+            firstName: autoFillData.firstName || user?.firstName || '',
+            lastName: autoFillData.lastName || user?.lastName || '',
+            email: autoFillData.email || user?.primaryEmailAddress?.emailAddress || '',
+            phone: autoFillData.phone || '',
+            address: autoFillData.address || '',
+            city: autoFillData.city || '',
+            state: autoFillData.state || '',
+            zip: autoFillData.zip || ''
+          }))
+          setAutoFillLoaded(true)
+        } else if (user) {
+          // Priority 2: Fallback to Clerk user data
+          setForm(f => ({
+            ...f,
+            firstName: f.firstName || user.firstName || '',
+            lastName: f.lastName || user.lastName || '',
+            email: f.email || user.primaryEmailAddress?.emailAddress || ''
+          }))
+        }
+        
+        // Priority 3: Load from localStorage as fallback (least reliable)
+        const saved = JSON.parse(localStorage.getItem('ff.checkout.buyer') || '{}')
+        if (Object.keys(saved).length > 0) {
+          setForm(f => ({ ...f, ...saved }))
+        }
+      } catch (error) {
+        console.error('Error loading auto-fill data:', error)
+      }
+    }
+    
+    loadInitialData()
+  }, [user, isSignedIn, autoFillLoaded])
 
-  function setField(k, v) { setForm(f => ({ ...f, [k]: v })); setDirty(true) }
+  function setField(k, v) { 
+    setForm(f => ({ ...f, [k]: v })); 
+    setDirty(true)
+    
+    // Auto-save to localStorage as user types (for better UX)
+    try {
+      const updatedForm = { ...form, [k]: v }
+      localStorage.setItem('ff.checkout.buyer', JSON.stringify(updatedForm))
+    } catch (error) {
+      console.error('Error auto-saving to localStorage:', error)
+    }
+  }
+  
+  const handleAddressSelect = (addressObj, fullAddressString) => {
+    const updatedForm = {
+      ...form,
+      address: addressObj.address,
+      city: addressObj.city,
+      state: addressObj.state,
+      zip: addressObj.zip
+    }
+    
+    setForm(updatedForm)
+    setDirty(true)
+    setShowAddressModal(false)
+    
+    // Save to localStorage immediately
+    try {
+      localStorage.setItem('ff.checkout.buyer', JSON.stringify(updatedForm))
+    } catch (error) {
+      console.error('Error saving address to localStorage:', error)
+    }
+  }
   function validate() {
     const e = {}
     if (!form.firstName) e.firstName = 'Required'
@@ -51,6 +117,50 @@ export default function Buyer() {
     try {
       const token = await getToken()
       setSaving(true)
+      
+      // Save to user profile for future auto-fill
+      if (isSignedIn) {
+        try {
+          console.log('Saving to user profile:', form)
+          
+          // Update basic info
+          const basicInfoResult = await updateBasicInfo({
+            firstName: form.firstName,
+            lastName: form.lastName,
+            email: form.email,
+            phone: form.phone
+          })
+          console.log('Basic info saved:', basicInfoResult)
+          
+          // Add address to address book
+          if (form.address && form.city && form.state && form.zip) {
+            const addressResult = await addAddress({
+              address: form.address,
+              city: form.city,
+              state: form.state,
+              zip: form.zip,
+              label: 'Home'
+            })
+            console.log('Address saved:', addressResult)
+          }
+        } catch (profileError) {
+          console.error('Error saving to profile:', profileError)
+          addToast({ 
+            type: 'warning', 
+            message: 'Profile save failed, but checkout will continue' 
+          })
+          // Don't block checkout if profile save fails
+        }
+      }
+      
+      // Save to localStorage for immediate persistence
+      try {
+        localStorage.setItem('ff.checkout.buyer', JSON.stringify(form))
+        console.log('Saved to localStorage:', form)
+      } catch (localStorageError) {
+        console.error('Error saving to localStorage:', localStorageError)
+      }
+      
       const res = await fetch(`/api/builds/${buildId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -62,7 +172,13 @@ export default function Buyer() {
       const res2 = await fetch(`/api/builds/${buildId}/checkout-step`, { method:'POST', headers: { 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, body: JSON.stringify({ step: 4 }) })
       if (!res2.ok) { const j = await res2.json().catch(()=>({})); addToast({ type:'error', message: j?.error || 'Complete previous steps' }); return }
       trackEvent('step_changed', { buildId, step: 4 })
-    } catch {} finally { setSaving(false); setDirty(false) }
+    } catch (error) {
+      console.error('Error in next function:', error)
+      addToast({ type: 'error', message: 'Failed to save. Please try again.' })
+    } finally { 
+      setSaving(false); 
+      setDirty(false) 
+    }
     navigate(`/checkout/${buildId}/review`)
   }
 
@@ -89,9 +205,18 @@ export default function Buyer() {
     return () => window.removeEventListener('popstate', onPop)
   }, [dirty])
 
+  const handleFunnelNavigation = (stepName, stepIndex) => {
+    navigateToStep(stepName, 'Delivery Address', buildId, isSignedIn, null, navigate, addToast)
+  }
+
   return (
     <div>
-      <FunnelProgress current="Delivery Address" isSignedIn={true} onNavigate={()=>{}} />
+      <FunnelProgress 
+        current="Delivery Address" 
+        isSignedIn={isSignedIn} 
+        onNavigate={handleFunnelNavigation}
+        buildId={buildId}
+      />
       <div className="max-w-3xl mx-auto">
         {!isSignedIn && (
           <div className="card mb-6">
@@ -130,13 +255,51 @@ export default function Buyer() {
           <input className={`input-field ${errors.lastName?'border-red-600':''}`} placeholder="Last name" value={form.lastName} onChange={e=>setField('lastName', e.target.value)} />
           <input className={`input-field md:col-span-2 ${errors.email?'border-red-600':''}`} placeholder="Email" value={form.email} onChange={e=>setField('email', e.target.value)} />
           <input className="input-field md:col-span-2" placeholder="Phone" value={form.phone} onChange={e=>setField('phone', e.target.value)} />
-          <input className={`input-field md:col-span-2 ${errors.address?'border-red-600':''}`} placeholder="Address" value={form.address} onChange={e=>setField('address', e.target.value)} />
+          <div className="md:col-span-2 space-y-2">
+            <div className="flex gap-2">
+              <input 
+                className={`input-field flex-1 ${errors.address?'border-red-600':''}`} 
+                placeholder="Address" 
+                value={form.address} 
+                onChange={e=>setField('address', e.target.value)} 
+              />
+              {isSignedIn && (
+                <button
+                  type="button"
+                  onClick={() => setShowAddressModal(true)}
+                  className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-gray-300 hover:bg-gray-700 text-sm whitespace-nowrap"
+                  title="Select from saved addresses"
+                >
+                  📍 Saved
+                </button>
+              )}
+            </div>
+          </div>
           <input className="input-field" placeholder="City" value={form.city} onChange={e=>setField('city', e.target.value)} />
           <input className="input-field" placeholder="State" value={form.state} onChange={e=>setField('state', e.target.value)} />
           <input className="input-field" placeholder="ZIP" value={form.zip} onChange={e=>setField('zip', e.target.value)} />
         </div>
         <div className="mt-6 flex gap-3">
           <button className="btn-primary" onClick={next}>Continue</button>
+          {process.env.NODE_ENV === 'development' && (
+            <button 
+              className="btn-secondary" 
+              onClick={async () => {
+                try {
+                  const token = await getToken()
+                  const headers = token ? { Authorization: `Bearer ${token}` } : {}
+                  const response = await fetch('/api/profile/debug', { headers })
+                  const data = await response.json()
+                  console.log('Profile Debug Data:', data)
+                  addToast({ type: 'info', message: 'Check console for debug data' })
+                } catch (error) {
+                  console.error('Debug error:', error)
+                }
+              }}
+            >
+              Debug Profile
+            </button>
+          )}
         </div>
         <ConfirmLeaveModal
           open={showLeave}
@@ -144,6 +307,13 @@ export default function Buyer() {
           onSaveLeave={async ()=>{ await next(); setShowLeave(false) }}
           onDiscard={()=>{ setDirty(false); setShowLeave(false); window.history.back() }}
           onStay={()=>setShowLeave(false)}
+        />
+        
+        <AddressSelectionModal
+          isOpen={showAddressModal}
+          onClose={() => setShowAddressModal(false)}
+          onSelectAddress={handleAddressSelect}
+          currentAddress={form}
         />
       </div>
     </div>

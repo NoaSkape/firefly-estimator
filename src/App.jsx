@@ -56,6 +56,7 @@ import { canEditModelsClient } from './lib/canEditModels'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useGlobalAuthErrorInterceptor } from './components/AuthErrorHandler'
 import { useScrollToTop } from './hooks/useScrollToTop'
+import CustomizationMigration from './components/CustomizationMigration'
 
 import './utils/performance' // Initialize performance monitoring
 import './utils/accessibility' // Initialize accessibility features
@@ -248,6 +249,7 @@ function App() {
             <MobileSpacingWrapper>
               <ResumeBanner />
               <OfflineIndicator />
+              <CustomizationMigration />
               <Suspense fallback={<PageLoadingSpinner />}>
                 <Routes>
               <Route 

@@ -5,6 +5,7 @@ import { formatCurrency, formatMiles } from '../../utils/formatCurrency'
 import FunnelProgress from '../../components/FunnelProgress'
 import { useToast } from '../../components/ToastProvider'
 import { trackEvent } from '../../utils/analytics'
+import { navigateToStep } from '../../utils/checkoutNavigation'
 
 export default function Review() {
   const { buildId } = useParams()
@@ -117,6 +118,10 @@ export default function Review() {
     navigate(`/customize/${build?.modelSlug}?edit=${optionId}`)
   }
 
+  const handleFunnelNavigation = (stepName, stepIndex) => {
+    navigateToStep(stepName, 'Overview', buildId, true, build, navigate, addToast)
+  }
+
   if (loading) {
     return (
       <div>
@@ -176,7 +181,13 @@ export default function Review() {
 
   return (
     <div>
-      <FunnelProgress current="Overview" isSignedIn={true} onNavigate={() => {}} />
+      <FunnelProgress 
+        current="Overview" 
+        isSignedIn={true} 
+        onNavigate={handleFunnelNavigation}
+        build={build}
+        buildId={buildId}
+      />
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="section-header">Review</h1>
@@ -349,6 +360,31 @@ export default function Review() {
           >
             Edit Customization
           </button>
+        </div>
+        
+        {/* Quick Navigation Links */}
+        <div className="mt-6 pt-6 border-t border-gray-700">
+          <h3 className="text-sm font-medium text-gray-300 mb-3">Quick Navigation</h3>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => navigate(`/checkout/${buildId}/buyer`)}
+              className="text-sm text-yellow-500 hover:text-yellow-400 underline"
+            >
+              ← Edit Delivery Address
+            </button>
+            <button
+              onClick={() => navigate(`/customize/${build?.modelSlug}`)}
+              className="text-sm text-yellow-500 hover:text-yellow-400 underline"
+            >
+              ← Edit Customization
+            </button>
+            <button
+              onClick={() => navigate(`/models/${build?.modelSlug}`)}
+              className="text-sm text-yellow-500 hover:text-yellow-400 underline"
+            >
+              ← Choose Different Model
+            </button>
+          </div>
         </div>
       </div>
     </div>
