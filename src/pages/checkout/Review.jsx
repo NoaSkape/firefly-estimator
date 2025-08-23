@@ -5,7 +5,7 @@ import { formatCurrency, formatMiles } from '../../utils/formatCurrency'
 import FunnelProgress from '../../components/FunnelProgress'
 import { useToast } from '../../components/ToastProvider'
 import { trackEvent } from '../../utils/analytics'
-import { navigateToStep } from '../../utils/checkoutNavigation'
+import { navigateToStep, updateBuildStep } from '../../utils/checkoutNavigation'
 
 export default function Review() {
   const { buildId } = useParams()
@@ -350,7 +350,18 @@ export default function Review() {
         <div className="flex gap-4">
           <button 
             className="btn-primary flex-1"
-            onClick={() => navigate(`/checkout/${buildId}/payment-method`)}
+            onClick={async () => {
+              try {
+                const token = await getToken()
+                // Update build step to 6 (Payment Method)
+                await updateBuildStep(buildId, 6, token)
+                navigate(`/checkout/${buildId}/payment-method`)
+              } catch (error) {
+                console.error('Error updating build step:', error)
+                // Still navigate even if step update fails
+                navigate(`/checkout/${buildId}/payment-method`)
+              }
+            }}
           >
             Continue to Payment Method
           </button>

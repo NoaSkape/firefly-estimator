@@ -11,7 +11,7 @@ import { OPTIONS } from '../data/options'
 import SEOHead from '../components/SEOHead'
 import FunnelProgress from '../components/FunnelProgress'
 import { useToast } from '../components/ToastProvider'
-import { navigateToStep } from '../utils/checkoutNavigation'
+import { navigateToStep, updateBuildStep } from '../utils/checkoutNavigation'
 import { useUserProfile } from '../hooks/useUserProfile'
 import { formatCurrency, roundToCents } from '../utils/currency'
 import { 
@@ -403,6 +403,9 @@ const Customize = () => {
         title: 'Customization Saved!',
         message: 'Your home design has been saved to your account.'
       })
+      
+      // Update build step to 4 (Delivery Address)
+      await updateBuildStep(data.buildId, 4, token)
       
       // Navigate to the next step in the funnel (Buyer Info)
       navigate(`/checkout/${data.buildId}/buyer`)

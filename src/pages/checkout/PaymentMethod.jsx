@@ -6,7 +6,7 @@ import analytics from '../../utils/analytics'
 import FunnelProgress from '../../components/FunnelProgress'
 import Breadcrumbs from '../../components/Breadcrumbs'
 import offlineQueue from '../../utils/offlineQueue'
-import { navigateToStep } from '../../utils/checkoutNavigation'
+import { navigateToStep, updateBuildStep } from '../../utils/checkoutNavigation'
 
 export default function PaymentMethod() {
   const navigate = useNavigate()
@@ -123,7 +123,7 @@ export default function PaymentMethod() {
       const res2 = await fetch(`/api/builds/${buildId}/checkout-step`, { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, 
-        body: JSON.stringify({ step: 3 }) 
+        body: JSON.stringify({ step: 7 }) 
       })
       
       if (!res2.ok) { 
@@ -136,15 +136,17 @@ export default function PaymentMethod() {
         return 
       }
       
-      analytics.stepChanged(buildId, 2, 3)
-      navigate(`/checkout/${buildId}/buyer`)
+      // Update build step to 7 (Contract)
+      await updateBuildStep(buildId, 7, token)
+      analytics.stepChanged(buildId, 6, 7)
+      navigate(`/checkout/${buildId}/agreement`)
       
     } catch (error) {
       // Queue for offline processing if network fails
       if (!navigator.onLine) {
         offlineQueue.queueBuildUpdate(buildId, {
           financing: { method: choice },
-          step: 3
+          step: 7
         }, await getToken())
         
         addToast({
@@ -153,7 +155,7 @@ export default function PaymentMethod() {
           message: 'Payment method will be saved when you reconnect.'
         })
         
-        navigate(`/checkout/${buildId}/buyer`)
+        navigate(`/checkout/${buildId}/agreement`)
       } else {
         addToast({
           type: 'error',

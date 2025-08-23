@@ -28,6 +28,37 @@ const STEP_ORDER = [
 ]
 
 /**
+ * Update the build step in the database
+ * @param {string} buildId - The build ID
+ * @param {number} step - The step number (1-8)
+ * @param {string} token - Auth token
+ * @returns {Promise<boolean>} Whether the update was successful
+ */
+export async function updateBuildStep(buildId, step, token) {
+  try {
+    const response = await fetch(`/api/builds/${buildId}/checkout-step`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ step })
+    })
+    
+    if (!response.ok) {
+      console.error('Failed to update build step:', response.status, response.statusText)
+      return false
+    }
+    
+    console.log(`Build step updated to ${step}/8`)
+    return true
+  } catch (error) {
+    console.error('Error updating build step:', error)
+    return false
+  }
+}
+
+/**
  * Get the route for a specific step
  * @param {string} stepName - The name of the step
  * @param {string} buildId - The build ID

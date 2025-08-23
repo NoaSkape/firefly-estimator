@@ -8,7 +8,7 @@ import FunnelProgress from '../../components/FunnelProgress'
 import Breadcrumbs from '../../components/Breadcrumbs'
 import AddressSelectionModal from '../../components/AddressSelectionModal'
 import useUserProfile from '../../hooks/useUserProfile'
-import { navigateToStep } from '../../utils/checkoutNavigation'
+import { navigateToStep, updateBuildStep } from '../../utils/checkoutNavigation'
 
 export default function Buyer() {
   const { user, isSignedIn } = useUser()
@@ -199,7 +199,9 @@ export default function Buyer() {
         return 
       }
       
-      trackEvent('step_changed', { buildId, step: 4 })
+      // Update build step to 5 (Overview)
+      await updateBuildStep(buildId, 5, token)
+      trackEvent('step_changed', { buildId, step: 5 })
     } catch (error) {
       console.error('Error in next function:', error)
       addToast({ type: 'error', message: 'Failed to save. Please try again.' })
