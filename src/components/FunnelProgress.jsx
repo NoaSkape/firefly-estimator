@@ -40,6 +40,7 @@ export default function FunnelProgress({ current = 'Choose Your Home', isSignedI
                 title={reason || undefined}
                 aria-disabled={!enabled}
               >
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full mr-2 ${active ? 'bg-yellow-400 text-gray-900' : 'bg-gray-500 text-white'}`}>{idx+1}</span>
                 <span className="whitespace-nowrap">{label}</span>
               </button>
               {!isLast && (
