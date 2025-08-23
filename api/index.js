@@ -1835,7 +1835,7 @@ app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
           
           <div class="price-row">
             <span>Base Price</span>
-            <span>$${(Math.round(basePrice * 100) / 100).toLocaleString()}</span>
+            <span>$${formatCurrency(basePrice)}</span>
           </div>
         </div>
 
@@ -1848,7 +1848,7 @@ app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
               <div class="option-item">
                 <div class="price-row">
                   <span>${option.name || option.code}${option.quantity > 1 ? ` (×${option.quantity})` : ''}</span>
-                  <span>$${(Math.round((Number(option.price || 0) * (option.quantity || 1)) * 100) / 100).toLocaleString()}</span>
+                  <span>$${formatCurrency(Number(option.price || 0) * (option.quantity || 1))}</span>
                 </div>
                 ${option.description ? `<div style="font-size: 12px; color: #666; margin-top: 4px;">${option.description}</div>` : ''}
               </div>
@@ -1856,7 +1856,7 @@ app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
           `).join('')}
           <div class="price-row">
             <strong>Options Subtotal</strong>
-            <strong>$${(Math.round(optionsSubtotal * 100) / 100).toLocaleString()}</strong>
+            <strong>$${formatCurrency(optionsSubtotal)}</strong>
           </div>
         </div>
         ` : ''}
@@ -1865,15 +1865,15 @@ app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
           <div class="section-title">Fees & Services</div>
           <div class="price-row">
             <span>Delivery${build.pricing?.deliveryMiles ? ` (${Math.round(build.pricing.deliveryMiles)} miles)` : ''}</span>
-            <span>$${(Math.round(deliveryFee * 100) / 100).toLocaleString()}</span>
+            <span>$${formatCurrency(deliveryFee)}</span>
           </div>
           <div class="price-row">
             <span>Title & Registration</span>
-            <span>$${(Math.round(titleFee * 100) / 100).toLocaleString()}</span>
+            <span>$${formatCurrency(titleFee)}</span>
           </div>
           <div class="price-row">
             <span>Setup & Installation</span>
-            <span>$${(Math.round(setupFee * 100) / 100).toLocaleString()}</span>
+            <span>$${formatCurrency(setupFee)}</span>
           </div>
         </div>
 
@@ -1881,14 +1881,14 @@ app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
           <div class="section-title">Tax Calculation</div>
           <div class="price-row">
             <span>Sales Tax (${(taxRate * 100).toFixed(2)}%)</span>
-            <span>$${(Math.round(salesTax * 100) / 100).toLocaleString()}</span>
+            <span>$${formatCurrency(salesTax)}</span>
           </div>
         </div>
 
         <div class="price-total">
           <div class="price-row total-row">
             <span>TOTAL PURCHASE PRICE</span>
-            <span>$${(Math.round(total * 100) / 100).toLocaleString()}</span>
+            <span>$${formatCurrency(total)}</span>
           </div>
         </div>
 
@@ -2183,5 +2183,17 @@ app.use((req, res) => {
 
 // Vercel Node.js functions expect (req, res). Call Express directly.
 export default (req, res) => app(req, res)
+
+// Currency formatting utility
+function formatCurrency(amount) {
+  if (amount === null || amount === undefined || isNaN(amount)) {
+    return '$0.00'
+  }
+  const rounded = Math.round(Number(amount) * 100) / 100
+  return `$${rounded.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`
+}
 
 

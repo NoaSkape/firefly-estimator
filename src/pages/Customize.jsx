@@ -13,6 +13,7 @@ import FunnelProgress from '../components/FunnelProgress'
 import { useToast } from '../components/ToastProvider'
 import { navigateToStep } from '../utils/checkoutNavigation'
 import { useUserProfile } from '../hooks/useUserProfile'
+import { formatCurrency, roundToCents } from '../utils/currency'
 import { 
   saveAnonymousCustomization, 
   loadAnonymousCustomization, 
@@ -303,25 +304,25 @@ const Customize = () => {
   }
 
   const computePricing = () => {
-    const base = Number(model?.basePrice || 0)
-    const optionsTotal = selectedOptions.reduce((s, o) => s + (o.price || 0), 0)
-    const pkgDelta = (() => {
+    const base = roundToCents(Number(model?.basePrice || 0))
+    const optionsTotal = roundToCents(selectedOptions.reduce((s, o) => s + (o.price || 0), 0))
+    const pkgDelta = roundToCents((() => {
       const pkg = (model?.packages || []).find(p => (p.key || p.name) === selectedPackage)
       return pkg ? Number(pkg.priceDelta || 0) : 0
-    })()
+    })())
     
     // Calculate subtotal before delivery and taxes
-    const subtotal = base + optionsTotal + pkgDelta
+    const subtotal = roundToCents(base + optionsTotal + pkgDelta)
     
     // Delivery cost (will be calculated based on address for signed-in users)
-    const delivery = isSignedIn && deliveryCost !== null ? deliveryCost : 0
+    const delivery = isSignedIn && deliveryCost !== null ? roundToCents(deliveryCost) : 0
     
     // Calculate taxes (6.25% for Texas)
     const taxRate = 0.0625
-    const taxableAmount = subtotal + delivery
-    const taxes = taxableAmount * taxRate
+    const taxableAmount = roundToCents(subtotal + delivery)
+    const taxes = roundToCents(taxableAmount * taxRate)
     
-    const total = subtotal + delivery + taxes
+    const total = roundToCents(subtotal + delivery + taxes)
     
     return { 
       base, 
@@ -480,7 +481,7 @@ const Customize = () => {
                 {model.name}
               </h1>
               <p className="text-xl text-yellow-500 font-semibold mb-4">
-                Starting at ${Number(model.basePrice || 0).toLocaleString()}
+                Starting at ${formatCurrency(Number(model.basePrice || 0))}
               </p>
               <p className="text-gray-700 dark:text-gray-300">
                 {model.description || 'No description available.'}
@@ -587,18 +588,18 @@ const Customize = () => {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Base Price</span>
-                  <span className="font-medium">${pricing.base.toLocaleString()}</span>
+                  <span className="font-medium">${formatCurrency(pricing.base)}</span>
                 </div>
                 {pricing.package > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">Package</span>
-                    <span className="font-medium">+${pricing.package.toLocaleString()}</span>
+                    <span className="font-medium">+${formatCurrency(pricing.package)}</span>
                   </div>
                 )}
                 {pricing.options > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">Add-ons</span>
-                    <span className="font-medium">+${pricing.options.toLocaleString()}</span>
+                    <span className="font-medium">+${formatCurrency(pricing.options)}</span>
                   </div>
                 )}
                 
@@ -606,7 +607,7 @@ const Customize = () => {
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
                   <div className="flex justify-between font-medium">
                     <span>Subtotal</span>
-                    <span>${pricing.subtotal.toLocaleString()}</span>
+                    <span>${formatCurrency(pricing.subtotal)}</span>
                   </div>
                 </div>
                 
@@ -619,7 +620,7 @@ const Customize = () => {
                     ) : deliveryCost === null ? (
                       <span className="text-sm text-gray-500">N/A</span>
                     ) : (
-                      <span className="font-medium">${deliveryCost.toLocaleString()}</span>
+                      <span className="font-medium">{formatCurrency(deliveryCost)}</span>
                     )
                   ) : (
                     <span className="text-sm text-yellow-500 font-medium text-center ml-4">
@@ -638,14 +639,14 @@ const Customize = () => {
                 {/* Taxes */}
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Taxes (6.25%)</span>
-                  <span className="font-medium">${pricing.taxes.toLocaleString()}</span>
+                  <span className="font-medium">${formatCurrency(pricing.taxes)}</span>
                 </div>
                 
                 {/* Total */}
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
                   <div className="flex justify-between text-lg font-semibold">
                     <span>Total</span>
-                    <span className="text-yellow-500">${pricing.total.toLocaleString()}</span>
+                    <span className="text-yellow-500">${formatCurrency(pricing.total)}</span>
                   </div>
                 </div>
               </div>
