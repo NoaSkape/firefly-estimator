@@ -15,7 +15,19 @@ const STEP_ROUTES = {
     }
     return `/customize/${build?.modelSlug || 'magnolia'}`
   },
-  'Sign In': (buildId, build = null) => `/sign-in?redirect=${encodeURIComponent(`/checkout/${buildId}/buyer`)}`,
+  'Sign In': (buildId, build = null) => {
+    // If we have a valid buildId, redirect back to the buyer step
+    // Otherwise, redirect to the home page or customize page
+    if (buildId && buildId !== 'magnolia' && buildId.length > 10) {
+      return `/sign-in?redirect=${encodeURIComponent(`/checkout/${buildId}/buyer`)}`
+    }
+    // If we're on a customize page, redirect back to customize after sign in
+    if (build?.modelSlug) {
+      return `/sign-in?redirect=${encodeURIComponent(`/customize/${build.modelSlug}`)}`
+    }
+    // Default fallback
+    return `/sign-in?redirect=${encodeURIComponent('/')}`
+  },
   'Delivery Address': (buildId, build = null) => `/checkout/${buildId}/buyer`,
   'Overview': (buildId, build = null) => `/checkout/${buildId}/review`,
   'Payment Method': (buildId, build = null) => `/checkout/${buildId}/payment-method`,
@@ -108,6 +120,7 @@ export function canNavigateToStep(targetStep, currentStep, isSignedIn, build = n
     if (isSignedIn) {
       return { canNavigate: false, reason: 'Already signed in' }
     }
+    // Always allow navigation to Sign In when not signed in
     return { canNavigate: true }
   }
   
