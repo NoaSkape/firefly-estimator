@@ -56,7 +56,12 @@ export default function FunnelProgress({
             <div key={label} className="flex items-center min-w-0 relative">
               <button
                 type="button"
-                onClick={() => enabled && typeof onNavigate === 'function' && onNavigate(label, idx)}
+                onClick={() => {
+                  console.log('FunnelProgress click:', { label, idx, enabled, onNavigate: typeof onNavigate })
+                  if (enabled && typeof onNavigate === 'function') {
+                    onNavigate(label, idx)
+                  }
+                }}
                 className={`flex items-center ${active ? 'text-yellow-500' : 'text-gray-200'} ${enabled ? 'hover:text-yellow-400' : 'opacity-60 cursor-not-allowed'}`}
                 title={getDisabledReason(idx) || undefined}
                 aria-disabled={!enabled}
@@ -98,7 +103,12 @@ export default function FunnelProgress({
                 )}
                 <button
                   type="button"
-                  onClick={() => enabled && typeof onNavigate === 'function' && onNavigate(label, idx)}
+                  onClick={() => {
+                    console.log('FunnelProgress mobile click:', { label, idx, enabled, onNavigate: typeof onNavigate })
+                    if (enabled && typeof onNavigate === 'function') {
+                      onNavigate(label, idx)
+                    }
+                  }}
                   className={`flex flex-col items-center p-2 rounded w-full ${active ? 'text-yellow-500 bg-yellow-500/10' : 'text-gray-200'} ${enabled ? 'hover:bg-yellow-500/20' : 'opacity-60 cursor-not-allowed'}`}
                   title={getDisabledReason(idx) || undefined}
                   aria-disabled={!enabled}

@@ -175,7 +175,9 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         <div className="flex items-center">
           <a href="/" className="flex items-center">
-            <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" className="h-10 w-auto" loading="eager" />
+            <div className="overflow-hidden rounded-md">
+              <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" className="h-10 w-auto" loading="eager" />
+            </div>
           </a>
         </div>
 
@@ -201,7 +203,9 @@ export default function Header() {
           <div className="absolute right-0 top-0 h-full w-80 max-w-[80%] bg-white border-l border-gray-200 p-4 flex flex-col">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center">
-                <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" className="h-8 w-auto" />
+                <div className="overflow-hidden rounded-md">
+                  <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" className="h-8 w-auto" />
+                </div>
               </div>
               <button aria-label="Close menu" onClick={() => setOpen(false)} className="p-2 rounded hover:bg-gray-100">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-900"><path d="M18 6L6 18M6 6l12 12"/></svg>

@@ -86,12 +86,15 @@ export async function updateBuildStep(buildId, step, token) {
  * @returns {string} The route for the step
  */
 export function getStepRoute(stepName, buildId, build = null) {
+  console.log('getStepRoute called:', { stepName, buildId, build })
   const routeFunction = STEP_ROUTES[stepName]
   if (!routeFunction) {
     console.warn(`Unknown step: ${stepName}`)
     return `/checkout/${buildId}/review`
   }
-  return routeFunction(buildId, build)
+  const route = routeFunction(buildId, build)
+  console.log('getStepRoute result:', route)
+  return route
 }
 
 /**
@@ -117,6 +120,7 @@ export function canNavigateToStep(targetStep, currentStep, isSignedIn, build = n
   
   // Special case: Sign In step
   if (targetStep === 'Sign In') {
+    console.log('canNavigateToStep - Sign In check:', { isSignedIn, targetStep, currentStep })
     if (isSignedIn) {
       return { canNavigate: false, reason: 'Already signed in' }
     }
