@@ -291,7 +291,7 @@ function App() {
                   <Review />
                 </ProtectedRoute>
               } />
-              <Route path="/checkout/:buildId/payment" element={
+              <Route path="/checkout/:buildId/payment-method" element={
                 <ProtectedRoute>
                   <PaymentMethod />
                 </ProtectedRoute>

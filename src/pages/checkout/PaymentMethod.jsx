@@ -168,19 +168,32 @@ export default function PaymentMethod() {
     }
   }
 
-  function Card({ id, title, desc }) {
+  function Card({ id, title, desc, features, icon }) {
     const active = choice === id
     return (
       <button
         type="button"
         onClick={() => setChoice(id)}
-        className={`text-left rounded-lg border p-4 transition-colors ${active ? 'border-yellow-400 bg-yellow-400/10' : 'border-gray-800 bg-gray-900/50 hover:bg-gray-900/70'}`}
+        className={`text-left rounded-lg border p-6 transition-colors ${active ? 'border-yellow-400 bg-yellow-400/10' : 'border-gray-800 bg-gray-900/50 hover:bg-gray-900/70'}`}
       >
-        <div className="flex items-center justify-between">
-          <h3 className="text-gray-100 font-medium">{title}</h3>
-          <span className={`w-5 h-5 rounded-full ${active ? 'bg-yellow-400' : 'bg-gray-700'}`} />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            {icon}
+            <h3 className="text-gray-100 font-semibold text-lg">{title}</h3>
+          </div>
+          <span className={`w-6 h-6 rounded-full border-2 ${active ? 'bg-yellow-400 border-yellow-400' : 'bg-gray-700 border-gray-600'}`} />
         </div>
-        <p className="mt-2 text-sm text-gray-300">{desc}</p>
+        <p className="text-sm text-gray-300 mb-4">{desc}</p>
+        <div className="space-y-2">
+          {features.map((feature, index) => (
+            <div key={index} className="flex items-center gap-2 text-sm text-gray-400">
+              <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              <span>{feature}</span>
+            </div>
+          ))}
+        </div>
       </button>
     )
   }
@@ -224,11 +237,71 @@ export default function PaymentMethod() {
           </div>
         )}
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card id="cash" title="Cash / ACH" desc="Pay securely online and e-sign your purchase documents. Best for buyers who are ready to purchase now." />
-          <Card id="finance" title="Financing" desc="Apply for modern financing or upload your existing pre-approval to secure your home." />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card 
+            id="cash" 
+            title="Cash / ACH" 
+            desc="Pay securely online and e-sign your purchase documents. Best for buyers who are ready to purchase now."
+            icon={
+              <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              </svg>
+            }
+            features={[
+              "Secure online payment processing",
+              "No credit check required",
+              "Immediate purchase confirmation",
+              "Electronic document signing",
+              "Fastest path to ownership",
+              "No monthly payments"
+            ]}
+          />
+          <Card 
+            id="finance" 
+            title="Financing" 
+            desc="Apply for modern financing or upload your existing pre-approval to secure your home."
+            icon={
+              <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
+            features={[
+              "Competitive interest rates",
+              "Flexible payment terms",
+              "Quick pre-approval process",
+              "Upload existing pre-approval",
+              "No prepayment penalties",
+              "Build credit history"
+            ]}
+          />
         </div>
         
+        {/* Additional Information */}
+        {choice && (
+          <div className="mt-6 p-4 bg-gray-900/50 border border-gray-700 rounded-lg">
+            <h3 className="text-gray-100 font-medium mb-2">
+              {choice === 'cash' ? 'Cash Payment Details' : 'Financing Details'}
+            </h3>
+            <div className="text-sm text-gray-300 space-y-1">
+              {choice === 'cash' ? (
+                <>
+                  <p>• Payment will be processed securely through our payment partner</p>
+                  <p>• You'll receive immediate confirmation of your purchase</p>
+                  <p>• All documents will be available for electronic signing</p>
+                  <p>• Your tiny home will be scheduled for production immediately</p>
+                </>
+              ) : (
+                <>
+                  <p>• We'll guide you through the financing application process</p>
+                  <p>• You can upload existing pre-approval documents</p>
+                  <p>• Competitive rates and flexible terms available</p>
+                  <p>• No impact on your current application until you're ready</p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="mt-6 flex gap-3">
           <button 
             className="btn-primary" 
