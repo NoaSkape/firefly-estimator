@@ -26,6 +26,11 @@ export default function FunnelProgress({
     const targetStep = steps[targetIndex]
     if (!targetStep) return false
     
+    // Disable Sign In step (step 3) from being clickable
+    if (targetStep === 'Sign In') {
+      return false
+    }
+    
     const validation = canNavigateToStep(targetStep, current, isSignedIn, build)
     return validation.canNavigate
   }
@@ -57,7 +62,6 @@ export default function FunnelProgress({
               <button
                 type="button"
                 onClick={() => {
-                  console.log('FunnelProgress click:', { label, idx, enabled, onNavigate: typeof onNavigate })
                   if (enabled && typeof onNavigate === 'function') {
                     onNavigate(label, idx)
                   }
@@ -104,7 +108,6 @@ export default function FunnelProgress({
                 <button
                   type="button"
                   onClick={() => {
-                    console.log('FunnelProgress mobile click:', { label, idx, enabled, onNavigate: typeof onNavigate })
                     if (enabled && typeof onNavigate === 'function') {
                       onNavigate(label, idx)
                     }
