@@ -29,6 +29,45 @@ export default function ModelsPage() {
   const [all, setAll] = useState(MODELS)
   const [isMobile, setIsMobile] = useState(false)
 
+  // Load latest model data from API and merge over local definitions
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      const local = MODELS.map(m => ({ ...m }))
+      setAll(local)
+      try {
+        const responses = await Promise.all(local.map(m => fetch(`/api/models/${m.id}`)))
+        const apiModels = await Promise.all(responses.map(r => (r.ok ? r.json() : null)))
+        const merged = local.map((m, i) => {
+          const api = apiModels[i]
+          if (!api) return m
+          return {
+            ...m,
+            // prefer API values where available
+            name: api.name || m.name,
+            description: api.description ?? m.description,
+            basePrice: typeof api.basePrice === 'number' ? api.basePrice : m.basePrice,
+            // Only surface specs if explicitly present in API; otherwise leave undefined to hide on cards
+            width: api?.width ?? null,
+            length: api?.length ?? null,
+            height: api?.height ?? null,
+            weight: api?.weight ?? null,
+            bedrooms: api?.bedrooms ?? null,
+            bathrooms: api?.bathrooms ?? null,
+            squareFeet: api?.squareFeet ?? null,
+            images: Array.isArray(api.images) ? api.images : [],
+            subtitle: api.modelCode || m.subtitle,
+          }
+        })
+        if (!cancelled) setAll(merged)
+      } catch (_) {
+        // ignore; fall back to local models
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
+
   useEffect(() => { 
     updateQuery(filters) 
     
