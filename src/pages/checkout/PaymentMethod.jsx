@@ -174,7 +174,7 @@ export default function PaymentMethod() {
       <button
         type="button"
         onClick={() => setChoice(id)}
-        className={`text-left rounded-lg border p-6 transition-colors ${active ? 'border-yellow-400 bg-yellow-400/10' : 'border-gray-800 bg-gray-900/50 hover:bg-gray-900/70'}`}
+        className={`text-left rounded-lg border p-6 transition-colors ${active ? 'border-yellow-400 bg-gray-900/50' : 'border-gray-800 bg-gray-900/50 hover:bg-gray-900/70'}`}
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
