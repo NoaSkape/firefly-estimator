@@ -20,8 +20,12 @@ export const generateOrderPDF = async (orderData) => {
     const margin = 15 // 15mm margins
     const contentWidth = pdfWidth - (margin * 2)
     
-    // Helper function to create and render HTML element
-    const createAndRenderElement = async (htmlContent) => {
+    // Calculate maximum content height for PDF page (accounting for margins)
+    const maxContentHeight = pdfHeight - (margin * 2) // ~267mm for A4 with 15mm margins
+    const maxImageHeight = maxContentHeight * 2.83465 // Convert mm to pixels (96 DPI)
+    
+    // Helper function to create and render HTML element with height constraint
+    const createAndRenderElement = async (htmlContent, maxHeight = null) => {
       const element = document.createElement('div')
       element.style.position = 'absolute'
       element.style.left = '-9999px'
@@ -41,9 +45,10 @@ export const generateOrderPDF = async (orderData) => {
         allowTaint: true,
         backgroundColor: '#ffffff',
         width: 800,
-        height: element.scrollHeight,
+        height: maxHeight || element.scrollHeight,
         scrollX: 0,
-        scrollY: 0
+        scrollY: 0,
+        windowHeight: maxHeight || element.scrollHeight
       })
       
       document.body.removeChild(element)
@@ -196,95 +201,79 @@ export const generateOrderPDF = async (orderData) => {
       </div>
     `
     
-    const optionsContent = createOptionsHTML(optionsByCategory)
-    const pricingSummaryContent = createPricingSummaryHTML()
-    const buyerAndLegalContent = createBuyerAndLegalHTML()
-    
-    // Flatten all options into a single array for better page management
-    const allOptions = []
-    for (const [category, categoryOptions] of Object.entries(optionsByCategory)) {
-      allOptions.push({ category, options: categoryOptions })
-    }
-    
-    // Calculate how many options can fit on page 1 (after header, order info, model config)
-    const optionsPerPage = 6 // Conservative estimate for page 1
-    const additionalOptionsPerPage = 8 // For subsequent pages
-    
-    // Generate pages dynamically
+    // Generate pages with proper height constraints
     let currentPage = 1
-    let currentOptionsIndex = 0
     
-    // Page 1: Header, Order Info, Model Config, and first batch of options
-    const page1Options = allOptions.slice(0, 1) // Just first category for page 1
-    const page1OptionsHTML = page1Options.length > 0 ? createOptionsHTML(Object.fromEntries(page1Options.map(({ category, options }) => [category, options]))) : ''
-    
-    const page1HTML = `
+    // Page 1: Header, Order Info, Model Config, and options (if they fit)
+    const page1Content = `
       ${createPageHeader(currentPage)}
       ${headerContent}
       ${orderInfoContent}
       ${modelConfigContent}
-      ${page1OptionsHTML}
-      <div style="margin-bottom: 40px;"></div>
     `
     
-    const canvas1 = await createAndRenderElement(page1HTML)
+    // Add options to page 1 if they exist and fit
+    let page1OptionsHTML = ''
+    if (Object.keys(optionsByCategory).length > 0) {
+      page1OptionsHTML = createOptionsHTML(optionsByCategory)
+    }
+    
+    const page1HTML = page1Content + page1OptionsHTML + `<div style="margin-bottom: 40px;"></div>`
+    
+    const canvas1 = await createAndRenderElement(page1HTML, maxImageHeight)
     const imgData1 = canvas1.toDataURL('image/png')
     const imgWidth = pdfWidth - 30
     const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width
     
     pdf.addImage(imgData1, 'PNG', 15, 20, imgWidth, imgHeight1)
     
-    // Add remaining options on additional pages
-    if (allOptions.length > 1) {
-      for (let i = 1; i < allOptions.length; i++) {
+    // If we have options and they might not fit on page 1, create additional pages
+    if (Object.keys(optionsByCategory).length > 0) {
+      // Check if options actually fit on page 1 by comparing rendered height
+      const optionsOnlyHTML = createOptionsHTML(optionsByCategory)
+      const optionsCanvas = await createAndRenderElement(optionsOnlyHTML)
+      
+      // If options are too tall, create separate pages for them
+      if (optionsCanvas.height > maxImageHeight * 0.6) { // If options take more than 60% of page height
+        // Remove options from page 1 and add pricing summary
+        const updatedPage1HTML = page1Content + createPricingSummaryHTML() + `<div style="margin-bottom: 40px;"></div>`
+        const updatedCanvas1 = await createAndRenderElement(updatedPage1HTML, maxImageHeight)
+        const updatedImgData1 = updatedCanvas1.toDataURL('image/png')
+        const updatedImgHeight1 = (updatedCanvas1.height * imgWidth) / updatedCanvas1.width
+        
+        pdf.setPage(1)
+        pdf.addImage(updatedImgData1, 'PNG', 15, 20, imgWidth, updatedImgHeight1)
+        
+        // Add options on separate pages
         currentPage++
         pdf.addPage()
         
         const optionsPageHTML = `
           ${createPageHeader(currentPage)}
-          ${createOptionsHTML({ [allOptions[i].category]: allOptions[i].options })}
+          ${optionsOnlyHTML}
         `
         
-        const canvas = await createAndRenderElement(optionsPageHTML)
-        const imgData = canvas.toDataURL('image/png')
-        const imgHeight = (canvas.height * imgWidth) / canvas.width
+        const optionsPageCanvas = await createAndRenderElement(optionsPageHTML, maxImageHeight)
+        const optionsPageImgData = optionsPageCanvas.toDataURL('image/png')
+        const optionsPageImgHeight = (optionsPageCanvas.height * imgWidth) / optionsPageCanvas.width
         
-        pdf.addImage(imgData, 'PNG', 15, 20, imgWidth, imgHeight)
+        pdf.addImage(optionsPageImgData, 'PNG', 15, 20, imgWidth, optionsPageImgHeight)
+      } else {
+        // Options fit on page 1, add pricing summary on page 2
+        currentPage++
+        pdf.addPage()
+        
+        const pricingPageHTML = `
+          ${createPageHeader(currentPage)}
+          ${createPricingSummaryHTML()}
+        `
+        
+        const pricingCanvas = await createAndRenderElement(pricingPageHTML, maxImageHeight)
+        const pricingImgData = pricingCanvas.toDataURL('image/png')
+        const pricingImgHeight = (pricingCanvas.height * imgWidth) / pricingCanvas.width
+        
+        pdf.addImage(pricingImgData, 'PNG', 15, 20, imgWidth, pricingImgHeight)
       }
-    }
-    
-    // Add pricing summary page (always separate when we have options)
-    if (Object.keys(optionsByCategory).length > 0) {
-      currentPage++
-      pdf.addPage()
-      
-      const pricingPageHTML = `
-        ${createPageHeader(currentPage)}
-        ${pricingSummaryContent}
-      `
-      
-      const canvas = await createAndRenderElement(pricingPageHTML)
-      const imgData = canvas.toDataURL('image/png')
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
-      
-      pdf.addImage(imgData, 'PNG', 15, 20, imgWidth, imgHeight)
-    } else {
-      // If no options, add pricing to page 1 with proper margin
-      const updatedPage1HTML = `
-        ${createPageHeader(1)}
-        ${headerContent}
-        ${orderInfoContent}
-        ${modelConfigContent}
-        ${pricingSummaryContent}
-        <div style="margin-bottom: 40px;"></div>
-      `
-      
-      const canvas = await createAndRenderElement(updatedPage1HTML)
-      const imgData = canvas.toDataURL('image/png')
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
-      
-      pdf.setPage(1)
-      pdf.addImage(imgData, 'PNG', 15, 20, imgWidth, imgHeight)
     }
     
     // Add final page with buyer info and legal notices
@@ -293,10 +282,10 @@ export const generateOrderPDF = async (orderData) => {
     
     const finalPageHTML = `
       ${createPageHeader(currentPage)}
-      ${buyerAndLegalContent}
+      ${createBuyerAndLegalHTML()}
     `
     
-    const finalCanvas = await createAndRenderElement(finalPageHTML)
+    const finalCanvas = await createAndRenderElement(finalPageHTML, maxImageHeight)
     const finalImgData = finalCanvas.toDataURL('image/png')
     const finalImgHeight = (finalCanvas.height * imgWidth) / finalCanvas.width
     
