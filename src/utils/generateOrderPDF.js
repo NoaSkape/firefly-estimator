@@ -218,28 +218,28 @@ export const generateOrderPDF = async (orderData) => {
      
      // Calculate page breaks like the working generatePDF.js
      let heightLeft = completeImgHeight
-     let position = 20 // 20mm top margin
+     let position = 20 // 20mm top margin for page 1 (keep perfect)
      let pageNumber = 1
      
-     // Add first page
+     // Add first page (keep top margin perfect)
      pdf.addImage(completeImgData, 'PNG', 15, position, imgWidth, completeImgHeight)
      // Add page number to first page
      pdf.setFontSize(14)
      pdf.setTextColor(0, 0, 0)
      pdf.text(`Page ${pageNumber}`, pdfWidth - 25, 15)
-     heightLeft -= (pdfHeight - 40) // Account for top and bottom margins
+     heightLeft -= (pdfHeight - 60) // Account for top and bottom margins (increased for better spacing)
      
      // Add additional pages if content is longer than one page
      while (heightLeft >= 0) {
-       position = heightLeft - completeImgHeight + 20
+       position = heightLeft - completeImgHeight + 40 // 40mm top margin for subsequent pages
        pdf.addPage()
        pageNumber++
        pdf.addImage(completeImgData, 'PNG', 15, position, imgWidth, completeImgHeight)
        // Add page number to each page
        pdf.setFontSize(14)
        pdf.setTextColor(0, 0, 0)
-       pdf.text(`Page ${pageNumber}`, pdfWidth - 25, 15)
-       heightLeft -= (pdfHeight - 40)
+       pdf.text(`Page ${pageNumber}`, pdfWidth - 25, 35) // Move page number down for better spacing
+       heightLeft -= (pdfHeight - 60) // Increased margin space
      }
     
     // Download the PDF
