@@ -8,7 +8,7 @@ export const generateOrderPDF = async (orderData) => {
     pdfElement.style.position = 'absolute'
     pdfElement.style.left = '-9999px'
     pdfElement.style.width = '800px'
-    pdfElement.style.padding = '40px'
+    pdfElement.style.padding = '60px' // Increased padding for better margins
     pdfElement.style.backgroundColor = 'white'
     pdfElement.style.fontFamily = 'Arial, sans-serif'
     pdfElement.style.fontSize = '12px'
@@ -27,9 +27,8 @@ export const generateOrderPDF = async (orderData) => {
     pdfElement.innerHTML = `
       <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f59e0b; padding-bottom: 20px;">
         <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" style="height: 60px; margin-bottom: 15px;"/>
-        <div style="font-size: 24px; font-weight: bold; color: #f59e0b; margin-bottom: 10px;">FIREFLY TINY HOMES</div>
-        <div style="font-size: 20px; color: #374151; margin-bottom: 5px;">Order Summary</div>
-        <div style="font-size: 14px; color: #000000;">Generated on ${new Date().toLocaleDateString()}</div>
+        <div style="font-size: 24px; font-weight: bold; color: #000000; margin-bottom: 10px;">${build.modelName} Order Summary</div>
+        <div style="font-size: 20px; color: #374151; margin-bottom: 5px;">Generated on ${new Date().toLocaleDateString()}</div>
       </div>
 
       <div style="margin-bottom: 30px; background: #f9f9f9; padding: 15px; border-radius: 4px;">
@@ -42,7 +41,7 @@ export const generateOrderPDF = async (orderData) => {
       </div>
 
       <div style="margin-bottom: 25px;">
-        <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #f59e0b; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+        <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
           Model Configuration
         </div>
         <div style="font-size: 16px; margin-bottom: 20px;">
@@ -57,7 +56,7 @@ export const generateOrderPDF = async (orderData) => {
 
       ${Object.keys(optionsByCategory).length > 0 ? `
       <div style="margin-bottom: 25px;">
-        <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #f59e0b; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+        <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
           Selected Options
         </div>
         ${Object.entries(optionsByCategory).map(([category, categoryOptions]) => `
@@ -80,7 +79,7 @@ export const generateOrderPDF = async (orderData) => {
       ` : ''}
 
       <div style="margin-bottom: 25px;">
-        <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #f59e0b; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+        <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
           Fees & Services
         </div>
         <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
@@ -98,7 +97,7 @@ export const generateOrderPDF = async (orderData) => {
       </div>
 
       <div style="margin-bottom: 25px;">
-        <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #f59e0b; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+        <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
           Tax Calculation
         </div>
         <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
@@ -108,14 +107,14 @@ export const generateOrderPDF = async (orderData) => {
       </div>
 
       <div style="border-top: 2px solid #ccc; padding-top: 10px; margin-top: 10px;">
-        <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: bold; color: #f59e0b;">
+        <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: bold; color: #000000;">
           <span style="color: #000000;">TOTAL PURCHASE PRICE</span>
           <span style="color: #000000;">${formatCurrency(pricing.total)}</span>
         </div>
       </div>
 
       <div style="margin-top: 40px;">
-        <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #f59e0b; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+        <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
           Buyer & Delivery Information
         </div>
         <div style="background: #f9f9f9; padding: 15px; border-radius: 4px;">
@@ -123,6 +122,22 @@ export const generateOrderPDF = async (orderData) => {
           <div style="margin-bottom: 8px;"><strong style="color: #000000;">Email:</strong> <span style="color: #000000;">${build.buyerInfo?.email || ''}</span></div>
           <div style="margin-bottom: 8px;"><strong style="color: #000000;">Phone:</strong> <span style="color: #000000;">${build.buyerInfo?.phone || 'Not provided'}</span></div>
           <div style="margin-bottom: 8px;"><strong style="color: #000000;">Delivery Address:</strong> <span style="color: #000000;">${build.buyerInfo?.deliveryAddress || [build.buyerInfo?.address, build.buyerInfo?.city, build.buyerInfo?.state, build.buyerInfo?.zip].filter(Boolean).join(', ') || 'Not specified'}</span></div>
+        </div>
+      </div>
+
+      <div style="margin-top: 40px;">
+        <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+          Legal Notices & Disclosures
+        </div>
+        <div style="font-size: 12px; color: #000000; line-height: 1.6;">
+          <p style="margin-bottom: 12px; font-style: italic; font-weight: bold;">This document is a summary of estimated pricing and options. It is not a binding contract. Final terms will be set forth in the signed Purchase Agreement and related addendums.</p>
+          <p style="margin-bottom: 8px;"><strong>•</strong> Deposits are non-refundable. Final payment must be made in full before the home may leave the factory.</p>
+          <p style="margin-bottom: 8px;"><strong>•</strong> Delivery must occur within twelve (12) days of factory completion or storage charges of $50 per day will apply.</p>
+          <p style="margin-bottom: 8px;"><strong>•</strong> Freight charges are estimated and may be adjusted due to fuel surcharges, DOT re-routing, escort requirements, or delivery site conditions.</p>
+          <p style="margin-bottom: 8px;"><strong>•</strong> All prices are subject to change until construction authorization. Manufacturer pricing, material, or freight increases may require an adjustment to the total purchase price. Final pricing will be confirmed at the time Firefly Tiny Homes authorizes construction with the manufacturer.</p>
+          <p style="margin-bottom: 8px;"><strong>•</strong> Any changes to the scope of construction require a signed Change Order form. Verbal promises are not binding.</p>
+          <p style="margin-bottom: 8px;"><strong>•</strong> The home is covered solely by the Manufacturer's Limited Warranty. Firefly Tiny Homes does not provide additional warranties. To the maximum extent permitted by law, all implied warranties (including merchantability and fitness for a particular purpose) are disclaimed.</p>
+          <p style="margin-bottom: 8px;"><strong>•</strong> The Unit will be titled and registered as a travel trailer under Texas law. Buyer is responsible for completing TxDMV requirements.</p>
         </div>
       </div>
 
@@ -146,28 +161,28 @@ export const generateOrderPDF = async (orderData) => {
       scrollY: 0
     })
 
-    // Create PDF
+    // Create PDF with increased margins
     const imgData = canvas.toDataURL('image/png')
     const pdf = new jsPDF('p', 'mm', 'a4')
     
     const pdfWidth = pdf.internal.pageSize.getWidth()
     const pdfHeight = pdf.internal.pageSize.getHeight()
-    const imgWidth = pdfWidth - 20 // 10mm margins
+    const imgWidth = pdfWidth - 30 // 15mm margins on each side (increased from 20mm total)
     const imgHeight = (canvas.height * imgWidth) / canvas.width
     
     let heightLeft = imgHeight
-    let position = 10 // 10mm top margin
+    let position = 20 // 20mm top margin (increased from 10mm)
 
     // Add first page
-    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight)
-    heightLeft -= (pdfHeight - 20) // Account for margins
+    pdf.addImage(imgData, 'PNG', 15, position, imgWidth, imgHeight)
+    heightLeft -= (pdfHeight - 40) // Account for increased margins
 
     // Add additional pages if content is longer than one page
     while (heightLeft >= 0) {
-      position = heightLeft - imgHeight + 10
+      position = heightLeft - imgHeight + 20
       pdf.addPage()
-      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight)
-      heightLeft -= (pdfHeight - 20)
+      pdf.addImage(imgData, 'PNG', 15, position, imgWidth, imgHeight)
+      heightLeft -= (pdfHeight - 40)
     }
 
     // Download the PDF
