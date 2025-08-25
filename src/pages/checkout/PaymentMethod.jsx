@@ -4,7 +4,6 @@ import { useAuth } from '@clerk/clerk-react'
 import { useToast } from '../../components/ToastProvider'
 import analytics from '../../utils/analytics'
 import FunnelProgress from '../../components/FunnelProgress'
-import Breadcrumbs from '../../components/Breadcrumbs'
 import offlineQueue from '../../utils/offlineQueue'
 import { navigateToStep, updateBuildStep } from '../../utils/checkoutNavigation'
 
@@ -214,7 +213,6 @@ export default function PaymentMethod() {
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: 'My Builds', to: '/builds' }, { label: 'Checkout', to: `/checkout/${buildId}/payment` }, { label: 'Payment' }]} />
       <FunnelProgress 
         current="Payment Method" 
         isSignedIn={true} 
