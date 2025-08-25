@@ -63,8 +63,10 @@ export default function CashPayment() {
         // Find the order that matches this buildId
         const orderData = orders.find(order => order.buildId === buildId)
         
-        if (orderData) {
-          setBuild(orderData)
+                 if (orderData) {
+           console.log('Order data loaded:', orderData)
+           console.log('Order pricing total:', orderData.pricing?.total)
+           setBuild(orderData)
           
           // Load existing payment info if available
           if (orderData.payment?.plan) {
@@ -168,9 +170,9 @@ export default function CashPayment() {
     }
   }
 
-  // Calculate amounts based on build total and payment plan
+  // Calculate amounts based on order pricing total and payment plan
   useEffect(() => {
-    const totalAmount = build?.pricing?.total || build?.total
+    const totalAmount = build?.pricing?.total
     if (totalAmount && settings?.payments) {
       const totalCents = Math.round(totalAmount * 100)
       const depositPercent = settings.payments.depositPercent || 25
@@ -182,7 +184,7 @@ export default function CashPayment() {
         amountCents: prev.type === 'deposit' ? depositCents : totalCents
       }))
     }
-  }, [build?.pricing?.total, build?.total, settings?.payments, paymentPlan.type])
+  }, [build?.pricing?.total, settings?.payments, paymentPlan.type])
 
   async function setupACH() {
     try {
@@ -375,11 +377,22 @@ export default function CashPayment() {
     }).format(cents / 100)
   }
 
-  // Get total from either order pricing or build total
-  const totalAmount = build?.pricing?.total || build?.total || 0
+  // Get total from order pricing (this should match the Overview step total)
+  const totalAmount = build?.pricing?.total || 0
   const totalCents = Math.round(totalAmount * 100)
   const depositCents = Math.round(totalCents * ((paymentPlan.percent || 25) / 100))
   const currentAmountCents = paymentPlan.type === 'deposit' ? depositCents : totalCents
+  
+  // Debug logging
+  if (build?.pricing?.total) {
+    console.log('Payment calculation debug:', {
+      orderTotal: build.pricing.total,
+      totalCents,
+      depositCents,
+      currentAmountCents,
+      paymentPlanType: paymentPlan.type
+    })
+  }
 
   return (
     <div>
@@ -484,39 +497,39 @@ export default function CashPayment() {
                     Bank Debit (ACH) - <strong>Recommended</strong>
                   </span>
                 </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="bank_transfer"
-                    checked={paymentMethod === 'bank_transfer'}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="mr-3"
-                  />
-                  <span className="text-white">
-                    Bank Transfer (ACH Credit / Wire)
-                  </span>
-                </label>
-                {settings?.payments?.enableCardOption && (
-                  <details className="mt-4">
-                    <summary className="text-gray-400 cursor-pointer hover:text-white">
-                      Other Options ▼
-                    </summary>
-                    <div className="mt-2 ml-6">
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="paymentMethod"
-                          value="card"
-                          checked={paymentMethod === 'card'}
-                          onChange={(e) => setPaymentMethod(e.target.value)}
-                          className="mr-3"
-                        />
-                        <span className="text-white">Credit/Debit Card (Emergency Only)</span>
-                      </label>
-                    </div>
-                  </details>
-                )}
+                                 <label className="flex items-center">
+                   <input
+                     type="radio"
+                     name="paymentMethod"
+                     value="bank_transfer"
+                     checked={paymentMethod === 'bank_transfer'}
+                     onChange={(e) => setPaymentMethod(e.target.value)}
+                     className="mr-3"
+                   />
+                   <span className="text-white">
+                     Bank Transfer (ACH Credit / Wire)
+                   </span>
+                 </label>
+                 
+                 <details className="mt-4">
+                   <summary className="text-gray-400 cursor-pointer hover:text-white flex items-center">
+                     <span>Other Methods</span>
+                     <span className="ml-2 text-xs">▼</span>
+                   </summary>
+                   <div className="mt-2 ml-6">
+                     <label className="flex items-center">
+                       <input
+                         type="radio"
+                         name="paymentMethod"
+                         value="card"
+                         checked={paymentMethod === 'card'}
+                         onChange={(e) => setPaymentMethod(e.target.value)}
+                         className="mr-3"
+                       />
+                       <span className="text-white">Credit/Debit Card (Emergency Only)</span>
+                     </label>
+                   </div>
+                 </details>
               </div>
             </div>
 
