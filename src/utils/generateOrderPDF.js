@@ -68,18 +68,18 @@ export const generateOrderPDF = async (orderData) => {
             Selected Options
           </div>
           ${Object.entries(optionsByCategory).map(([category, categoryOptions]) => `
-            <div style="font-weight: bold; margin-bottom: 8px; color: #000000;">${category}</div>
+            <div class="pdf-row" style="font-weight: bold; margin-bottom: 8px; color: #000000;">${category}</div>
             ${categoryOptions.map(option => `
-              <div style="margin-bottom: 10px; padding: 8px; background: #f9f9f9; border-radius: 4px;">
-                <div style="display: flex; justify-content: space-between;">
+              <div class="pdf-row" style="margin-bottom: 10px; padding: 8px; background: #f9f9f9; border-radius: 4px;">
+                <div class="pdf-row" style="display: flex; justify-content: space-between;">
                   <span style="color: #000000;">${option.name || option.code}${option.quantity > 1 ? ` (×${option.quantity})` : ''}</span>
                   <span style="color: #000000;">${formatCurrency(Number(option.price || 0) * (option.quantity || 1))}</span>
                 </div>
-                ${option.description ? `<div style="font-size: 12px; color: #000000; margin-top: 4px;">${option.description}</div>` : ''}
+                ${option.description ? `<div class=\"pdf-row\" style=\"font-size: 12px; color: #000000; margin-top: 4px;\">${option.description}</div>` : ''}
               </div>
             `).join('')}
           `).join('')}
-          <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
+          <div class="pdf-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
             <strong style="color: #000000;">Options Subtotal</strong>
             <strong style="color: #000000;">${formatCurrency(pricing.optionsSubtotal)}</strong>
           </div>
@@ -93,15 +93,15 @@ export const generateOrderPDF = async (orderData) => {
         <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
           Fees & Services
         </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
+        <div class="pdf-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
           <span style="color: #000000;">Delivery${build.pricing?.deliveryMiles ? ` (${Math.round(build.pricing.deliveryMiles)} miles)` : ''}</span>
           <span style="color: #000000;">${formatCurrency(pricing.deliveryFee)}</span>
         </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
+        <div class="pdf-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
           <span style="color: #000000;">Title & Registration</span>
           <span style="color: #000000;">${formatCurrency(pricing.titleFee)}</span>
         </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
+        <div class="pdf-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
           <span style="color: #000000;">Setup & Installation</span>
           <span style="color: #000000;">${formatCurrency(pricing.setupFee)}</span>
         </div>
@@ -111,7 +111,7 @@ export const generateOrderPDF = async (orderData) => {
         <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
           Tax Calculation
         </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
+        <div class="pdf-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
           <span style="color: #000000;">Sales Tax (${(pricing.taxRate * 100).toFixed(2)}%)</span>
           <span style="color: #000000;">${formatCurrency(pricing.salesTax)}</span>
         </div>
@@ -133,10 +133,10 @@ export const generateOrderPDF = async (orderData) => {
           Buyer & Delivery Information
         </div>
         <div style="background: #f9f9f9; padding: 15px; border-radius: 4px;">
-          <div style="margin-bottom: 8px;"><strong style="color: #000000;">Name:</strong> <span style="color: #000000;">${build.buyerInfo?.firstName || ''} ${build.buyerInfo?.lastName || ''}</span></div>
-          <div style="margin-bottom: 8px;"><strong style="color: #000000;">Email:</strong> <span style="color: #000000;">${build.buyerInfo?.email || ''}</span></div>
-          <div style="margin-bottom: 8px;"><strong style="color: #000000;">Phone:</strong> <span style="color: #000000;">${build.buyerInfo?.phone || 'Not provided'}</span></div>
-          <div style="margin-bottom: 8px;"><strong style="color: #000000;">Delivery Address:</strong> <span style="color: #000000;">${build.buyerInfo?.deliveryAddress || [build.buyerInfo?.address, build.buyerInfo?.city, build.buyerInfo?.state, build.buyerInfo?.zip].filter(Boolean).join(', ') || 'Not specified'}</span></div>
+          <div class="pdf-row" style="margin-bottom: 8px;"><strong style="color: #000000;">Name:</strong> <span style="color: #000000;">${build.buyerInfo?.firstName || ''} ${build.buyerInfo?.lastName || ''}</span></div>
+          <div class="pdf-row" style="margin-bottom: 8px;"><strong style="color: #000000;">Email:</strong> <span style="color: #000000;">${build.buyerInfo?.email || ''}</span></div>
+          <div class="pdf-row" style="margin-bottom: 8px;"><strong style="color: #000000;">Phone:</strong> <span style="color: #000000;">${build.buyerInfo?.phone || 'Not provided'}</span></div>
+          <div class="pdf-row" style="margin-bottom: 8px;"><strong style="color: #000000;">Delivery Address:</strong> <span style="color: #000000;">${build.buyerInfo?.deliveryAddress || [build.buyerInfo?.address, build.buyerInfo?.city, build.buyerInfo?.state, build.buyerInfo?.zip].filter(Boolean).join(', ') || 'Not specified'}</span></div>
         </div>
       </div>
 
@@ -195,7 +195,7 @@ export const generateOrderPDF = async (orderData) => {
             <strong style="color: #000000;">${build.modelName}</strong> <span style="color: #000000;">(${build.modelSlug})</span>
           </div>
           
-          <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
+          <div class="pdf-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
             <span style="color: #000000;">Base Price</span>
             <span style="color: #000000;">${formatCurrency(pricing.basePrice)}</span>
           </div>
@@ -244,7 +244,7 @@ export const generateOrderPDF = async (orderData) => {
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
         jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'], before: '.page-break' },
+        pagebreak: { mode: ['css', 'legacy'], before: '.page-break', avoid: ['.pdf-row', '.pdf-section'] },
       }
 
       // Render and then annotate page numbers by reloading the generated blob into jsPDF
