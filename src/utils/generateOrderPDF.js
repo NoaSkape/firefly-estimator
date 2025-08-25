@@ -20,94 +20,75 @@ export const generateOrderPDF = async (orderData) => {
     const margin = 15 // 15mm margins
     const contentWidth = pdfWidth - (margin * 2)
     
-         // Helper function to create and render HTML element
-     const createAndRenderElement = async (htmlContent, isPage2 = false) => {
-       const element = document.createElement('div')
-       element.style.position = 'absolute'
-       element.style.left = '-9999px'
-       element.style.width = '800px'
-               element.style.padding = '80px 60px 60px 60px'
-       element.style.backgroundColor = 'transparent'
-       element.style.fontFamily = 'Arial, sans-serif'
-       element.style.fontSize = '12px'
-       element.style.lineHeight = '1.4'
-       element.innerHTML = htmlContent
-       
-       document.body.appendChild(element)
-       
-       const canvas = await html2canvas(element, {
-         scale: 2,
-         useCORS: true,
-         allowTaint: true,
-         backgroundColor: '#ffffff',
-         width: 800,
-         height: element.scrollHeight,
-         scrollX: 0,
-         scrollY: 0
-       })
-       
-       document.body.removeChild(element)
-       return canvas
-     }
+    // Helper function to create and render HTML element
+    const createAndRenderElement = async (htmlContent) => {
+      const element = document.createElement('div')
+      element.style.position = 'absolute'
+      element.style.left = '-9999px'
+      element.style.width = '800px'
+      element.style.padding = '80px 60px 60px 60px'
+      element.style.backgroundColor = 'transparent'
+      element.style.fontFamily = 'Arial, sans-serif'
+      element.style.fontSize = '12px'
+      element.style.lineHeight = '1.4'
+      element.innerHTML = htmlContent
+      
+      document.body.appendChild(element)
+      
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: 800,
+        height: element.scrollHeight,
+        scrollX: 0,
+        scrollY: 0
+      })
+      
+      document.body.removeChild(element)
+      return canvas
+    }
     
-    // Page 1: Header, Order Info, Model Configuration, Options, Fees, Tax, Total
-    const page1HTML = `
+    // Helper function to create page header
+    const createPageHeader = (pageNumber) => `
       <div style="position: relative; margin-bottom: 30px;">
         <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" style="height: 60px; position: absolute; top: -80px; left: 0;"/>
-        <div style="text-align: right; font-size: 14px; color: #000000; position: absolute; top: -70px; right: 0;">Page 1</div>
-        <div style="text-align: center; margin-top: 10px; border-bottom: 2px solid #f59e0b; padding-bottom: 20px;">
-          <div style="font-size: 24px; font-weight: bold; color: #000000; margin-bottom: 10px;">${build.modelName} Order Summary</div>
-          <div style="font-size: 20px; color: #374151; margin-bottom: 5px;">Generated on ${new Date().toLocaleDateString()}</div>
-        </div>
+        <div style="text-align: right; font-size: 14px; color: #000000; position: absolute; top: -70px; right: 0;">Page ${pageNumber}</div>
       </div>
-
-      <div style="margin-bottom: 30px; background: #f9f9f9; padding: 15px; border-radius: 4px;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-          <strong style="color: #000000;">Order ID:</strong> <span style="color: #000000;">${build._id}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between;">
-          <strong style="color: #000000;">Date:</strong> <span style="color: #000000;">${new Date().toLocaleDateString()}</span>
-        </div>
-      </div>
-
-      <div style="margin-bottom: 25px;">
-        <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
-          Model Configuration
-        </div>
-        <div style="font-size: 16px; margin-bottom: 20px;">
-          <strong style="color: #000000;">${build.modelName}</strong> <span style="color: #000000;">(${build.modelSlug})</span>
-        </div>
-        
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
-          <span style="color: #000000;">Base Price</span>
-          <span style="color: #000000;">${formatCurrency(pricing.basePrice)}</span>
-        </div>
-      </div>
-
-      ${Object.keys(optionsByCategory).length > 0 ? `
-      <div style="margin-bottom: 25px;">
-        <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
-          Selected Options
-        </div>
-        ${Object.entries(optionsByCategory).map(([category, categoryOptions]) => `
-          <div style="font-weight: bold; margin-bottom: 8px; color: #000000;">${category}</div>
-          ${categoryOptions.map(option => `
-            <div style="margin-bottom: 10px; padding: 8px; background: #f9f9f9; border-radius: 4px;">
-              <div style="display: flex; justify-content: space-between;">
-                <span style="color: #000000;">${option.name || option.code}${option.quantity > 1 ? ` (×${option.quantity})` : ''}</span>
-                <span style="color: #000000;">${formatCurrency(Number(option.price || 0) * (option.quantity || 1))}</span>
+    `
+    
+    // Helper function to create options HTML
+    const createOptionsHTML = (optionsByCategory) => {
+      if (Object.keys(optionsByCategory).length === 0) return ''
+      
+      return `
+        <div style="margin-bottom: 25px;">
+          <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+            Selected Options
+          </div>
+          ${Object.entries(optionsByCategory).map(([category, categoryOptions]) => `
+            <div style="font-weight: bold; margin-bottom: 8px; color: #000000;">${category}</div>
+            ${categoryOptions.map(option => `
+              <div style="margin-bottom: 10px; padding: 8px; background: #f9f9f9; border-radius: 4px;">
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: #000000;">${option.name || option.code}${option.quantity > 1 ? ` (×${option.quantity})` : ''}</span>
+                  <span style="color: #000000;">${formatCurrency(Number(option.price || 0) * (option.quantity || 1))}</span>
+                </div>
+                ${option.description ? `<div style="font-size: 12px; color: #000000; margin-top: 4px;">${option.description}</div>` : ''}
               </div>
-              ${option.description ? `<div style="font-size: 12px; color: #000000; margin-top: 4px;">${option.description}</div>` : ''}
-            </div>
+            `).join('')}
           `).join('')}
-        `).join('')}
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
-          <strong style="color: #000000;">Options Subtotal</strong>
-          <strong style="color: #000000;">${formatCurrency(pricing.optionsSubtotal)}</strong>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
+            <strong style="color: #000000;">Options Subtotal</strong>
+            <strong style="color: #000000;">${formatCurrency(pricing.optionsSubtotal)}</strong>
+          </div>
         </div>
-      </div>
-      ` : ''}
-
+      `
+    }
+    
+    // Helper function to create pricing summary HTML
+    const createPricingSummaryHTML = () => `
       <div style="margin-bottom: 25px;">
         <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
           Fees & Services
@@ -144,13 +125,8 @@ export const generateOrderPDF = async (orderData) => {
       </div>
     `
     
-    // Page 2: Buyer & Delivery Information + Legal Notices & Disclosures
-    const page2HTML = `
-      <div style="position: relative; margin-bottom: 30px;">
-        <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" style="height: 60px; position: absolute; top: -80px; left: 0;"/>
-        <div style="text-align: right; font-size: 14px; color: #000000; position: absolute; top: -70px; right: 0;">Page 2</div>
-      </div>
-
+    // Helper function to create buyer info and legal notices HTML
+    const createBuyerAndLegalHTML = () => `
       <div style="margin-top: 40px;">
         <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
           Buyer & Delivery Information
@@ -185,23 +161,154 @@ export const generateOrderPDF = async (orderData) => {
       </div>
     `
     
-         // Render page 1
-     const canvas1 = await createAndRenderElement(page1HTML)
-     const imgData1 = canvas1.toDataURL('image/png')
-     const imgWidth = pdfWidth - 30
-     const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width
-     
-     pdf.addImage(imgData1, 'PNG', 15, 20, imgWidth, imgHeight1)
-     
-     // Add page 2
-     pdf.addPage()
-     const canvas2 = await createAndRenderElement(page2HTML)
-     const imgData2 = canvas2.toDataURL('image/png')
-     const imgHeight2 = (canvas2.height * imgWidth) / canvas2.width
-     
-     pdf.addImage(imgData2, 'PNG', 15, 20, imgWidth, imgHeight2)
+    // Build content sections
+    const headerContent = `
+      <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f59e0b; padding-bottom: 20px;">
+        <div style="font-size: 24px; font-weight: bold; color: #000000; margin-bottom: 10px;">${build.modelName} Order Summary</div>
+        <div style="font-size: 20px; color: #374151; margin-bottom: 5px;">Generated on ${new Date().toLocaleDateString()}</div>
+      </div>
+    `
     
-
+    const orderInfoContent = `
+      <div style="margin-bottom: 30px; background: #f9f9f9; padding: 15px; border-radius: 4px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+          <strong style="color: #000000;">Order ID:</strong> <span style="color: #000000;">${build._id}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <strong style="color: #000000;">Date:</strong> <span style="color: #000000;">${new Date().toLocaleDateString()}</span>
+        </div>
+      </div>
+    `
+    
+    const modelConfigContent = `
+      <div style="margin-bottom: 25px;">
+        <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+          Model Configuration
+        </div>
+        <div style="font-size: 16px; margin-bottom: 20px;">
+          <strong style="color: #000000;">${build.modelName}</strong> <span style="color: #000000;">(${build.modelSlug})</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
+          <span style="color: #000000;">Base Price</span>
+          <span style="color: #000000;">${formatCurrency(pricing.basePrice)}</span>
+        </div>
+      </div>
+    `
+    
+    const optionsContent = createOptionsHTML(optionsByCategory)
+    const pricingSummaryContent = createPricingSummaryHTML()
+    const buyerAndLegalContent = createBuyerAndLegalHTML()
+    
+    // Split options into chunks for better page management
+    const splitOptionsIntoChunks = (optionsByCategory, maxOptionsPerChunk = 8) => {
+      const chunks = []
+      let currentChunk = {}
+      let currentCount = 0
+      
+      for (const [category, categoryOptions] of Object.entries(optionsByCategory)) {
+        if (currentCount + categoryOptions.length > maxOptionsPerChunk && Object.keys(currentChunk).length > 0) {
+          chunks.push(currentChunk)
+          currentChunk = {}
+          currentCount = 0
+        }
+        
+        currentChunk[category] = categoryOptions
+        currentCount += categoryOptions.length
+      }
+      
+      if (Object.keys(currentChunk).length > 0) {
+        chunks.push(currentChunk)
+      }
+      
+      return chunks
+    }
+    
+    const optionsChunks = splitOptionsIntoChunks(optionsByCategory)
+    
+    // Generate pages dynamically
+    let currentPage = 1
+    
+    // Page 1: Header, Order Info, Model Config, and first chunk of options
+    const page1HTML = `
+      ${createPageHeader(currentPage)}
+      ${headerContent}
+      ${orderInfoContent}
+      ${modelConfigContent}
+      ${optionsChunks.length > 0 ? createOptionsHTML(optionsChunks[0]) : ''}
+    `
+    
+    const canvas1 = await createAndRenderElement(page1HTML)
+    const imgData1 = canvas1.toDataURL('image/png')
+    const imgWidth = pdfWidth - 30
+    const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width
+    
+    pdf.addImage(imgData1, 'PNG', 15, 20, imgWidth, imgHeight1)
+    
+    // Add additional option pages if needed
+    for (let i = 1; i < optionsChunks.length; i++) {
+      currentPage++
+      pdf.addPage()
+      
+      const optionsPageHTML = `
+        ${createPageHeader(currentPage)}
+        ${createOptionsHTML(optionsChunks[i])}
+      `
+      
+      const canvas = await createAndRenderElement(optionsPageHTML)
+      const imgData = canvas.toDataURL('image/png')
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      
+      pdf.addImage(imgData, 'PNG', 15, 20, imgWidth, imgHeight)
+    }
+    
+    // Add pricing summary page (if we have options, this goes on a new page)
+    if (optionsChunks.length > 0) {
+      currentPage++
+      pdf.addPage()
+      
+      const pricingPageHTML = `
+        ${createPageHeader(currentPage)}
+        ${pricingSummaryContent}
+      `
+      
+      const canvas = await createAndRenderElement(pricingPageHTML)
+      const imgData = canvas.toDataURL('image/png')
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      
+      pdf.addImage(imgData, 'PNG', 15, 20, imgWidth, imgHeight)
+    } else {
+      // If no options, add pricing to page 1
+      const updatedPage1HTML = `
+        ${createPageHeader(1)}
+        ${headerContent}
+        ${orderInfoContent}
+        ${modelConfigContent}
+        ${pricingSummaryContent}
+      `
+      
+      const canvas = await createAndRenderElement(updatedPage1HTML)
+      const imgData = canvas.toDataURL('image/png')
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      
+      pdf.setPage(1)
+      pdf.addImage(imgData, 'PNG', 15, 20, imgWidth, imgHeight)
+    }
+    
+    // Add final page with buyer info and legal notices
+    currentPage++
+    pdf.addPage()
+    
+    const finalPageHTML = `
+      ${createPageHeader(currentPage)}
+      ${buyerAndLegalContent}
+    `
+    
+    const finalCanvas = await createAndRenderElement(finalPageHTML)
+    const finalImgData = finalCanvas.toDataURL('image/png')
+    const finalImgHeight = (finalCanvas.height * imgWidth) / finalCanvas.width
+    
+    pdf.addImage(finalImgData, 'PNG', 15, 20, imgWidth, finalImgHeight)
     
     // Download the PDF
     const filename = `firefly-order-${build._id}.pdf`
