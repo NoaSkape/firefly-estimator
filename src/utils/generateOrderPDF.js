@@ -20,35 +20,35 @@ export const generateOrderPDF = async (orderData) => {
     const margin = 15 // 15mm margins
     const contentWidth = pdfWidth - (margin * 2)
     
-    // Helper function to create and render HTML element
-    const createAndRenderElement = async (htmlContent) => {
-      const element = document.createElement('div')
-      element.style.position = 'absolute'
-      element.style.left = '-9999px'
-      element.style.width = '800px'
-      element.style.padding = '60px'
-      element.style.backgroundColor = 'white'
-      element.style.fontFamily = 'Arial, sans-serif'
-      element.style.fontSize = '12px'
-      element.style.lineHeight = '1.4'
-      element.innerHTML = htmlContent
-      
-      document.body.appendChild(element)
-      
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        width: 800,
-        height: element.scrollHeight,
-        scrollX: 0,
-        scrollY: 0
-      })
-      
-      document.body.removeChild(element)
-      return canvas
-    }
+         // Helper function to create and render HTML element
+     const createAndRenderElement = async (htmlContent, isPage2 = false) => {
+       const element = document.createElement('div')
+       element.style.position = 'absolute'
+       element.style.left = '-9999px'
+       element.style.width = '800px'
+       element.style.padding = isPage2 ? '20px 60px 60px 60px' : '60px'
+       element.style.backgroundColor = 'white'
+       element.style.fontFamily = 'Arial, sans-serif'
+       element.style.fontSize = '12px'
+       element.style.lineHeight = '1.4'
+       element.innerHTML = htmlContent
+       
+       document.body.appendChild(element)
+       
+       const canvas = await html2canvas(element, {
+         scale: 2,
+         useCORS: true,
+         allowTaint: true,
+         backgroundColor: '#ffffff',
+         width: 800,
+         height: element.scrollHeight,
+         scrollX: 0,
+         scrollY: 0
+       })
+       
+       document.body.removeChild(element)
+       return canvas
+     }
     
     // Page 1: Header, Order Info, Model Configuration, Options, Fees, Tax, Total
     const page1HTML = `
@@ -185,21 +185,21 @@ export const generateOrderPDF = async (orderData) => {
       </div>
     `
     
-    // Render page 1
-    const canvas1 = await createAndRenderElement(page1HTML)
-    const imgData1 = canvas1.toDataURL('image/png')
-    const imgWidth = pdfWidth - 30
-    const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width
-    
-    pdf.addImage(imgData1, 'PNG', 15, 20, imgWidth, imgHeight1)
-    
-    // Add page 2
-    pdf.addPage()
-    const canvas2 = await createAndRenderElement(page2HTML)
-    const imgData2 = canvas2.toDataURL('image/png')
-    const imgHeight2 = (canvas2.height * imgWidth) / canvas2.width
-    
-    pdf.addImage(imgData2, 'PNG', 15, 20, imgWidth, imgHeight2)
+         // Render page 1
+     const canvas1 = await createAndRenderElement(page1HTML, false)
+     const imgData1 = canvas1.toDataURL('image/png')
+     const imgWidth = pdfWidth - 30
+     const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width
+     
+     pdf.addImage(imgData1, 'PNG', 15, 20, imgWidth, imgHeight1)
+     
+     // Add page 2
+     pdf.addPage()
+     const canvas2 = await createAndRenderElement(page2HTML, true)
+     const imgData2 = canvas2.toDataURL('image/png')
+     const imgHeight2 = (canvas2.height * imgWidth) / canvas2.width
+     
+     pdf.addImage(imgData2, 'PNG', 15, 20, imgWidth, imgHeight2)
     
 
     
