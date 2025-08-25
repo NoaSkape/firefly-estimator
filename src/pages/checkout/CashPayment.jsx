@@ -52,6 +52,52 @@ export default function CashPayment() {
   async function loadBuild() {
     try {
       const token = await getToken()
+      
+      // Get all orders for the user and find the one matching this buildId
+      let res = await fetch(`/api/orders`, { 
+        headers: token ? { Authorization: `Bearer ${token}` } : {} 
+      })
+      
+      if (res.ok) {
+        const orders = await res.json()
+        // Find the order that matches this buildId
+        const orderData = orders.find(order => order.buildId === buildId)
+        
+        if (orderData) {
+          setBuild(orderData)
+          
+          // Load existing payment info if available
+          if (orderData.payment?.plan) {
+            setPaymentPlan(orderData.payment.plan)
+          }
+          if (orderData.payment?.method) {
+            setPaymentMethod(orderData.payment.method)
+          }
+          if (orderData.payment?.ready) {
+            setCurrentStep('review')
+          } else if (orderData.payment?.method) {
+            setCurrentStep('details')
+          }
+        } else {
+          // No order found, try build data
+          await loadBuildData()
+        }
+      } else {
+        // Fallback to build data
+        await loadBuildData()
+      }
+    } catch (error) {
+      console.error('Error loading order:', error)
+      // Fallback to build data
+      await loadBuildData()
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function loadBuildData() {
+    try {
+      const token = await getToken()
       const res = await fetch(`/api/builds/${buildId}`, { 
         headers: token ? { Authorization: `Bearer ${token}` } : {} 
       })
@@ -78,8 +124,6 @@ export default function CashPayment() {
         title: 'Error Loading Build',
         message: 'Unable to load build data. Please try again.'
       })
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -126,8 +170,9 @@ export default function CashPayment() {
 
   // Calculate amounts based on build total and payment plan
   useEffect(() => {
-    if (build?.total && settings?.payments) {
-      const totalCents = Math.round(build.total * 100)
+    const totalAmount = build?.pricing?.total || build?.total
+    if (totalAmount && settings?.payments) {
+      const totalCents = Math.round(totalAmount * 100)
       const depositPercent = settings.payments.depositPercent || 25
       const depositCents = Math.round(totalCents * (depositPercent / 100))
       
@@ -137,7 +182,7 @@ export default function CashPayment() {
         amountCents: prev.type === 'deposit' ? depositCents : totalCents
       }))
     }
-  }, [build?.total, settings?.payments, paymentPlan.type])
+  }, [build?.pricing?.total, build?.total, settings?.payments, paymentPlan.type])
 
   async function setupACH() {
     try {
@@ -330,7 +375,9 @@ export default function CashPayment() {
     }).format(cents / 100)
   }
 
-  const totalCents = Math.round((build?.total || 0) * 100)
+  // Get total from either order pricing or build total
+  const totalAmount = build?.pricing?.total || build?.total || 0
+  const totalCents = Math.round(totalAmount * 100)
   const depositCents = Math.round(totalCents * ((paymentPlan.percent || 25) / 100))
   const currentAmountCents = paymentPlan.type === 'deposit' ? depositCents : totalCents
 
