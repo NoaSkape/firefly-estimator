@@ -1910,11 +1910,24 @@ app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
       </html>
     `
 
-    // For serverless environments, we'll return HTML that can be converted to PDF by the browser
-    // This is more reliable than trying to run Puppeteer in serverless
-    res.setHeader('Content-Type', 'text/html')
-    res.setHeader('Content-Disposition', `attachment; filename="firefly-order-${id}.html"`)
-    res.send(htmlContent)
+    // Return JSON data for frontend PDF generation
+    // This allows the frontend to use html2canvas + jsPDF for reliable PDF generation
+    res.setHeader('Content-Type', 'application/json')
+    res.json({
+      build,
+      settings,
+      pricing: {
+        basePrice,
+        optionsSubtotal,
+        deliveryFee,
+        titleFee,
+        setupFee,
+        taxRate,
+        salesTax,
+        total
+      },
+      optionsByCategory
+    })
 
   } catch (error) {
     console.error('PDF generation error:', error)

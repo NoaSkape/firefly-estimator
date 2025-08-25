@@ -8,6 +8,7 @@ import { trackEvent } from '../../utils/analytics'
 import { navigateToStep, updateBuildStep } from '../../utils/checkoutNavigation'
 import { useBuildData, buildCache } from '../../hooks/useBuildData'
 import { calculateTotalPurchasePrice } from '../../utils/calculateTotal'
+import { generateOrderPDF } from '../../utils/generateOrderPDF'
 
 export default function Review() {
   const { buildId } = useParams()
@@ -115,22 +116,25 @@ export default function Review() {
   const handleDownloadPDF = async () => {
     try {
       setPdfLoading(true)
-      const token = await getToken()
-      const res = await fetch(`/api/builds/${buildId}/pdf`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      })
       
-      if (!res.ok) throw new Error('Failed to generate PDF')
+      // Prepare the data for PDF generation
+      const orderData = {
+        build,
+        settings,
+        pricing: {
+          basePrice: Number(build?.selections?.basePrice || 0),
+          optionsSubtotal: optionsSubtotal,
+          deliveryFee: Number(build?.pricing?.delivery || 0),
+          titleFee: Number(settings?.pricing?.title_fee_default || 500),
+          setupFee: Number(settings?.pricing?.setup_fee_default || 3000),
+          taxRate: Number(settings?.pricing?.tax_rate_percent || 6.25) / 100,
+          salesTax: salesTax,
+          total: total
+        }
+      }
       
-      const blob = await res.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `firefly-order-${buildId}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
+      // Generate PDF using the new utility
+      await generateOrderPDF(orderData)
       
       addToast({ type: 'success', message: 'PDF downloaded successfully' })
       trackEvent('pdf_downloaded', { buildId })
