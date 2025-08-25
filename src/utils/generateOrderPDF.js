@@ -113,7 +113,7 @@ export const generateOrderPDF = async (orderData) => {
         </div>
       </div>
 
-      <div style="margin-top: 40px; page-break-inside: avoid;">
+      <div style="margin-top: 800px;">
         <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
           Buyer & Delivery Information
         </div>
