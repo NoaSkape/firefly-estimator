@@ -197,107 +197,30 @@ export const generateOrderPDF = async (orderData) => {
       </div>
     `
     
-    // Generate pages with intelligent content splitting
-    let currentPage = 1
-    
-    // Page 1: Header, Order Info, Model Config
-    const page1Content = `
-      ${createPageHeader(currentPage)}
-      ${headerContent}
-      ${orderInfoContent}
-      ${modelConfigContent}
-    `
-    
-    // Check if we have options and how many
-    const hasOptions = Object.keys(optionsByCategory).length > 0
-    const totalOptions = Object.values(optionsByCategory).reduce((sum, options) => sum + options.length, 0)
-    
-    if (hasOptions && totalOptions > 8) {
-      // Many options - split them across pages
-      const allOptions = []
-      for (const [category, categoryOptions] of Object.entries(optionsByCategory)) {
-        allOptions.push({ category, options: categoryOptions })
-      }
-      
-      // First page: Header + first 6 options
-      const firstPageOptions = allOptions.slice(0, 1) // First category
-      const firstPageOptionsHTML = createOptionsHTML(Object.fromEntries(firstPageOptions.map(({ category, options }) => [category, options])))
-      
-             const page1HTML = page1Content + firstPageOptionsHTML + `<div style="margin-bottom: 40px;"></div>`
-       const canvas1 = await createAndRenderElement(page1HTML)
-       const imgData1 = canvas1.toDataURL('image/png')
-       const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width
-      
-      pdf.addImage(imgData1, 'PNG', 15, 20, imgWidth, imgHeight1)
-      
-      // Additional option pages for remaining categories
-      for (let i = 1; i < allOptions.length; i++) {
-        currentPage++
-        pdf.addPage()
-        
-        const optionsPageHTML = `
-          ${createPageHeader(currentPage)}
-          ${createOptionsHTML({ [allOptions[i].category]: allOptions[i].options })}
-        `
-        
-        const optionsCanvas = await createAndRenderElement(optionsPageHTML)
-        const optionsImgData = optionsCanvas.toDataURL('image/png')
-        const optionsImgHeight = (optionsCanvas.height * imgWidth) / optionsCanvas.width
-        
-        pdf.addImage(optionsImgData, 'PNG', 15, 20, imgWidth, optionsImgHeight)
-      }
-      
-      // Pricing summary page
-      currentPage++
-      pdf.addPage()
-      
-      const pricingPageHTML = `
-        ${createPageHeader(currentPage)}
-        ${createPricingSummaryHTML()}
-      `
-      
-      const pricingCanvas = await createAndRenderElement(pricingPageHTML)
-      const pricingImgData = pricingCanvas.toDataURL('image/png')
-      const pricingImgHeight = (pricingCanvas.height * imgWidth) / pricingCanvas.width
-      
-      pdf.addImage(pricingImgData, 'PNG', 15, 20, imgWidth, pricingImgHeight)
-      
-    } else if (hasOptions) {
-      // Few options - put them on page 1
-             const page1OptionsHTML = createOptionsHTML(optionsByCategory)
-       const page1HTML = page1Content + page1OptionsHTML + `<div style="margin-bottom: 40px;"></div>`
-       
-       const canvas1 = await createAndRenderElement(page1HTML)
-       const imgData1 = canvas1.toDataURL('image/png')
-       const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width
-      
-      pdf.addImage(imgData1, 'PNG', 15, 20, imgWidth, imgHeight1)
-      
-      // Pricing summary on page 2
-      currentPage++
-      pdf.addPage()
-      
-      const pricingPageHTML = `
-        ${createPageHeader(currentPage)}
-        ${createPricingSummaryHTML()}
-      `
-      
-      const pricingCanvas = await createAndRenderElement(pricingPageHTML)
-      const pricingImgData = pricingCanvas.toDataURL('image/png')
-      const pricingImgHeight = (pricingCanvas.height * imgWidth) / pricingCanvas.width
-      
-      pdf.addImage(pricingImgData, 'PNG', 15, 20, imgWidth, pricingImgHeight)
-      
-    } else {
-             // No options - everything on page 1
-       const page1HTML = page1Content + createPricingSummaryHTML() + `<div style="margin-bottom: 40px;"></div>`
-       
-       const canvas1 = await createAndRenderElement(page1HTML)
-       const imgData1 = canvas1.toDataURL('image/png')
-       const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width
-      
-      pdf.addImage(imgData1, 'PNG', 15, 20, imgWidth, imgHeight1)
-    }
+         // Simple approach: Let content flow naturally like a word document
+     let currentPage = 1
+     
+     // Check if we have options
+     const hasOptions = Object.keys(optionsByCategory).length > 0
+     
+     // Create the main content with everything
+     const mainContent = `
+       ${createPageHeader(currentPage)}
+       ${headerContent}
+       ${orderInfoContent}
+       ${modelConfigContent}
+       ${hasOptions ? createOptionsHTML(optionsByCategory) : ''}
+       ${createPricingSummaryHTML()}
+       <div style="margin-bottom: 40px;"></div>
+     `
+     
+     // Render the main content
+     const mainCanvas = await createAndRenderElement(mainContent)
+     const mainImgData = mainCanvas.toDataURL('image/png')
+     const mainImgHeight = (mainCanvas.height * imgWidth) / mainCanvas.width
+     
+     // Add to PDF - jsPDF will automatically handle page breaks
+     pdf.addImage(mainImgData, 'PNG', 15, 20, imgWidth, mainImgHeight)
     
     // Add final page with buyer info and legal notices
     currentPage++
