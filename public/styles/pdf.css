@@ -1,0 +1,50 @@
+/* src/styles/pdf.css */
+
+/* 1) Real paper margins – this is what the PDF engine uses */
+@page {
+  /* Letter by default; adjust if we pass a different size */
+  size: Letter;
+  margin: 18mm;             /* ≈ 0.7in top/right/bottom/left */
+}
+
+/* 2) Print-specific rules */
+@media print {
+  html, body {
+    height: auto;
+    margin: 0;              /* DO NOT add body margins; @page controls edges */
+    padding: 0;
+  }
+
+  /* The root wrapper around all content in the PDF */
+  .pdf-root {
+    /* Inner content padding inside the paper, on top of @page margin */
+    padding: 10mm;          /* inner breathing room */
+    box-sizing: border-box;
+  }
+
+  /* Avoid content stuck at edges on each "page" division */
+  .pdf-section {
+    break-inside: avoid;    /* keep blocks together when possible */
+    margin-bottom: 8mm;     /* visual rhythm between sections (inside page) */
+  }
+
+  /* Explicit manual page breaks if/where needed */
+  .page-break {
+    break-before: page;     /* modern alias of page-break-before */
+  }
+
+  /* Tables behave better with these */
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 4mm 3mm; vertical-align: top; }
+}
+
+/* 3) Screen preview so the PDF looks similar before printing */
+@media screen {
+  .pdf-root {
+    max-width: 816px;       /* ~ Letter width at 96dpi minus margins */
+    margin: 24px auto;
+    padding: 24px;
+    background: white;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 8px 30px rgba(0,0,0,.12);
+  }
+}

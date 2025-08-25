@@ -13,26 +13,25 @@ export const generateOrderPDF = async (orderData) => {
       return acc
     }, {})
     
-         // Create PDF
-     const pdf = new jsPDF('p', 'mm', 'a4')
-     const pdfWidth = pdf.internal.pageSize.getWidth()
-     const pdfHeight = pdf.internal.pageSize.getHeight()
-     const margin = 15 // 15mm margins
-     const contentWidth = pdfWidth - (margin * 2)
-     const imgWidth = pdfWidth - 30 // Define imgWidth at top level
-    
-    // Helper function to create and render HTML element
+    // Helper function to create and render HTML element with proper PDF styling
     const createAndRenderElement = async (htmlContent) => {
       const element = document.createElement('div')
       element.style.position = 'absolute'
       element.style.left = '-9999px'
-      element.style.width = '800px'
-      element.style.padding = '80px 60px 60px 60px'
-      element.style.backgroundColor = 'transparent'
+      element.style.width = '816px' // Letter width at 96dpi
+      element.style.backgroundColor = 'white'
       element.style.fontFamily = 'Arial, sans-serif'
       element.style.fontSize = '12px'
       element.style.lineHeight = '1.4'
+      element.style.margin = '0'
+      element.style.padding = '0'
       element.innerHTML = htmlContent
+      
+             // Inject the PDF CSS
+       const link = document.createElement('link')
+       link.rel = 'stylesheet'
+       link.href = '/styles/pdf.css'
+       document.head.appendChild(link)
       
       document.body.appendChild(element)
       
@@ -41,29 +40,30 @@ export const generateOrderPDF = async (orderData) => {
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        width: 800,
+        width: 816,
         height: element.scrollHeight,
         scrollX: 0,
         scrollY: 0
       })
       
       document.body.removeChild(element)
+      document.head.removeChild(link)
       return canvas
     }
     
-         // Helper function to create page header (page number will be added by jsPDF)
-     const createPageHeader = () => `
-       <div style="position: relative; margin-bottom: 30px;">
-         <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" style="height: 60px; position: absolute; top: -80px; left: 0;"/>
-       </div>
-     `
+    // Helper function to create page header
+    const createPageHeader = () => `
+      <div style="position: relative; margin-bottom: 30px;">
+        <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" style="height: 60px; position: absolute; top: -80px; left: 0;"/>
+      </div>
+    `
     
     // Helper function to create options HTML
     const createOptionsHTML = (optionsByCategory) => {
       if (Object.keys(optionsByCategory).length === 0) return ''
       
       return `
-        <div style="margin-bottom: 25px;">
+        <div class="pdf-section">
           <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
             Selected Options
           </div>
@@ -89,7 +89,7 @@ export const generateOrderPDF = async (orderData) => {
     
     // Helper function to create pricing summary HTML
     const createPricingSummaryHTML = () => `
-      <div style="margin-bottom: 25px;">
+      <div class="pdf-section">
         <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
           Fees & Services
         </div>
@@ -107,7 +107,7 @@ export const generateOrderPDF = async (orderData) => {
         </div>
       </div>
 
-      <div style="margin-bottom: 25px;">
+      <div class="pdf-section">
         <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
           Tax Calculation
         </div>
@@ -127,7 +127,8 @@ export const generateOrderPDF = async (orderData) => {
     
     // Helper function to create buyer info and legal notices HTML
     const createBuyerAndLegalHTML = () => `
-      <div style="margin-top: 40px;">
+      <div class="page-break"></div>
+      <div class="pdf-section">
         <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
           Buyer & Delivery Information
         </div>
@@ -139,7 +140,7 @@ export const generateOrderPDF = async (orderData) => {
         </div>
       </div>
 
-      <div style="margin-top: 40px;">
+      <div class="pdf-section">
         <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
           Legal Notices & Disclosures
         </div>
@@ -163,84 +164,85 @@ export const generateOrderPDF = async (orderData) => {
     
     // Build content sections
     const headerContent = `
-      <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f59e0b; padding-bottom: 20px;">
-        <div style="font-size: 24px; font-weight: bold; color: #000000; margin-bottom: 10px;">${build.modelName} Order Summary</div>
-        <div style="font-size: 20px; color: #374151; margin-bottom: 5px;">Generated on ${new Date().toLocaleDateString()}</div>
+      <div class="pdf-section">
+        <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f59e0b; padding-bottom: 20px;">
+          <div style="font-size: 24px; font-weight: bold; color: #000000; margin-bottom: 10px;">${build.modelName} Order Summary</div>
+          <div style="font-size: 20px; color: #374151; margin-bottom: 5px;">Generated on ${new Date().toLocaleDateString()}</div>
+        </div>
       </div>
     `
     
     const orderInfoContent = `
-      <div style="margin-bottom: 30px; background: #f9f9f9; padding: 15px; border-radius: 4px;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-          <strong style="color: #000000;">Order ID:</strong> <span style="color: #000000;">${build._id}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between;">
-          <strong style="color: #000000;">Date:</strong> <span style="color: #000000;">${new Date().toLocaleDateString()}</span>
+      <div class="pdf-section">
+        <div style="margin-bottom: 30px; background: #f9f9f9; padding: 15px; border-radius: 4px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <strong style="color: #000000;">Order ID:</strong> <span style="color: #000000;">${build._id}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <strong style="color: #000000;">Date:</strong> <span style="color: #000000;">${new Date().toLocaleDateString()}</span>
+          </div>
         </div>
       </div>
     `
     
     const modelConfigContent = `
-      <div style="margin-bottom: 25px;">
-        <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
-          Model Configuration
-        </div>
-        <div style="font-size: 16px; margin-bottom: 20px;">
-          <strong style="color: #000000;">${build.modelName}</strong> <span style="color: #000000;">(${build.modelSlug})</span>
-        </div>
-        
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
-          <span style="color: #000000;">Base Price</span>
-          <span style="color: #000000;">${formatCurrency(pricing.basePrice)}</span>
+      <div class="pdf-section">
+        <div style="margin-bottom: 25px;">
+          <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+            Model Configuration
+          </div>
+          <div style="font-size: 16px; margin-bottom: 20px;">
+            <strong style="color: #000000;">${build.modelName}</strong> <span style="color: #000000;">(${build.modelSlug})</span>
+          </div>
+          
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
+            <span style="color: #000000;">Base Price</span>
+            <span style="color: #000000;">${formatCurrency(pricing.basePrice)}</span>
+          </div>
         </div>
       </div>
     `
     
-              // Professional PDF generation pattern - single content, automatic page breaks
-     const hasOptions = Object.keys(optionsByCategory).length > 0
-     
-     // Create complete content with everything in one HTML document
-     const completeContent = `
-       ${createPageHeader(1)}
-       ${headerContent}
-       ${orderInfoContent}
-       ${modelConfigContent}
-       ${hasOptions ? createOptionsHTML(optionsByCategory) : ''}
-       ${createPricingSummaryHTML()}
-       ${createBuyerAndLegalHTML()}
-       <div style="margin-bottom: 40px;"></div>
-     `
-     
-     // Render the complete content as one canvas
-     const completeCanvas = await createAndRenderElement(completeContent)
-     const completeImgData = completeCanvas.toDataURL('image/png')
-     const completeImgHeight = (completeCanvas.height * imgWidth) / completeCanvas.width
-     
-     // Use the exact same pattern as the working generatePDF.js
-     let heightLeft = completeImgHeight
-     let position = 20 // 20mm top margin for page 1 (keep perfect)
-     let pageNumber = 1
-     
-     // Add first page (keep top margin perfect)
-     pdf.addImage(completeImgData, 'PNG', 15, position, imgWidth, completeImgHeight)
-     // Add page number to first page
-     pdf.setFontSize(14)
-     pdf.setTextColor(0, 0, 0)
-     pdf.text(`Page ${pageNumber}`, pdfWidth - 25, 15)
-     heightLeft -= (pdfHeight - 40) // Account for margins (20mm top + 20mm bottom) - same ratio as working code
-     
-     // Add additional pages if content is longer than one page
-     while (heightLeft >= 0) {
-       position = heightLeft - completeImgHeight + 20 // Use same margin as page 1
-       pdf.addPage()
-       pageNumber++
-       pdf.addImage(completeImgData, 'PNG', 15, position, imgWidth, completeImgHeight)
-       // Add page number to each page
-       pdf.setFontSize(14)
-       pdf.setTextColor(0, 0, 0)
-       pdf.text(`Page ${pageNumber}`, pdfWidth - 25, 15)
-       heightLeft -= (pdfHeight - 40) // Same margin calculation - consistent with working pattern
-     }
+    // Create complete content with proper PDF structure
+    const hasOptions = Object.keys(optionsByCategory).length > 0
+    
+    const completeContent = `
+      <div class="pdf-root">
+        ${createPageHeader()}
+        ${headerContent}
+        ${orderInfoContent}
+        ${modelConfigContent}
+        ${hasOptions ? createOptionsHTML(optionsByCategory) : ''}
+        ${createPricingSummaryHTML()}
+        ${createBuyerAndLegalHTML()}
+      </div>
+    `
+    
+    // Render the complete content as one canvas
+    const completeCanvas = await createAndRenderElement(completeContent)
+    const completeImgData = completeCanvas.toDataURL('image/png')
+    
+    // Create PDF with proper margins
+    const pdf = new jsPDF('p', 'mm', 'letter')
+    const pdfWidth = pdf.internal.pageSize.getWidth()
+    const pdfHeight = pdf.internal.pageSize.getHeight()
+    const imgWidth = pdfWidth - 36 // 18mm margins on each side
+    const imgHeight = (completeCanvas.height * imgWidth) / completeCanvas.width
+    
+    let heightLeft = imgHeight
+    let position = 18 // 18mm top margin (matches @page margin)
+
+    // Add first page
+    pdf.addImage(completeImgData, 'PNG', 18, position, imgWidth, imgHeight)
+    heightLeft -= (pdfHeight - 36) // Account for 18mm margins top and bottom
+
+    // Add additional pages if content is longer than one page
+    while (heightLeft >= 0) {
+      position = heightLeft - imgHeight + 18
+      pdf.addPage()
+      pdf.addImage(completeImgData, 'PNG', 18, position, imgWidth, imgHeight)
+      heightLeft -= (pdfHeight - 36)
+    }
     
     // Download the PDF
     const filename = `firefly-order-${build._id}.pdf`
