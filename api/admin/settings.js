@@ -1,4 +1,4 @@
-import { getAuth } from '@clerk/nextjs/server'
+import { getAuth } from '@clerk/backend'
 
 export default async function handler(req, res) {
   try {
