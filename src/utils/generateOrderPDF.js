@@ -3,17 +3,6 @@ import jsPDF from 'jspdf'
 
 export const generateOrderPDF = async (orderData) => {
   try {
-    // Create a temporary element for the PDF content
-    const pdfElement = document.createElement('div')
-    pdfElement.style.position = 'absolute'
-    pdfElement.style.left = '-9999px'
-    pdfElement.style.width = '800px'
-    pdfElement.style.padding = '60px' // Increased padding for better margins
-    pdfElement.style.backgroundColor = 'white'
-    pdfElement.style.fontFamily = 'Arial, sans-serif'
-    pdfElement.style.fontSize = '12px'
-    pdfElement.style.lineHeight = '1.4'
-    
     const { build, settings, pricing } = orderData
     
     // Group options by category
@@ -24,7 +13,45 @@ export const generateOrderPDF = async (orderData) => {
       return acc
     }, {})
     
-    pdfElement.innerHTML = `
+    // Create PDF
+    const pdf = new jsPDF('p', 'mm', 'a4')
+    const pdfWidth = pdf.internal.pageSize.getWidth()
+    const pdfHeight = pdf.internal.pageSize.getHeight()
+    const margin = 15 // 15mm margins
+    const contentWidth = pdfWidth - (margin * 2)
+    
+    // Helper function to create and render HTML element
+    const createAndRenderElement = async (htmlContent) => {
+      const element = document.createElement('div')
+      element.style.position = 'absolute'
+      element.style.left = '-9999px'
+      element.style.width = '800px'
+      element.style.padding = '60px'
+      element.style.backgroundColor = 'white'
+      element.style.fontFamily = 'Arial, sans-serif'
+      element.style.fontSize = '12px'
+      element.style.lineHeight = '1.4'
+      element.innerHTML = htmlContent
+      
+      document.body.appendChild(element)
+      
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: 800,
+        height: element.scrollHeight,
+        scrollX: 0,
+        scrollY: 0
+      })
+      
+      document.body.removeChild(element)
+      return canvas
+    }
+    
+    // Page 1: Header, Order Info, Model Configuration, Options, Fees, Tax, Total
+    const page1HTML = `
       <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f59e0b; padding-bottom: 20px;">
         <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" style="height: 60px; margin-bottom: 15px;"/>
         <div style="font-size: 24px; font-weight: bold; color: #000000; margin-bottom: 10px;">${build.modelName} Order Summary</div>
@@ -112,8 +139,17 @@ export const generateOrderPDF = async (orderData) => {
           <span style="color: #000000;">${formatCurrency(pricing.total)}</span>
         </div>
       </div>
+    `
+    
+    // Page 2: Buyer & Delivery Information
+    const page2HTML = `
+      <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f59e0b; padding-bottom: 20px;">
+        <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" style="height: 60px; margin-bottom: 15px;"/>
+        <div style="font-size: 24px; font-weight: bold; color: #000000; margin-bottom: 10px;">${build.modelName} Order Summary</div>
+        <div style="font-size: 20px; color: #374151; margin-bottom: 5px;">Generated on ${new Date().toLocaleDateString()}</div>
+      </div>
 
-      <div style="margin-top: 800px;">
+      <div style="margin-top: 40px;">
         <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
           Buyer & Delivery Information
         </div>
@@ -123,6 +159,15 @@ export const generateOrderPDF = async (orderData) => {
           <div style="margin-bottom: 8px;"><strong style="color: #000000;">Phone:</strong> <span style="color: #000000;">${build.buyerInfo?.phone || 'Not provided'}</span></div>
           <div style="margin-bottom: 8px;"><strong style="color: #000000;">Delivery Address:</strong> <span style="color: #000000;">${build.buyerInfo?.deliveryAddress || [build.buyerInfo?.address, build.buyerInfo?.city, build.buyerInfo?.state, build.buyerInfo?.zip].filter(Boolean).join(', ') || 'Not specified'}</span></div>
         </div>
+      </div>
+    `
+    
+    // Page 3: Legal Notices & Disclosures
+    const page3HTML = `
+      <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f59e0b; padding-bottom: 20px;">
+        <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" style="height: 60px; margin-bottom: 15px;"/>
+        <div style="font-size: 24px; font-weight: bold; color: #000000; margin-bottom: 10px;">${build.modelName} Order Summary</div>
+        <div style="font-size: 20px; color: #374151; margin-bottom: 5px;">Generated on ${new Date().toLocaleDateString()}</div>
       </div>
 
       <div style="margin-top: 40px;">
@@ -147,51 +192,34 @@ export const generateOrderPDF = async (orderData) => {
       </div>
     `
     
-    document.body.appendChild(pdfElement)
+    // Render page 1
+    const canvas1 = await createAndRenderElement(page1HTML)
+    const imgData1 = canvas1.toDataURL('image/png')
+    const imgWidth = pdfWidth - 30
+    const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width
     
-    // Configure html2canvas options
-    const canvas = await html2canvas(pdfElement, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      width: 800,
-      height: pdfElement.scrollHeight,
-      scrollX: 0,
-      scrollY: 0
-    })
-
-    // Create PDF with increased margins
-    const imgData = canvas.toDataURL('image/png')
-    const pdf = new jsPDF('p', 'mm', 'a4')
+    pdf.addImage(imgData1, 'PNG', 15, 20, imgWidth, imgHeight1)
     
-    const pdfWidth = pdf.internal.pageSize.getWidth()
-    const pdfHeight = pdf.internal.pageSize.getHeight()
-    const imgWidth = pdfWidth - 30 // 15mm margins on each side (increased from 20mm total)
-    const imgHeight = (canvas.height * imgWidth) / canvas.width
+    // Add page 2
+    pdf.addPage()
+    const canvas2 = await createAndRenderElement(page2HTML)
+    const imgData2 = canvas2.toDataURL('image/png')
+    const imgHeight2 = (canvas2.height * imgWidth) / canvas2.width
     
-    let heightLeft = imgHeight
-    let position = 20 // 20mm top margin (increased from 10mm)
-
-    // Add first page
-    pdf.addImage(imgData, 'PNG', 15, position, imgWidth, imgHeight)
-    heightLeft -= (pdfHeight - 40) // Account for increased margins
-
-    // Add additional pages if content is longer than one page
-    while (heightLeft >= 0) {
-      position = heightLeft - imgHeight + 20
-      pdf.addPage()
-      pdf.addImage(imgData, 'PNG', 15, position, imgWidth, imgHeight)
-      heightLeft -= (pdfHeight - 40)
-    }
-
+    pdf.addImage(imgData2, 'PNG', 15, 20, imgWidth, imgHeight2)
+    
+    // Add page 3
+    pdf.addPage()
+    const canvas3 = await createAndRenderElement(page3HTML)
+    const imgData3 = canvas3.toDataURL('image/png')
+    const imgHeight3 = (canvas3.height * imgWidth) / canvas3.width
+    
+    pdf.addImage(imgData3, 'PNG', 15, 20, imgWidth, imgHeight3)
+    
     // Download the PDF
     const filename = `firefly-order-${build._id}.pdf`
     pdf.save(filename)
-
-    // Clean up
-    document.body.removeChild(pdfElement)
-
+    
     return true
   } catch (error) {
     console.error('Error generating order PDF:', error)
