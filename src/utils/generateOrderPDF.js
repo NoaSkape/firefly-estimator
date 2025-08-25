@@ -200,42 +200,31 @@ export const generateOrderPDF = async (orderData) => {
     const pricingSummaryContent = createPricingSummaryHTML()
     const buyerAndLegalContent = createBuyerAndLegalHTML()
     
-    // Split options into chunks for better page management
-    const splitOptionsIntoChunks = (optionsByCategory, maxOptionsPerChunk = 8) => {
-      const chunks = []
-      let currentChunk = {}
-      let currentCount = 0
-      
-      for (const [category, categoryOptions] of Object.entries(optionsByCategory)) {
-        if (currentCount + categoryOptions.length > maxOptionsPerChunk && Object.keys(currentChunk).length > 0) {
-          chunks.push(currentChunk)
-          currentChunk = {}
-          currentCount = 0
-        }
-        
-        currentChunk[category] = categoryOptions
-        currentCount += categoryOptions.length
-      }
-      
-      if (Object.keys(currentChunk).length > 0) {
-        chunks.push(currentChunk)
-      }
-      
-      return chunks
+    // Flatten all options into a single array for better page management
+    const allOptions = []
+    for (const [category, categoryOptions] of Object.entries(optionsByCategory)) {
+      allOptions.push({ category, options: categoryOptions })
     }
     
-    const optionsChunks = splitOptionsIntoChunks(optionsByCategory)
+    // Calculate how many options can fit on page 1 (after header, order info, model config)
+    const optionsPerPage = 6 // Conservative estimate for page 1
+    const additionalOptionsPerPage = 8 // For subsequent pages
     
     // Generate pages dynamically
     let currentPage = 1
+    let currentOptionsIndex = 0
     
-    // Page 1: Header, Order Info, Model Config, and first chunk of options
+    // Page 1: Header, Order Info, Model Config, and first batch of options
+    const page1Options = allOptions.slice(0, 1) // Just first category for page 1
+    const page1OptionsHTML = page1Options.length > 0 ? createOptionsHTML(Object.fromEntries(page1Options.map(({ category, options }) => [category, options]))) : ''
+    
     const page1HTML = `
       ${createPageHeader(currentPage)}
       ${headerContent}
       ${orderInfoContent}
       ${modelConfigContent}
-      ${optionsChunks.length > 0 ? createOptionsHTML(optionsChunks[0]) : ''}
+      ${page1OptionsHTML}
+      <div style="margin-bottom: 40px;"></div>
     `
     
     const canvas1 = await createAndRenderElement(page1HTML)
@@ -245,25 +234,27 @@ export const generateOrderPDF = async (orderData) => {
     
     pdf.addImage(imgData1, 'PNG', 15, 20, imgWidth, imgHeight1)
     
-    // Add additional option pages if needed
-    for (let i = 1; i < optionsChunks.length; i++) {
-      currentPage++
-      pdf.addPage()
-      
-      const optionsPageHTML = `
-        ${createPageHeader(currentPage)}
-        ${createOptionsHTML(optionsChunks[i])}
-      `
-      
-      const canvas = await createAndRenderElement(optionsPageHTML)
-      const imgData = canvas.toDataURL('image/png')
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
-      
-      pdf.addImage(imgData, 'PNG', 15, 20, imgWidth, imgHeight)
+    // Add remaining options on additional pages
+    if (allOptions.length > 1) {
+      for (let i = 1; i < allOptions.length; i++) {
+        currentPage++
+        pdf.addPage()
+        
+        const optionsPageHTML = `
+          ${createPageHeader(currentPage)}
+          ${createOptionsHTML({ [allOptions[i].category]: allOptions[i].options })}
+        `
+        
+        const canvas = await createAndRenderElement(optionsPageHTML)
+        const imgData = canvas.toDataURL('image/png')
+        const imgHeight = (canvas.height * imgWidth) / canvas.width
+        
+        pdf.addImage(imgData, 'PNG', 15, 20, imgWidth, imgHeight)
+      }
     }
     
-    // Add pricing summary page (if we have options, this goes on a new page)
-    if (optionsChunks.length > 0) {
+    // Add pricing summary page (always separate when we have options)
+    if (Object.keys(optionsByCategory).length > 0) {
       currentPage++
       pdf.addPage()
       
@@ -278,13 +269,14 @@ export const generateOrderPDF = async (orderData) => {
       
       pdf.addImage(imgData, 'PNG', 15, 20, imgWidth, imgHeight)
     } else {
-      // If no options, add pricing to page 1
+      // If no options, add pricing to page 1 with proper margin
       const updatedPage1HTML = `
         ${createPageHeader(1)}
         ${headerContent}
         ${orderInfoContent}
         ${modelConfigContent}
         ${pricingSummaryContent}
+        <div style="margin-bottom: 40px;"></div>
       `
       
       const canvas = await createAndRenderElement(updatedPage1HTML)
