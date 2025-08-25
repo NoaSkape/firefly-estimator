@@ -218,35 +218,66 @@ export const generateOrderPDF = async (orderData) => {
       </div>
     `
     
-    // Render the complete content as one canvas
-    const completeCanvas = await createAndRenderElement(completeContent)
-    const completeImgData = completeCanvas.toDataURL('image/png')
-    
-    // Create PDF with proper margins
-    const pdf = new jsPDF('p', 'mm', 'letter')
-    const pdfWidth = pdf.internal.pageSize.getWidth()
-    const pdfHeight = pdf.internal.pageSize.getHeight()
-    const imgWidth = pdfWidth - 36 // 18mm margins on each side
-    const imgHeight = (completeCanvas.height * imgWidth) / completeCanvas.width
-    
-    let heightLeft = imgHeight
-    let position = 18 // 18mm top margin (matches @page margin)
+    // Prefer html2pdf.js with @page-aware margins; fallback to manual jsPDF slicing
+    const filename = `firefly-order-${build._id}.pdf`
 
-    // Add first page
-    pdf.addImage(completeImgData, 'PNG', 18, position, imgWidth, imgHeight)
-    heightLeft -= (pdfHeight - 36) // Account for 18mm margins top and bottom
+    try {
+      const { default: html2pdf } = await import('html2pdf.js')
 
-    // Add additional pages if content is longer than one page
-    while (heightLeft >= 0) {
-      position = heightLeft - imgHeight + 18
-      pdf.addPage()
+      // Create a live DOM node for html2pdf
+      const container = document.createElement('div')
+      container.style.position = 'absolute'
+      container.style.left = '-9999px'
+      container.innerHTML = completeContent
+
+      // Ensure the stylesheet is applied
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = '/styles/pdf.css'
+      document.head.appendChild(link)
+      document.body.appendChild(container)
+
+      const rootEl = container.querySelector('.pdf-root') || container
+      const opt = {
+        margin: [18, 18, 18, 18], // mm
+        filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+        jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'], before: '.page-break' },
+      }
+
+      await html2pdf().set(opt).from(rootEl).save()
+
+      // Cleanup
+      document.body.removeChild(container)
+      document.head.removeChild(link)
+    } catch (err) {
+      // Fallback: manual jsPDF with slicing
+      const completeCanvas = await createAndRenderElement(completeContent)
+      const completeImgData = completeCanvas.toDataURL('image/png')
+
+      const pdf = new jsPDF('p', 'mm', 'letter')
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = pdf.internal.pageSize.getHeight()
+      const imgWidth = pdfWidth - 36 // 18mm margins
+      const imgHeight = (completeCanvas.height * imgWidth) / completeCanvas.width
+
+      let heightLeft = imgHeight
+      let position = 18
+
       pdf.addImage(completeImgData, 'PNG', 18, position, imgWidth, imgHeight)
       heightLeft -= (pdfHeight - 36)
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight + 18
+        pdf.addPage()
+        pdf.addImage(completeImgData, 'PNG', 18, position, imgWidth, imgHeight)
+        heightLeft -= (pdfHeight - 36)
+      }
+
+      pdf.save(filename)
     }
-    
-    // Download the PDF
-    const filename = `firefly-order-${build._id}.pdf`
-    pdf.save(filename)
     
     return true
   } catch (error) {
