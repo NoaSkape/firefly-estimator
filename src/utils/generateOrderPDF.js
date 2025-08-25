@@ -52,10 +52,13 @@ export const generateOrderPDF = async (orderData) => {
     
     // Page 1: Header, Order Info, Model Configuration, Options, Fees, Tax, Total
     const page1HTML = `
-      <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f59e0b; padding-bottom: 20px;">
-        <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" style="height: 60px; margin-bottom: 15px;"/>
-        <div style="font-size: 24px; font-weight: bold; color: #000000; margin-bottom: 10px;">${build.modelName} Order Summary</div>
-        <div style="font-size: 20px; color: #374151; margin-bottom: 5px;">Generated on ${new Date().toLocaleDateString()}</div>
+      <div style="position: relative; margin-bottom: 30px;">
+        <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" style="height: 60px; position: absolute; top: 0; left: 0;"/>
+        <div style="text-align: right; font-size: 14px; color: #000000; position: absolute; top: 10px; right: 0;">Page 1</div>
+        <div style="text-align: center; margin-top: 80px; border-bottom: 2px solid #f59e0b; padding-bottom: 20px;">
+          <div style="font-size: 24px; font-weight: bold; color: #000000; margin-bottom: 10px;">${build.modelName} Order Summary</div>
+          <div style="font-size: 20px; color: #374151; margin-bottom: 5px;">Generated on ${new Date().toLocaleDateString()}</div>
+        </div>
       </div>
 
       <div style="margin-bottom: 30px; background: #f9f9f9; padding: 15px; border-radius: 4px;">
@@ -143,10 +146,9 @@ export const generateOrderPDF = async (orderData) => {
     
     // Page 2: Buyer & Delivery Information + Legal Notices & Disclosures
     const page2HTML = `
-      <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f59e0b; padding-bottom: 20px;">
-        <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" style="height: 60px; margin-bottom: 15px;"/>
-        <div style="font-size: 24px; font-weight: bold; color: #000000; margin-bottom: 10px;">${build.modelName} Order Summary</div>
-        <div style="font-size: 20px; color: #374151; margin-bottom: 5px;">Generated on ${new Date().toLocaleDateString()}</div>
+      <div style="position: relative; margin-bottom: 30px;">
+        <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" style="height: 60px; position: absolute; top: 0; left: 0;"/>
+        <div style="text-align: right; font-size: 14px; color: #000000; position: absolute; top: 10px; right: 0;">Page 2</div>
       </div>
 
       <div style="margin-top: 40px;">
