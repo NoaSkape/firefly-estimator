@@ -69,7 +69,7 @@ export default function PaymentMethod() {
           ...existingFinancing,
           method: choice 
         },
-        step: 3
+        step: 6 // Stay on step 6 since payment is not complete yet
       }
       
       // If switching from finance to cash, preserve buyer info but clear financing details
@@ -118,34 +118,23 @@ export default function PaymentMethod() {
       
       analytics.paymentSelected(buildId, choice)
       
-      // Validate step progression
-      const res2 = await fetch(`/api/builds/${buildId}/checkout-step`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, 
-        body: JSON.stringify({ step: 7 }) 
-      })
-      
-      if (!res2.ok) { 
-        const j = await res2.json().catch(() => ({}))
-        addToast({ 
-          type: 'error', 
-          title: 'Validation Failed',
-          message: j?.error || 'Please complete required fields before continuing.'
-        })
-        return 
+      // Navigate based on payment method choice
+      if (choice === 'cash') {
+        // Navigate to cash payment form
+        navigate(`/checkout/${buildId}/cash-payment`)
+      } else {
+        // For financing, navigate to contract step (step 7)
+        await updateBuildStep(buildId, 7, token)
+        analytics.stepChanged(buildId, 6, 7)
+        navigate(`/checkout/${buildId}/agreement`)
       }
-      
-      // Update build step to 7 (Contract)
-      await updateBuildStep(buildId, 7, token)
-      analytics.stepChanged(buildId, 6, 7)
-      navigate(`/checkout/${buildId}/agreement`)
       
     } catch (error) {
       // Queue for offline processing if network fails
       if (!navigator.onLine) {
         offlineQueue.queueBuildUpdate(buildId, {
           financing: { method: choice },
-          step: 7
+          step: 6
         }, await getToken())
         
         addToast({
@@ -154,7 +143,12 @@ export default function PaymentMethod() {
           message: 'Payment method will be saved when you reconnect.'
         })
         
-        navigate(`/checkout/${buildId}/agreement`)
+        // Navigate based on choice even in offline mode
+        if (choice === 'cash') {
+          navigate(`/checkout/${buildId}/cash-payment`)
+        } else {
+          navigate(`/checkout/${buildId}/agreement`)
+        }
       } else {
         addToast({
           type: 'error',
