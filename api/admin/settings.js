@@ -13,6 +13,11 @@ export default async function handler(req, res) {
         depositPercent: 25,
         storageFeePerDayCents: 4000, // $40.00
         enableCardOption: false
+      },
+      pricing: {
+        title_fee_default: 500,
+        setup_fee_default: 3000,
+        tax_rate_percent: 6.25
       }
     }
 
@@ -60,6 +65,11 @@ export default async function handler(req, res) {
           depositPercent: 25,
           storageFeePerDayCents: 4000,
           enableCardOption: false
+        },
+        pricing: {
+          title_fee_default: 500,
+          setup_fee_default: 3000,
+          tax_rate_percent: 6.25
         }
       })
     } else {
