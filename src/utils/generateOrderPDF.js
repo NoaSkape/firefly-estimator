@@ -141,7 +141,7 @@ export const generateOrderPDF = async (orderData) => {
       </div>
     `
     
-    // Page 2: Buyer & Delivery Information
+    // Page 2: Buyer & Delivery Information + Legal Notices & Disclosures
     const page2HTML = `
       <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f59e0b; padding-bottom: 20px;">
         <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" style="height: 60px; margin-bottom: 15px;"/>
@@ -159,15 +159,6 @@ export const generateOrderPDF = async (orderData) => {
           <div style="margin-bottom: 8px;"><strong style="color: #000000;">Phone:</strong> <span style="color: #000000;">${build.buyerInfo?.phone || 'Not provided'}</span></div>
           <div style="margin-bottom: 8px;"><strong style="color: #000000;">Delivery Address:</strong> <span style="color: #000000;">${build.buyerInfo?.deliveryAddress || [build.buyerInfo?.address, build.buyerInfo?.city, build.buyerInfo?.state, build.buyerInfo?.zip].filter(Boolean).join(', ') || 'Not specified'}</span></div>
         </div>
-      </div>
-    `
-    
-    // Page 3: Legal Notices & Disclosures
-    const page3HTML = `
-      <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f59e0b; padding-bottom: 20px;">
-        <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" style="height: 60px; margin-bottom: 15px;"/>
-        <div style="font-size: 24px; font-weight: bold; color: #000000; margin-bottom: 10px;">${build.modelName} Order Summary</div>
-        <div style="font-size: 20px; color: #374151; margin-bottom: 5px;">Generated on ${new Date().toLocaleDateString()}</div>
       </div>
 
       <div style="margin-top: 40px;">
@@ -208,13 +199,7 @@ export const generateOrderPDF = async (orderData) => {
     
     pdf.addImage(imgData2, 'PNG', 15, 20, imgWidth, imgHeight2)
     
-    // Add page 3
-    pdf.addPage()
-    const canvas3 = await createAndRenderElement(page3HTML)
-    const imgData3 = canvas3.toDataURL('image/png')
-    const imgHeight3 = (canvas3.height * imgWidth) / canvas3.width
-    
-    pdf.addImage(imgData3, 'PNG', 15, 20, imgWidth, imgHeight3)
+
     
     // Download the PDF
     const filename = `firefly-order-${build._id}.pdf`
