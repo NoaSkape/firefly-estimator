@@ -1,8 +1,33 @@
-import { getAuth } from '@clerk/backend'
+import { createClerkClient, verifyToken } from '@clerk/backend'
+
+// Create Clerk client instance
+const clerk = createClerkClient({
+  secretKey: process.env.CLERK_SECRET_KEY,
+})
 
 export default async function handler(req, res) {
   try {
-    const { userId } = await getAuth(req)
+    // Extract Bearer token from Authorization header
+    const authHeader = req.headers?.authorization || req.headers?.Authorization;
+    const token = typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length)
+      : null;
+
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    let userId = null;
+    try {
+      const verified = await verifyToken(token, {
+        secretKey: process.env.CLERK_SECRET_KEY,
+      })
+      userId = verified?.sub || verified?.userId || null;
+    } catch (error) {
+      console.error('Token verification failed:', error)
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' })
     }
