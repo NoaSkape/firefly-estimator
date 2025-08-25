@@ -13,12 +13,13 @@ export const generateOrderPDF = async (orderData) => {
       return acc
     }, {})
     
-    // Create PDF
-    const pdf = new jsPDF('p', 'mm', 'a4')
-    const pdfWidth = pdf.internal.pageSize.getWidth()
-    const pdfHeight = pdf.internal.pageSize.getHeight()
-    const margin = 15 // 15mm margins
-    const contentWidth = pdfWidth - (margin * 2)
+         // Create PDF
+     const pdf = new jsPDF('p', 'mm', 'a4')
+     const pdfWidth = pdf.internal.pageSize.getWidth()
+     const pdfHeight = pdf.internal.pageSize.getHeight()
+     const margin = 15 // 15mm margins
+     const contentWidth = pdfWidth - (margin * 2)
+     const imgWidth = pdfWidth - 30 // Define imgWidth at top level
     
     // Helper function to create and render HTML element
     const createAndRenderElement = async (htmlContent) => {
@@ -222,11 +223,10 @@ export const generateOrderPDF = async (orderData) => {
       const firstPageOptions = allOptions.slice(0, 1) // First category
       const firstPageOptionsHTML = createOptionsHTML(Object.fromEntries(firstPageOptions.map(({ category, options }) => [category, options])))
       
-      const page1HTML = page1Content + firstPageOptionsHTML + `<div style="margin-bottom: 40px;"></div>`
-      const canvas1 = await createAndRenderElement(page1HTML)
-      const imgData1 = canvas1.toDataURL('image/png')
-      const imgWidth = pdfWidth - 30
-      const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width
+             const page1HTML = page1Content + firstPageOptionsHTML + `<div style="margin-bottom: 40px;"></div>`
+       const canvas1 = await createAndRenderElement(page1HTML)
+       const imgData1 = canvas1.toDataURL('image/png')
+       const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width
       
       pdf.addImage(imgData1, 'PNG', 15, 20, imgWidth, imgHeight1)
       
@@ -264,13 +264,12 @@ export const generateOrderPDF = async (orderData) => {
       
     } else if (hasOptions) {
       // Few options - put them on page 1
-      const page1OptionsHTML = createOptionsHTML(optionsByCategory)
-      const page1HTML = page1Content + page1OptionsHTML + `<div style="margin-bottom: 40px;"></div>`
-      
-      const canvas1 = await createAndRenderElement(page1HTML)
-      const imgData1 = canvas1.toDataURL('image/png')
-      const imgWidth = pdfWidth - 30
-      const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width
+             const page1OptionsHTML = createOptionsHTML(optionsByCategory)
+       const page1HTML = page1Content + page1OptionsHTML + `<div style="margin-bottom: 40px;"></div>`
+       
+       const canvas1 = await createAndRenderElement(page1HTML)
+       const imgData1 = canvas1.toDataURL('image/png')
+       const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width
       
       pdf.addImage(imgData1, 'PNG', 15, 20, imgWidth, imgHeight1)
       
@@ -290,13 +289,12 @@ export const generateOrderPDF = async (orderData) => {
       pdf.addImage(pricingImgData, 'PNG', 15, 20, imgWidth, pricingImgHeight)
       
     } else {
-      // No options - everything on page 1
-      const page1HTML = page1Content + createPricingSummaryHTML() + `<div style="margin-bottom: 40px;"></div>`
-      
-      const canvas1 = await createAndRenderElement(page1HTML)
-      const imgData1 = canvas1.toDataURL('image/png')
-      const imgWidth = pdfWidth - 30
-      const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width
+             // No options - everything on page 1
+       const page1HTML = page1Content + createPricingSummaryHTML() + `<div style="margin-bottom: 40px;"></div>`
+       
+       const canvas1 = await createAndRenderElement(page1HTML)
+       const imgData1 = canvas1.toDataURL('image/png')
+       const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width
       
       pdf.addImage(imgData1, 'PNG', 15, 20, imgWidth, imgHeight1)
     }
