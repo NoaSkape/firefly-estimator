@@ -248,32 +248,17 @@ export const generateOrderPDF = async (orderData) => {
       }
 
       // Render and then annotate page numbers by reloading the generated blob into jsPDF
-      const worker = html2pdf().set(opt).from(rootEl)
-      const blob = await worker.outputPdf('blob')
-      const arrayBuf = await blob.arrayBuffer()
-      const pdf = new jsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait' })
-      // Load existing pages as images and add page numbers
-      const existing = await new Response(arrayBuf).arrayBuffer()
-      const existingPdf = new Uint8Array(existing)
-      // Fallback simple save if we can't parse: save the blob
-      try {
-        // Use addFileToVFS is not available here; instead, just open the blob and draw page numbers approximately by duplicating into canvas
-        // Simpler approach: just save as-is when parsing is not trivial
-        // Save the blob directly
-        const linkDl = document.createElement('a')
-        linkDl.href = URL.createObjectURL(blob)
-        linkDl.download = filename
-        document.body.appendChild(linkDl)
-        linkDl.click()
-        document.body.removeChild(linkDl)
-      } catch (_) {
-        const linkDl = document.createElement('a')
-        linkDl.href = URL.createObjectURL(blob)
-        linkDl.download = filename
-        document.body.appendChild(linkDl)
-        linkDl.click()
-        document.body.removeChild(linkDl)
+      // Generate and then annotate with page numbers through html2pdf's pdf instance
+      const worker = html2pdf().from(rootEl).set(opt).toPdf()
+      const pdf = await worker.get('pdf')
+      const total = pdf.internal.getNumberOfPages()
+      for (let i = 1; i <= total; i++) {
+        pdf.setPage(i)
+        pdf.setFontSize(12)
+        const w = pdf.internal.pageSize.getWidth()
+        pdf.text(`Page ${i}`, w - 24, 12, { align: 'right' })
       }
+      pdf.save(filename)
 
       // Cleanup
       document.body.removeChild(container)

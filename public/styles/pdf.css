@@ -28,6 +28,17 @@
     margin-bottom: 8mm;     /* visual rhythm between sections (inside page) */
   }
 
+  /* Rows/items that must not split across pages */
+  .pdf-row,
+  p,
+  li,
+  tr,
+  td,
+  th {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
   /* Explicit manual page breaks if/where needed */
   .page-break {
     break-before: page;     /* modern alias of page-break-before */
