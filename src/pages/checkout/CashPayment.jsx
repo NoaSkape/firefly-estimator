@@ -6,6 +6,7 @@ import analytics from '../../utils/analytics'
 import FunnelProgress from '../../components/FunnelProgress'
 import offlineQueue from '../../utils/offlineQueue'
 import { navigateToStep, updateBuildStep } from '../../utils/checkoutNavigation'
+import { calculateTotalPurchasePrice } from '../../utils/calculateTotal'
 import { loadStripe } from '@stripe/stripe-js'
 
 // Initialize Stripe
@@ -170,10 +171,11 @@ export default function CashPayment() {
     }
   }
 
-  // Calculate amounts based on order pricing total and payment plan
+  // Calculate amounts based on complete total (same as Overview step) and payment plan
   useEffect(() => {
-    const totalAmount = build?.pricing?.total
-    if (totalAmount && settings?.payments) {
+    if (build && settings?.payments) {
+      // Use the same calculation as the Overview step
+      const totalAmount = calculateTotalPurchasePrice(build, settings)
       const totalCents = Math.round(totalAmount * 100)
       const depositPercent = settings.payments.depositPercent || 25
       const depositCents = Math.round(totalCents * (depositPercent / 100))
@@ -184,7 +186,7 @@ export default function CashPayment() {
         amountCents: prev.type === 'deposit' ? depositCents : totalCents
       }))
     }
-  }, [build?.pricing?.total, settings?.payments, paymentPlan.type])
+  }, [build, settings?.payments, paymentPlan.type])
 
   async function setupACH() {
     try {
@@ -377,16 +379,16 @@ export default function CashPayment() {
     }).format(cents / 100)
   }
 
-  // Get total from order pricing (this should match the Overview step total)
-  const totalAmount = build?.pricing?.total || 0
+  // Get total using the same calculation as the Overview step (includes all fees)
+  const totalAmount = build ? calculateTotalPurchasePrice(build, settings) : 0
   const totalCents = Math.round(totalAmount * 100)
   const depositCents = Math.round(totalCents * ((paymentPlan.percent || 25) / 100))
   const currentAmountCents = paymentPlan.type === 'deposit' ? depositCents : totalCents
   
   // Debug logging
-  if (build?.pricing?.total) {
+  if (build) {
     console.log('Payment calculation debug:', {
-      orderTotal: build.pricing.total,
+      calculatedTotal: totalAmount,
       totalCents,
       depositCents,
       currentAmountCents,
