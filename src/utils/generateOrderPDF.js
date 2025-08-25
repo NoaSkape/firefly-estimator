@@ -26,7 +26,7 @@ export const generateOrderPDF = async (orderData) => {
        element.style.position = 'absolute'
        element.style.left = '-9999px'
        element.style.width = '800px'
-       element.style.padding = '60px'
+               element.style.padding = '80px 60px 60px 60px'
        element.style.backgroundColor = 'transparent'
        element.style.fontFamily = 'Arial, sans-serif'
        element.style.fontSize = '12px'
