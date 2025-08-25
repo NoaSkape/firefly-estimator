@@ -51,13 +51,12 @@ export const generateOrderPDF = async (orderData) => {
       return canvas
     }
     
-    // Helper function to create page header
-    const createPageHeader = (pageNumber) => `
-      <div style="position: relative; margin-bottom: 30px;">
-        <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" style="height: 60px; position: absolute; top: -80px; left: 0;"/>
-        <div style="text-align: right; font-size: 14px; color: #000000; position: absolute; top: -70px; right: 0;">Page ${pageNumber}</div>
-      </div>
-    `
+         // Helper function to create page header (page number will be added by jsPDF)
+     const createPageHeader = () => `
+       <div style="position: relative; margin-bottom: 30px;">
+         <img src="/logo/firefly-logo.png" alt="Firefly Tiny Homes" style="height: 60px; position: absolute; top: -80px; left: 0;"/>
+       </div>
+     `
     
     // Helper function to create options HTML
     const createOptionsHTML = (optionsByCategory) => {
@@ -197,45 +196,51 @@ export const generateOrderPDF = async (orderData) => {
       </div>
     `
     
-         // Simple approach: Let content flow naturally like a word document
-     let currentPage = 1
-     
-     // Check if we have options
+              // Professional PDF generation pattern - single content, automatic page breaks
      const hasOptions = Object.keys(optionsByCategory).length > 0
      
-     // Create the main content with everything
-     const mainContent = `
-       ${createPageHeader(currentPage)}
+     // Create complete content with everything in one HTML document
+     const completeContent = `
+       ${createPageHeader(1)}
        ${headerContent}
        ${orderInfoContent}
        ${modelConfigContent}
        ${hasOptions ? createOptionsHTML(optionsByCategory) : ''}
        ${createPricingSummaryHTML()}
+       ${createBuyerAndLegalHTML()}
        <div style="margin-bottom: 40px;"></div>
      `
      
-     // Render the main content
-     const mainCanvas = await createAndRenderElement(mainContent)
-     const mainImgData = mainCanvas.toDataURL('image/png')
-     const mainImgHeight = (mainCanvas.height * imgWidth) / mainCanvas.width
+     // Render the complete content as one canvas
+     const completeCanvas = await createAndRenderElement(completeContent)
+     const completeImgData = completeCanvas.toDataURL('image/png')
+     const completeImgHeight = (completeCanvas.height * imgWidth) / completeCanvas.width
      
-     // Add to PDF - jsPDF will automatically handle page breaks
-     pdf.addImage(mainImgData, 'PNG', 15, 20, imgWidth, mainImgHeight)
-    
-    // Add final page with buyer info and legal notices
-    currentPage++
-    pdf.addPage()
-    
-    const finalPageHTML = `
-      ${createPageHeader(currentPage)}
-      ${createBuyerAndLegalHTML()}
-    `
-    
-    const finalCanvas = await createAndRenderElement(finalPageHTML)
-    const finalImgData = finalCanvas.toDataURL('image/png')
-    const finalImgHeight = (finalCanvas.height * imgWidth) / finalCanvas.width
-    
-    pdf.addImage(finalImgData, 'PNG', 15, 20, imgWidth, finalImgHeight)
+     // Calculate page breaks like the working generatePDF.js
+     let heightLeft = completeImgHeight
+     let position = 20 // 20mm top margin
+     let pageNumber = 1
+     
+     // Add first page
+     pdf.addImage(completeImgData, 'PNG', 15, position, imgWidth, completeImgHeight)
+     // Add page number to first page
+     pdf.setFontSize(14)
+     pdf.setTextColor(0, 0, 0)
+     pdf.text(`Page ${pageNumber}`, pdfWidth - 25, 15)
+     heightLeft -= (pdfHeight - 40) // Account for top and bottom margins
+     
+     // Add additional pages if content is longer than one page
+     while (heightLeft >= 0) {
+       position = heightLeft - completeImgHeight + 20
+       pdf.addPage()
+       pageNumber++
+       pdf.addImage(completeImgData, 'PNG', 15, position, imgWidth, completeImgHeight)
+       // Add page number to each page
+       pdf.setFontSize(14)
+       pdf.setTextColor(0, 0, 0)
+       pdf.text(`Page ${pageNumber}`, pdfWidth - 25, 15)
+       heightLeft -= (pdfHeight - 40)
+     }
     
     // Download the PDF
     const filename = `firefly-order-${build._id}.pdf`
