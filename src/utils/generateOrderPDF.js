@@ -113,7 +113,7 @@ export const generateOrderPDF = async (orderData) => {
         </div>
       </div>
 
-      <div style="margin-top: 40px;">
+      <div style="margin-top: 40px; page-break-inside: avoid;">
         <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #000000; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
           Buyer & Delivery Information
         </div>
@@ -130,7 +130,7 @@ export const generateOrderPDF = async (orderData) => {
           Legal Notices & Disclosures
         </div>
         <div style="font-size: 12px; color: #000000; line-height: 1.6;">
-          <p style="margin-bottom: 12px; font-style: italic; font-weight: bold;">This document is a summary of estimated pricing and options. It is not a binding contract. Final terms will be set forth in the signed Purchase Agreement and related addendums.</p>
+          <p style="margin-bottom: 8px;"><strong>•</strong> This document is a summary of estimated pricing and options. It is not a binding contract. Final terms will be set forth in the signed Purchase Agreement and related addendums.</p>
           <p style="margin-bottom: 8px;"><strong>•</strong> Deposits are non-refundable. Final payment must be made in full before the home may leave the factory.</p>
           <p style="margin-bottom: 8px;"><strong>•</strong> Delivery must occur within twelve (12) days of factory completion or storage charges of $50 per day will apply.</p>
           <p style="margin-bottom: 8px;"><strong>•</strong> Freight charges are estimated and may be adjusted due to fuel surcharges, DOT re-routing, escort requirements, or delivery site conditions.</p>
@@ -142,7 +142,7 @@ export const generateOrderPDF = async (orderData) => {
       </div>
 
       <div style="margin-top: 40px; text-align: center; font-size: 12px; color: #000000; border-top: 1px solid #ddd; padding-top: 20px;">
-        <p style="margin: 0;">This is a detailed summary of your Firefly Tiny Home order.</p>
+        <p style="margin: 0;">This is a detailed summary of your Firefly Tiny Home.</p>
         <p style="margin: 5px 0;">Generated on ${new Date().toLocaleString()}</p>
       </div>
     `
