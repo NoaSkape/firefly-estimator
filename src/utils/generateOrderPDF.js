@@ -227,7 +227,7 @@ export const generateOrderPDF = async (orderData) => {
      pdf.setFontSize(14)
      pdf.setTextColor(0, 0, 0)
      pdf.text(`Page ${pageNumber}`, pdfWidth - 25, 15)
-     heightLeft -= (pdfHeight - 80) // Account for proper margins (20mm top + 60mm bottom)
+     heightLeft -= (pdfHeight - 40) // Account for margins (20mm top + 20mm bottom) - same ratio as working code
      
      // Add additional pages if content is longer than one page
      while (heightLeft >= 0) {
@@ -239,7 +239,7 @@ export const generateOrderPDF = async (orderData) => {
        pdf.setFontSize(14)
        pdf.setTextColor(0, 0, 0)
        pdf.text(`Page ${pageNumber}`, pdfWidth - 25, 15)
-       heightLeft -= (pdfHeight - 80) // Same margin calculation for proper spacing
+       heightLeft -= (pdfHeight - 40) // Same margin calculation - consistent with working pattern
      }
     
     // Download the PDF
