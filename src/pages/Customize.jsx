@@ -40,6 +40,7 @@ const Customize = () => {
   const [customizationLoaded, setCustomizationLoaded] = useState(false)
   const [deliveryCost, setDeliveryCost] = useState(null) // null = not calculated, 0 = calculated as 0, number = actual cost
   const [deliveryLoading, setDeliveryLoading] = useState(false)
+  const [settings, setSettings] = useState(null)
   // Get buildId from query parameters (from checkout navigation)
   const urlParams = new URLSearchParams(window.location.search)
   const specificBuildId = urlParams.get('buildId')
@@ -68,6 +69,7 @@ const Customize = () => {
 
   useEffect(() => {
     fetchModel()
+    loadSettings()
   }, [actualModelCode])
 
   // Load customization on component mount (both anonymous and migrated)
@@ -406,6 +408,8 @@ const Customize = () => {
         package: 0,
         subtotal: 0,
         delivery: 0,
+        titleFee: 0,
+        setupFee: 0,
         taxes: 0,
         total: 0
       }
@@ -418,18 +422,22 @@ const Customize = () => {
       return pkg ? Number(pkg.priceDelta || 0) : 0
     })())
     
-    // Calculate subtotal before delivery and taxes
+    // Calculate subtotal before fees and taxes
     const subtotal = roundToCents(base + optionsTotal + pkgDelta)
     
     // Delivery cost (will be calculated based on address for signed-in users)
     const delivery = isSignedIn && deliveryCost !== null ? roundToCents(deliveryCost) : 0
     
-    // Calculate taxes (6.25% for Texas)
-    const taxRate = 0.0625
-    const taxableAmount = roundToCents(subtotal + delivery)
+    // Get fees from settings
+    const titleFee = roundToCents(Number(settings?.pricing?.title_fee_default || 500))
+    const setupFee = roundToCents(Number(settings?.pricing?.setup_fee_default || 3000))
+    
+    // Calculate taxes (from settings or default 6.25% for Texas)
+    const taxRate = Number(settings?.pricing?.tax_rate_percent || 6.25) / 100
+    const taxableAmount = roundToCents(subtotal + delivery + titleFee + setupFee)
     const taxes = roundToCents(taxableAmount * taxRate)
     
-    const total = roundToCents(subtotal + delivery + taxes)
+    const total = roundToCents(subtotal + delivery + titleFee + setupFee + taxes)
     
     return { 
       base, 
@@ -437,10 +445,12 @@ const Customize = () => {
       package: pkgDelta, 
       subtotal,
       delivery, 
+      titleFee,
+      setupFee,
       taxes, 
       total 
     }
-  }, [model, selectedOptions, selectedPackage, isSignedIn, deliveryCost])
+  }, [model, selectedOptions, selectedPackage, isSignedIn, deliveryCost, settings])
 
   // Auto-save customization changes for signed-in users
   useEffect(() => {
@@ -649,6 +659,39 @@ const Customize = () => {
       setError('Failed to load model')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadSettings = async () => {
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/admin/settings', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      if (res.ok) {
+        const settingsData = await res.json()
+        setSettings(settingsData)
+      } else {
+        // Fallback to default settings if API fails
+        console.warn('Settings API failed, using defaults')
+        setSettings({
+          pricing: {
+            title_fee_default: 500,
+            setup_fee_default: 3000,
+            tax_rate_percent: 6.25
+          }
+        })
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error)
+      // Fallback to default settings
+      setSettings({
+        pricing: {
+          title_fee_default: 500,
+          setup_fee_default: 3000,
+          tax_rate_percent: 6.25
+        }
+      })
     }
   }
 
@@ -1037,7 +1080,7 @@ const Customize = () => {
                     ) : deliveryCost === null ? (
                       <span className="text-sm text-gray-500">N/A</span>
                     ) : (
-                      <span className="font-medium">{formatCurrency(deliveryCost)}</span>
+                      <span className="font-medium">{formatCurrency(pricing.delivery)}</span>
                     )
                   ) : (
                     <span className="text-sm text-yellow-500 font-medium text-center ml-4">
@@ -1053,9 +1096,21 @@ const Customize = () => {
                   )}
                 </div>
                 
+                {/* Title & Registration Fee */}
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Title & Registration</span>
+                  <span className="font-medium">{formatCurrency(pricing.titleFee)}</span>
+                </div>
+                
+                {/* Setup & Installation Fee */}
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Setup & Installation</span>
+                  <span className="font-medium">{formatCurrency(pricing.setupFee)}</span>
+                </div>
+                
                 {/* Taxes */}
                 <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Taxes (6.25%)</span>
+                  <span className="text-gray-600 dark:text-gray-400">Taxes ({(Number(settings?.pricing?.tax_rate_percent || 6.25)).toFixed(2)}%)</span>
                   <span className="font-medium">{formatCurrency(pricing.taxes)}</span>
                 </div>
                 
