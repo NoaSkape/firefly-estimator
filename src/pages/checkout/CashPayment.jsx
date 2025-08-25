@@ -9,7 +9,7 @@ import { navigateToStep, updateBuildStep } from '../../utils/checkoutNavigation'
 import { loadStripe } from '@stripe/stripe-js'
 
 // Initialize Stripe
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder')
 
 export default function CashPayment() {
   const navigate = useNavigate()
@@ -100,9 +100,27 @@ export default function CashPayment() {
             percent: settingsData.payments.depositPercent
           }))
         }
+      } else {
+        // Fallback to default settings if API fails
+        console.warn('Settings API failed, using defaults')
+        setSettings({
+          payments: {
+            depositPercent: 25,
+            storageFeePerDayCents: 4000,
+            enableCardOption: false
+          }
+        })
       }
     } catch (error) {
       console.error('Failed to load settings:', error)
+      // Fallback to default settings
+      setSettings({
+        payments: {
+          depositPercent: 25,
+          storageFeePerDayCents: 4000,
+          enableCardOption: false
+        }
+      })
     }
   }
 
@@ -110,11 +128,12 @@ export default function CashPayment() {
   useEffect(() => {
     if (build?.total && settings?.payments) {
       const totalCents = Math.round(build.total * 100)
-      const depositCents = Math.round(totalCents * (settings.payments.depositPercent / 100))
+      const depositPercent = settings.payments.depositPercent || 25
+      const depositCents = Math.round(totalCents * (depositPercent / 100))
       
       setPaymentPlan(prev => ({
         ...prev,
-        percent: settings.payments.depositPercent,
+        percent: depositPercent,
         amountCents: prev.type === 'deposit' ? depositCents : totalCents
       }))
     }
@@ -304,14 +323,15 @@ export default function CashPayment() {
   }
 
   const formatCurrency = (cents) => {
+    if (!cents || isNaN(cents)) return '$0.00'
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
     }).format(cents / 100)
   }
 
-  const totalCents = Math.round(build?.total * 100) || 0
-  const depositCents = Math.round(totalCents * (paymentPlan.percent / 100))
+  const totalCents = Math.round((build?.total || 0) * 100)
+  const depositCents = Math.round(totalCents * ((paymentPlan.percent || 25) / 100))
   const currentAmountCents = paymentPlan.type === 'deposit' ? depositCents : totalCents
 
   return (
@@ -328,7 +348,7 @@ export default function CashPayment() {
         <h1 className="section-header">Cash / ACH Payment Information</h1>
         
         {/* Test Mode Banner */}
-        {process.env.NEXT_PUBLIC_STRIPE_MODE === 'test' && (
+        {(process.env.NEXT_PUBLIC_STRIPE_MODE === 'test' || !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) && (
           <div className="mb-6 p-4 bg-yellow-900/30 border border-yellow-600 rounded-lg">
             <div className="text-sm text-white">
               <strong>🧪 Test Mode:</strong> This is a test environment. No real payments will be processed.
@@ -530,10 +550,10 @@ export default function CashPayment() {
             <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
               <h2 className="text-white font-semibold text-lg mb-4">Payment Summary</h2>
               <div className="space-y-3 text-white">
-                <div className="flex justify-between">
-                  <span>Model:</span>
-                  <span>{build?.model?.name || 'Custom Build'}</span>
-                </div>
+                                 <div className="flex justify-between">
+                   <span>Model:</span>
+                   <span>{build?.model?.name || build?.modelCode || 'Custom Build'}</span>
+                 </div>
                 <div className="flex justify-between">
                   <span>Total:</span>
                   <span>{formatCurrency(totalCents)}</span>
