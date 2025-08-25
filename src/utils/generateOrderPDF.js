@@ -26,8 +26,8 @@ export const generateOrderPDF = async (orderData) => {
        element.style.position = 'absolute'
        element.style.left = '-9999px'
        element.style.width = '800px'
-       element.style.padding = isPage2 ? '20px 60px 60px 60px' : '60px'
-       element.style.backgroundColor = 'white'
+       element.style.padding = '60px'
+       element.style.backgroundColor = 'transparent'
        element.style.fontFamily = 'Arial, sans-serif'
        element.style.fontSize = '12px'
        element.style.lineHeight = '1.4'
@@ -186,7 +186,7 @@ export const generateOrderPDF = async (orderData) => {
     `
     
          // Render page 1
-     const canvas1 = await createAndRenderElement(page1HTML, false)
+     const canvas1 = await createAndRenderElement(page1HTML)
      const imgData1 = canvas1.toDataURL('image/png')
      const imgWidth = pdfWidth - 30
      const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width
@@ -195,7 +195,7 @@ export const generateOrderPDF = async (orderData) => {
      
      // Add page 2
      pdf.addPage()
-     const canvas2 = await createAndRenderElement(page2HTML, true)
+     const canvas2 = await createAndRenderElement(page2HTML)
      const imgData2 = canvas2.toDataURL('image/png')
      const imgHeight2 = (canvas2.height * imgWidth) / canvas2.width
      
