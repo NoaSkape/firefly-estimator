@@ -1893,7 +1893,7 @@ app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
         <div class="section">
           <div class="section-title">Fees & Services</div>
           <div class="price-row">
-            <span>Delivery${build.pricing?.deliveryMiles ? ` (${Math.round(build.pricing.deliveryMiles)} miles)` : ''}</span>
+            <span>Delivery${build.pricing?.deliveryMiles ? ` (Approx. ${Math.round(build.pricing.deliveryMiles)} miles to factory)` : ''}</span>
             <span>$${formatCurrency(deliveryFee)}</span>
           </div>
           <div class="price-row">

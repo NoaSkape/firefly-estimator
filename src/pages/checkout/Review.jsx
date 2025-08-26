@@ -407,7 +407,7 @@ export default function Review() {
                 <p>{deliveryAddress}</p>
                 {build?.pricing?.deliveryMiles && (
                   <p className="text-sm text-gray-400 mt-2">
-                    Distance: {formatMiles(build.pricing.deliveryMiles)} from factory
+                    Distance: Approx. {formatMiles(build.pricing.deliveryMiles)} to the factory
                   </p>
                 )}
               </div>

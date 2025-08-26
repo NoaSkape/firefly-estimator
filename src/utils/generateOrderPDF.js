@@ -94,7 +94,7 @@ export const generateOrderPDF = async (orderData) => {
           Fees & Services
         </div>
         <div class="pdf-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
-          <span style="color: #000000;">Delivery${build.pricing?.deliveryMiles ? ` (${Math.round(build.pricing.deliveryMiles)} miles)` : ''}</span>
+          <span style="color: #000000;">Delivery${build.pricing?.deliveryMiles ? ` (Approx. ${Math.round(build.pricing.deliveryMiles)} miles to factory)` : ''}</span>
           <span style="color: #000000;">${formatCurrency(pricing.deliveryFee)}</span>
         </div>
         <div class="pdf-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 4px 0;">
