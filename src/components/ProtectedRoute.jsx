@@ -26,9 +26,9 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
     console.log('[ProtectedRoute] Clerk still loading, showing loading state')
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center bg-black bg-opacity-60 backdrop-blur-sm rounded-lg p-8">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-500 mx-auto mb-3"></div>
-          <p className="text-gray-400 text-sm">Loading...</p>
+          <p className="text-white text-sm">Loading...</p>
         </div>
       </div>
     )
@@ -45,9 +45,9 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
   if (requireAdmin && (!isSignedIn || !isAdmin)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
-          <p className="text-gray-600 mb-4">
+        <div className="text-center bg-black bg-opacity-60 backdrop-blur-sm rounded-lg p-8">
+          <h1 className="text-2xl font-bold text-yellow-500 mb-4">Access Denied</h1>
+          <p className="text-white mb-4">
             {!isSignedIn 
               ? 'Please sign in to access this page.' 
               : 'You do not have permission to access this page.'
@@ -55,7 +55,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
           </p>
           <button 
             onClick={() => window.history.back()}
-            className="btn-primary px-6 py-2"
+            className="bg-yellow-500 text-gray-900 px-6 py-2 rounded-lg font-semibold hover:bg-yellow-400 transition-colors"
           >
             Go Back
           </button>

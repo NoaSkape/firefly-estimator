@@ -76,14 +76,10 @@ export default function AdminPolicies() {
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-300 rounded mb-6"></div>
-          <div className="space-y-4">
-            <div className="h-20 bg-gray-300 rounded"></div>
-            <div className="h-20 bg-gray-300 rounded"></div>
-            <div className="h-20 bg-gray-300 rounded"></div>
-          </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center bg-black bg-opacity-60 backdrop-blur-sm rounded-lg p-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
+          <p className="text-white">Loading policies...</p>
         </div>
       </div>
     )

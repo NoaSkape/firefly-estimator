@@ -198,9 +198,9 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center bg-black bg-opacity-60 backdrop-blur-sm rounded-lg p-8">
           <div className="w-12 h-12 animate-spin rounded-full border-3 border-gray-300 border-t-yellow-500 mx-auto mb-4" />
-          <div className="text-gray-400 text-lg">Loading admin dashboard...</div>
+          <div className="text-white text-lg">Loading admin dashboard...</div>
         </div>
       </div>
     )
@@ -209,10 +209,10 @@ export default function AdminDashboard() {
   if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center bg-black bg-opacity-60 backdrop-blur-sm rounded-lg p-8">
           <div className="text-red-500 text-6xl mb-4">🚫</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
-          <p className="text-gray-600 mb-6">
+          <h1 className="text-2xl font-bold text-yellow-500 mb-4">Access Denied</h1>
+          <p className="text-white mb-6">
             You do not have permission to access the admin dashboard.
           </p>
           <a
@@ -230,8 +230,8 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-          <p className="text-gray-600">Manage users, view analytics, and perform bulk operations</p>
+          <h1 className="text-3xl font-bold text-yellow-500 mb-2">Admin Dashboard</h1>
+          <p className="text-white">Manage users, view analytics, and perform bulk operations</p>
         </div>
 
         {/* Statistics Cards */}
