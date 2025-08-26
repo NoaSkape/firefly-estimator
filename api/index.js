@@ -744,9 +744,17 @@ app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
     const prefill = buildContractPrefill(build, settings)
 
     // Create DocuSeal submission
+    const buyerInfo = build.buyerInfo || {}
+    const submitters = [{
+      name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
+      email: buyerInfo.email || '',
+      role: 'buyer1'
+    }]
+    
     console.log('[CONTRACT_CREATE] Calling createSubmission with:', {
       templateId,
       prefillKeys: Object.keys(prefill),
+      submitters,
       sendEmail: false,
       completedRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/confirm`,
       cancelRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/agreement`
@@ -755,6 +763,7 @@ app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
     const submission = await createSubmission({
       templateId,
       prefill,
+      submitters,
       sendEmail: false, // Don't send email until user is ready
       completedRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/confirm`,
       cancelRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/agreement`
