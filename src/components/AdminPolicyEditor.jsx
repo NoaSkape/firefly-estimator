@@ -111,7 +111,7 @@ export default function AdminPolicyEditor({ policyId, title, onSave, onCancel })
               id="title"
               value={editedTitle}
               onChange={(e) => setEditedTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               placeholder="Enter policy title"
             />
           </div>
@@ -126,7 +126,7 @@ export default function AdminPolicyEditor({ policyId, title, onSave, onCancel })
               value={editedContent}
               onChange={(e) => setEditedContent(e.target.value)}
               rows={20}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm text-gray-900 bg-white"
               placeholder="Enter policy content (Markdown supported)"
             />
           </div>
