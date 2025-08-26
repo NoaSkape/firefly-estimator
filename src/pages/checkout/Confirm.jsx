@@ -2,7 +2,7 @@ import { useLocation, useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import Breadcrumbs from '../../components/Breadcrumbs'
-
+import { updateBuildStep } from '../../utils/checkoutNavigation'
 import FunnelProgress from '../../components/FunnelProgress'
 export default function Confirm() {
   const { search } = useLocation()
@@ -18,7 +18,19 @@ export default function Confirm() {
       try {
         const token = await getToken()
         const res = await fetch(`/api/builds/${buildId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-        if (res.ok) setBuild(await res.json())
+        if (res.ok) {
+          const buildData = await res.json()
+          setBuild(buildData)
+          
+          // Update build step to 8 (Confirmation) when user successfully reaches confirmation page
+          try {
+            await updateBuildStep(buildId, 8, token)
+            console.log('[CONFIRM] Build step updated to 8 (Confirmation)')
+          } catch (stepError) {
+            console.error('[CONFIRM] Failed to update build step:', stepError)
+            // Don't block the page if step update fails
+          }
+        }
       } catch {}
     })()
   }, [buildId, getToken])
@@ -26,7 +38,13 @@ export default function Confirm() {
   return (
     <div className="max-w-2xl mx-auto">
       <Breadcrumbs items={[{ label: 'My Builds', to: '/builds' }, { label: 'Checkout', to: `/checkout/${buildId}/confirm` }, { label: 'Confirmation' }]} />
-      <FunnelProgress current="Order Confirmation" isSignedIn={true} onNavigate={()=>{}} />
+      <FunnelProgress 
+        current="Confirmation" 
+        isSignedIn={true} 
+        onNavigate={()=>{}} 
+        build={build}
+        buildId={buildId}
+      />
       <div className="card text-center">
         <h2 className="section-header">Order Received</h2>
         <p className="text-gray-600 dark:text-gray-300">Thank you! Your order has been submitted.</p>

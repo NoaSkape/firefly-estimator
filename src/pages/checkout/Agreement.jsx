@@ -85,7 +85,7 @@ export default function Agreement() {
         const buildData = await buildRes.json()
         setBuild(buildData)
         
-        // Update build step to 7 (Contract) to ensure proper navigation flow
+        // Update build step to 7 (Contract) when user successfully reaches the contract page
         try {
           await updateBuildStep(buildId, 7, token)
           console.log('[AGREEMENT_DEBUG] Build step updated to 7 (Contract)')
@@ -252,7 +252,16 @@ export default function Agreement() {
     }
   }
 
-  function handleContinueToConfirmation() {
+  async function handleContinueToConfirmation() {
+    try {
+      // Update build step to 8 (Confirmation) when user completes contract and continues
+      const token = await getToken()
+      await updateBuildStep(buildId, 8, token)
+      console.log('[AGREEMENT_DEBUG] Build step updated to 8 (Confirmation)')
+    } catch (stepError) {
+      console.error('[AGREEMENT_DEBUG] Failed to update build step to 8:', stepError)
+      // Continue navigation even if step update fails
+    }
     navigate(`/checkout/${buildId}/confirm`)
   }
 

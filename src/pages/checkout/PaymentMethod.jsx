@@ -123,14 +123,7 @@ export default function PaymentMethod() {
         // Navigate to cash payment form
         navigate(`/checkout/${buildId}/cash-payment`)
       } else {
-        // For financing, update step to 7 and navigate to contract
-        try {
-          await updateBuildStep(buildId, 7, token)
-          console.log('[PAYMENT_METHOD] Build step updated to 7 (Contract) for financing')
-        } catch (stepError) {
-          console.error('[PAYMENT_METHOD] Failed to update build step:', stepError)
-          // Continue navigation even if step update fails
-        }
+        // For financing, navigate to contract - let the contract page handle step update
         analytics.stepChanged(buildId, 6, 7)
         navigate(`/checkout/${buildId}/agreement`)
       }

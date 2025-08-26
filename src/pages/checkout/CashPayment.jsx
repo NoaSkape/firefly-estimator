@@ -103,14 +103,7 @@ export default function CashPayment() {
             setCurrentStep('details')
           }
           
-          // Update build step to 7 (Contract) when user reaches cash payment page
-          try {
-            await updateBuildStep(buildId, 7, token)
-            console.log('[CASH_PAYMENT] Build step updated to 7 (Contract) on page load')
-          } catch (stepError) {
-            console.error('[CASH_PAYMENT] Failed to update build step:', stepError)
-            // Don't block the page if step update fails
-          }
+
         } else {
           // No order found, try build data
           await loadBuildData()
@@ -155,14 +148,7 @@ export default function CashPayment() {
           setCurrentStep('details')
         }
         
-        // Update build step to 7 (Contract) when user reaches cash payment page
-        try {
-          await updateBuildStep(buildId, 7, token)
-          console.log('[CASH_PAYMENT] Build step updated to 7 (Contract) on page load')
-        } catch (stepError) {
-          console.error('[CASH_PAYMENT] Failed to update build step:', stepError)
-          // Don't block the page if step update fails
-        }
+
       }
     } catch (error) {
       addToast({ 
@@ -417,6 +403,7 @@ export default function CashPayment() {
   async function continueToContract() {
     const ready = await markPaymentReady()
     if (ready) {
+      // Update build step to 7 (Contract) when user completes payment and continues
       await updateBuildStep(buildId, 7, await getToken())
       analytics.stepChanged(buildId, 6, 7)
       navigate(`/checkout/${buildId}/agreement`)
@@ -426,7 +413,7 @@ export default function CashPayment() {
   async function saveAndContinueLater() {
     const ready = await markPaymentReady()
     if (ready) {
-      // Update build step to 7 (Contract) so Resume button takes them to contract page
+      // Update build step to 7 (Contract) when user saves and continues later
       await updateBuildStep(buildId, 7, await getToken())
       analytics.stepChanged(buildId, 6, 7)
       navigate('/builds')
