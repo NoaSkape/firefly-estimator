@@ -64,12 +64,19 @@ export default function Agreement() {
 
   async function loadBuildData() {
     try {
+      console.log('[AGREEMENT_DEBUG] loadBuildData called with buildId:', buildId)
       setLoading(true)
       const token = await getToken()
       
       // Load build data
       const buildRes = await fetch(`/api/builds/${buildId}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      
+      console.log('[AGREEMENT_DEBUG] Build response:', {
+        status: buildRes.status,
+        ok: buildRes.ok,
+        buildId: buildId
       })
       
       if (buildRes.ok) {
@@ -91,9 +98,17 @@ export default function Agreement() {
 
   async function loadOrCreateContract(token) {
     try {
+      console.log('[AGREEMENT_DEBUG] loadOrCreateContract called with buildId:', buildId)
+      
       // Try to get existing contract status
       const statusRes = await fetch(`/api/contracts/status?buildId=${buildId}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      
+      console.log('[AGREEMENT_DEBUG] Status response:', {
+        status: statusRes.status,
+        ok: statusRes.ok,
+        buildId: buildId
       })
       
       if (statusRes.ok) {
@@ -122,7 +137,11 @@ export default function Agreement() {
 
   async function createContract(token) {
     try {
+      console.log('[AGREEMENT_DEBUG] createContract called with buildId:', buildId)
       setPreparingDocs(true)
+      
+      const requestBody = { buildId }
+      console.log('[AGREEMENT_DEBUG] Creating contract with body:', requestBody)
       
       const res = await fetch('/api/contracts/create', {
         method: 'POST',
@@ -130,7 +149,13 @@ export default function Agreement() {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ buildId })
+        body: JSON.stringify(requestBody)
+      })
+      
+      console.log('[AGREEMENT_DEBUG] Create response:', {
+        status: res.status,
+        ok: res.ok,
+        buildId: buildId
       })
       
       if (res.ok) {
