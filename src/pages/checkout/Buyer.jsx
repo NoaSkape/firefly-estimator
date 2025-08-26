@@ -63,57 +63,54 @@ export default function Buyer() {
           const autoFillData = await getAutoFillData()
           console.log('Loaded auto-fill data from profile:', JSON.stringify(autoFillData, null, 2))
           
-          // Check if we have address data from build's buyerInfo as fallback
-          let addressFromBuild = null
-          if (build?.buyerInfo) {
+          // Always prioritize user profile data - this ensures addresses persist across builds
+          const formattedPhone = formatPhoneIfNeeded(autoFillData.phone || '')
+          console.log('Formatted phone number:', { original: autoFillData.phone, formatted: formattedPhone })
+          
+          setForm(f => ({
+            ...f,
+            firstName: autoFillData.firstName || user?.firstName || '',
+            lastName: autoFillData.lastName || user?.lastName || '',
+            email: autoFillData.email || user?.primaryEmailAddress?.emailAddress || '',
+            phone: formattedPhone,
+            address: autoFillData.address || '', // User profile is primary source for address
+            city: autoFillData.city || '',
+            state: autoFillData.state || '',
+            zip: autoFillData.zip || ''
+          }))
+          
+          console.log('Form updated with user profile data:', {
+            firstName: autoFillData.firstName,
+            lastName: autoFillData.lastName,
+            email: autoFillData.email,
+            phone: formattedPhone,
+            address: autoFillData.address,
+            city: autoFillData.city,
+            state: autoFillData.state,
+            zip: autoFillData.zip
+          })
+          
+          // Only use build data as fallback if user profile is completely empty
+          if (!autoFillData.address && build?.buyerInfo) {
             const buyerInfo = build.buyerInfo
             if (buyerInfo.address && buyerInfo.city && buyerInfo.state && buyerInfo.zip) {
-              addressFromBuild = {
+              console.log('No address in user profile, using build buyerInfo as fallback:', {
                 address: buyerInfo.address,
                 city: buyerInfo.city,
                 state: buyerInfo.state,
                 zip: buyerInfo.zip
-              }
-              console.log('Found address in build buyerInfo:', addressFromBuild)
+              })
+              
+              setForm(f => ({
+                ...f,
+                address: buyerInfo.address,
+                city: buyerInfo.city,
+                state: buyerInfo.state,
+                zip: buyerInfo.zip
+              }))
             }
           }
           
-          if (autoFillData && Object.keys(autoFillData).length > 0) {
-            const formattedPhone = formatPhoneIfNeeded(autoFillData.phone || '')
-            console.log('Formatted phone number:', { original: autoFillData.phone, formatted: formattedPhone })
-            
-            setForm(f => ({
-              ...f,
-              firstName: autoFillData.firstName || user?.firstName || '',
-              lastName: autoFillData.lastName || user?.lastName || '',
-              email: autoFillData.email || user?.primaryEmailAddress?.emailAddress || '',
-              phone: formattedPhone,
-              address: autoFillData.address || addressFromBuild?.address || '',
-              city: autoFillData.city || addressFromBuild?.city || '',
-              state: autoFillData.state || addressFromBuild?.state || '',
-              zip: autoFillData.zip || addressFromBuild?.zip || ''
-            }))
-            console.log('Form updated with auto-fill data including address:', {
-              address: autoFillData.address || addressFromBuild?.address,
-              city: autoFillData.city || addressFromBuild?.city,
-              state: autoFillData.state || addressFromBuild?.state,
-              zip: autoFillData.zip || addressFromBuild?.zip
-            })
-          } else {
-            console.log('No auto-fill data found, using build buyerInfo...')
-            
-            // Use build buyerInfo as primary source when no profile data
-            setForm(f => ({
-              ...f,
-              firstName: f.firstName || user?.firstName || '',
-              lastName: f.lastName || user?.lastName || '',
-              email: f.email || user?.primaryEmailAddress?.emailAddress || '',
-              address: addressFromBuild?.address || '',
-              city: addressFromBuild?.city || '',
-              state: addressFromBuild?.state || '',
-              zip: addressFromBuild?.zip || ''
-            }))
-          }
           setAutoFillLoaded(true)
         } else if (user && !autoFillLoaded) {
           // Priority 2: Fallback to Clerk user data
