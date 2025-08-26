@@ -245,20 +245,6 @@ export default function Buyer() {
                   isPrimary: true // Set as primary address
                 })
                 console.log('Address saved:', addressResult)
-                
-                // If the address was added successfully and has an ID, set it as primary
-                if (addressResult && addressResult.addresses) {
-                  const newAddress = addressResult.addresses.find(addr => 
-                    addr.address === form.address && 
-                    addr.city === form.city && 
-                    addr.state === form.state && 
-                    addr.zip === form.zip
-                  )
-                  if (newAddress && newAddress.id) {
-                    await setPrimaryAddress(newAddress.id)
-                    console.log('Address set as primary:', newAddress.id)
-                  }
-                }
               }
             } catch (profileError) {
               console.error('Error saving to profile:', profileError)
