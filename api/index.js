@@ -118,52 +118,7 @@ function buildPrefillFromOrder(o, settings) {
   }
 }
 
-async function startContractFlow(orderId, req) {
-  await ensureOrderIndexes()
-  const order = await getOrderById(orderId)
-  if (!order) throw new Error('order_not_found')
-  const settings = await getOrgSettings()
-  // Ensure snapshot
-  if (!order.pricingSnapshot) {
-    const snap = {
-      delivery_rate_per_mile: Number(settings?.pricing?.delivery_rate_per_mile || 0),
-      delivery_minimum: Number(settings?.pricing?.delivery_minimum || 0),
-      title_fee: Number(settings?.pricing?.title_fee_default || 0),
-      setup_fee: Number(settings?.pricing?.setup_fee_default || 0),
-      tax_rate_percent: Number(settings?.pricing?.tax_rate_percent || 0),
-      deposit_percent: Number(settings?.pricing?.deposit_percent || 0),
-    }
-    await setOrderPricingSnapshot(orderId, snap)
-  }
-  const fresh = await getOrderById(orderId)
-  if (!fresh?.delivery?.miles || !fresh?.delivery?.fee) {
-    const addr = fresh?.delivery?.address
-    if (addr) {
-      const dq = await getDeliveryQuote(addr, settings)
-      await setOrderDelivery(orderId, { address: dq.destinationAddress, miles: dq.miles, fee: dq.fee })
-    }
-  }
-  const o = await getOrderById(orderId)
-  const templateId = Number(process.env.DOCUSEAL_PURCHASE_TEMPLATE_ID || o?.contract?.templateId || 0)
-  if (!templateId) throw new Error('missing_template')
-  const prefill = buildPrefillFromOrder(o, settings)
-  const redirectBase = getOrigin(req)
-  const redirectCompleted = `${redirectBase}/checkout/${encodeURIComponent(String(o._id))}/confirm`
-  const redirectCancel = `${redirectBase}/checkout/${encodeURIComponent(String(o._id))}/review`
-  const { submissionId, signerUrl, raw } = await createSubmission({ templateId, prefill, sendEmail: false, order: 'preserved', completedRedirectUrl: redirectCompleted, cancelRedirectUrl: redirectCancel })
-  const buyerUrl = signerUrl
-  await updateOrder(orderId, {
-    contract: {
-      templateId,
-      submissionId,
-      status: 'OUT_FOR_SIGNATURE',
-      signerLinks: { buyer1: buyerUrl },
-      versions: Array.isArray(o?.contract?.versions) ? o.contract.versions : [{ type: 'base', total: prefill.total_purchase_price, signedAt: null }],
-      events: [{ type: 'sent', at: new Date().toISOString() }],
-    }
-  })
-  return { submissionId, signerUrl: buyerUrl, order: o, raw }
-}
+// startContractFlow function removed - was only used by old order-based contract system
 
 async function createCheckoutSession(req, res) {
   try {
@@ -478,96 +433,8 @@ app.post(['/api/esign/webhook', '/esign/webhook'], async (req, res) => {
   }
 })
 
-// ===== Contracts (DocuSeal) =====
-app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
-  if (!auth?.userId) return
-  try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { orderId } = body
-    if (!orderId) return res.status(400).json({ error: 'missing_orderId' })
-
-    await ensureOrderIndexes()
-    const order = await getOrderById(orderId)
-    if (!order) return res.status(404).json({ error: 'order_not_found' })
-    const isOwner = order.userId && auth.userId === order.userId
-    if (!isOwner) {
-      const admin = await requireAuth(req, res, true)
-      if (!admin?.userId) return
-    }
-
-    // Reuse existing submission if not completed
-    if (order?.contract?.submissionId && order?.contract?.status !== 'COMPLETED') {
-      return res.status(200).json({ signerUrl: order?.contract?.signerLinks?.buyer1, submissionId: order.contract.submissionId })
-    }
-
-    const { signerUrl, submissionId, raw } = await startContractFlow(orderId, req)
-    return res.status(200).json({ signerUrl, submissionId, raw })
-  } catch (err) {
-    console.error('contracts/create error', err)
-    return res.status(500).json({ error: 'contracts_create_failed', message: String(err?.message || err) })
-  }
-})
-
-app.get(['/api/contracts/status', '/contracts/status'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
-  if (!auth?.userId) return
-  const orderId = String(req.query?.orderId || '')
-  if (!orderId) return res.status(400).json({ error: 'missing_orderId' })
-  const o = await getOrderById(orderId)
-  if (!o) return res.status(404).json({ error: 'not_found' })
-  if (o.userId !== auth.userId) {
-    const admin = await requireAuth(req, res, true)
-    if (!admin?.userId) return
-  }
-  const { status, signedPdfUrl, auditTrailUrl } = o.contract || {}
-  return res.status(200).json({ status, signedPdfUrl, auditTrailUrl })
-})
-
-app.get(['/api/contracts/download-signed', '/contracts/download-signed'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
-  if (!auth?.userId) return
-  const orderId = String(req.query?.orderId || '')
-  if (!orderId) return res.status(400).json({ error: 'missing_orderId' })
-  const o = await getOrderById(orderId)
-  if (!o) return res.status(404).json({ error: 'not_found' })
-  if (o.userId !== auth.userId) {
-    const admin = await requireAuth(req, res, true)
-    if (!admin?.userId) return
-  }
-  const pubId = o?.contract?.signedPdfPublicId
-  if (!pubId) return res.status(404).json({ error: 'no_signed_pdf' })
-  const url = signedCloudinaryUrl(pubId)
-  return res.status(200).json({ url })
-})
-
-app.post(['/api/contracts/change-order', '/contracts/change-order'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
-  if (!auth?.userId) return
-  // Minimal stub – compute delta using pricingSnapshot and create a new submission
-  try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { orderId, deltaTotal = 0 } = body
-    if (!orderId) return res.status(400).json({ error: 'missing_orderId' })
-    const o = await getOrderById(orderId)
-    if (!o) return res.status(404).json({ error: 'not_found' })
-    if (o.userId !== auth.userId) {
-      const admin = await requireAuth(req, res, true)
-      if (!admin?.userId) return
-    }
-    const settings = await getOrgSettings()
-    const templateId = Number(process.env.DOCUSEAL_ADDENDUM_TEMPLATE_ID || 0)
-    if (!templateId) return res.status(500).json({ error: 'missing_template' })
-    const prefill = { order_number: o.orderId || String(o._id), addendum_delta: roundToCents(deltaTotal) }
-    const { submissionId, signerUrl } = await createSubmission({ templateId, prefill, sendEmail: false, order: 'preserved', completedRedirectUrl: `${getOrigin(req)}/portal`, cancelRedirectUrl: `${getOrigin(req)}/portal` })
-    const code = `CO-${String((o?.contract?.versions||[]).filter(v=>v.type==='addendum').length+1).padStart(3,'0')}`
-    await updateOrder(orderId, { contract: { ...(o.contract||{}), status: 'OUT_FOR_SIGNATURE', submissionId, signerLinks: { buyer1: signerUrl }, versions: [ ...(o.contract?.versions||[]), { type: 'addendum', code, delta: roundToCents(deltaTotal), signedAt: null } ] } })
-    return res.status(200).json({ signerUrl, submissionId, code })
-  } catch (err) {
-    console.error('change-order error', err)
-    return res.status(500).json({ error: 'change_order_failed', message: String(err?.message || err) })
-  }
-})
+// ===== OLD CONTRACT ENDPOINTS (REMOVED - CONFLICTING WITH NEW BUILD-BASED ENDPOINTS) =====
+// These endpoints used orderId and orders collection - now replaced with buildId and builds collection
 
 app.post(['/api/webhooks/docuseal', '/webhooks/docuseal'], async (req, res) => {
   try {
