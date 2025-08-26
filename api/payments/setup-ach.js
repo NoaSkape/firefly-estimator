@@ -94,8 +94,7 @@ export default async function handler(req, res) {
       payment_method_options: {
         us_bank_account: {
           financial_connections: {
-            permissions: ['payment_method', 'balances'], // Request balance access
-            account_subcategories: ['checking', 'savings']
+            permissions: ['payment_method', 'balances'] // Request balance access
           },
           verification_method: 'automatic' // Use Financial Connections for verification
         }
