@@ -353,24 +353,12 @@ export default function Buyer() {
           <input className={`input-field md:col-span-2 ${errors.email?'border-red-600':''}`} placeholder="Email" value={form.email} onChange={e=>setField('email', e.target.value)} />
           <input className="input-field md:col-span-2" placeholder="Phone" value={form.phone} onChange={e=>setField('phone', e.target.value)} />
           <div className="md:col-span-2 space-y-2">
-            <div className="flex gap-2">
-              <input 
-                className={`input-field flex-1 ${errors.address?'border-red-600':''}`} 
-                placeholder="Address" 
-                value={form.address} 
-                onChange={e=>setField('address', e.target.value)} 
-              />
-              {isSignedIn && (
-                <button
-                  type="button"
-                  onClick={() => setShowAddressModal(true)}
-                  className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-gray-300 hover:bg-gray-700 text-sm whitespace-nowrap"
-                  title="Select from saved addresses"
-                >
-                  📍 Saved
-                </button>
-              )}
-            </div>
+            <input 
+              className={`input-field ${errors.address?'border-red-600':''}`} 
+              placeholder="Address" 
+              value={form.address} 
+              onChange={e=>setField('address', e.target.value)} 
+            />
           </div>
           <input className="input-field" placeholder="City" value={form.city} onChange={e=>setField('city', e.target.value)} />
           <input className="input-field" placeholder="State" value={form.state} onChange={e=>setField('state', e.target.value)} />
