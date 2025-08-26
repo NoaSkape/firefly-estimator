@@ -744,6 +744,14 @@ app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
     const prefill = buildContractPrefill(build, settings)
 
     // Create DocuSeal submission
+    console.log('[CONTRACT_CREATE] Calling createSubmission with:', {
+      templateId,
+      prefillKeys: Object.keys(prefill),
+      sendEmail: false,
+      completedRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/confirm`,
+      cancelRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/agreement`
+    })
+    
     const submission = await createSubmission({
       templateId,
       prefill,
@@ -1020,10 +1028,23 @@ function mapDocuSealStatus(docusealStatus) {
 
 // Helper function to build prefill data for DocuSeal
 function buildContractPrefill(build, settings) {
+  console.log('[CONTRACT_CREATE] Building prefill data for build:', build._id)
+  
   const pricing = build.pricing || {}
   const buyerInfo = build.buyerInfo || {}
   const delivery = build.delivery || {}
   const payment = build.payment || {}
+  
+  console.log('[CONTRACT_CREATE] Build data sections:', {
+    hasPricing: !!pricing,
+    hasBuyerInfo: !!buyerInfo,
+    hasDelivery: !!delivery,
+    hasPayment: !!payment,
+    pricingKeys: Object.keys(pricing),
+    buyerInfoKeys: Object.keys(buyerInfo),
+    deliveryKeys: Object.keys(delivery),
+    paymentKeys: Object.keys(payment)
+  })
   
   // Calculate key amounts
   const totalPurchasePrice = pricing.total || 0
@@ -1031,7 +1052,7 @@ function buildContractPrefill(build, settings) {
   const depositAmount = Math.round(totalPurchasePrice * depositPercent / 100)
   const balanceAmount = totalPurchasePrice - depositAmount
 
-  return {
+  const prefill = {
     // Order Information
     order_id: build._id || '',
     order_date: new Date().toLocaleDateString(),
@@ -1087,6 +1108,18 @@ function buildContractPrefill(build, settings) {
     completion_estimate: "8-12 weeks from contract signing",
     storage_policy: "Delivery within 12 days after factory completion; storage charges may apply"
   }
+
+  console.log('[CONTRACT_CREATE] Generated prefill data:', {
+    prefillKeys: Object.keys(prefill),
+    sampleValues: {
+      order_id: prefill.order_id,
+      buyer_name: prefill.buyer_name,
+      total_price: prefill.total_price,
+      payment_method: prefill.payment_method
+    }
+  })
+
+  return prefill
 }
 
 // Helper function to format currency for DocuSeal
