@@ -1430,6 +1430,292 @@ app.get(['/api/admin/export/:type', '/admin/export/:type'], async (req, res) => 
   }
 })
 
+// ===== POLICY MANAGEMENT =====
+
+// Get all policies
+app.get(['/api/admin/policies', '/admin/policies'], async (req, res) => {
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
+  
+  try {
+    const db = await getDb()
+    const policies = await db.collection('policies').find({}).toArray()
+    
+    // Return default policies if none exist
+    if (policies.length === 0) {
+      const defaultPolicies = [
+        {
+          id: 'privacy-policy',
+          title: 'Privacy Policy',
+          content: getDefaultPrivacyPolicy(),
+          lastUpdated: new Date(),
+          updatedBy: auth.userId
+        },
+        {
+          id: 'terms-conditions',
+          title: 'Terms & Conditions',
+          content: getDefaultTermsConditions(),
+          lastUpdated: new Date(),
+          updatedBy: auth.userId
+        },
+        {
+          id: 'other-policies',
+          title: 'Other Policies',
+          content: getDefaultOtherPolicies(),
+          lastUpdated: new Date(),
+          updatedBy: auth.userId
+        }
+      ]
+      
+      // Insert default policies
+      await db.collection('policies').insertMany(defaultPolicies)
+      return res.status(200).json(defaultPolicies)
+    }
+    
+    return res.status(200).json(policies)
+  } catch (error) {
+    console.error('Get policies error:', error)
+    return res.status(500).json({ 
+      error: 'policies_failed', 
+      message: error.message || 'Failed to load policies'
+    })
+  }
+})
+
+// Get single policy
+app.get(['/api/policies/:id', '/policies/:id'], async (req, res) => {
+  try {
+    const { id } = req.params
+    const db = await getDb()
+    const policy = await db.collection('policies').findOne({ id })
+    
+    if (!policy) {
+      // Return default policy content if not found
+      let defaultContent = ''
+      switch (id) {
+        case 'privacy-policy':
+          defaultContent = getDefaultPrivacyPolicy()
+          break
+        case 'terms-conditions':
+          defaultContent = getDefaultTermsConditions()
+          break
+        case 'other-policies':
+          defaultContent = getDefaultOtherPolicies()
+          break
+        default:
+          return res.status(404).json({ error: 'Policy not found' })
+      }
+      
+      const defaultPolicy = {
+        id,
+        title: id.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        content: defaultContent,
+        lastUpdated: new Date(),
+        updatedBy: 'system'
+      }
+      
+      return res.status(200).json(defaultPolicy)
+    }
+    
+    return res.status(200).json(policy)
+  } catch (error) {
+    console.error('Get policy error:', error)
+    return res.status(500).json({ 
+      error: 'policy_failed', 
+      message: error.message || 'Failed to load policy'
+    })
+  }
+})
+
+// Update policy
+app.put(['/api/admin/policies/:id', '/admin/policies/:id'], async (req, res) => {
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
+  
+  try {
+    const { id } = req.params
+    const { title, content } = req.body
+    
+    if (!title || !content) {
+      return res.status(400).json({ 
+        error: 'missing_fields', 
+        message: 'Title and content are required' 
+      })
+    }
+    
+    const db = await getDb()
+    const updateData = {
+      id,
+      title: String(title).slice(0, 200),
+      content: String(content),
+      lastUpdated: new Date(),
+      updatedBy: auth.userId
+    }
+    
+    const result = await db.collection('policies').updateOne(
+      { id },
+      { $set: updateData },
+      { upsert: true }
+    )
+    
+    return res.status(200).json({
+      success: true,
+      policy: updateData,
+      modified: result.modifiedCount > 0,
+      created: result.upsertedCount > 0
+    })
+  } catch (error) {
+    console.error('Update policy error:', error)
+    return res.status(500).json({ 
+      error: 'policy_update_failed', 
+      message: error.message || 'Failed to update policy'
+    })
+  }
+})
+
+// Default policy content functions
+function getDefaultPrivacyPolicy() {
+  return `Firefly Tiny Homes respects your privacy. This policy explains how we collect, use, and protect your information.
+
+## Information We Collect
+
+- Contact details (name, email, phone, mailing address) when you request a quote or place an order.
+- Payment information processed securely through third-party providers (e.g., Stripe).
+- Website usage data (cookies, analytics) to improve our services.
+
+## How We Use Your Information
+
+- To process orders and provide customer service.
+- To send order confirmations, delivery updates, and warranty reminders.
+- To share updates, promotions, or newsletters if you opt in.
+
+## Sharing of Information
+We only share your information with trusted partners (manufacturers, shipping providers, financing partners) as necessary to complete your transaction. We never sell your data.
+
+## Data Security
+We use industry-standard safeguards to protect your information.
+
+## Your Rights
+You may request access, correction, or deletion of your personal data at any time by contacting us at [insert email].
+
+## Updates
+This Privacy Policy may change from time to time. Updates will be posted here.`
+}
+
+function getDefaultTermsConditions() {
+  return `By using this website, you agree to the following terms:
+
+## Website Purpose
+This site provides information about Firefly Tiny Homes, allows customization of models, and facilitates purchases.
+
+## Intellectual Property
+All photos, logos, text, and design belong to Firefly Tiny Homes and may not be copied without permission.
+
+## Accuracy of Information
+We strive for accuracy but do not guarantee that all pricing, options, or availability are error-free. Final contracts govern.
+
+## User Conduct
+You agree not to misuse the site (e.g., hacking, scraping, reverse-engineering).
+
+## Links to Other Sites
+We are not responsible for content or policies of external sites linked here.
+
+## Limitation of Liability
+Firefly Tiny Homes is not liable for damages from use of this website, including errors, downtime, or reliance on posted content.
+
+## Governing Law
+These terms are governed by the laws of Texas.`
+}
+
+function getDefaultOtherPolicies() {
+  return `Additional policies and terms governing your purchase and delivery experience with Firefly Tiny Homes.
+
+## Purchase Terms & Conditions
+
+- Deposits are non-refundable.
+- Final payment is due before the home leaves the factory.
+- Prices may change if the manufacturer updates pricing.
+- Freight and setup charges are estimates and may vary.
+- Buyer is responsible for site readiness, permits, and insurance coverage once the home is complete.
+- Storage fees of $50/day apply if delivery is delayed more than 12 days after completion.
+- All modifications require a signed change order. No verbal promises are binding.
+- Manufacturer warranties apply; dealer provides no additional warranty.
+- Disputes are resolved by binding arbitration in Texas.
+
+## Refund & Cancellation Policy
+
+**Order Cancellations:**
+- Orders may be canceled within 24 hours of placement for a full refund
+- After 24 hours, a 25% cancellation fee applies
+- Orders cannot be canceled once production has begun (typically 7-14 business days)
+
+**Deposit Refunds:**
+- Deposits are generally non-refundable once paid
+- Exceptions may be made for extraordinary circumstances at our discretion
+- Processing fees are non-refundable in all cases
+
+**Change Orders:**
+- Changes to specifications must be approved in writing
+- Additional charges may apply for changes made after production begins
+- Some changes may not be possible once manufacturing has commenced
+
+## Delivery & Installation Policy
+
+**Delivery Scheduling:**
+- Delivery dates are estimates and may vary due to weather, manufacturing delays, or other factors
+- Customer will receive 48-72 hours advance notice of delivery
+- Delivery window is typically 8AM-5PM on scheduled day
+- Customer or representative must be present for delivery
+
+**Site Requirements:**
+- Level, stable surface capable of supporting the home's weight
+- Clear access path for delivery truck (minimum 12 feet wide, 14 feet high)
+- All necessary permits obtained prior to delivery
+- Utilities stubbed to delivery location (if applicable)
+
+**Installation Services:**
+- Professional setup available for additional fee
+- Customer responsible for local permits and inspections
+- Warranty begins upon delivery, not installation completion
+
+## Consumer Rights & Disputes
+
+**Right to Inspection:**
+- Customer has 48 hours from delivery to report any damage or defects
+- Inspection must be documented with photos and written notice
+- Concealed defects covered under manufacturer warranty
+
+**Dispute Resolution:**
+- Good faith attempt to resolve disputes directly with company
+- Binding arbitration required for unresolved disputes
+- Arbitration conducted under Texas Arbitration Act
+- Customer responsible for arbitration fees if claim deemed frivolous
+
+**Limitation of Liability:**
+- Company liability limited to original purchase price
+- No liability for consequential or punitive damages
+- Customer assumes all risks of use and operation
+
+## Warranty Information
+
+**Manufacturer Warranty:**
+- Structural: 10 years from delivery date
+- Electrical/Plumbing: 1 year from delivery date
+- Appliances: Per manufacturer specifications
+- Cosmetic items: 90 days from delivery date
+
+**Warranty Exclusions:**
+- Normal wear and tear
+- Damage from misuse, neglect, or accidents
+- Modifications not approved by manufacturer
+- Damage from acts of nature or extreme weather
+
+**Warranty Service:**
+- Contact manufacturer directly for warranty claims
+- Dealer facilitates communication but does not perform warranty work
+- Customer responsible for service call fees if no defect found`
+}
+
 // Helper function to convert data to CSV
 function convertToCSV(data) {
   if (data.length === 0) return ''
