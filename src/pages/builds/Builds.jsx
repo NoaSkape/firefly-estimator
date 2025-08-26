@@ -75,7 +75,7 @@ export default function BuildsDashboard() {
 
   // Get model thumbnail URL - using consistent home icon
   const getModelThumbnail = (build) => {
-    return '/app-icon-2.png'
+    return '/app-icon.png' // Try the original app icon first
   }
 
   // Handle dismissing the info banner
@@ -361,7 +361,13 @@ export default function BuildsDashboard() {
                       alt={`Saved tiny home design – ${build.modelName || build.modelSlug} model`}
                       className="w-full h-full object-cover"
                       loading="lazy"
+                      onError={(e) => {
+                        // Fallback to a different icon if the main one fails
+                        e.target.style.display = 'none'
+                        e.target.nextSibling.style.display = 'block'
+                      }}
                     />
+                    <HomeIcon className="w-8 h-8 text-gray-400 hidden" />
                   </div>
 
                   {/* Build Info */}
