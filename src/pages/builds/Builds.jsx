@@ -6,6 +6,7 @@ import CheckoutProgress from '../../components/CheckoutProgress'
 import RenameModal from '../../components/RenameModal'
 import { useToast } from '../../components/ToastProvider'
 import { calculateTotalPurchasePrice } from '../../utils/calculateTotal'
+import { slugToModelId } from '../../utils/modelUrlMapping'
 import { 
   ChevronDownIcon, 
   XMarkIcon,
@@ -48,6 +49,7 @@ export default function BuildsDashboard() {
   const [loading, setLoading] = useState(true)
   const [builds, setBuilds] = useState([])
   const [settings, setSettings] = useState(null)
+  const [models, setModels] = useState([])
   const [renameModal, setRenameModal] = useState({ isOpen: false, build: null })
   const [sortBy, setSortBy] = useState('newest')
   const [showInfoBanner, setShowInfoBanner] = useState(() => {
@@ -73,9 +75,25 @@ export default function BuildsDashboard() {
     }
   }
 
-  // Get model thumbnail URL
+  // Get model thumbnail URL from actual model data
   const getModelThumbnail = (build) => {
-    return `/models/${build.modelSlug || 'default'}.svg`
+    if (!build.modelSlug) return '/hero/tiny-home-dusk.png'
+    
+    // Convert slug to model code
+    const modelCode = slugToModelId(build.modelSlug)
+    if (!modelCode) return '/hero/tiny-home-dusk.png'
+    
+    // Find the model in our models array
+    const model = models.find(m => m.id === modelCode || m.modelCode === modelCode)
+    if (!model || !Array.isArray(model.images) || model.images.length === 0) {
+      return '/hero/tiny-home-dusk.png'
+    }
+    
+    // Use primary image or first image
+    const primaryImage = model.images.find(img => img.isPrimary)
+    const imageUrl = primaryImage?.url || model.images[0]?.url
+    
+    return imageUrl || '/hero/tiny-home-dusk.png'
   }
 
   // Handle dismissing the info banner
@@ -84,7 +102,7 @@ export default function BuildsDashboard() {
     sessionStorage.setItem('myHomeTipDismissed', 'true')
   }
 
-  // Load settings
+  // Load settings and models
   useEffect(() => {
     const loadSettings = async () => {
       try {
@@ -99,10 +117,23 @@ export default function BuildsDashboard() {
         console.error('Error loading settings:', error)
       }
     }
+
+    const loadModels = async () => {
+      try {
+        const modelsRes = await fetch('/api/models')
+        if (modelsRes.ok) {
+          const modelsData = await modelsRes.json()
+          setModels(modelsData)
+        }
+      } catch (error) {
+        console.error('Error loading models:', error)
+      }
+    }
     
     if (isSignedIn) {
       loadSettings()
     }
+    loadModels()
   }, [isSignedIn, getToken])
 
   useEffect(() => {
@@ -359,10 +390,6 @@ export default function BuildsDashboard() {
                       alt={`Saved tiny home design – ${build.modelName || build.modelSlug} model`}
                       className="w-full h-full object-cover"
                       loading="lazy"
-                      onError={(e) => {
-                        e.target.src = '/hero/tiny-home-dusk.png'
-                        e.target.className = 'w-full h-full object-cover'
-                      }}
                     />
                   </div>
 
