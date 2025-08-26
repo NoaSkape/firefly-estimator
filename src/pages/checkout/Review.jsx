@@ -88,9 +88,9 @@ export default function Review() {
       try {
         setSettingsLoading(true)
         const token = await getToken()
+        const url = token ? '/api/admin/settings' : '/api/settings'
         const headers = token ? { Authorization: `Bearer ${token}` } : {}
-        
-        const settingsRes = await fetch('/api/admin/settings', { headers })
+        const settingsRes = await fetch(url, { headers })
         if (settingsRes.ok) {
           setSettings(await settingsRes.json())
         }

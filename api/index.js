@@ -380,6 +380,34 @@ app.get(['/api/admin/settings', '/admin/settings'], async (req, res) => {
   return res.status(200).json(s)
 })
 
+// Public, read-only settings for unauthenticated flows (safe subset)
+app.get(['/api/settings', '/settings'], async (_req, res) => {
+  try {
+    const s = await getOrgSettings()
+    // Expose only the fields needed publicly
+    const safe = {
+      factory: {
+        name: s?.factory?.name,
+        address: s?.factory?.address,
+      },
+      pricing: {
+        title_fee_default: Number(s?.pricing?.title_fee_default || 500),
+        setup_fee_default: Number(s?.pricing?.setup_fee_default || 3000),
+        tax_rate_percent: Number(s?.pricing?.tax_rate_percent || 6.25),
+        delivery_rate_per_mile: Number(s?.pricing?.delivery_rate_per_mile || 0),
+        delivery_minimum: Number(s?.pricing?.delivery_minimum || 0),
+        deposit_percent: Number(s?.pricing?.deposit_percent || 25),
+      },
+    }
+    return res.status(200).json(safe)
+  } catch (err) {
+    return res.status(200).json({
+      factory: { name: 'Firefly Tiny Homes', address: 'Mansfield, TX' },
+      pricing: { title_fee_default: 500, setup_fee_default: 3000, tax_rate_percent: 6.25, delivery_rate_per_mile: 0, delivery_minimum: 0, deposit_percent: 25 }
+    })
+  }
+})
+
 app.put(['/api/admin/settings', '/admin/settings'], async (req, res) => {
   const auth = await requireAuth(req, res, true)
   if (!auth?.userId) return

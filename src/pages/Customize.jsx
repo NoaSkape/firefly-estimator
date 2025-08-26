@@ -665,9 +665,9 @@ const Customize = () => {
   const loadSettings = async () => {
     try {
       const token = await getToken()
-      const res = await fetch('/api/admin/settings', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      })
+      const url = token ? '/api/admin/settings' : '/api/settings'
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
+      const res = await fetch(url, { headers })
       if (res.ok) {
         const settingsData = await res.json()
         setSettings(settingsData)

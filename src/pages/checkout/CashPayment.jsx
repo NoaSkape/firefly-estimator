@@ -133,7 +133,8 @@ export default function CashPayment() {
   async function loadSettings() {
     try {
       const token = await getToken()
-      const res = await fetch('/api/admin/settings', {
+      const url = token ? '/api/admin/settings' : '/api/settings'
+      const res = await fetch(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       })
       if (res.ok) {
@@ -141,10 +142,11 @@ export default function CashPayment() {
         setSettings(settingsData)
         
         // Update payment plan with settings
-        if (settingsData.payments?.depositPercent) {
+        if (settingsData.payments?.depositPercent || settingsData.pricing?.deposit_percent) {
+          const percent = settingsData.payments?.depositPercent ?? settingsData.pricing?.deposit_percent
           setPaymentPlan(prev => ({
             ...prev,
-            percent: settingsData.payments.depositPercent
+            percent: percent || 25
           }))
         }
       } else {
