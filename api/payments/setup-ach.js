@@ -5,12 +5,21 @@ import { getDb } from '../../lib/db.js'
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
 export default async function handler(req, res) {
+  console.log('[SETUP-ACH] Request received:', {
+    method: req.method,
+    hasBody: !!req.body,
+    bodyKeys: req.body ? Object.keys(req.body) : [],
+    hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
+    hasClerkKey: !!process.env.CLERK_SECRET_KEY
+  })
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
   // Check if Stripe is properly configured
   if (!process.env.STRIPE_SECRET_KEY) {
+    console.error('[SETUP-ACH] Missing Stripe secret key')
     return res.status(500).json({ 
       error: 'Stripe not configured', 
       details: 'STRIPE_SECRET_KEY environment variable is missing' 
@@ -18,19 +27,28 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('[SETUP-ACH] Attempting authentication...')
     const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) return
+    console.log('[SETUP-ACH] Authentication result:', { success: !!auth?.userId, userId: auth?.userId })
+    if (!auth?.userId) {
+      console.error('[SETUP-ACH] Authentication failed - no userId')
+      return
+    }
 
     const { orderId } = req.body // This is actually buildId from frontend
     if (!orderId) {
       return res.status(400).json({ error: 'Build ID is required' })
     }
 
-    console.log('Setting up ACH for build:', orderId, 'user:', auth.userId)
+    console.log('[SETUP-ACH] Setting up ACH for build:', orderId, 'user:', auth.userId)
 
+    console.log('[SETUP-ACH] Connecting to database...')
     const db = await getDb()
+    console.log('[SETUP-ACH] Database connected successfully')
+
     const { ObjectId } = await import('mongodb')
     const buildId = new ObjectId(String(orderId))
+    console.log('[SETUP-ACH] Created ObjectId:', buildId)
     
     const build = await db.collection('builds').findOne({ 
       _id: buildId, 
@@ -42,11 +60,14 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Build not found' })
     }
 
-    console.log('Found build:', build._id, 'buyerInfo:', !!build.buyerInfo)
+    console.log('[SETUP-ACH] Found build:', build._id, 'buyerInfo:', !!build.buyerInfo)
 
     // Get or create Stripe customer
     let customerId = build.customerId
+    console.log('[SETUP-ACH] Existing customer ID:', customerId)
+    
     if (!customerId) {
+      console.log('[SETUP-ACH] Creating new Stripe customer...')
       const customer = await stripe.customers.create({
         email: build.buyerInfo?.email,
         name: `${build.buyerInfo?.firstName} ${build.buyerInfo?.lastName}`,
@@ -64,6 +85,7 @@ export default async function handler(req, res) {
       )
     }
 
+    console.log('[SETUP-ACH] Creating SetupIntent with customer:', customerId)
     // Create SetupIntent for ACH bank account - PaymentElement compatible
     const setupIntent = await stripe.setupIntents.create({
       customer: customerId,
@@ -84,10 +106,15 @@ export default async function handler(req, res) {
       }
     })
 
-    res.status(200).json({
+    console.log('[SETUP-ACH] SetupIntent created successfully:', setupIntent.id)
+    
+    const response = {
       clientSecret: setupIntent.client_secret,
       customerId: customerId
-    })
+    }
+    
+    console.log('[SETUP-ACH] Sending successful response')
+    res.status(200).json(response)
 
   } catch (error) {
     console.error('Setup ACH error:', error)
