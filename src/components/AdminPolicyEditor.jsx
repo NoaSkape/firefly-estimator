@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useAuth } from '@clerk/nextjs'
+import { useAuth } from '@clerk/clerk-react'
 
 export default function AdminPolicyEditor({ policyId, title, onSave, onCancel }) {
   const { getToken } = useAuth()

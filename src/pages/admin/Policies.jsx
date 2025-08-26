@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useAuth } from '@clerk/nextjs'
+import { useAuth } from '@clerk/clerk-react'
 import AdminPolicyEditor from '../../components/AdminPolicyEditor'
 
 export default function AdminPolicies() {
