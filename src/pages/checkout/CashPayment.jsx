@@ -44,6 +44,13 @@ export default function CashPayment() {
 
   // Step 6C: Review
   const [termsAccepted, setTermsAccepted] = useState(false)
+
+  // Auto-advance to details step when page loads (skip the amount selection for direct bank linking)
+  useEffect(() => {
+    if (currentStep === 'choose' && paymentMethod === 'ach_debit') {
+      setCurrentStep('details')
+    }
+  }, [currentStep, paymentMethod])
   const [privacyAccepted, setPrivacyAccepted] = useState(false)
 
   useEffect(() => {
@@ -734,6 +741,18 @@ export default function CashPayment() {
 function ACHDetailsStep({ setupIntent, setupACH, saveACHMethod, checkBalance, setCheckBalance, balanceWarning, setBalanceWarning, mandateAccepted, setMandateAccepted, onContinue, onBack }) {
   const [currentSetupIntent, setCurrentSetupIntent] = useState(setupIntent)
   const [processing, setProcessing] = useState(false)
+  const [initializing, setInitializing] = useState(false)
+
+  // Auto-initialize SetupIntent when component mounts if not already available
+  useEffect(() => {
+    if (!currentSetupIntent && !initializing) {
+      setInitializing(true)
+      setupACH()
+        .then(setCurrentSetupIntent)
+        .catch(console.error)
+        .finally(() => setInitializing(false))
+    }
+  }, [currentSetupIntent, setupACH, initializing])
 
   // Setup Stripe Elements options for US Bank Account
   const elementsOptions = {
@@ -752,107 +771,77 @@ function ACHDetailsStep({ setupIntent, setupACH, saveACHMethod, checkBalance, se
     },
   }
 
-  return (
-    <div className="space-y-6">
-      {currentSetupIntent?.clientSecret ? (
-        <Elements stripe={stripePromise} options={elementsOptions}>
-          <ACHElementsForm
-            setupIntent={currentSetupIntent}
-            setupACH={setupACH}
-            saveACHMethod={saveACHMethod}
-            checkBalance={checkBalance}
-            setCheckBalance={setCheckBalance}
-            balanceWarning={balanceWarning}
-            setBalanceWarning={setBalanceWarning}
-            mandateAccepted={mandateAccepted}
-            setMandateAccepted={setMandateAccepted}
-            onContinue={onContinue}
-            onBack={onBack}
-            processing={processing}
-            setProcessing={setProcessing}
-          />
-        </Elements>
-      ) : (
-        <ACHSetupInitializer
-          setupACH={setupACH}
-          setCurrentSetupIntent={setCurrentSetupIntent}
-          onBack={onBack}
-        />
-      )}
-    </div>
-  )
-}
+  if (initializing) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto mb-4"></div>
+            <h2 className="text-white font-semibold text-lg mb-2">Initializing Secure Connection</h2>
+            <p className="text-gray-300">Setting up secure bank verification...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
-// Initialize SetupIntent for ACH
-function ACHSetupInitializer({ setupACH, setCurrentSetupIntent, onBack }) {
-  const [initializing, setInitializing] = useState(false)
-
-  const handleInitialize = async () => {
-    setInitializing(true)
-    try {
-      const setupData = await setupACH()
-      setCurrentSetupIntent(setupData)
-    } catch (error) {
-      console.error('Failed to initialize ACH setup:', error)
-    } finally {
-      setInitializing(false)
-    }
+  if (!currentSetupIntent?.clientSecret) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-red-900/30 border border-red-600 rounded-lg p-6">
+          <h2 className="text-white font-semibold text-lg mb-4">Connection Failed</h2>
+          <p className="text-white text-sm mb-4">
+            Unable to establish secure connection with Stripe. Please try again.
+          </p>
+          <div className="flex gap-3">
+            <button 
+              className="btn-primary"
+              onClick={() => {
+                setInitializing(true)
+                setupACH()
+                  .then(setCurrentSetupIntent)
+                  .catch(console.error)
+                  .finally(() => setInitializing(false))
+              }}
+            >
+              Retry Connection
+            </button>
+            <button 
+              className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
+              onClick={onBack}
+            >
+              ← Back
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
-      <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-        <h2 className="text-white font-semibold text-lg mb-4">Connect Your Bank Account</h2>
-        <div className="space-y-4">
-          <div className="text-white text-sm leading-relaxed">
-            We use Stripe's secure bank verification system to connect your account. This process:
-          </div>
-          <ul className="text-white text-sm space-y-2 ml-4">
-            <li className="flex items-start">
-              <span className="text-green-400 mr-2">✓</span>
-              Instantly verifies your account ownership
-            </li>
-            <li className="flex items-start">
-              <span className="text-green-400 mr-2">✓</span>
-              Uses bank-grade encryption and security
-            </li>
-            <li className="flex items-start">
-              <span className="text-green-400 mr-2">✓</span>
-              Checks available balance (if enabled)
-            </li>
-            <li className="flex items-start">
-              <span className="text-green-400 mr-2">✓</span>
-              No need to provide routing/account numbers manually
-            </li>
-          </ul>
-          
-          <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4 mt-4">
-            <div className="text-sm text-white">
-              <strong>🔒 Secure:</strong> Your banking credentials are never stored by us. 
-              Stripe Financial Connections handles all sensitive data.
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex gap-3">
-        <button 
-          className="btn-primary"
-          onClick={handleInitialize}
-          disabled={initializing}
-        >
-          {initializing ? 'Initializing...' : 'Connect Bank Account'}
-        </button>
-        <button 
-          className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
-          onClick={onBack}
-        >
-          ← Back
-        </button>
-      </div>
+      <Elements stripe={stripePromise} options={elementsOptions}>
+        <ACHElementsForm
+          setupIntent={currentSetupIntent}
+          setupACH={setupACH}
+          saveACHMethod={saveACHMethod}
+          checkBalance={checkBalance}
+          setCheckBalance={setCheckBalance}
+          balanceWarning={balanceWarning}
+          setBalanceWarning={setBalanceWarning}
+          mandateAccepted={mandateAccepted}
+          setMandateAccepted={setMandateAccepted}
+          onContinue={onContinue}
+          onBack={onBack}
+          processing={processing}
+          setProcessing={setProcessing}
+        />
+      </Elements>
     </div>
   )
 }
+
+
 
 // ACH Elements Form Component
 function ACHElementsForm({ 
