@@ -26,6 +26,7 @@ export default function HowItWorks() {
   const [expandedMilestone, setExpandedMilestone] = useState(null)
   const [scrollProgress, setScrollProgress] = useState(0)
   const [isVisible, setIsVisible] = useState({})
+  const [isManualSelection, setIsManualSelection] = useState(false)
   const heroRef = useRef(null)
   const stepsRef = useRef(null)
   
@@ -36,8 +37,8 @@ export default function HowItWorks() {
       const progress = (scrollTop / docHeight) * 100
       setScrollProgress(progress)
       
-      // Update current step based on scroll position
-      if (stepsRef.current) {
+      // Update current step based on scroll position only if not manually selected
+      if (stepsRef.current && !isManualSelection) {
         const stepsRect = stepsRef.current.getBoundingClientRect()
         const stepsTop = stepsRect.top + scrollTop
         const stepsHeight = stepsRect.height
@@ -49,7 +50,7 @@ export default function HowItWorks() {
 
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+  }, [isManualSelection])
 
   useEffect(() => {
     const observerOptions = {
@@ -208,6 +209,17 @@ export default function HowItWorks() {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  const selectStep = (stepIndex) => {
+    setCurrentStep(stepIndex)
+    setIsManualSelection(true)
+    setExpandedStep(expandedStep === stepIndex ? null : stepIndex)
+    
+    // Reset manual selection after a delay to allow scroll-based updates again
+    setTimeout(() => {
+      setIsManualSelection(false)
+    }, 2000)
+  }
+
   return (
     <>
       <Helmet>
@@ -288,7 +300,7 @@ export default function HowItWorks() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
             {steps.map((step, index) => {
               const IconComponent = step.icon
-              const isActive = currentStep >= index
+              const isActive = currentStep === index
               const isExpanded = expandedStep === index
 
               return (
@@ -302,7 +314,7 @@ export default function HowItWorks() {
                     ${isVisible[`step-${index}`] ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}
                   `}
                   style={{ transitionDelay: `${index * 100}ms` }}
-                  onClick={() => setExpandedStep(isExpanded ? null : index)}
+                  onClick={() => selectStep(index)}
                 >
                   {/* Step Number Badge */}
                   <div className={`
