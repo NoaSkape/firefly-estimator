@@ -10,6 +10,7 @@ import AddressSelectionModal from '../../components/AddressSelectionModal'
 import useUserProfile from '../../hooks/useUserProfile'
 import { useBuildData, buildCache } from '../../hooks/useBuildData'
 import { navigateToStep, updateBuildStep } from '../../utils/checkoutNavigation'
+import { formatPhoneIfNeeded } from '../../utils/phoneFormat'
 
 export default function Buyer() {
   const { user, isSignedIn } = useUser()
@@ -50,18 +51,26 @@ export default function Buyer() {
           console.log('Loaded auto-fill data from profile:', autoFillData)
           
           if (autoFillData && Object.keys(autoFillData).length > 0) {
+            const formattedPhone = formatPhoneIfNeeded(autoFillData.phone || '')
+            console.log('Formatted phone number:', { original: autoFillData.phone, formatted: formattedPhone })
+            
             setForm(f => ({
               ...f,
               firstName: autoFillData.firstName || user?.firstName || '',
               lastName: autoFillData.lastName || user?.lastName || '',
               email: autoFillData.email || user?.primaryEmailAddress?.emailAddress || '',
-              phone: autoFillData.phone || '',
+              phone: formattedPhone,
               address: autoFillData.address || '',
               city: autoFillData.city || '',
               state: autoFillData.state || '',
               zip: autoFillData.zip || ''
             }))
-            console.log('Form updated with auto-fill data')
+            console.log('Form updated with auto-fill data including address:', {
+              address: autoFillData.address,
+              city: autoFillData.city,
+              state: autoFillData.state,
+              zip: autoFillData.zip
+            })
           } else {
             console.log('No auto-fill data found, falling back to Clerk user data')
             // Fallback to Clerk user data
@@ -90,7 +99,12 @@ export default function Buyer() {
           const saved = JSON.parse(localStorage.getItem('ff.checkout.buyer') || '{}')
           if (Object.keys(saved).length > 0) {
             console.log('Loading from localStorage:', saved)
-            setForm(f => ({ ...f, ...saved }))
+            const formattedPhone = formatPhoneIfNeeded(saved.phone || '')
+            setForm(f => ({ 
+              ...f, 
+              ...saved,
+              phone: formattedPhone
+            }))
           }
         }
       } catch (error) {
@@ -113,7 +127,14 @@ export default function Buyer() {
 
   function setField(k, v) { 
     setForm(f => {
-      const updatedForm = { ...f, [k]: v }
+      let fieldValue = v
+      
+      // Auto-format phone numbers
+      if (k === 'phone' && v) {
+        fieldValue = formatPhoneIfNeeded(v)
+      }
+      
+      const updatedForm = { ...f, [k]: fieldValue }
       
       // Auto-save to localStorage as user types (for better UX)
       try {
@@ -176,7 +197,7 @@ export default function Buyer() {
                 firstName: form.firstName,
                 lastName: form.lastName,
                 email: form.email,
-                phone: form.phone
+                phone: formatPhoneIfNeeded(form.phone)
               })
               console.log('Basic info saved:', basicInfoResult)
               
@@ -367,23 +388,44 @@ export default function Buyer() {
         <div className="mt-6 flex gap-3">
           <button className="btn-primary" onClick={next}>Continue</button>
           {process.env.NODE_ENV === 'development' && (
-            <button 
-              className="btn-secondary" 
-              onClick={async () => {
-                try {
-                  const token = await getToken()
-                  const headers = token ? { Authorization: `Bearer ${token}` } : {}
-                  const response = await fetch('/api/profile/debug', { headers })
-                  const data = await response.json()
-                  console.log('Profile Debug Data:', data)
-                  addToast({ type: 'info', message: 'Check console for debug data' })
-                } catch (error) {
-                  console.error('Debug error:', error)
-                }
-              }}
-            >
-              Debug Profile
-            </button>
+            <>
+              <button 
+                className="btn-secondary" 
+                onClick={async () => {
+                  try {
+                    const token = await getToken()
+                    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+                    const response = await fetch('/api/profile/debug', { headers })
+                    const data = await response.json()
+                    console.log('Profile Debug Data:', data)
+                    addToast({ type: 'info', message: 'Check console for debug data' })
+                  } catch (error) {
+                    console.error('Debug error:', error)
+                  }
+                }}
+              >
+                Debug Profile
+              </button>
+              <button 
+                className="btn-secondary" 
+                onClick={async () => {
+                  try {
+                    console.log('Testing autofill data retrieval...')
+                    const autoFillData = await getAutoFillData()
+                    console.log('Auto-fill data test result:', autoFillData)
+                    addToast({ 
+                      type: 'info', 
+                      message: `Auto-fill test: ${autoFillData.address ? 'Address found' : 'No address'}` 
+                    })
+                  } catch (error) {
+                    console.error('Auto-fill test error:', error)
+                    addToast({ type: 'error', message: 'Auto-fill test failed' })
+                  }
+                }}
+              >
+                Test Auto-fill
+              </button>
+            </>
           )}
         </div>
         <ConfirmLeaveModal
