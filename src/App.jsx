@@ -16,7 +16,7 @@ const Buyer = lazy(() => import('./pages/checkout/Buyer'))
 const Review = lazy(() => import('./pages/checkout/Review'))
 const Agreement = lazy(() => import('./pages/checkout/Agreement'))
 const AccountCreate = lazy(() => import('./pages/checkout/Account'))
-const HowItWorks = lazy(() => import('./pages/how/HowItWorks'))
+const HowItWorks = lazy(() => import('./pages/HowItWorks'))
 const Ordering = lazy(() => import('./pages/how/Ordering'))
 const Delivery = lazy(() => import('./pages/how/Delivery'))
 const Warranty = lazy(() => import('./pages/how/Warranty'))
@@ -38,6 +38,10 @@ const Financing = lazy(() => import('./pages/Financing'))
 const Customize = lazy(() => import('./pages/Customize'))
 const SignUp = lazy(() => import('./pages/SignUp'))
 const SignIn = lazy(() => import('./pages/SignIn'))
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'))
+const TermsConditions = lazy(() => import('./pages/TermsConditions'))
+const OtherPolicies = lazy(() => import('./pages/OtherPolicies'))
+const AdminPolicies = lazy(() => import('./pages/admin/Policies'))
 import { getAllValidSlugs } from './utils/modelUrlMapping'
 import { testModelUrls, generateModelSitemap } from './utils/testModelUrls'
 import { verifyImplementation } from './utils/verifyImplementation'
@@ -378,6 +382,14 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/faq" element={<FAQPage />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms-conditions" element={<TermsConditions />} />
+              <Route path="/other-policies" element={<OtherPolicies />} />
+              <Route path="/admin/policies" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminPolicies />
+                </ProtectedRoute>
+              } />
                                 </Routes>
                   </Suspense>
                 </MobileSpacingWrapper>

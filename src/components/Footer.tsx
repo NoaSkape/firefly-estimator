@@ -62,8 +62,9 @@ export default function Footer() {
           <section aria-labelledby="footer-legal">
             <h3 id="footer-legal" className="text-sm font-semibold text-gray-100">Legal</h3>
             <ul className="mt-3 space-y-2 text-sm">
-              <li><a className="hover:text-white" href="/privacy">Privacy Policy</a></li>
-              <li><a className="hover:text-white" href="/terms">Terms &amp; Conditions</a></li>
+              <li><a className="hover:text-white" href="/privacy-policy">Privacy Policy</a></li>
+              <li><a className="hover:text-white" href="/terms-conditions">Terms &amp; Conditions</a></li>
+              <li><a className="hover:text-white" href="/other-policies">Other Policies</a></li>
             </ul>
           </section>
 

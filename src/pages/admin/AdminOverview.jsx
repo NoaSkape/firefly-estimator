@@ -127,6 +127,18 @@ export default function AdminOverview() {
         'User journey mapping',
         'Performance metrics'
       ]
+    },
+    {
+      title: 'Policy Management',
+      description: 'Edit website policies and terms directly through admin interface',
+      link: '/admin/policies',
+      icon: '📄',
+      features: [
+        'Edit Privacy Policy content',
+        'Manage Terms & Conditions',
+        'Update purchase and delivery policies',
+        'Markdown formatting support'
+      ]
     }
   ]
 
@@ -283,6 +295,14 @@ export default function AdminOverview() {
               >
                 <span className="text-2xl mr-3">🔍</span>
                 <span className="font-medium">View Analytics</span>
+              </Link>
+              
+              <Link
+                to="/admin/policies"
+                className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-2xl mr-3">📄</span>
+                <span className="font-medium">Manage Policies</span>
               </Link>
             </div>
           </div>
