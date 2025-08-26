@@ -30,19 +30,32 @@ export default function Buyer() {
   const [showAddressModal, setShowAddressModal] = useState(false)
   const [autoFillLoaded, setAutoFillLoaded] = useState(false)
   
-  // Use centralized build data management with force refresh to ensure latest data
+  // Use centralized build data management
   const { 
     build, 
     loading: buildLoading, 
     error: buildError, 
     updateBuild, 
     isLoaded: buildLoaded 
-  } = useBuildData(buildId, true) // Force refresh to ensure we have latest data
+  } = useBuildData(buildId, false) // Don't force refresh to prevent infinite loops
 
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        console.log('Loading initial data for buyer form:', { isSignedIn, autoFillLoaded, hasUser: !!user })
+        console.log('Loading initial data for buyer form:', { 
+          isSignedIn, 
+          autoFillLoaded, 
+          hasUser: !!user, 
+          buildLoaded: buildLoaded,
+          hasBuildData: !!build,
+          buildBuyerInfo: !!build?.buyerInfo
+        })
+        
+        // Wait for build data to be loaded before proceeding
+        if (isSignedIn && !buildLoaded) {
+          console.log('Waiting for build data to load...')
+          return
+        }
         
         // Priority 1: Load from user profile if signed in (most reliable)
         if (isSignedIn && !autoFillLoaded) {
@@ -50,24 +63,24 @@ export default function Buyer() {
           const autoFillData = await getAutoFillData()
           console.log('Loaded auto-fill data from profile:', JSON.stringify(autoFillData, null, 2))
           
+          // Check if we have address data from build's buyerInfo as fallback
+          let addressFromBuild = null
+          if (build?.buyerInfo) {
+            const buyerInfo = build.buyerInfo
+            if (buyerInfo.address && buyerInfo.city && buyerInfo.state && buyerInfo.zip) {
+              addressFromBuild = {
+                address: buyerInfo.address,
+                city: buyerInfo.city,
+                state: buyerInfo.state,
+                zip: buyerInfo.zip
+              }
+              console.log('Found address in build buyerInfo:', addressFromBuild)
+            }
+          }
+          
           if (autoFillData && Object.keys(autoFillData).length > 0) {
             const formattedPhone = formatPhoneIfNeeded(autoFillData.phone || '')
             console.log('Formatted phone number:', { original: autoFillData.phone, formatted: formattedPhone })
-            
-            // Check if we have address data from build's buyerInfo as fallback
-            let addressFromBuild = null
-            if (build?.buyerInfo) {
-              const buyerInfo = build.buyerInfo
-              if (buyerInfo.address && buyerInfo.city && buyerInfo.state && buyerInfo.zip) {
-                addressFromBuild = {
-                  address: buyerInfo.address,
-                  city: buyerInfo.city,
-                  state: buyerInfo.state,
-                  zip: buyerInfo.zip
-                }
-                console.log('Found address in build buyerInfo:', addressFromBuild)
-              }
-            }
             
             setForm(f => ({
               ...f,
@@ -86,31 +99,10 @@ export default function Buyer() {
               state: autoFillData.state || addressFromBuild?.state,
               zip: autoFillData.zip || addressFromBuild?.zip
             })
-            console.log('Current form state after update:', JSON.stringify({
-              address: autoFillData.address || addressFromBuild?.address,
-              city: autoFillData.city || addressFromBuild?.city,
-              state: autoFillData.state || addressFromBuild?.state,
-              zip: autoFillData.zip || addressFromBuild?.zip
-            }, null, 2))
           } else {
-            console.log('No auto-fill data found, checking build buyerInfo...')
+            console.log('No auto-fill data found, using build buyerInfo...')
             
-            // Check if we have address data from build's buyerInfo
-            let addressFromBuild = null
-            if (build?.buyerInfo) {
-              const buyerInfo = build.buyerInfo
-              if (buyerInfo.address && buyerInfo.city && buyerInfo.state && buyerInfo.zip) {
-                addressFromBuild = {
-                  address: buyerInfo.address,
-                  city: buyerInfo.city,
-                  state: buyerInfo.state,
-                  zip: buyerInfo.zip
-                }
-                console.log('Found address in build buyerInfo:', addressFromBuild)
-              }
-            }
-            
-            // Fallback to Clerk user data
+            // Use build buyerInfo as primary source when no profile data
             setForm(f => ({
               ...f,
               firstName: f.firstName || user?.firstName || '',
@@ -164,7 +156,7 @@ export default function Buyer() {
     }
     
     loadInitialData()
-  }, [user, isSignedIn, autoFillLoaded, getAutoFillData, build])
+  }, [user, isSignedIn, autoFillLoaded, getAutoFillData, buildLoaded, build])
 
   function setField(k, v) { 
     setForm(f => {
