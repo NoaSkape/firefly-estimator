@@ -1,6 +1,7 @@
 import { useUser } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 
 export default function Footer() {
   const year = new Date().getFullYear()
@@ -35,10 +36,10 @@ export default function Footer() {
           <nav aria-labelledby="footer-nav">
             <h3 id="footer-nav" className="text-sm font-semibold text-gray-100">Navigation</h3>
             <ul className="mt-3 space-y-2 text-sm">
-              <li><a className="hover:text-white" href="/about">About Us</a></li>
-              <li><a className="hover:text-white" href="#models">Models &amp; Options</a></li>
-              <li><a className="hover:text-white" href="/checkout?mode=finance">Financing / Purchase Info</a></li>
-              <li><a className="hover:text-white" href="#faq">FAQs</a></li>
+              <li><Link className="hover:text-white" to="/about">About Us</Link></li>
+              <li><Link className="hover:text-white" to="/models">Models &amp; Options</Link></li>
+              <li><Link className="hover:text-white" to="/financing">Financing / Purchase Info</Link></li>
+              <li><Link className="hover:text-white" to="/faq">FAQs</Link></li>
               <li><a className="hover:text-white" href="mailto:office@fireflytinyhomes.com" title="Email Firefly Tiny Homes">Contact Us</a></li>
             </ul>
           </nav>
@@ -62,9 +63,9 @@ export default function Footer() {
           <section aria-labelledby="footer-legal">
             <h3 id="footer-legal" className="text-sm font-semibold text-gray-100">Legal</h3>
             <ul className="mt-3 space-y-2 text-sm">
-              <li><a className="hover:text-white" href="/privacy-policy">Privacy Policy</a></li>
-              <li><a className="hover:text-white" href="/terms-conditions">Terms &amp; Conditions</a></li>
-              <li><a className="hover:text-white" href="/other-policies">Other Policies</a></li>
+              <li><Link className="hover:text-white" to="/privacy-policy">Privacy Policy</Link></li>
+              <li><Link className="hover:text-white" to="/terms-conditions">Terms &amp; Conditions</Link></li>
+              <li><Link className="hover:text-white" to="/other-policies">Other Policies</Link></li>
             </ul>
           </section>
 
