@@ -92,8 +92,8 @@ export default function AdminPolicies() {
   return (
     <div className="max-w-6xl mx-auto p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Policy Management</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-3xl font-bold text-yellow-500">Policy Management</h1>
+        <p className="text-white mt-2">
           Manage website policies and terms. Changes are reflected immediately on the public pages.
         </p>
       </div>
