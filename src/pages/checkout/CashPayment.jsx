@@ -8,7 +8,7 @@ import offlineQueue from '../../utils/offlineQueue'
 import { navigateToStep, updateBuildStep } from '../../utils/checkoutNavigation'
 import { calculateTotalPurchasePrice } from '../../utils/calculateTotal'
 import { loadStripe } from '@stripe/stripe-js'
-import { Elements, useStripe, useElements, USBankAccountElement, CardElement } from '@stripe/react-stripe-js'
+import { Elements, useStripe, useElements, PaymentElement, CardElement } from '@stripe/react-stripe-js'
 
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder')
@@ -886,23 +886,11 @@ function ACHElementsForm({
     setProcessing(true)
 
     try {
-      // Get the US Bank Account element
-      const usBankAccountElement = elements.getElement(USBankAccountElement)
-      
-      if (!usBankAccountElement) {
-        throw new Error('Bank account element not found')
-      }
-
-      // Confirm the SetupIntent with the bank account
+      // Confirm the SetupIntent with PaymentElement
       const { error, setupIntent: confirmedSetupIntent } = await stripe.confirmSetup({
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/checkout/${setupIntent.metadata?.buildId}/cash-payment?setup_success=true`,
-          payment_method_data: {
-            billing_details: {
-              // These will be filled from the form
-            },
-          },
         },
         redirect: 'if_required', // Stay on page if possible
       })
@@ -951,10 +939,17 @@ function ACHElementsForm({
     }
   }
 
-  const usBankAccountElementOptions = {
-    supportedCountries: ['US'],
-    accountHolderType: 'individual', // or 'company'
-    displayName: 'Firefly Tiny Homes',
+  const paymentElementOptions = {
+    layout: {
+      type: 'accordion',
+      defaultCollapsed: false,
+      radios: true,
+      spacedAccordionItems: true
+    },
+    paymentMethodOrder: ['us_bank_account', 'card'],
+    fields: {
+      billingDetails: 'auto'
+    }
   }
 
   if (accountLinked) {
@@ -1033,13 +1028,13 @@ function ACHElementsForm({
         <h2 className="text-white font-semibold text-lg mb-4">Link Your Bank Account</h2>
         
         <form onSubmit={handleBankAccountSetup} className="space-y-6">
-          {/* Stripe US Bank Account Element */}
+          {/* Stripe Payment Element - configured for US Bank Account */}
           <div className="space-y-4">
             <label className="block text-white text-sm font-medium">
-              Bank Account Information
+              Payment Method
             </label>
             <div className="p-4 border border-gray-600 rounded-lg bg-gray-800">
-              <USBankAccountElement options={usBankAccountElementOptions} />
+              <PaymentElement options={paymentElementOptions} />
             </div>
             <div className="text-gray-400 text-xs">
               Your banking information is securely processed by Stripe and never stored by us.

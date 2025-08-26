@@ -50,16 +50,15 @@ export default async function handler(req, res) {
       )
     }
 
-    // Create SetupIntent for ACH bank account with Financial Connections
+    // Create SetupIntent for ACH bank account - PaymentElement compatible
     const setupIntent = await stripe.setupIntents.create({
       customer: customerId,
-      payment_method_types: ['us_bank_account'],
+      payment_method_types: ['us_bank_account', 'card'],
       usage: 'off_session', // For future payments
       payment_method_options: {
         us_bank_account: {
           financial_connections: {
             permissions: ['payment_method', 'balances'], // Request balance access
-            // Optional: Request account ownership verification
             account_subcategories: ['checking', 'savings']
           },
           verification_method: 'automatic' // Use Financial Connections for verification
