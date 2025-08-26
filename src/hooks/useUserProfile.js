@@ -80,9 +80,22 @@ export function useUserProfile() {
         body: JSON.stringify(basicInfo)
       })
       
-      if (!response.ok) throw new Error('Failed to update basic info')
+      console.log('Profile update response status:', response.status, response.statusText)
       
-      const updatedProfile = await response.json()
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Profile update failed:', response.status, errorText)
+        throw new Error(`Failed to update basic info: ${response.status} ${errorText}`)
+      }
+      
+      const responseText = await response.text()
+      console.log('Profile update response text:', responseText)
+      
+      if (!responseText) {
+        throw new Error('Empty response from server')
+      }
+      
+      const updatedProfile = JSON.parse(responseText)
       setProfile(updatedProfile)
       
       return updatedProfile
