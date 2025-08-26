@@ -302,7 +302,7 @@ function App() {
                   <PaymentMethod />
                 </ProtectedRoute>
               } />
-              <Route path="/checkout/:buildId/cash-payment" element={
+              <Route path="/checkout/:buildId/cash-payment/*" element={
                 <ProtectedRoute>
                   <CashPayment />
                 </ProtectedRoute>

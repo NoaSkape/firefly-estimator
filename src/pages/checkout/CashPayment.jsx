@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams, useLocation } from 'react-router-dom'
+import { useNavigate, useParams, useLocation, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { useToast } from '../../components/ToastProvider'
 import analytics from '../../utils/analytics'
@@ -48,35 +48,19 @@ export default function CashPayment() {
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [privacyAccepted, setPrivacyAccepted] = useState(false)
 
-  // URL-based step management for browser back button support
+  // Route-based step management for proper browser navigation
   useEffect(() => {
-    // Get step from URL hash or default to 'choose'
-    const urlStep = location.hash.replace('#', '') || 'choose'
+    // Get current step from URL path
+    const pathParts = location.pathname.split('/')
+    const urlStep = pathParts[pathParts.length - 1]
+    
     if (['choose', 'details', 'review'].includes(urlStep)) {
       setCurrentStep(urlStep)
+    } else {
+      // Default to 'choose' if no valid step in URL
+      setCurrentStep('choose')
     }
-  }, [location.hash])
-
-  // Update URL when step changes
-  useEffect(() => {
-    const newHash = `#${currentStep}`
-    if (location.hash !== newHash) {
-      navigate(location.pathname + newHash, { replace: true })
-    }
-  }, [currentStep, navigate, location.pathname, location.hash])
-
-  // Handle browser back/forward navigation
-  useEffect(() => {
-    const handlePopState = (event) => {
-      const step = location.hash.replace('#', '') || 'choose'
-      if (['choose', 'details', 'review'].includes(step)) {
-        setCurrentStep(step)
-      }
-    }
-
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [location.hash])
+  }, [location.pathname])
 
   useEffect(() => {
     loadBuild()
@@ -232,7 +216,7 @@ export default function CashPayment() {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ orderId: buildId })
+        body: JSON.stringify({ buildId: buildId })
       })
 
       if (res.ok) {
@@ -261,7 +245,7 @@ export default function CashPayment() {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ orderId: buildId })
+        body: JSON.stringify({ buildId: buildId })
       })
 
       if (res.ok) {
@@ -291,7 +275,7 @@ export default function CashPayment() {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
-          orderId: buildId,
+          buildId: buildId,
           paymentMethodId,
           accountId,
           balanceCents
@@ -488,8 +472,12 @@ export default function CashPayment() {
           </div>
         </div>
 
-        {/* Step 6A: Amount & Method */}
-        {currentStep === 'choose' && (
+        {/* Route-based Step Content */}
+        <Routes>
+          <Route index element={<Navigate to="choose" replace />} />
+          <Route path="choose" element={
+            <div>
+              {/* Step 6A: Amount & Method */}
           <div className="space-y-6">
             {/* Welcome Section */}
             <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
@@ -664,7 +652,7 @@ export default function CashPayment() {
             <div className="flex gap-3">
               <button 
                 className="btn-primary"
-                onClick={() => setCurrentStep('details')}
+                onClick={() => navigate(`/checkout/${buildId}/cash-payment/details`)}
               >
                 Continue to Payment Details
               </button>
@@ -676,10 +664,11 @@ export default function CashPayment() {
               </button>
             </div>
           </div>
-        )}
-
-        {/* Step 6B: Payment Details */}
-        {currentStep === 'details' && (
+            </div>
+          } />
+          <Route path="details" element={
+            <div>
+              {/* Step 6B: Payment Details */}
           <div className="space-y-6">
             {/* Selected Payment Method Summary */}
             <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
@@ -706,7 +695,7 @@ export default function CashPayment() {
               </div>
               <button 
                 className="mt-4 text-yellow-400 hover:text-yellow-300 text-sm underline"
-                onClick={() => setCurrentStep('choose')}
+                onClick={() => navigate(`/checkout/${buildId}/cash-payment/choose`)}
               >
                 ← Change payment method or amount
               </button>
@@ -723,8 +712,8 @@ export default function CashPayment() {
                 setBalanceWarning={setBalanceWarning}
                 mandateAccepted={mandateAccepted}
                 setMandateAccepted={setMandateAccepted}
-                onContinue={() => setCurrentStep('review')}
-                onBack={() => setCurrentStep('choose')}
+                onContinue={() => navigate(`/checkout/${buildId}/cash-payment/review`)}
+                onBack={() => navigate(`/checkout/${buildId}/cash-payment/choose`)}
                 formatCurrency={formatCurrency}
                 currentAmountCents={currentAmountCents}
               />
@@ -734,22 +723,23 @@ export default function CashPayment() {
               <BankTransferDetailsStep 
                 bankTransferDetails={bankTransferDetails}
                 provisionBankTransfer={provisionBankTransfer}
-                onContinue={() => setCurrentStep('review')}
-                onBack={() => setCurrentStep('choose')}
+                onContinue={() => navigate(`/checkout/${buildId}/cash-payment/review`)}
+                onBack={() => navigate(`/checkout/${buildId}/cash-payment/choose`)}
               />
             )}
 
             {paymentMethod === 'card' && (
               <CardDetailsStep 
-                onContinue={() => setCurrentStep('review')}
-                onBack={() => setCurrentStep('choose')}
+                onContinue={() => navigate(`/checkout/${buildId}/cash-payment/review`)}
+                onBack={() => navigate(`/checkout/${buildId}/cash-payment/choose`)}
               />
             )}
           </div>
-        )}
-
-        {/* Step 6C: Review and Continue */}
-        {currentStep === 'review' && (
+            </div>
+          } />
+          <Route path="review" element={
+            <div>
+              {/* Step 6C: Review and Continue */}
           <div className="space-y-6">
             {/* Welcome Section */}
             <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
@@ -879,13 +869,15 @@ export default function CashPayment() {
               </button>
               <button 
                 className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
-                onClick={() => setCurrentStep('details')}
+                onClick={() => navigate(`/checkout/${buildId}/cash-payment/details`)}
               >
                 ← Back to Payment Details
               </button>
             </div>
           </div>
-        )}
+            </div>
+          } />
+        </Routes>
           </div>
         </div>
       </div>

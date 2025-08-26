@@ -2515,9 +2515,9 @@ app.post(['/api/payments/setup-ach', '/payments/setup-ach'], async (req, res) =>
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
-    const { orderId } = req.body
-    if (!orderId) {
-      return res.status(400).json({ error: 'Order ID is required' })
+    const { buildId } = req.body
+    if (!buildId) {
+      return res.status(400).json({ error: 'Build ID is required' })
     }
 
     if (!process.env.STRIPE_SECRET_KEY) {
@@ -2527,7 +2527,7 @@ app.post(['/api/payments/setup-ach', '/payments/setup-ach'], async (req, res) =>
       })
     }
 
-    const build = await getBuildById(orderId)
+    const build = await getBuildById(buildId)
     if (!build) {
       return res.status(404).json({ error: 'Build not found' })
     }
@@ -2592,13 +2592,12 @@ app.post(['/api/payments/save-ach-method', '/payments/save-ach-method'], async (
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
-    const { orderId, paymentMethodId, accountId, balanceCents } = req.body
-    if (!orderId || !paymentMethodId) {
-      return res.status(400).json({ error: 'Order ID and Payment Method ID are required' })
+    const { buildId, paymentMethodId, accountId, balanceCents } = req.body
+    if (!buildId || !paymentMethodId) {
+      return res.status(400).json({ error: 'Build ID and Payment Method ID are required' })
     }
 
-    const db = await getDb()
-    const build = await getBuildById(orderId)
+    const build = await getBuildById(buildId)
     if (!build) {
       return res.status(404).json({ error: 'Build not found' })
     }
@@ -2607,6 +2606,7 @@ app.post(['/api/payments/save-ach-method', '/payments/save-ach-method'], async (
       return res.status(403).json({ error: 'Access denied' })
     }
 
+    const db = await getDb()
     // Update build with payment method
     await db.collection('builds').updateOne(
       { _id: build._id },
@@ -2635,13 +2635,13 @@ app.post(['/api/payments/mark-ready', '/payments/mark-ready'], async (req, res) 
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
-    const { orderId } = req.body
-    if (!orderId) {
-      return res.status(400).json({ error: 'Order ID is required' })
+    const { buildId } = req.body
+    if (!buildId) {
+      return res.status(400).json({ error: 'Build ID is required' })
     }
 
     const db = await getDb()
-    const build = await getBuildById(orderId)
+    const build = await getBuildById(buildId)
     if (!build) {
       return res.status(404).json({ error: 'Build not found' })
     }
@@ -2674,12 +2674,12 @@ app.post(['/api/payments/provision-bank-transfer', '/payments/provision-bank-tra
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
-    const { orderId } = req.body
-    if (!orderId) {
-      return res.status(400).json({ error: 'Order ID is required' })
+    const { buildId } = req.body
+    if (!buildId) {
+      return res.status(400).json({ error: 'Build ID is required' })
     }
 
-    const build = await getBuildById(orderId)
+    const build = await getBuildById(buildId)
     if (!build) {
       return res.status(404).json({ error: 'Build not found' })
     }
@@ -2711,12 +2711,12 @@ app.post(['/api/payments/collect-at-confirmation', '/payments/collect-at-confirm
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
-    const { orderId, amount } = req.body
-    if (!orderId || !amount) {
-      return res.status(400).json({ error: 'Order ID and amount are required' })
+    const { buildId, amount } = req.body
+    if (!buildId || !amount) {
+      return res.status(400).json({ error: 'Build ID and amount are required' })
     }
 
-    const build = await getBuildById(orderId)
+    const build = await getBuildById(buildId)
     if (!build) {
       return res.status(404).json({ error: 'Build not found' })
     }
