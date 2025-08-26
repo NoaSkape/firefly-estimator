@@ -74,6 +74,7 @@ export default async function handler(req, res) {
         }
       })
       customerId = customer.id
+      console.log('[SETUP-ACH] Customer created with ID:', customerId)
       
       // Update build with customer ID
       const { getDb } = await import('../../lib/db.js')
@@ -83,6 +84,7 @@ export default async function handler(req, res) {
         { _id: new ObjectId(String(buildId)) },
         { $set: { customerId: customerId } }
       )
+      console.log('[SETUP-ACH] Customer ID saved to build:', buildId)
     }
 
     console.log('[SETUP-ACH] Creating SetupIntent with customer:', customerId)

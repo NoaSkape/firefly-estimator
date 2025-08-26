@@ -29,9 +29,36 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Access denied' })
     }
 
+    // Get database connection and ObjectId for all operations
+    const db = await getDb()
+    const { ObjectId } = await import('mongodb')
+
+    // Get or create Stripe customer
+    let customerId = build.customerId
+    
+    if (!customerId) {
+      console.log('[SAVE-ACH] No customer ID found, creating customer...')
+      const customer = await stripe.customers.create({
+        email: build.buyerInfo?.email,
+        name: `${build.buyerInfo?.firstName} ${build.buyerInfo?.lastName}`,
+        metadata: {
+          buildId: buildId,
+          userId: auth.userId
+        }
+      })
+      customerId = customer.id
+      
+      // Update build with customer ID immediately
+      await db.collection('builds').updateOne(
+        { _id: new ObjectId(String(buildId)) },
+        { $set: { customerId: customerId } }
+      )
+      console.log('[SAVE-ACH] Created and saved customer:', customerId)
+    }
+
     // Attach payment method to customer
     await stripe.paymentMethods.attach(paymentMethodId, {
-      customer: build.customerId,
+      customer: customerId,
     })
 
     // Update build with payment method details
@@ -44,8 +71,6 @@ export default async function handler(req, res) {
       }
     }
 
-    const db = await getDb()
-    const { ObjectId } = await import('mongodb')
     await db.collection('builds').updateOne(
       { _id: new ObjectId(String(buildId)) },
       { $set: updateData }
