@@ -41,24 +41,41 @@ export default function Buyer() {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
+        console.log('Loading initial data for buyer form:', { isSignedIn, autoFillLoaded, hasUser: !!user })
+        
         // Priority 1: Load from user profile if signed in (most reliable)
         if (isSignedIn && !autoFillLoaded) {
+          console.log('Attempting to load auto-fill data from profile...')
           const autoFillData = await getAutoFillData()
-          console.log('Loaded auto-fill data:', autoFillData)
-          setForm(f => ({
-            ...f,
-            firstName: autoFillData.firstName || user?.firstName || '',
-            lastName: autoFillData.lastName || user?.lastName || '',
-            email: autoFillData.email || user?.primaryEmailAddress?.emailAddress || '',
-            phone: autoFillData.phone || '',
-            address: autoFillData.address || '',
-            city: autoFillData.city || '',
-            state: autoFillData.state || '',
-            zip: autoFillData.zip || ''
-          }))
+          console.log('Loaded auto-fill data from profile:', autoFillData)
+          
+          if (autoFillData && Object.keys(autoFillData).length > 0) {
+            setForm(f => ({
+              ...f,
+              firstName: autoFillData.firstName || user?.firstName || '',
+              lastName: autoFillData.lastName || user?.lastName || '',
+              email: autoFillData.email || user?.primaryEmailAddress?.emailAddress || '',
+              phone: autoFillData.phone || '',
+              address: autoFillData.address || '',
+              city: autoFillData.city || '',
+              state: autoFillData.state || '',
+              zip: autoFillData.zip || ''
+            }))
+            console.log('Form updated with auto-fill data')
+          } else {
+            console.log('No auto-fill data found, falling back to Clerk user data')
+            // Fallback to Clerk user data
+            setForm(f => ({
+              ...f,
+              firstName: f.firstName || user?.firstName || '',
+              lastName: f.lastName || user?.lastName || '',
+              email: f.email || user?.primaryEmailAddress?.emailAddress || ''
+            }))
+          }
           setAutoFillLoaded(true)
         } else if (user && !autoFillLoaded) {
           // Priority 2: Fallback to Clerk user data
+          console.log('Loading from Clerk user data')
           setForm(f => ({
             ...f,
             firstName: f.firstName || user.firstName || '',
@@ -78,6 +95,16 @@ export default function Buyer() {
         }
       } catch (error) {
         console.error('Error loading auto-fill data:', error)
+        // Fallback to Clerk user data on error
+        if (user && !autoFillLoaded) {
+          setForm(f => ({
+            ...f,
+            firstName: f.firstName || user.firstName || '',
+            lastName: f.lastName || user.lastName || '',
+            email: f.email || user.primaryEmailAddress?.emailAddress || ''
+          }))
+          setAutoFillLoaded(true)
+        }
       }
     }
     
@@ -208,7 +235,7 @@ export default function Buyer() {
         return 
       }
       
-      addToast({ type: 'success', message: 'Saved' })
+      // Removed "Saved" toast - unnecessary for better UX
       trackEvent('buyer_saved', { buildId })
       
       // Update build step to 5 (Overview)

@@ -802,7 +802,8 @@ app.post(['/api/builds/:id/checkout-step', '/builds/:id/checkout-step'], async (
   if (target < 1 || target > 8) return res.status(400).json({ error: 'invalid_step' })
   
   // Validation logic - only check requirements for steps that actually need them
-  if (target >= 4) {
+  // Step 4 is where users enter buyer info, so don't require it to advance TO step 4
+  if (target >= 5) {
     const bi = b?.buyerInfo || {}
     const ok = bi.firstName && bi.lastName && bi.email && bi.address
     if (!ok) return res.status(400).json({ error: 'incomplete_buyer' })
