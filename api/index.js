@@ -2502,6 +2502,245 @@ app.post(['/api/cloudinary/sign', '/cloudinary/sign'], async (req, res) => {
 //   res.status(200).json({ success: true });
 // });
 
+// ===== Payment Routes =====
+
+// Setup ACH
+app.post(['/api/payments/setup-ach', '/payments/setup-ach'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { orderId } = req.body
+    if (!orderId) {
+      return res.status(400).json({ error: 'Order ID is required' })
+    }
+
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(500).json({ 
+        error: 'server_configuration_error',
+        details: 'STRIPE_SECRET_KEY environment variable is missing' 
+      })
+    }
+
+    const build = await getBuildById(orderId)
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Create or retrieve Stripe customer
+    let customerId = build.customerId
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: auth.user?.emailAddresses?.[0]?.emailAddress || `user+${auth.userId}@example.com`,
+        metadata: {
+          userId: auth.userId,
+          buildId: orderId
+        }
+      })
+      customerId = customer.id
+
+      // Save customer ID to build
+      const db = await getDb()
+      await db.collection('builds').updateOne(
+        { _id: build._id },
+        { $set: { customerId } }
+      )
+    }
+
+    // Create SetupIntent for ACH/bank account
+    const setupIntent = await stripe.setupIntents.create({
+      customer: customerId,
+      payment_method_types: ['us_bank_account', 'card'],
+      usage: 'off_session',
+      payment_method_options: {
+        us_bank_account: {
+          financial_connections: {
+            permissions: ['payment_method', 'balances']
+          },
+          verification_method: 'automatic'
+        }
+      },
+      metadata: {
+        buildId: orderId,
+        userId: auth.userId
+      }
+    })
+
+    res.status(200).json(setupIntent)
+  } catch (error) {
+    console.error('Setup ACH error:', error)
+    res.status(500).json({ 
+      error: 'setup_failed', 
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    })
+  }
+})
+
+// Save ACH Method
+app.post(['/api/payments/save-ach-method', '/payments/save-ach-method'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { orderId, paymentMethodId, accountId, balanceCents } = req.body
+    if (!orderId || !paymentMethodId) {
+      return res.status(400).json({ error: 'Order ID and Payment Method ID are required' })
+    }
+
+    const db = await getDb()
+    const build = await getBuildById(orderId)
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Update build with payment method
+    await db.collection('builds').updateOne(
+      { _id: build._id },
+      {
+        $set: {
+          'payment.method': 'ach_debit',
+          'payment.paymentMethodId': paymentMethodId,
+          'payment.accountId': accountId,
+          'payment.balanceCents': balanceCents,
+          'payment.ready': true,
+          'payment.updatedAt': new Date()
+        }
+      }
+    )
+
+    res.status(200).json({ success: true })
+  } catch (error) {
+    console.error('Save ACH method error:', error)
+    res.status(500).json({ error: 'save_failed', message: error.message })
+  }
+})
+
+// Mark Payment Ready
+app.post(['/api/payments/mark-ready', '/payments/mark-ready'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { orderId } = req.body
+    if (!orderId) {
+      return res.status(400).json({ error: 'Order ID is required' })
+    }
+
+    const db = await getDb()
+    const build = await getBuildById(orderId)
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Mark payment as ready
+    await db.collection('builds').updateOne(
+      { _id: build._id },
+      {
+        $set: {
+          'payment.ready': true,
+          'payment.readyAt': new Date()
+        }
+      }
+    )
+
+    res.status(200).json({ success: true })
+  } catch (error) {
+    console.error('Mark payment ready error:', error)
+    res.status(500).json({ error: 'mark_ready_failed', message: error.message })
+  }
+})
+
+// Provision Bank Transfer
+app.post(['/api/payments/provision-bank-transfer', '/payments/provision-bank-transfer'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { orderId } = req.body
+    if (!orderId) {
+      return res.status(400).json({ error: 'Order ID is required' })
+    }
+
+    const build = await getBuildById(orderId)
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // For now, return mock bank transfer details
+    // In production, this would integrate with a real bank transfer service
+    const virtualAccount = {
+      accountNumber: '4000003947011000',
+      routingNumber: '011401533',
+      accountName: 'Firefly Tiny Homes',
+      bankName: 'Chase Bank',
+      reference: `REF-${orderId.toString().slice(-8).toUpperCase()}`
+    }
+
+    res.status(200).json({ virtualAccount })
+  } catch (error) {
+    console.error('Provision bank transfer error:', error)
+    res.status(500).json({ error: 'provision_failed', message: error.message })
+  }
+})
+
+// Collect at Confirmation
+app.post(['/api/payments/collect-at-confirmation', '/payments/collect-at-confirmation'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { orderId, amount } = req.body
+    if (!orderId || !amount) {
+      return res.status(400).json({ error: 'Order ID and amount are required' })
+    }
+
+    const build = await getBuildById(orderId)
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // This would integrate with the payment processor to collect the payment
+    // For now, we'll just mark it as collected
+    const db = await getDb()
+    await db.collection('builds').updateOne(
+      { _id: build._id },
+      {
+        $set: {
+          'payment.collected': true,
+          'payment.collectedAt': new Date(),
+          'payment.collectedAmount': amount
+        }
+      }
+    )
+
+    res.status(200).json({ success: true })
+  } catch (error) {
+    console.error('Collect payment error:', error)
+    res.status(500).json({ error: 'collection_failed', message: error.message })
+  }
+})
+
 // Fallback to JSON 404 to avoid hanging requests
 app.use((req, res) => {
   const debug = process.env.DEBUG_ADMIN === 'true'

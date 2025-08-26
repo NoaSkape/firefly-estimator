@@ -1055,8 +1055,17 @@ function ACHElementsForm({
         setPaymentMethodId(confirmedSetupIntent.payment_method)
         
         // Extract account details for display
-        const pm = await stripe.retrievePaymentMethod(confirmedSetupIntent.payment_method)
-        setAccountDetails(pm.payment_method?.us_bank_account)
+        try {
+          if (stripe && stripe.retrievePaymentMethod) {
+            const pm = await stripe.retrievePaymentMethod(confirmedSetupIntent.payment_method)
+            setAccountDetails(pm.us_bank_account)
+          } else {
+            console.warn('Stripe retrievePaymentMethod not available, skipping account details')
+          }
+        } catch (error) {
+          console.warn('Could not retrieve payment method details:', error)
+          // Continue without account details - not critical for the flow
+        }
 
         // Check balance if requested
         if (checkBalance) {
