@@ -320,8 +320,8 @@ export default function BuildsDashboard() {
             <p className="text-gray-300 leading-relaxed">
               This is your personal hub for managing all of your saved tiny home designs. 
               Every time you customize your tiny house online, it's stored here so you can 
-              return later, compare different builds, or complete your purchase. With Firefly, you can 
-              buy a tiny house online in just a few clicks.
+              return later, compare different builds, or complete your purchase. With Firefly Tiny Homes, you can 
+              order your home online in under an hour!
             </p>
           </div>
 
