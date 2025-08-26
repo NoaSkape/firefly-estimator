@@ -50,7 +50,10 @@ export default function BuildsDashboard() {
   const [settings, setSettings] = useState(null)
   const [renameModal, setRenameModal] = useState({ isOpen: false, build: null })
   const [sortBy, setSortBy] = useState('newest')
-  const [showInfoBanner, setShowInfoBanner] = useState(true)
+  const [showInfoBanner, setShowInfoBanner] = useState(() => {
+    // Check sessionStorage to see if banner was dismissed this session
+    return sessionStorage.getItem('myHomeTipDismissed') !== 'true'
+  })
   const navigate = useNavigate()
   const { addToast } = useToast()
 
@@ -73,6 +76,12 @@ export default function BuildsDashboard() {
   // Get model thumbnail URL
   const getModelThumbnail = (build) => {
     return `/models/${build.modelSlug || 'default'}.svg`
+  }
+
+  // Handle dismissing the info banner
+  const dismissInfoBanner = () => {
+    setShowInfoBanner(false)
+    sessionStorage.setItem('myHomeTipDismissed', 'true')
   }
 
   // Load settings
@@ -263,14 +272,14 @@ export default function BuildsDashboard() {
             <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6 flex items-start justify-between">
               <div className="flex items-start">
                 <div>
-                  <p className="text-yellow-200 text-sm">
+                  <p className="text-white text-sm">
                     💡 Tip: You can create and save as many designs as you like. 
                     Compare different layouts, experiment with options, and come back anytime to finish your purchase.
                   </p>
                 </div>
               </div>
               <button 
-                onClick={() => setShowInfoBanner(false)}
+                onClick={dismissInfoBanner}
                 className="text-yellow-500/60 hover:text-yellow-500 ml-4"
                 aria-label="Close tip banner"
               >
