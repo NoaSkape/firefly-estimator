@@ -330,7 +330,7 @@ export default function CashPayment() {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
-          orderId: buildId,
+          buildId: buildId,
           plan: paymentPlan,
           method: paymentMethod,
           mandateAccepted: mandateAccepted
