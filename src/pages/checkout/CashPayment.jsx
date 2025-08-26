@@ -1120,10 +1120,10 @@ function ACHElementsForm({
     layout: {
       type: 'accordion',
       defaultCollapsed: false,
-      radios: true,
-      spacedAccordionItems: true
+      radios: false, // No radio buttons since we only have one option
+      spacedAccordionItems: false
     },
-    paymentMethodOrder: ['us_bank_account', 'card'],
+    paymentMethodOrder: ['us_bank_account'], // Only show bank account option
     fields: {
       billingDetails: 'auto'
     }

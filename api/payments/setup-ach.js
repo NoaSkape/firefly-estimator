@@ -88,10 +88,10 @@ export default async function handler(req, res) {
     }
 
     console.log('[SETUP-ACH] Creating SetupIntent with customer:', customerId)
-    // Create SetupIntent for ACH bank account - PaymentElement compatible
+    // Create SetupIntent for ACH bank account only - user chose ACH in Step 1
     const setupIntent = await stripe.setupIntents.create({
       customer: customerId,
-      payment_method_types: ['us_bank_account', 'card'],
+      payment_method_types: ['us_bank_account'], // Only ACH since user chose ACH Debit
       usage: 'off_session', // For future payments
       payment_method_options: {
         us_bank_account: {
