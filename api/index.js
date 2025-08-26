@@ -2504,6 +2504,11 @@ app.post(['/api/cloudinary/sign', '/cloudinary/sign'], async (req, res) => {
 
 // ===== Payment Routes =====
 
+// Test payment route
+app.get(['/api/payments/test', '/payments/test'], (req, res) => {
+  res.status(200).json({ success: true, message: 'Payment routes are working' })
+})
+
 // Setup ACH
 app.post(['/api/payments/setup-ach', '/payments/setup-ach'], async (req, res) => {
   try {
