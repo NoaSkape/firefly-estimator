@@ -372,6 +372,9 @@ export default function CashPayment() {
   async function saveAndContinueLater() {
     const ready = await markPaymentReady()
     if (ready) {
+      // Update build step to 7 (Contract) so Resume button takes them to contract page
+      await updateBuildStep(buildId, 7, await getToken())
+      analytics.stepChanged(buildId, 6, 7)
       navigate('/builds')
     }
   }
