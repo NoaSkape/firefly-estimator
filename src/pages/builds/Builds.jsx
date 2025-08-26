@@ -6,8 +6,6 @@ import CheckoutProgress from '../../components/CheckoutProgress'
 import RenameModal from '../../components/RenameModal'
 import { useToast } from '../../components/ToastProvider'
 import { calculateTotalPurchasePrice } from '../../utils/calculateTotal'
-import { slugToModelId } from '../../utils/modelUrlMapping'
-import { MODELS } from '../../data/models'
 import { 
   ChevronDownIcon, 
   XMarkIcon,
@@ -50,7 +48,6 @@ export default function BuildsDashboard() {
   const [loading, setLoading] = useState(true)
   const [builds, setBuilds] = useState([])
   const [settings, setSettings] = useState(null)
-  const [models, setModels] = useState([])
   const [renameModal, setRenameModal] = useState({ isOpen: false, build: null })
   const [sortBy, setSortBy] = useState('newest')
   const [showInfoBanner, setShowInfoBanner] = useState(() => {
@@ -76,25 +73,9 @@ export default function BuildsDashboard() {
     }
   }
 
-  // Get model thumbnail URL from actual model data
+  // Get model thumbnail URL - using consistent home icon
   const getModelThumbnail = (build) => {
-    if (!build.modelSlug) return '/hero/tiny-home-dusk.png'
-    
-    // Convert slug to model code
-    const modelCode = slugToModelId(build.modelSlug)
-    if (!modelCode) return '/hero/tiny-home-dusk.png'
-    
-    // Find the model in our models array
-    const model = models.find(m => m.id === modelCode || m.modelCode === modelCode)
-    if (!model || !Array.isArray(model.images) || model.images.length === 0) {
-      return '/hero/tiny-home-dusk.png'
-    }
-    
-    // Use primary image or first image
-    const primaryImage = model.images.find(img => img.isPrimary)
-    const imageUrl = primaryImage?.url || model.images[0]?.url
-    
-    return imageUrl || '/hero/tiny-home-dusk.png'
+    return '/app-icon-2.png'
   }
 
   // Handle dismissing the info banner
@@ -119,48 +100,11 @@ export default function BuildsDashboard() {
       }
     }
 
-    const loadModels = async () => {
-      try {
-        // Start with local models
-        const local = MODELS.map(m => ({ ...m }))
-        setModels(local)
-        
-        // Fetch each model individually to get images and updated data
-        const responses = await Promise.all(local.map(m => fetch(`/api/models/${m.id}`)))
-        const apiModels = await Promise.all(responses.map(r => (r.ok ? r.json() : null)))
-        
-        const merged = local.map((m, i) => {
-          const api = apiModels[i]
-          if (!api) return m
-          return {
-            ...m,
-            name: api.name || m.name,
-            description: api.description ?? m.description,
-            basePrice: typeof api.basePrice === 'number' ? api.basePrice : m.basePrice,
-            width: api?.width ?? null,
-            length: api?.length ?? null,
-            height: api?.height ?? null,
-            weight: api?.weight ?? null,
-            bedrooms: api?.bedrooms ?? null,
-            bathrooms: api?.bathrooms ?? null,
-            squareFeet: api?.squareFeet ?? null,
-            images: Array.isArray(api.images) ? api.images : [],
-            subtitle: api.modelCode || m.subtitle,
-          }
-        })
-        
-        setModels(merged)
-      } catch (error) {
-        console.error('Error loading models:', error)
-        // Fallback to local models if API fails
-        setModels(MODELS.map(m => ({ ...m })))
-      }
-    }
+
     
     if (isSignedIn) {
       loadSettings()
     }
-    loadModels()
   }, [isSignedIn, getToken])
 
   useEffect(() => {
