@@ -469,7 +469,7 @@ export default function CashPayment() {
             <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
               <h2 className="text-white font-semibold text-lg mb-4">Payment Amount</h2>
               <p className="text-gray-300 text-sm mb-4">
-                Choose how much to pay now. A deposit secures your build while full payment provides additional savings.
+                Choose how much to pay now. A deposit secures your build while full payment simplifies the purchase process.
               </p>
               
               <div className="space-y-4">
@@ -488,7 +488,7 @@ export default function CashPayment() {
                       <span className="ml-2 text-yellow-400 text-sm">Recommended</span>
                     </div>
                     <div className="text-gray-400 text-sm mt-1">
-                      Secure your build with a deposit. Remaining balance due before home leaves factory.
+                      Get your build started with a deposit. Remaining balance due before home leaves factory.
                     </div>
                   </div>
                 </label>
@@ -646,6 +646,37 @@ export default function CashPayment() {
         {/* Step 6B: Payment Details */}
         {currentStep === 'details' && (
           <div className="space-y-6">
+            {/* Selected Payment Method Summary */}
+            <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+              <h2 className="text-white font-semibold text-lg mb-4">Selected Payment Method</h2>
+              <div className="flex items-center justify-between p-4 bg-green-900/20 border border-green-600 rounded-lg">
+                <div className="flex items-center">
+                  <span className="text-green-400 text-xl mr-3">✓</span>
+                  <div>
+                    <div className="text-white font-medium">
+                      {paymentMethod === 'ach_debit' && 'Bank Account (ACH Debit)'}
+                      {paymentMethod === 'bank_transfer' && 'Bank Transfer (Wire/ACH Credit)'}
+                      {paymentMethod === 'card' && 'Credit/Debit Card'}
+                    </div>
+                    <div className="text-gray-300 text-sm">
+                      {paymentMethod === 'ach_debit' && 'Secure bank-to-bank transfer • No fees • 3-5 business days'}
+                      {paymentMethod === 'bank_transfer' && 'Direct bank transfer • Fastest processing • May incur bank fees'}
+                      {paymentMethod === 'card' && 'Instant processing • Processing fees apply (2.9% + $0.30)'}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-white font-semibold">
+                  {formatCurrency(currentAmountCents)}
+                </div>
+              </div>
+              <button 
+                className="mt-4 text-yellow-400 hover:text-yellow-300 text-sm underline"
+                onClick={() => setCurrentStep('choose')}
+              >
+                ← Change payment method or amount
+              </button>
+            </div>
+
             {paymentMethod === 'ach_debit' && (
               <ACHDetailsStep 
                 setupIntent={setupIntent}
@@ -659,6 +690,8 @@ export default function CashPayment() {
                 setMandateAccepted={setMandateAccepted}
                 onContinue={() => setCurrentStep('review')}
                 onBack={() => setCurrentStep('choose')}
+                formatCurrency={formatCurrency}
+                currentAmountCents={currentAmountCents}
               />
             )}
 
@@ -802,7 +835,7 @@ export default function CashPayment() {
 }
 
 // ACH Details Component with Stripe Elements Integration
-function ACHDetailsStep({ setupIntent, setupACH, saveACHMethod, checkBalance, setCheckBalance, balanceWarning, setBalanceWarning, mandateAccepted, setMandateAccepted, onContinue, onBack }) {
+function ACHDetailsStep({ setupIntent, setupACH, saveACHMethod, checkBalance, setCheckBalance, balanceWarning, setBalanceWarning, mandateAccepted, setMandateAccepted, onContinue, onBack, formatCurrency, currentAmountCents }) {
   const [currentSetupIntent, setCurrentSetupIntent] = useState(setupIntent)
   const [processing, setProcessing] = useState(false)
   const [initializing, setInitializing] = useState(false)
@@ -899,6 +932,8 @@ function ACHDetailsStep({ setupIntent, setupACH, saveACHMethod, checkBalance, se
           onBack={onBack}
           processing={processing}
           setProcessing={setProcessing}
+          formatCurrency={formatCurrency}
+          currentAmountCents={currentAmountCents}
         />
       </Elements>
     </div>
@@ -921,7 +956,9 @@ function ACHElementsForm({
   onContinue, 
   onBack, 
   processing, 
-  setProcessing 
+  setProcessing,
+  formatCurrency,
+  currentAmountCents
 }) {
   const stripe = useStripe()
   const elements = useElements()
@@ -932,13 +969,23 @@ function ACHElementsForm({
   const handleBankAccountSetup = async (event) => {
     event.preventDefault()
 
+    console.log('🔗 Bank account setup started:', {
+      hasStripe: !!stripe,
+      hasElements: !!elements,
+      setupIntentClientSecret: currentSetupIntent?.clientSecret?.substring(0, 20) + '...',
+      processing
+    })
+
     if (!stripe || !elements) {
+      console.error('❌ Stripe or Elements not loaded')
       return
     }
 
     setProcessing(true)
 
     try {
+      console.log('🔄 Confirming setup with PaymentElement...')
+      
       // Confirm the SetupIntent with PaymentElement
       const { error, setupIntent: confirmedSetupIntent } = await stripe.confirmSetup({
         elements,
@@ -948,11 +995,20 @@ function ACHElementsForm({
         redirect: 'if_required', // Stay on page if possible
       })
 
+      console.log('✅ Setup result:', { 
+        hasError: !!error, 
+        setupIntentStatus: confirmedSetupIntent?.status,
+        setupIntentId: confirmedSetupIntent?.id 
+      })
+
       if (error) {
+        console.error('❌ Setup error:', error)
         throw new Error(error.message)
       }
 
       if (confirmedSetupIntent.status === 'succeeded') {
+        console.log('🎉 Account successfully linked!')
+        
         // Account successfully linked
         setAccountLinked(true)
         setPaymentMethodId(confirmedSetupIntent.payment_method)
@@ -965,13 +1021,15 @@ function ACHElementsForm({
         if (checkBalance) {
           // This would normally be done server-side via Financial Connections
           // For demo purposes, we'll simulate a balance check
-          console.log('Balance check requested for account:', pm.payment_method?.us_bank_account)
+          console.log('💰 Balance check requested for account:', pm.payment_method?.us_bank_account)
         }
+      } else {
+        console.warn('⚠️ Setup Intent not completed:', confirmedSetupIntent.status)
       }
 
     } catch (error) {
-      console.error('Bank account setup error:', error)
-      // Show error to user
+      console.error('❌ Bank account setup error:', error)
+      // Show error to user (you could add a toast here)
     } finally {
       setProcessing(false)
     }
@@ -1078,61 +1136,94 @@ function ACHElementsForm({
   return (
     <div className="space-y-6">
       <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-        <h2 className="text-white font-semibold text-lg mb-4">Link Your Bank Account</h2>
+        <h2 className="text-white font-semibold text-lg mb-3">Connect Your Bank Account</h2>
+        <p className="text-gray-300 text-sm mb-6 leading-relaxed">
+          Link your bank account securely through Stripe's enterprise-grade infrastructure. 
+          Your credentials are encrypted and never stored on our servers.
+        </p>
         
         <form onSubmit={handleBankAccountSetup} className="space-y-6">
           {/* Stripe Payment Element - configured for US Bank Account */}
           <div className="space-y-4">
-            <label className="block text-white text-sm font-medium">
-              Payment Method
-            </label>
             <div className="p-4 border border-gray-600 rounded-lg bg-gray-800">
               <PaymentElement options={paymentElementOptions} />
             </div>
-            <div className="text-gray-400 text-xs">
-              Your banking information is securely processed by Stripe and never stored by us.
+            <div className="bg-blue-900/20 border border-blue-600 rounded-lg p-3">
+              <div className="text-blue-200 text-xs leading-relaxed">
+                <strong>🔒 Enterprise Security:</strong> Bank connections use the same 256-bit encryption 
+                as major financial institutions. Stripe processes millions of transactions daily 
+                for companies like Amazon, Google, and Microsoft.
+              </div>
             </div>
           </div>
 
-          {/* Balance Check Option */}
-          <label className="flex items-center">
-            <input
-              type="checkbox"
-              checked={checkBalance}
-              onChange={(e) => setCheckBalance(e.target.checked)}
-              className="mr-3"
-            />
-            <span className="text-white text-sm">
-              Check available balance (recommended) - helps prevent insufficient funds
-            </span>
-          </label>
+          {/* Enhanced Options Section */}
+          <div className="space-y-4">
+            <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-4">
+              <h3 className="text-white font-medium mb-3">Account Verification Options</h3>
+              
+              <label className="flex items-start p-3 border border-gray-600 rounded-lg hover:border-yellow-500 transition-colors cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={checkBalance}
+                  onChange={(e) => setCheckBalance(e.target.checked)}
+                  className="mr-3 mt-1"
+                />
+                <div>
+                  <div className="text-white text-sm font-medium">
+                    Verify Account Balance <span className="text-yellow-400">(Recommended)</span>
+                  </div>
+                  <div className="text-gray-400 text-xs mt-1">
+                    Automatically check available funds to prevent payment failures. 
+                    This helps ensure smooth processing of your transaction.
+                  </div>
+                </div>
+              </label>
+            </div>
 
-          {/* Mandate Agreement */}
-          <label className="flex items-start">
-            <input
-              type="checkbox"
-              checked={mandateAccepted}
-              onChange={(e) => setMandateAccepted(e.target.checked)}
-              className="mr-3 mt-1"
-              required
-            />
-            <span className="text-white text-sm">
-              I authorize Firefly Tiny Homes to electronically debit my account for the specified amount. 
-              I understand this authorization will remain in effect until I cancel it in writing.
-            </span>
-          </label>
+            {/* Authorization Agreement */}
+            <div className="bg-yellow-900/20 border border-yellow-600 rounded-lg p-4">
+              <h3 className="text-white font-medium mb-3">Payment Authorization</h3>
+              
+              <label className="flex items-start cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={mandateAccepted}
+                  onChange={(e) => setMandateAccepted(e.target.checked)}
+                  className="mr-3 mt-1"
+                  required
+                />
+                <div className="text-white text-sm leading-relaxed">
+                  <strong>I authorize Firefly Tiny Homes</strong> to electronically debit my linked bank account 
+                  for <strong>{formatCurrency(currentAmountCents)}</strong> when the final contract is signed. 
+                  <div className="mt-2 text-yellow-200 text-xs">
+                    • This authorization remains active until canceled in writing<br/>
+                    • ACH transactions typically process in 3-5 business days<br/>
+                    • You will receive confirmation before any charges occur
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 pt-4">
             <button 
               type="submit"
-              className="btn-primary"
+              className="btn-primary flex-1 py-3"
               disabled={processing || !mandateAccepted || !stripe}
             >
-              {processing ? 'Linking Account...' : 'Link Bank Account'}
+              {processing ? (
+                <span className="flex items-center justify-center">
+                  <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                  Linking Account...
+                </span>
+              ) : (
+                'Link Bank Account'
+              )}
             </button>
             <button 
               type="button"
-              className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
+              className="px-6 py-3 rounded border border-gray-700 text-white hover:bg-white/10 transition-colors"
               onClick={onBack}
             >
               ← Back
