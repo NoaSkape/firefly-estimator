@@ -3222,16 +3222,4 @@ app.use((req, res) => {
 // Vercel Node.js functions expect (req, res). Call Express directly.
 export default (req, res) => app(req, res)
 
-// Currency formatting utility
-function formatCurrency(amount) {
-  if (amount === null || amount === undefined || isNaN(amount)) {
-    return '$0.00'
-  }
-  const rounded = Math.round(Number(amount) * 100) / 100
-  return `$${rounded.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })}`
-}
-
 
