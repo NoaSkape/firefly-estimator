@@ -93,10 +93,23 @@ export default function CashPayment() {
           if (orderData.payment?.method) {
             setPaymentMethod(orderData.payment.method)
           }
+          // Load payment authorization status if bank account is linked
+          if (orderData.payment?.authAccepted) {
+            setPaymentAuthAccepted(orderData.payment.authAccepted)
+          }
           if (orderData.payment?.ready) {
             setCurrentStep('review')
           } else if (orderData.payment?.method) {
             setCurrentStep('details')
+          }
+          
+          // Update build step to 7 (Contract) when user reaches cash payment page
+          try {
+            await updateBuildStep(buildId, 7, token)
+            console.log('[CASH_PAYMENT] Build step updated to 7 (Contract) on page load')
+          } catch (stepError) {
+            console.error('[CASH_PAYMENT] Failed to update build step:', stepError)
+            // Don't block the page if step update fails
           }
         } else {
           // No order found, try build data
@@ -132,10 +145,23 @@ export default function CashPayment() {
         if (buildData.payment?.method) {
           setPaymentMethod(buildData.payment.method)
         }
+        // Load payment authorization status if bank account is linked
+        if (buildData.payment?.authAccepted) {
+          setPaymentAuthAccepted(buildData.payment.authAccepted)
+        }
         if (buildData.payment?.ready) {
           setCurrentStep('review')
         } else if (buildData.payment?.method) {
           setCurrentStep('details')
+        }
+        
+        // Update build step to 7 (Contract) when user reaches cash payment page
+        try {
+          await updateBuildStep(buildId, 7, token)
+          console.log('[CASH_PAYMENT] Build step updated to 7 (Contract) on page load')
+        } catch (stepError) {
+          console.error('[CASH_PAYMENT] Failed to update build step:', stepError)
+          // Don't block the page if step update fails
         }
       }
     } catch (error) {
@@ -278,13 +304,17 @@ export default function CashPayment() {
           buildId: buildId,
           paymentMethodId,
           accountId,
-          balanceCents
+          balanceCents,
+          authAccepted: true // Mark payment authorization as accepted when bank account is linked
         })
       })
 
       if (!res.ok) {
         throw new Error('Failed to save ACH method')
       }
+
+      // Update local state to reflect the authorization is now accepted
+      setPaymentAuthAccepted(true)
 
       addToast({
         type: 'success',
@@ -298,6 +328,30 @@ export default function CashPayment() {
         message: 'Unable to save payment method. Please try again.'
       })
       throw error
+    }
+  }
+
+  async function updatePaymentAuthStatus(accepted) {
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/payments/update-auth-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          buildId: buildId,
+          authAccepted: accepted
+        })
+      })
+
+      if (!res.ok) {
+        throw new Error('Failed to update payment authorization status')
+      }
+    } catch (error) {
+      console.error('Error updating payment auth status:', error)
+      // Don't show toast for this - it's not critical to the user experience
     }
   }
 
@@ -821,7 +875,11 @@ export default function CashPayment() {
                   <input
                     type="checkbox"
                     checked={paymentAuthAccepted}
-                    onChange={(e) => setPaymentAuthAccepted(e.target.checked)}
+                    onChange={(e) => {
+                      const accepted = e.target.checked
+                      setPaymentAuthAccepted(accepted)
+                      updatePaymentAuthStatus(accepted)
+                    }}
                     className="mr-3 mt-1"
                   />
                   <span className="text-white text-sm">

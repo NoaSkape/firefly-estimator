@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { useToast } from '../../components/ToastProvider'
+import FunnelProgress from '../../components/FunnelProgress'
+import { updateBuildStep } from '../../utils/checkoutNavigation'
 import { 
   CheckCircleIcon,
   ExclamationTriangleIcon,
@@ -82,6 +84,15 @@ export default function Agreement() {
       if (buildRes.ok) {
         const buildData = await buildRes.json()
         setBuild(buildData)
+        
+        // Update build step to 7 (Contract) to ensure proper navigation flow
+        try {
+          await updateBuildStep(buildId, 7, token)
+          console.log('[AGREEMENT_DEBUG] Build step updated to 7 (Contract)')
+        } catch (stepError) {
+          console.error('[AGREEMENT_DEBUG] Failed to update build step:', stepError)
+          // Don't block the page load if step update fails
+        }
         
         // Check if we need to create contract
         await loadOrCreateContract(token)
@@ -258,6 +269,15 @@ export default function Agreement() {
 
   return (
     <div className="min-h-screen bg-gray-900">
+      {/* Funnel Progress Bar */}
+      <FunnelProgress 
+        current="Contract" 
+        isSignedIn={true} 
+        onNavigate={() => {}}
+        build={build}
+        buildId={buildId}
+      />
+      
       {/* Sticky Top Bar */}
       <div className="sticky top-0 z-50 bg-gray-800/95 backdrop-blur-sm border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">

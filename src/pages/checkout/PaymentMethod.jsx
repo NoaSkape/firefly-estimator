@@ -118,12 +118,19 @@ export default function PaymentMethod() {
       
       analytics.paymentSelected(buildId, choice)
       
-      // Navigate based on payment method choice without updating step prematurely
+      // Navigate based on payment method choice
       if (choice === 'cash') {
         // Navigate to cash payment form
         navigate(`/checkout/${buildId}/cash-payment`)
       } else {
-        // For financing, navigate to contract step - let the contract page handle step update
+        // For financing, update step to 7 and navigate to contract
+        try {
+          await updateBuildStep(buildId, 7, token)
+          console.log('[PAYMENT_METHOD] Build step updated to 7 (Contract) for financing')
+        } catch (stepError) {
+          console.error('[PAYMENT_METHOD] Failed to update build step:', stepError)
+          // Continue navigation even if step update fails
+        }
         analytics.stepChanged(buildId, 6, 7)
         navigate(`/checkout/${buildId}/agreement`)
       }

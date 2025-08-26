@@ -48,84 +48,86 @@ export default function FunnelProgress({
   }
 
   return (
-    <div className="mb-6 pt-8">
-      {/* Desktop: Single row layout with horizontal scroll when needed */}
-      <div className="hidden md:flex items-center justify-center text-xs sm:text-sm text-gray-200 w-full">
-        <div className="flex items-center overflow-x-auto scrollbar-hide max-w-full px-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-          {steps.map((label, idx) => {
-            const active = idx <= currentIndex
-            const completed = isCompleted(idx)
-            const enabled = canGo(idx)
-            const reason = !enabled && typeof disabledReason === 'function' ? disabledReason(label, idx) : ''
-            const isLast = idx === steps.length - 1
-            return (
-              <div key={label} className="flex items-center min-w-0 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (enabled && typeof onNavigate === 'function') {
-                      onNavigate(label, idx)
-                    }
-                  }}
-                  className={`flex items-center ${active ? 'text-yellow-500' : 'text-gray-200'} ${enabled ? 'hover:text-yellow-400' : 'opacity-60 cursor-not-allowed'}`}
-                  title={getDisabledReason(idx) || undefined}
-                  aria-disabled={!enabled}
-                >
-                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full mr-2 ${
-                    completed ? 'bg-green-500 text-white' : 
-                    active ? 'bg-yellow-500 text-gray-900' : 
-                    'bg-gray-500 text-white'
-                  }`}>{idx+1}</span>
-                  <span className="whitespace-nowrap">{label}</span>
-                </button>
-                {!isLast && (
-                  <div className={`mx-3 h-0.5 w-8 flex-shrink-0 ${active ? 'bg-yellow-500/80' : 'bg-gray-400/70'}`} />
-                )}
-              </div>
-            )
-          })}
+    <div className="bg-gray-900/95 backdrop-blur-sm border-b border-gray-700">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        {/* Desktop: Single row layout with horizontal scroll when needed */}
+        <div className="hidden md:flex items-center justify-center text-xs sm:text-sm text-gray-200 w-full">
+          <div className="flex items-center overflow-x-auto scrollbar-hide max-w-full" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            {steps.map((label, idx) => {
+              const active = idx <= currentIndex
+              const completed = isCompleted(idx)
+              const enabled = canGo(idx)
+              const reason = !enabled && typeof disabledReason === 'function' ? disabledReason(label, idx) : ''
+              return (
+                <div key={label} className="flex items-center min-w-0 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (enabled && typeof onNavigate === 'function') {
+                        onNavigate(label, idx)
+                      }
+                    }}
+                    className={`flex items-center ${active ? 'text-yellow-500' : 'text-gray-200'} ${enabled ? 'hover:text-yellow-400' : 'opacity-60 cursor-not-allowed'}`}
+                    title={getDisabledReason(idx) || undefined}
+                    aria-disabled={!enabled}
+                  >
+                    <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full mr-2 ${
+                      completed ? 'bg-green-500 text-white' : 
+                      active ? 'bg-yellow-500 text-gray-900' : 
+                      'bg-gray-500 text-white'
+                    }`}>{idx+1}</span>
+                    <span className="whitespace-nowrap">{label}</span>
+                  </button>
+                  {/* Add spacing between steps instead of connector lines */}
+                  {idx < steps.length - 1 && (
+                    <div className="mx-2 w-2" />
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
-      </div>
 
-      {/* Mobile: 2-row grid layout */}
-      <div className="md:hidden">
-        <div className="grid grid-cols-4 gap-2 text-xs text-gray-200">
-          {steps.map((label, idx) => {
-            const active = idx <= currentIndex
-            const completed = isCompleted(idx)
-            const enabled = canGo(idx)
-            const reason = !enabled && typeof disabledReason === 'function' ? disabledReason(label, idx) : ''
-            return (
-              <div key={label} className="relative">
-                {/* Green checkmark for completed steps */}
-                {completed && (
-                  <div className="absolute -top-2 right-1 z-10">
-                    <div className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
+        {/* Mobile: 2-row grid layout */}
+        <div className="md:hidden">
+          <div className="grid grid-cols-4 gap-2 text-xs text-gray-200">
+            {steps.map((label, idx) => {
+              const active = idx <= currentIndex
+              const completed = isCompleted(idx)
+              const enabled = canGo(idx)
+              const reason = !enabled && typeof disabledReason === 'function' ? disabledReason(label, idx) : ''
+              return (
+                <div key={label} className="relative">
+                  {/* Green checkmark for completed steps */}
+                  {completed && (
+                    <div className="absolute -top-2 right-1 z-10">
+                      <div className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
                     </div>
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (enabled && typeof onNavigate === 'function') {
-                      onNavigate(label, idx)
-                    }
-                  }}
-                  className={`flex flex-col items-center p-2 rounded w-full ${active ? 'text-yellow-500 bg-yellow-500/10' : 'text-gray-200'} ${enabled ? 'hover:bg-yellow-500/20' : 'opacity-60 cursor-not-allowed'}`}
-                  title={getDisabledReason(idx) || undefined}
-                  aria-disabled={!enabled}
-                >
-                  <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full mb-1 text-xs font-medium ${active ? 'bg-yellow-500 text-gray-900' : 'bg-gray-500 text-white'}`}>
-                    {idx+1}
-                  </span>
-                  <span className="text-center leading-tight">{label}</span>
-                </button>
-              </div>
-            )
-          })}
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (enabled && typeof onNavigate === 'function') {
+                        onNavigate(label, idx)
+                      }
+                    }}
+                    className={`flex flex-col items-center p-2 rounded w-full ${active ? 'text-yellow-500 bg-yellow-500/10' : 'text-gray-200'} ${enabled ? 'hover:bg-yellow-500/20' : 'opacity-60 cursor-not-allowed'}`}
+                    title={getDisabledReason(idx) || undefined}
+                    aria-disabled={!enabled}
+                  >
+                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full mb-1 text-xs font-medium ${active ? 'bg-yellow-500 text-gray-900' : 'bg-gray-500 text-white'}`}>
+                      {idx+1}
+                    </span>
+                    <span className="text-center leading-tight">{label}</span>
+                  </button>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>

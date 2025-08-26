@@ -2992,7 +2992,7 @@ app.post(['/api/payments/save-ach-method', '/payments/save-ach-method'], async (
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
-    const { buildId, paymentMethodId, accountId, balanceCents } = req.body
+    const { buildId, paymentMethodId, accountId, balanceCents, authAccepted } = req.body
     if (!buildId || !paymentMethodId) {
       return res.status(400).json({ error: 'Build ID and Payment Method ID are required' })
     }
@@ -3016,6 +3016,23 @@ app.post(['/api/payments/save-ach-method', '/payments/save-ach-method'], async (
           'payment.paymentMethodId': paymentMethodId,
           'payment.accountId': accountId,
           'payment.balanceCents': balanceCents,
+          'payment.authAccepted': authAccepted || false,
+          'payment.ready': true,
+          'payment.updatedAt': new Date()
+        }
+      }
+    )
+
+    // Also update the corresponding order if it exists
+    await db.collection('orders').updateOne(
+      { buildId: buildId },
+      {
+        $set: {
+          'payment.method': 'ach_debit',
+          'payment.paymentMethodId': paymentMethodId,
+          'payment.accountId': accountId,
+          'payment.balanceCents': balanceCents,
+          'payment.authAccepted': authAccepted || false,
           'payment.ready': true,
           'payment.updatedAt': new Date()
         }
@@ -3035,7 +3052,7 @@ app.post(['/api/payments/mark-ready', '/payments/mark-ready'], async (req, res) 
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
-    const { buildId } = req.body
+    const { buildId, plan, method, mandateAccepted } = req.body
     if (!buildId) {
       return res.status(400).json({ error: 'Build ID is required' })
     }
@@ -3050,13 +3067,30 @@ app.post(['/api/payments/mark-ready', '/payments/mark-ready'], async (req, res) 
       return res.status(403).json({ error: 'Access denied' })
     }
 
-    // Mark payment as ready
+    // Mark payment as ready, preserving existing auth status
     await db.collection('builds').updateOne(
       { _id: build._id },
       {
         $set: {
           'payment.ready': true,
-          'payment.readyAt': new Date()
+          'payment.readyAt': new Date(),
+          ...(plan && { 'payment.plan': plan }),
+          ...(method && { 'payment.method': method }),
+          ...(mandateAccepted !== undefined && { 'payment.mandateAccepted': mandateAccepted })
+        }
+      }
+    )
+
+    // Also update the corresponding order if it exists
+    await db.collection('orders').updateOne(
+      { buildId: buildId },
+      {
+        $set: {
+          'payment.ready': true,
+          'payment.readyAt': new Date(),
+          ...(plan && { 'payment.plan': plan }),
+          ...(method && { 'payment.method': method }),
+          ...(mandateAccepted !== undefined && { 'payment.mandateAccepted': mandateAccepted })
         }
       }
     )
@@ -3065,6 +3099,57 @@ app.post(['/api/payments/mark-ready', '/payments/mark-ready'], async (req, res) 
   } catch (error) {
     console.error('Mark payment ready error:', error)
     res.status(500).json({ error: 'mark_ready_failed', message: error.message })
+  }
+})
+
+// Update Payment Authorization Status
+app.post(['/api/payments/update-auth-status', '/payments/update-auth-status'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId, authAccepted } = req.body
+    if (!buildId || authAccepted === undefined) {
+      return res.status(400).json({ error: 'Build ID and auth status are required' })
+    }
+
+    const build = await getBuildById(buildId)
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    const db = await getDb()
+    
+    // Update build with payment authorization status
+    await db.collection('builds').updateOne(
+      { _id: build._id },
+      {
+        $set: {
+          'payment.authAccepted': authAccepted,
+          'payment.updatedAt': new Date()
+        }
+      }
+    )
+
+    // Also update the corresponding order if it exists
+    await db.collection('orders').updateOne(
+      { buildId: buildId },
+      {
+        $set: {
+          'payment.authAccepted': authAccepted,
+          'payment.updatedAt': new Date()
+        }
+      }
+    )
+
+    res.status(200).json({ success: true })
+  } catch (error) {
+    console.error('Update payment auth status error:', error)
+    res.status(500).json({ error: 'update_failed', message: error.message })
   }
 })
 
