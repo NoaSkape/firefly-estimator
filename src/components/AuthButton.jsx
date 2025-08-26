@@ -19,17 +19,15 @@ export default function AuthButton() {
   if (isSignedIn) {
     // Show Clerk's UserButton for signed-in users
     return (
-      <div className="bg-white rounded-full p-1 shadow-lg">
-        <UserButton 
-          appearance={{
-            elements: {
-              userButtonAvatarBox: 'w-8 h-8',
-              userButtonTrigger: 'focus:shadow-none hover:opacity-80'
-            }
-          }}
-          afterSignOutUrl="/"
-        />
-      </div>
+      <UserButton 
+        appearance={{
+          elements: {
+            userButtonAvatarBox: 'w-8 h-8',
+            userButtonTrigger: 'focus:shadow-none hover:opacity-80'
+          }
+        }}
+        afterSignOutUrl="/"
+      />
     )
   }
 
