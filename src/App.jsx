@@ -33,6 +33,7 @@ const PackageDetail = lazy(() => import('./public/PackageDetail'))
 const BuildsDashboard = lazy(() => import('./pages/builds/Builds'))
 const BuildCustomize = lazy(() => import('./pages/builds/Customize'))
 const About = lazy(() => import('./pages/About'))
+const Manufacturer = lazy(() => import('./pages/about/Manufacturer'))
 const Contact = lazy(() => import('./pages/Contact'))
 const Financing = lazy(() => import('./pages/Financing'))
 const Customize = lazy(() => import('./pages/Customize'))
@@ -327,6 +328,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/about" element={<About />} />
+              <Route path="/about/manufacturer" element={<Manufacturer />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/financing" element={<Financing />} />
               <Route path="/customize/:modelId" element={<Customize />} />

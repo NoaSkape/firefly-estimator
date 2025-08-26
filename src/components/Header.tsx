@@ -155,6 +155,7 @@ export default function Header() {
             >
               <a href="/faq" className="block px-4 py-2 text-sm text-gray-300 hover:text-yellow-400 hover:bg-gray-800">FAQ</a>
               <a href="/about" className="block px-4 py-2 text-sm text-gray-300 hover:text-yellow-400 hover:bg-gray-800">About Us</a>
+              <a href="/about/manufacturer" className="block px-4 py-2 text-sm text-gray-300 hover:text-yellow-400 hover:bg-gray-800">About the Manufacturer</a>
               {!isInstalled && (isInstallable || navigator.userAgent.includes('Chrome')) && (
                 <button
                   onClick={handleInstallClick}
