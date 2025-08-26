@@ -1,6 +1,6 @@
 import Stripe from 'stripe'
 import { requireAuth } from '../../lib/auth.js'
-import { getDb } from '../../lib/db.js'
+import { getBuildById } from '../../lib/builds.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
@@ -42,21 +42,18 @@ export default async function handler(req, res) {
 
     console.log('[SETUP-ACH] Setting up ACH for build:', orderId, 'user:', auth.userId)
 
-    console.log('[SETUP-ACH] Connecting to database...')
-    const db = await getDb()
-    console.log('[SETUP-ACH] Database connected successfully')
-
-    const { ObjectId } = await import('mongodb')
-    const buildId = new ObjectId(String(orderId))
-    console.log('[SETUP-ACH] Created ObjectId:', buildId)
+    // Get build using the standard library function
+    const build = await getBuildById(orderId)
+    console.log('[SETUP-ACH] Build lookup result:', !!build)
     
-    const build = await db.collection('builds').findOne({ 
-      _id: buildId, 
-      userId: auth.userId 
-    })
-
     if (!build) {
-      console.log('Build not found:', orderId, 'for user:', auth.userId)
+      console.log('[SETUP-ACH] Build not found:', orderId)
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    // Check if user owns this build
+    if (build.userId !== auth.userId) {
+      console.log('[SETUP-ACH] Build ownership check failed. Build userId:', build.userId, 'Request userId:', auth.userId)
       return res.status(404).json({ error: 'Build not found' })
     }
 
@@ -79,8 +76,11 @@ export default async function handler(req, res) {
       customerId = customer.id
       
       // Update build with customer ID
+      const { getDb } = await import('../../lib/db.js')
+      const db = await getDb()
+      const { ObjectId } = await import('mongodb')
       await db.collection('builds').updateOne(
-        { _id: buildId },
+        { _id: new ObjectId(String(orderId)) },
         { $set: { customerId: customerId } }
       )
     }
