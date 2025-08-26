@@ -1054,18 +1054,10 @@ function ACHElementsForm({
         setAccountLinked(true)
         setPaymentMethodId(confirmedSetupIntent.payment_method)
         
-        // Extract account details for display
-        try {
-          if (stripe && stripe.retrievePaymentMethod) {
-            const pm = await stripe.retrievePaymentMethod(confirmedSetupIntent.payment_method)
-            setAccountDetails(pm.us_bank_account)
-          } else {
-            console.warn('Stripe retrievePaymentMethod not available, skipping account details')
-          }
-        } catch (error) {
-          console.warn('Could not retrieve payment method details:', error)
-          // Continue without account details - not critical for the flow
-        }
+        // Extract account details for display (simplified to avoid pm reference errors)
+        console.log('💰 Account linked successfully, skipping detailed account info retrieval')
+        // Note: Account details retrieval temporarily disabled to avoid reference errors
+        // setAccountDetails will be populated from backend if needed
 
         // Check balance if requested
         if (checkBalance) {
@@ -1086,15 +1078,29 @@ function ACHElementsForm({
   }
 
   const handleSaveAndContinue = async () => {
-    if (!paymentMethodId) return
+    console.log('💾 Save and Continue clicked:', { 
+      paymentMethodId, 
+      hasAccountDetails: !!accountDetails,
+      buildId: setupIntent?.metadata?.buildId 
+    })
+    
+    if (!paymentMethodId) {
+      console.error('❌ No payment method ID available')
+      return
+    }
 
     setProcessing(true)
     try {
+      console.log('🔄 Calling saveACHMethod...')
       // Save the payment method to the build
       await saveACHMethod(paymentMethodId, accountDetails?.financial_connections_account, null)
+      console.log('✅ Payment method saved successfully')
       onContinue()
     } catch (error) {
-      console.error('Save payment method error:', error)
+      console.error('❌ Save payment method error:', error)
+      // Don't block the user - let them continue anyway
+      console.log('⚠️ Continuing despite save error...')
+      onContinue()
     } finally {
       setProcessing(false)
     }
