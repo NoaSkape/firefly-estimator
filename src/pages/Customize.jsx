@@ -95,7 +95,7 @@ const Customize = () => {
       if (!isSignedIn) {
         // Load anonymous customization for non-signed-in users
         const savedCustomization = loadAnonymousCustomization(actualModelCode)
-        if (savedCustomization) {
+        if (savedCustomization && (savedCustomization.selectedOptions?.length > 0 || savedCustomization.selectedPackage)) {
           setSelectedOptions(savedCustomization.selectedOptions || [])
           setSelectedPackage(savedCustomization.selectedPackage || '')
           addToast({
