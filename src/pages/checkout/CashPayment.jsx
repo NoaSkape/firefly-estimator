@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { useToast } from '../../components/ToastProvider'
 import analytics from '../../utils/analytics'
@@ -15,6 +15,7 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 
 
 export default function CashPayment() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { buildId } = useParams()
   const { getToken } = useAuth()
   const [build, setBuild] = useState(null)
@@ -43,10 +44,39 @@ export default function CashPayment() {
   const [balanceWarning, setBalanceWarning] = useState(false)
 
   // Step 6C: Review
+  const [paymentAuthAccepted, setPaymentAuthAccepted] = useState(false)
   const [termsAccepted, setTermsAccepted] = useState(false)
-
-  // Note: Removed auto-advance - users should start at Step 1 (Amount & Method)
   const [privacyAccepted, setPrivacyAccepted] = useState(false)
+
+  // URL-based step management for browser back button support
+  useEffect(() => {
+    // Get step from URL hash or default to 'choose'
+    const urlStep = location.hash.replace('#', '') || 'choose'
+    if (['choose', 'details', 'review'].includes(urlStep)) {
+      setCurrentStep(urlStep)
+    }
+  }, [location.hash])
+
+  // Update URL when step changes
+  useEffect(() => {
+    const newHash = `#${currentStep}`
+    if (location.hash !== newHash) {
+      navigate(location.pathname + newHash, { replace: true })
+    }
+  }, [currentStep, navigate, location.pathname, location.hash])
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = (event) => {
+      const step = location.hash.replace('#', '') || 'choose'
+      if (['choose', 'details', 'review'].includes(step)) {
+        setCurrentStep(step)
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [location.hash])
 
   useEffect(() => {
     loadBuild()
@@ -288,11 +318,11 @@ export default function CashPayment() {
   }
 
   async function markPaymentReady() {
-    if (!termsAccepted || !privacyAccepted) {
+    if (!paymentAuthAccepted || !termsAccepted || !privacyAccepted) {
       addToast({
         type: 'error',
         title: 'Required',
-        message: 'Please accept the terms and privacy policy.'
+        message: 'Please accept all authorization requirements.'
       })
       return false
     }
@@ -430,16 +460,16 @@ export default function CashPayment() {
 
         {/* Step Indicator */}
         <div className="mb-6 flex items-center justify-center space-x-4">
-          <div className={`flex items-center ${currentStep === 'choose' ? 'text-yellow-400' : 'text-gray-400'}`}>
+          <div className={`flex items-center ${currentStep === 'choose' || currentStep === 'details' || currentStep === 'review' ? 'text-yellow-400' : 'text-gray-400'}`}>
             <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${
-              currentStep === 'choose' ? 'border-yellow-400 bg-yellow-400 text-black' : 'border-gray-600'
+              currentStep === 'choose' || currentStep === 'details' || currentStep === 'review' ? 'border-yellow-400 bg-yellow-400 text-black' : 'border-gray-600'
             }`}>
               1
             </div>
             <span className="ml-2 text-sm">Amount & Method</span>
           </div>
-          <div className={`w-8 h-1 ${currentStep === 'review' ? 'bg-yellow-400' : 'bg-gray-600'}`}></div>
-          <div className={`flex items-center ${currentStep === 'details' ? 'text-yellow-400' : currentStep === 'review' ? 'text-yellow-400' : 'text-gray-400'}`}>
+          <div className={`w-8 h-1 ${currentStep === 'details' || currentStep === 'review' ? 'bg-yellow-400' : 'bg-gray-600'}`}></div>
+          <div className={`flex items-center ${currentStep === 'details' || currentStep === 'review' ? 'text-yellow-400' : 'text-gray-400'}`}>
             <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${
               currentStep === 'details' || currentStep === 'review' ? 'border-yellow-400 bg-yellow-400 text-black' : 'border-gray-600'
             }`}>
@@ -737,7 +767,11 @@ export default function CashPayment() {
                 {/* Model Info */}
                 <div className="flex justify-between py-2 border-b border-gray-600">
                   <span className="text-gray-300">Model:</span>
-                  <span className="text-white font-medium">{build?.model?.name || build?.modelCode || 'Custom Build'}</span>
+                  <span className="text-white font-medium">
+                    {build?.model?.name || build?.model?.title || 
+                     (build?.modelCode ? `The ${build.modelCode}` : '') || 
+                     'Custom Build'}
+                  </span>
                 </div>
                 
                 {/* Total Price */}
@@ -793,12 +827,12 @@ export default function CashPayment() {
                 <label className="flex items-start">
                   <input
                     type="checkbox"
-                    checked={termsAccepted}
-                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    checked={paymentAuthAccepted}
+                    onChange={(e) => setPaymentAuthAccepted(e.target.checked)}
                     className="mr-3 mt-1"
                   />
                   <span className="text-white text-sm">
-                    I authorize Firefly to charge/deposit the amount shown in Step 8 using the method I provided (ACH mandate if applicable).
+                    I authorize Firefly to charge/deposit the amount shown using the method I provided (ACH mandate if applicable).
                   </span>
                 </label>
                 
@@ -828,29 +862,13 @@ export default function CashPayment() {
               </div>
             </div>
 
-            <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4">
-              <div className="text-sm text-white">
-                <strong>Legal Information:</strong>
-                <ul className="mt-2 space-y-1">
-                  <li>• {paymentPlan.percent}% deposit to begin construction; final payment due before release from factory.</li>
-                  <li>• If delivery doesn't occur within 12 days after completion, storage charges of {formatCurrency(settings?.payments?.storageFeePerDayCents || 4000)}/day will apply.</li>
-                  <li>• Insurance responsibility upon factory completion and during transit.</li>
-                </ul>
-                <div className="mt-2">
-                  <a href="/freight-disclosure" className="text-yellow-400 hover:text-yellow-300 underline mr-4">Freight Disclosure</a>
-                  <a href="/site-readiness" className="text-yellow-400 hover:text-yellow-300 underline mr-4">Site Readiness</a>
-                  <a href="/warranty" className="text-yellow-400 hover:text-yellow-300 underline">Warranty</a>
-                </div>
-              </div>
-            </div>
-
             <div className="flex gap-3">
               <button 
                 className="btn-primary"
                 onClick={continueToContract}
-                disabled={saving || !termsAccepted || !privacyAccepted}
+                disabled={saving || !paymentAuthAccepted || !termsAccepted || !privacyAccepted}
               >
-                {saving ? 'Saving...' : 'View Contract'}
+                {saving ? 'Saving...' : 'Continue to Contract'}
               </button>
               <button 
                 className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
@@ -863,7 +881,7 @@ export default function CashPayment() {
                 className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
                 onClick={() => setCurrentStep('details')}
               >
-                ← Back to Details
+                ← Back to Payment Details
               </button>
             </div>
           </div>
