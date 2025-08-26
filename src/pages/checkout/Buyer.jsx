@@ -222,16 +222,21 @@ export default function Buyer() {
             try {
               console.log('Saving to user profile:', form)
               
-              // Update basic info
+              // Update basic info INCLUDING address (EXACTLY like phone)
               const basicInfoResult = await updateBasicInfo({
                 firstName: form.firstName,
                 lastName: form.lastName,
                 email: form.email,
-                phone: formatPhoneIfNeeded(form.phone)
+                phone: formatPhoneIfNeeded(form.phone),
+                // Save address directly to profile (SAME as phone number)
+                address: form.address,
+                city: form.city,
+                state: form.state,
+                zip: form.zip
               })
-              console.log('Basic info saved:', basicInfoResult)
+              console.log('Basic info (including address) saved:', basicInfoResult)
               
-              // Add address to address book and set as primary
+              // ALSO add address to address book for advanced features (distance calculations, etc.)
               if (form.address && form.city && form.state && form.zip) {
                 const addressResult = await addAddress({
                   address: form.address,
@@ -241,7 +246,7 @@ export default function Buyer() {
                   label: 'Home',
                   isPrimary: true // Set as primary address
                 })
-                console.log('Address saved:', addressResult)
+                console.log('Address also saved to address book:', addressResult)
               }
             } catch (profileError) {
               console.error('Error saving to profile:', profileError)
