@@ -7,6 +7,7 @@ import RenameModal from '../../components/RenameModal'
 import { useToast } from '../../components/ToastProvider'
 import { calculateTotalPurchasePrice } from '../../utils/calculateTotal'
 import { slugToModelId } from '../../utils/modelUrlMapping'
+import { MODELS } from '../../data/models'
 import { 
   ChevronDownIcon, 
   XMarkIcon,
@@ -120,13 +121,39 @@ export default function BuildsDashboard() {
 
     const loadModels = async () => {
       try {
-        const modelsRes = await fetch('/api/models')
-        if (modelsRes.ok) {
-          const modelsData = await modelsRes.json()
-          setModels(modelsData)
-        }
+        // Start with local models
+        const local = MODELS.map(m => ({ ...m }))
+        setModels(local)
+        
+        // Fetch each model individually to get images and updated data
+        const responses = await Promise.all(local.map(m => fetch(`/api/models/${m.id}`)))
+        const apiModels = await Promise.all(responses.map(r => (r.ok ? r.json() : null)))
+        
+        const merged = local.map((m, i) => {
+          const api = apiModels[i]
+          if (!api) return m
+          return {
+            ...m,
+            name: api.name || m.name,
+            description: api.description ?? m.description,
+            basePrice: typeof api.basePrice === 'number' ? api.basePrice : m.basePrice,
+            width: api?.width ?? null,
+            length: api?.length ?? null,
+            height: api?.height ?? null,
+            weight: api?.weight ?? null,
+            bedrooms: api?.bedrooms ?? null,
+            bathrooms: api?.bathrooms ?? null,
+            squareFeet: api?.squareFeet ?? null,
+            images: Array.isArray(api.images) ? api.images : [],
+            subtitle: api.modelCode || m.subtitle,
+          }
+        })
+        
+        setModels(merged)
       } catch (error) {
         console.error('Error loading models:', error)
+        // Fallback to local models if API fails
+        setModels(MODELS.map(m => ({ ...m })))
       }
     }
     
