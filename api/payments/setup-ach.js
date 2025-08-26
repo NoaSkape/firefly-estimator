@@ -35,19 +35,19 @@ export default async function handler(req, res) {
       return
     }
 
-    const { orderId } = req.body // This is actually buildId from frontend
-    if (!orderId) {
+    const { buildId } = req.body
+    if (!buildId) {
       return res.status(400).json({ error: 'Build ID is required' })
     }
 
-    console.log('[SETUP-ACH] Setting up ACH for build:', orderId, 'user:', auth.userId)
+    console.log('[SETUP-ACH] Setting up ACH for build:', buildId, 'user:', auth.userId)
 
     // Get build using the standard library function
-    const build = await getBuildById(orderId)
+    const build = await getBuildById(buildId)
     console.log('[SETUP-ACH] Build lookup result:', !!build)
     
     if (!build) {
-      console.log('[SETUP-ACH] Build not found:', orderId)
+      console.log('[SETUP-ACH] Build not found:', buildId)
       return res.status(404).json({ error: 'Build not found' })
     }
 
@@ -69,7 +69,7 @@ export default async function handler(req, res) {
         email: build.buyerInfo?.email,
         name: `${build.buyerInfo?.firstName} ${build.buyerInfo?.lastName}`,
         metadata: {
-          buildId: orderId,
+          buildId: buildId,
           userId: auth.userId
         }
       })
@@ -80,7 +80,7 @@ export default async function handler(req, res) {
       const db = await getDb()
       const { ObjectId } = await import('mongodb')
       await db.collection('builds').updateOne(
-        { _id: new ObjectId(String(orderId)) },
+        { _id: new ObjectId(String(buildId)) },
         { $set: { customerId: customerId } }
       )
     }
@@ -100,7 +100,7 @@ export default async function handler(req, res) {
         }
       },
       metadata: {
-        buildId: orderId,
+        buildId: buildId,
         userId: auth.userId
       }
     })

@@ -10,22 +10,23 @@ export default async function handler(req, res) {
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
-    const { orderId, plan, method, mandateAccepted } = req.body
-    if (!orderId || !plan || !method) {
-      return res.status(400).json({ error: 'Order ID, plan, and method are required' })
+    const { buildId, plan, method, mandateAccepted } = req.body
+    if (!buildId || !plan || !method) {
+      return res.status(400).json({ error: 'Build ID, plan, and method are required' })
     }
 
-    const db = await getDb()
-    const order = await db.collection('orders').findOne({ 
-      _id: orderId, 
-      userId: auth.userId 
-    })
-
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' })
+    const { getBuildById } = await import('../../lib/builds.js')
+    const build = await getBuildById(buildId)
+    
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
     }
 
-    // Update order with payment plan and mark as ready
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Update build with payment plan and mark as ready
     const updateData = {
       'payment.plan': plan,
       'payment.method': method,
@@ -38,8 +39,10 @@ export default async function handler(req, res) {
       updateData['payment.mandateAcceptedAt'] = new Date().toISOString()
     }
 
-    await db.collection('orders').updateOne(
-      { _id: orderId },
+    const db = await getDb()
+    const { ObjectId } = await import('mongodb')
+    await db.collection('builds').updateOne(
+      { _id: new ObjectId(String(buildId)) },
       { $set: updateData }
     )
 

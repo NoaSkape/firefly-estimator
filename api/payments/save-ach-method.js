@@ -13,27 +13,28 @@ export default async function handler(req, res) {
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
-    const { orderId, paymentMethodId, accountId, balanceCents } = req.body
-    if (!orderId || !paymentMethodId) {
-      return res.status(400).json({ error: 'Order ID and Payment Method ID are required' })
+    const { buildId, paymentMethodId, accountId, balanceCents } = req.body
+    if (!buildId || !paymentMethodId) {
+      return res.status(400).json({ error: 'Build ID and Payment Method ID are required' })
     }
 
-    const db = await getDb()
-    const order = await db.collection('orders').findOne({ 
-      _id: orderId, 
-      userId: auth.userId 
-    })
+    const { getBuildById } = await import('../../lib/builds.js')
+    const build = await getBuildById(buildId)
+    
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
 
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' })
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
     }
 
     // Attach payment method to customer
     await stripe.paymentMethods.attach(paymentMethodId, {
-      customer: order.customerId,
+      customer: build.customerId,
     })
 
-    // Update order with payment method details
+    // Update build with payment method details
     const updateData = {
       'payment.method': 'ach_debit',
       'payment.savedPaymentMethodId': paymentMethodId,
@@ -43,8 +44,10 @@ export default async function handler(req, res) {
       }
     }
 
-    await db.collection('orders').updateOne(
-      { _id: orderId },
+    const db = await getDb()
+    const { ObjectId } = await import('mongodb')
+    await db.collection('builds').updateOne(
+      { _id: new ObjectId(String(buildId)) },
       { $set: updateData }
     )
 
