@@ -54,37 +54,72 @@ export default function Buyer() {
             const formattedPhone = formatPhoneIfNeeded(autoFillData.phone || '')
             console.log('Formatted phone number:', { original: autoFillData.phone, formatted: formattedPhone })
             
+            // Check if we have address data from build's buyerInfo as fallback
+            let addressFromBuild = null
+            if (build?.buyerInfo) {
+              const buyerInfo = build.buyerInfo
+              if (buyerInfo.address && buyerInfo.city && buyerInfo.state && buyerInfo.zip) {
+                addressFromBuild = {
+                  address: buyerInfo.address,
+                  city: buyerInfo.city,
+                  state: buyerInfo.state,
+                  zip: buyerInfo.zip
+                }
+                console.log('Found address in build buyerInfo:', addressFromBuild)
+              }
+            }
+            
             setForm(f => ({
               ...f,
               firstName: autoFillData.firstName || user?.firstName || '',
               lastName: autoFillData.lastName || user?.lastName || '',
               email: autoFillData.email || user?.primaryEmailAddress?.emailAddress || '',
               phone: formattedPhone,
-              address: autoFillData.address || '',
-              city: autoFillData.city || '',
-              state: autoFillData.state || '',
-              zip: autoFillData.zip || ''
+              address: autoFillData.address || addressFromBuild?.address || '',
+              city: autoFillData.city || addressFromBuild?.city || '',
+              state: autoFillData.state || addressFromBuild?.state || '',
+              zip: autoFillData.zip || addressFromBuild?.zip || ''
             }))
             console.log('Form updated with auto-fill data including address:', {
-              address: autoFillData.address,
-              city: autoFillData.city,
-              state: autoFillData.state,
-              zip: autoFillData.zip
+              address: autoFillData.address || addressFromBuild?.address,
+              city: autoFillData.city || addressFromBuild?.city,
+              state: autoFillData.state || addressFromBuild?.state,
+              zip: autoFillData.zip || addressFromBuild?.zip
             })
             console.log('Current form state after update:', JSON.stringify({
-              address: autoFillData.address,
-              city: autoFillData.city,
-              state: autoFillData.state,
-              zip: autoFillData.zip
+              address: autoFillData.address || addressFromBuild?.address,
+              city: autoFillData.city || addressFromBuild?.city,
+              state: autoFillData.state || addressFromBuild?.state,
+              zip: autoFillData.zip || addressFromBuild?.zip
             }, null, 2))
           } else {
-            console.log('No auto-fill data found, falling back to Clerk user data')
+            console.log('No auto-fill data found, checking build buyerInfo...')
+            
+            // Check if we have address data from build's buyerInfo
+            let addressFromBuild = null
+            if (build?.buyerInfo) {
+              const buyerInfo = build.buyerInfo
+              if (buyerInfo.address && buyerInfo.city && buyerInfo.state && buyerInfo.zip) {
+                addressFromBuild = {
+                  address: buyerInfo.address,
+                  city: buyerInfo.city,
+                  state: buyerInfo.state,
+                  zip: buyerInfo.zip
+                }
+                console.log('Found address in build buyerInfo:', addressFromBuild)
+              }
+            }
+            
             // Fallback to Clerk user data
             setForm(f => ({
               ...f,
               firstName: f.firstName || user?.firstName || '',
               lastName: f.lastName || user?.lastName || '',
-              email: f.email || user?.primaryEmailAddress?.emailAddress || ''
+              email: f.email || user?.primaryEmailAddress?.emailAddress || '',
+              address: addressFromBuild?.address || '',
+              city: addressFromBuild?.city || '',
+              state: addressFromBuild?.state || '',
+              zip: addressFromBuild?.zip || ''
             }))
           }
           setAutoFillLoaded(true)
@@ -129,7 +164,7 @@ export default function Buyer() {
     }
     
     loadInitialData()
-  }, [user, isSignedIn, autoFillLoaded, getAutoFillData])
+  }, [user, isSignedIn, autoFillLoaded, getAutoFillData, build])
 
   function setField(k, v) { 
     setForm(f => {
