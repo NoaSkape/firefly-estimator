@@ -48,7 +48,7 @@ export default function Buyer() {
         if (isSignedIn && !autoFillLoaded) {
           console.log('Attempting to load auto-fill data from profile...')
           const autoFillData = await getAutoFillData()
-          console.log('Loaded auto-fill data from profile:', autoFillData)
+          console.log('Loaded auto-fill data from profile:', JSON.stringify(autoFillData, null, 2))
           
           if (autoFillData && Object.keys(autoFillData).length > 0) {
             const formattedPhone = formatPhoneIfNeeded(autoFillData.phone || '')
@@ -71,6 +71,12 @@ export default function Buyer() {
               state: autoFillData.state,
               zip: autoFillData.zip
             })
+            console.log('Current form state after update:', JSON.stringify({
+              address: autoFillData.address,
+              city: autoFillData.city,
+              state: autoFillData.state,
+              zip: autoFillData.zip
+            }, null, 2))
           } else {
             console.log('No auto-fill data found, falling back to Clerk user data')
             // Fallback to Clerk user data
@@ -406,25 +412,37 @@ export default function Buyer() {
               >
                 Debug Profile
               </button>
-              <button 
-                className="btn-secondary" 
-                onClick={async () => {
-                  try {
-                    console.log('Testing autofill data retrieval...')
-                    const autoFillData = await getAutoFillData()
-                    console.log('Auto-fill data test result:', autoFillData)
-                    addToast({ 
-                      type: 'info', 
-                      message: `Auto-fill test: ${autoFillData.address ? 'Address found' : 'No address'}` 
-                    })
-                  } catch (error) {
-                    console.error('Auto-fill test error:', error)
-                    addToast({ type: 'error', message: 'Auto-fill test failed' })
-                  }
-                }}
-              >
-                Test Auto-fill
-              </button>
+                             <button 
+                 className="btn-secondary" 
+                 onClick={async () => {
+                   try {
+                     console.log('Testing autofill data retrieval...')
+                     const autoFillData = await getAutoFillData()
+                     console.log('Auto-fill data test result:', JSON.stringify(autoFillData, null, 2))
+                     addToast({ 
+                       type: 'info', 
+                       message: `Auto-fill test: ${autoFillData.address ? 'Address found' : 'No address'}` 
+                     })
+                   } catch (error) {
+                     console.error('Auto-fill test error:', error)
+                     addToast({ type: 'error', message: 'Auto-fill test failed' })
+                   }
+                 }}
+               >
+                 Test Auto-fill
+               </button>
+               <button 
+                 className="btn-secondary" 
+                 onClick={() => {
+                   console.log('Current form state:', JSON.stringify(form, null, 2))
+                   addToast({ 
+                     type: 'info', 
+                     message: `Form state logged to console` 
+                   })
+                 }}
+               >
+                 Show Form State
+               </button>
             </>
           )}
         </div>
