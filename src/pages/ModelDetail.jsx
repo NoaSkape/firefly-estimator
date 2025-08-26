@@ -452,14 +452,6 @@ const ModelDetail = ({ onModelSelect }) => {
               </p>
             </div>
 
-            {/* Model Description - read only; editing via Edit panel */}
-            <div className="card">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Description</h2>
-              <p className="text-gray-700 dark:text-gray-300">{model.description || 'No description available.'}</p>
-            </div>
-
-
-
             {/* Specifications */}
             <div className="card">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Specifications</h2>
@@ -531,6 +523,26 @@ const ModelDetail = ({ onModelSelect }) => {
               <p className="text-sm text-gray-600 mt-2 text-center">
                 Add packages and options to personalize your home. Next: Customize.
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Model Description - moved below images for better UX */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="card">
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4">About This Model</h2>
+            <div className="prose prose-lg text-gray-700 dark:text-gray-300 max-w-none">
+              {model.description ? (
+                model.description.split('\n').map((paragraph, index) => (
+                  <p key={index} className="mb-4 leading-relaxed">
+                    {paragraph}
+                  </p>
+                ))
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400 italic">
+                  No description available. Please contact us for more information about this model.
+                </p>
+              )}
             </div>
           </div>
         </div>

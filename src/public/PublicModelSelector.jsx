@@ -31,7 +31,6 @@ export default function PublicModelSelector({ models }) {
             )}
             <h3 className="font-semibold text-lg mb-1">{model.name}</h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">{model.subtitle}</p>
-            <p className="text-gray-600 dark:text-gray-300 text-sm mb-3">{model.description}</p>
             <div className="text-2xl font-bold text-yellow-500 mb-3">${Number(model.basePrice || 0).toLocaleString()}</div>
             <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
               {model.length && (<div>Length: {model.length}</div>)}

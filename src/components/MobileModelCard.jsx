@@ -204,9 +204,7 @@ export default function MobileModelCard({ model }) {
           </button>
         </div>
 
-        <p className="text-gray-600 text-sm mb-3 mobile-text">
-          {model.description}
-        </p>
+
 
         {/* Specs Grid */}
         <div className="grid grid-cols-2 gap-3 mb-4">

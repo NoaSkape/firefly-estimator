@@ -268,12 +268,7 @@ export default function MobileQuickViewModal({ model, isOpen, onClose, onCustomi
               <div className="text-sm text-gray-500">Starting Price</div>
             </div>
 
-            {/* Description */}
-            <div>
-              <p className="text-gray-600 mobile-text leading-relaxed">
-                {model.description}
-              </p>
-            </div>
+
 
             {/* Specs Grid */}
             <div className="grid grid-cols-2 gap-3">
