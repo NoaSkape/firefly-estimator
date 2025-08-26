@@ -8,7 +8,6 @@ import { useToast } from '../../components/ToastProvider'
 import { calculateTotalPurchasePrice } from '../../utils/calculateTotal'
 import { 
   ChevronDownIcon, 
-  InformationCircleIcon,
   XMarkIcon,
   HomeIcon,
   ClockIcon,
@@ -252,10 +251,10 @@ export default function BuildsDashboard() {
           {/* SEO Introduction Paragraph */}
           <div className="bg-gray-800/50 rounded-lg p-6 mb-6">
             <p className="text-gray-300 leading-relaxed">
-              This is your personal hub for managing all of your <strong>saved tiny home designs</strong>. 
-              Every time you <strong>customize your tiny house online</strong>, it's stored here so you can 
-              return later, compare different builds, or move straight to checkout. With Firefly, you can 
-              <strong>buy a tiny house online</strong> in just a few clicks.
+              This is your personal hub for managing all of your saved tiny home designs. 
+              Every time you customize your tiny house online, it's stored here so you can 
+              return later, compare different builds, or complete your purchase. With Firefly, you can 
+              buy a tiny house online in just a few clicks.
             </p>
           </div>
 
@@ -263,10 +262,9 @@ export default function BuildsDashboard() {
           {showInfoBanner && (
             <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6 flex items-start justify-between">
               <div className="flex items-start">
-                <InformationCircleIcon className="w-5 h-5 text-yellow-500 mt-0.5 mr-3 flex-shrink-0" />
                 <div>
                   <p className="text-yellow-200 text-sm">
-                    <strong>💡 Tip:</strong> You can create and save as many designs as you like. 
+                    💡 Tip: You can create and save as many designs as you like. 
                     Compare different layouts, experiment with options, and come back anytime to finish your purchase.
                   </p>
                 </div>
@@ -353,11 +351,10 @@ export default function BuildsDashboard() {
                       className="w-full h-full object-cover"
                       loading="lazy"
                       onError={(e) => {
-                        e.target.style.display = 'none'
-                        e.target.nextSibling.style.display = 'flex'
+                        e.target.src = '/hero/tiny-home-dusk.png'
+                        e.target.className = 'w-full h-full object-cover'
                       }}
                     />
-                    <HomeIcon className="w-8 h-8 text-gray-400 hidden" />
                   </div>
 
                   {/* Build Info */}
