@@ -923,9 +923,9 @@ app.patch(['/api/profile/basic', '/profile/basic'], async (req, res) => {
     console.log('DEBUG: Starting profile/basic update for user:', auth.userId)
     
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { firstName, lastName, email, phone } = body
+    const { firstName, lastName, email, phone, address, city, state, zip } = body
     
-    console.log('DEBUG: Request body:', { firstName, lastName, email, phone })
+    console.log('DEBUG: Request body:', { firstName, lastName, email, phone, address, city, state, zip })
     
     // Validate required fields
     if (!firstName || !lastName || !email) {
@@ -938,7 +938,7 @@ app.patch(['/api/profile/basic', '/profile/basic'], async (req, res) => {
     console.log('DEBUG: Indexes ensured successfully')
     
     console.log('DEBUG: Updating user basic info...')
-    const profile = await updateUserBasicInfo(auth.userId, { firstName, lastName, email, phone })
+    const profile = await updateUserBasicInfo(auth.userId, { firstName, lastName, email, phone, address, city, state, zip })
     
     console.log('DEBUG: Basic info updated successfully:', profile)
     return res.status(200).json(profile)
