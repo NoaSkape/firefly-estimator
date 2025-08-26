@@ -45,12 +45,7 @@ export default function CashPayment() {
   // Step 6C: Review
   const [termsAccepted, setTermsAccepted] = useState(false)
 
-  // Auto-advance to details step when page loads (skip the amount selection for direct bank linking)
-  useEffect(() => {
-    if (currentStep === 'choose' && paymentMethod === 'ach_debit') {
-      setCurrentStep('details')
-    }
-  }, [currentStep, paymentMethod])
+  // Note: Removed auto-advance - users should start at Step 1 (Amount & Method)
   const [privacyAccepted, setPrivacyAccepted] = useState(false)
 
   useEffect(() => {
@@ -461,104 +456,173 @@ export default function CashPayment() {
         {/* Step 6A: Amount & Method */}
         {currentStep === 'choose' && (
           <div className="space-y-6">
+            {/* Welcome Section */}
+            <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+              <h2 className="text-white font-semibold text-xl mb-3">Cash & ACH Payment Setup</h2>
+              <p className="text-gray-300 text-sm leading-relaxed">
+                Configure your payment amount and method. We offer secure bank-to-bank transfers with 
+                industry-leading encryption and verification through our payment processor, Stripe.
+              </p>
+            </div>
+
+            {/* Payment Amount Selection */}
             <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
               <h2 className="text-white font-semibold text-lg mb-4">Payment Amount</h2>
-              <div className="space-y-3">
-                <label className="flex items-center">
+              <p className="text-gray-300 text-sm mb-4">
+                Choose how much to pay now. A deposit secures your build while full payment provides additional savings.
+              </p>
+              
+              <div className="space-y-4">
+                <label className="flex items-start p-4 border border-gray-600 rounded-lg hover:border-yellow-500 transition-colors cursor-pointer">
                   <input
                     type="radio"
                     name="paymentType"
                     value="deposit"
                     checked={paymentPlan.type === 'deposit'}
                     onChange={() => setPaymentPlan(prev => ({ ...prev, type: 'deposit', amountCents: depositCents }))}
-                    className="mr-3"
+                    className="mr-4 mt-1"
                   />
-                  <span className="text-white">
-                    {paymentPlan.percent}% Deposit ({formatCurrency(depositCents)}) - <strong>Recommended</strong>
-                  </span>
+                  <div className="flex-1">
+                    <div className="text-white font-medium">
+                      {paymentPlan.percent}% Deposit - {formatCurrency(depositCents)} 
+                      <span className="ml-2 text-yellow-400 text-sm">Recommended</span>
+                    </div>
+                    <div className="text-gray-400 text-sm mt-1">
+                      Secure your build with a deposit. Remaining balance due before home leaves factory.
+                    </div>
+                  </div>
                 </label>
-                <label className="flex items-center">
+                
+                <label className="flex items-start p-4 border border-gray-600 rounded-lg hover:border-yellow-500 transition-colors cursor-pointer">
                   <input
                     type="radio"
                     name="paymentType"
                     value="full"
                     checked={paymentPlan.type === 'full'}
                     onChange={() => setPaymentPlan(prev => ({ ...prev, type: 'full', amountCents: totalCents }))}
-                    className="mr-3"
+                    className="mr-4 mt-1"
                   />
-                  <span className="text-white">
-                    Pay in Full ({formatCurrency(totalCents)})
-                  </span>
+                  <div className="flex-1">
+                    <div className="text-white font-medium">
+                      Pay in Full - {formatCurrency(totalCents)}
+                    </div>
+                    <div className="text-gray-400 text-sm mt-1">
+                      Complete payment now. No additional payments required.
+                    </div>
+                  </div>
                 </label>
               </div>
             </div>
 
+            {/* Payment Method Selection */}
             <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
               <h2 className="text-white font-semibold text-lg mb-4">Payment Method</h2>
-              <div className="space-y-3">
-                <label className="flex items-center">
+              <p className="text-gray-300 text-sm mb-4">
+                Select your preferred payment method. Bank transfers offer the most secure and cost-effective option.
+              </p>
+              
+              <div className="space-y-4">
+                <label className="flex items-start p-4 border border-gray-600 rounded-lg hover:border-yellow-500 transition-colors cursor-pointer">
                   <input
                     type="radio"
                     name="paymentMethod"
                     value="ach_debit"
                     checked={paymentMethod === 'ach_debit'}
                     onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="mr-3"
+                    className="mr-4 mt-1"
                   />
-                  <span className="text-white">
-                    Bank Debit (ACH) - <strong>Recommended</strong>
-                  </span>
+                  <div className="flex-1">
+                    <div className="text-white font-medium">
+                      Bank Account (ACH Debit) 
+                      <span className="ml-2 text-yellow-400 text-sm">Recommended</span>
+                    </div>
+                    <div className="text-gray-400 text-sm mt-1">
+                      Secure bank-to-bank transfer. No fees. Funds verified automatically. Takes 3-5 business days.
+                    </div>
+                  </div>
                 </label>
-                                 <label className="flex items-center">
-                   <input
-                     type="radio"
-                     name="paymentMethod"
-                     value="bank_transfer"
-                     checked={paymentMethod === 'bank_transfer'}
-                     onChange={(e) => setPaymentMethod(e.target.value)}
-                     className="mr-3"
-                   />
-                   <span className="text-white">
-                     Bank Transfer (ACH Credit / Wire)
-                   </span>
-                 </label>
-                 
-                 <details className="mt-4">
-                   <summary className="text-gray-400 cursor-pointer hover:text-white flex items-center">
-                     <span>Other Methods</span>
-                     <span className="ml-2 text-xs">▼</span>
-                   </summary>
-                   <div className="mt-2 ml-6">
-                     <label className="flex items-center">
-                       <input
-                         type="radio"
-                         name="paymentMethod"
-                         value="card"
-                         checked={paymentMethod === 'card'}
-                         onChange={(e) => setPaymentMethod(e.target.value)}
-                         className="mr-3"
-                       />
-                       <span className="text-white">Credit/Debit Card (fees apply)</span>
-                     </label>
-                   </div>
-                 </details>
+                
+                <label className="flex items-start p-4 border border-gray-600 rounded-lg hover:border-yellow-500 transition-colors cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="bank_transfer"
+                    checked={paymentMethod === 'bank_transfer'}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="mr-4 mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="text-white font-medium">
+                      Bank Transfer (Wire/ACH Credit)
+                    </div>
+                    <div className="text-gray-400 text-sm mt-1">
+                      Send funds directly from your bank. Fastest processing. May incur bank fees.
+                    </div>
+                  </div>
+                </label>
+                
+                <details className="mt-4">
+                  <summary className="text-gray-400 cursor-pointer hover:text-yellow-400 flex items-center p-2 rounded">
+                    <span>Other Payment Methods</span>
+                    <span className="ml-2 text-xs">▼</span>
+                  </summary>
+                  <div className="mt-3">
+                    <label className="flex items-start p-4 border border-gray-600 rounded-lg hover:border-yellow-500 transition-colors cursor-pointer">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="card"
+                        checked={paymentMethod === 'card'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mr-4 mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="text-white font-medium">
+                          Credit/Debit Card
+                        </div>
+                        <div className="text-gray-400 text-sm mt-1">
+                          Instant processing. Processing fees apply (2.9% + $0.30).
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                </details>
               </div>
             </div>
 
-            <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4">
-              <div className="text-sm text-white">
-                <strong>Important:</strong> No money moves at Step 6. We'll collect in Step 8 (Confirmation) after you sign.
-              </div>
-            </div>
-
+            {/* Payment Summary */}
             <div className="bg-green-900/30 border border-green-600 rounded-lg p-4">
-              <div className="text-sm text-white">
-                <strong>Amount to be charged in Step 8:</strong> {formatCurrency(currentAmountCents)}
-                {paymentPlan.type === 'deposit' && (
-                  <span className="block mt-1">
-                    Balance due before home leaves factory: {formatCurrency(totalCents - depositCents)}
-                  </span>
-                )}
+              <div className="text-white">
+                <div className="font-semibold text-base mb-2">Payment Summary</div>
+                <div className="text-sm space-y-1">
+                  <div><strong>Amount to be charged:</strong> {formatCurrency(currentAmountCents)}</div>
+                  {paymentPlan.type === 'deposit' && (
+                    <div className="text-green-200">
+                      Remaining balance: {formatCurrency(totalCents - depositCents)} (due before delivery)
+                    </div>
+                  )}
+                  <div className="text-green-200 mt-2">
+                    Selected method: {
+                      paymentMethod === 'ach_debit' ? 'Bank Account (ACH Debit)' :
+                      paymentMethod === 'bank_transfer' ? 'Bank Transfer' :
+                      paymentMethod === 'card' ? 'Credit/Debit Card' :
+                      'Not selected'
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Important Information */}
+            <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4">
+              <div className="text-white">
+                <div className="font-semibold text-sm mb-2">🔒 Security & Process</div>
+                <ul className="text-xs space-y-1 text-blue-100">
+                  <li>• Payment setup only - no charges until final confirmation</li>
+                  <li>• Bank-grade encryption protects all financial information</li>
+                  <li>• Contract signature required before any payment processing</li>
+                  <li>• Full payment details provided before authorization</li>
+                </ul>
               </div>
             </div>
 
