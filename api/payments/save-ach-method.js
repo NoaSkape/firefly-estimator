@@ -1,5 +1,5 @@
 import Stripe from 'stripe'
-import { getAuth } from '@clerk/nextjs/server'
+import { getAuth } from '@clerk/backend'
 import { connectToDatabase } from '../../lib/db.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)

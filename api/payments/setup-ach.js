@@ -1,5 +1,5 @@
 import Stripe from 'stripe'
-import { getAuth } from '@clerk/nextjs/server'
+import { getAuth } from '@clerk/backend'
 import { connectToDatabase } from '../../lib/db.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
@@ -9,43 +9,59 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
+  // Check if Stripe is properly configured
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return res.status(500).json({ 
+      error: 'Stripe not configured', 
+      details: 'STRIPE_SECRET_KEY environment variable is missing' 
+    })
+  }
+
   try {
     const { userId } = await getAuth(req)
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
-    const { orderId } = req.body
+    const { orderId } = req.body // This is actually buildId from frontend
     if (!orderId) {
-      return res.status(400).json({ error: 'Order ID is required' })
+      return res.status(400).json({ error: 'Build ID is required' })
     }
 
+    console.log('Setting up ACH for build:', orderId, 'user:', userId)
+
     const db = await connectToDatabase()
-    const order = await db.collection('orders').findOne({ 
-      _id: orderId, 
+    const { ObjectId } = await import('mongodb')
+    const buildId = new ObjectId(String(orderId))
+    
+    const build = await db.collection('builds').findOne({ 
+      _id: buildId, 
       userId: userId 
     })
 
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' })
+    if (!build) {
+      console.log('Build not found:', orderId, 'for user:', userId)
+      return res.status(404).json({ error: 'Build not found' })
     }
 
+    console.log('Found build:', build._id, 'buyerInfo:', !!build.buyerInfo)
+
     // Get or create Stripe customer
-    let customerId = order.customerId
+    let customerId = build.customerId
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: order.buyerInfo?.email,
-        name: `${order.buyerInfo?.firstName} ${order.buyerInfo?.lastName}`,
+        email: build.buyerInfo?.email,
+        name: `${build.buyerInfo?.firstName} ${build.buyerInfo?.lastName}`,
         metadata: {
-          orderId: orderId,
+          buildId: orderId,
           userId: userId
         }
       })
       customerId = customer.id
       
-      // Update order with customer ID
-      await db.collection('orders').updateOne(
-        { _id: orderId },
+      // Update build with customer ID
+      await db.collection('builds').updateOne(
+        { _id: buildId },
         { $set: { customerId: customerId } }
       )
     }
@@ -65,9 +81,8 @@ export default async function handler(req, res) {
         }
       },
       metadata: {
-        orderId: orderId,
-        userId: userId,
-        buildId: orderId // Add buildId for easier tracking
+        buildId: orderId,
+        userId: userId
       }
     })
 
@@ -80,7 +95,8 @@ export default async function handler(req, res) {
     console.error('Setup ACH error:', error)
     res.status(500).json({ 
       error: 'Failed to setup ACH payment',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     })
   }
 }
