@@ -436,23 +436,21 @@ const ModelDetail = ({ onModelSelect }) => {
 
             {/* Inline Admin Image Upload removed; use Edit panel instead */}
             
-            {/* Model Description - positioned below images, same width as image container */}
-            <div className="mt-6">
-              <div className="card">
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4">About This Model</h2>
-                <div className="prose prose-lg text-gray-700 dark:text-gray-300 max-w-none">
-                  {model.description ? (
-                    model.description.split('\n').map((paragraph, index) => (
-                      <p key={index} className="mb-4 leading-relaxed">
-                        {paragraph}
-                      </p>
-                    ))
-                  ) : (
-                    <p className="text-gray-500 dark:text-gray-400 italic">
-                      No description available. Please contact us for more information about this model.
+            {/* Model Description - positioned below images, perfectly aligned width */}
+            <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-6 backdrop-blur-sm">
+              <h2 className="text-2xl font-semibold text-gray-100 mb-4">About This Model</h2>
+              <div className="text-gray-300 max-w-none">
+                {model.description ? (
+                  model.description.split('\n').map((paragraph, index) => (
+                    <p key={index} className="mb-4 leading-relaxed text-lg">
+                      {paragraph}
                     </p>
-                  )}
-                </div>
+                  ))
+                ) : (
+                  <p className="text-gray-400 italic text-lg">
+                    No description available. Please contact us for more information about this model.
+                  </p>
+                )}
               </div>
             </div>
           </div>
