@@ -118,13 +118,12 @@ export default function PaymentMethod() {
       
       analytics.paymentSelected(buildId, choice)
       
-      // Navigate based on payment method choice
+      // Navigate based on payment method choice without updating step prematurely
       if (choice === 'cash') {
         // Navigate to cash payment form
         navigate(`/checkout/${buildId}/cash-payment`)
       } else {
-        // For financing, navigate to contract step (step 7)
-        await updateBuildStep(buildId, 7, token)
+        // For financing, navigate to contract step - let the contract page handle step update
         analytics.stepChanged(buildId, 6, 7)
         navigate(`/checkout/${buildId}/agreement`)
       }
@@ -147,6 +146,7 @@ export default function PaymentMethod() {
         if (choice === 'cash') {
           navigate(`/checkout/${buildId}/cash-payment`)
         } else {
+          analytics.stepChanged(buildId, 6, 7)
           navigate(`/checkout/${buildId}/agreement`)
         }
       } else {

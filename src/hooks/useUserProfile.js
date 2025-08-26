@@ -91,8 +91,11 @@ export function useUserProfile() {
       const responseText = await response.text()
       console.log('Profile update response text:', responseText)
       
-      if (!responseText) {
-        throw new Error('Empty response from server')
+      if (!responseText || responseText.trim() === '') {
+        console.warn('Empty response from server, but request was successful')
+        // Refresh profile data instead of throwing error
+        await fetchProfile()
+        return profile
       }
       
       const updatedProfile = JSON.parse(responseText)
