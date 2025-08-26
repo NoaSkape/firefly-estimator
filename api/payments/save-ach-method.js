@@ -56,10 +56,22 @@ export default async function handler(req, res) {
       console.log('[SAVE-ACH] Created and saved customer:', customerId)
     }
 
-    // Attach payment method to customer
-    await stripe.paymentMethods.attach(paymentMethodId, {
-      customer: customerId,
-    })
+    // Attach payment method to customer (handle already attached case)
+    try {
+      await stripe.paymentMethods.attach(paymentMethodId, {
+        customer: customerId,
+      })
+      console.log('[SAVE-ACH] Payment method attached successfully')
+    } catch (error) {
+      if (error.type === 'StripeInvalidRequestError' && 
+          error.message?.includes('already been attached')) {
+        console.log('[SAVE-ACH] Payment method already attached, continuing...')
+        // This is fine - payment method is already attached to a customer
+      } else {
+        // Re-throw other errors
+        throw error
+      }
+    }
 
     // Update build with payment method details
     const updateData = {
