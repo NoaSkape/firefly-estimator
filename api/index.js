@@ -824,6 +824,472 @@ app.post(['/api/builds/:id/checkout-step', '/builds/:id/checkout-step'], async (
   return res.status(200).json(updated)
 })
 
+// ===== NEW CONTRACT API ENDPOINTS =====
+
+// Create contract submission (for new contract page)
+app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId } = req.body
+    if (!buildId) {
+      return res.status(400).json({ error: 'Build ID is required' })
+    }
+
+    const build = await getBuildById(buildId)
+    if (!build || build.userId !== auth.userId) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    const settings = await getOrgSettings()
+    const templateId = Number(process.env.DOCUSEAL_PURCHASE_TEMPLATE_ID || 0)
+    if (!templateId) {
+      return res.status(500).json({ error: 'DocuSeal template not configured' })
+    }
+
+    // Build prefill data from build
+    const prefill = buildContractPrefill(build, settings)
+
+    // Create DocuSeal submission
+    const submission = await createSubmission({
+      templateId,
+      prefill,
+      sendEmail: false, // Don't send email until user is ready
+      completedRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/confirm`,
+      cancelRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/agreement`
+    })
+
+    // Store contract in database
+    const db = await getDb()
+    const { ObjectId } = await import('mongodb')
+    
+    const contractData = {
+      _id: new ObjectId(),
+      buildId: buildId,
+      userId: auth.userId,
+      version: 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      templateId: templateId,
+      submissionId: submission.submissionId,
+      signerUrl: submission.signerUrl,
+      status: 'ready',
+      pricingSnapshot: build.pricing || {},
+      buyerInfo: build.buyerInfo || {},
+      delivery: build.delivery || {},
+      payment: build.payment || {},
+      audit: [{
+        at: new Date(),
+        who: auth.userId,
+        action: 'contract_created',
+        meta: { submissionId: submission.submissionId }
+      }]
+    }
+
+    await db.collection('contracts').insertOne(contractData)
+
+    // Update build to reference contract
+    await updateBuild(buildId, { 
+      'contract.submissionId': submission.submissionId,
+      'contract.status': 'ready',
+      'contract.createdAt': new Date()
+    })
+
+    res.status(200).json({
+      success: true,
+      submissionId: submission.submissionId,
+      signerUrl: submission.signerUrl,
+      status: 'ready',
+      version: 1
+    })
+
+  } catch (error) {
+    console.error('Contract creation error:', error)
+    res.status(500).json({ 
+      error: 'Failed to create contract',
+      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    })
+  }
+})
+
+// Get contract status (for real-time polling)
+app.get(['/api/contracts/status', '/contracts/status'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId } = req.query
+    if (!buildId) {
+      return res.status(400).json({ error: 'Build ID is required' })
+    }
+
+    const build = await getBuildById(buildId)
+    if (!build || build.userId !== auth.userId) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    const db = await getDb()
+    const contract = await db.collection('contracts').findOne({ 
+      buildId: buildId, 
+      userId: auth.userId 
+    }, { sort: { version: -1 } }) // Get latest version
+
+    if (!contract) {
+      return res.status(404).json({ error: 'Contract not found' })
+    }
+
+    // Get latest status from DocuSeal
+    let docusealStatus = contract.status
+    if (contract.submissionId) {
+      try {
+        const submission = await getSubmission(contract.submissionId)
+        docusealStatus = mapDocuSealStatus(submission.status || submission.state)
+        
+        // Update our local status if it changed
+        if (docusealStatus !== contract.status) {
+          await db.collection('contracts').updateOne(
+            { _id: contract._id },
+            { 
+              $set: { status: docusealStatus, updatedAt: new Date() },
+              $push: { 
+                audit: {
+                  at: new Date(),
+                  who: 'system',
+                  action: 'status_updated',
+                  meta: { from: contract.status, to: docusealStatus }
+                }
+              }
+            }
+          )
+        }
+      } catch (error) {
+        console.error('Failed to get DocuSeal status:', error)
+        // Continue with local status
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      status: docusealStatus,
+      submissionId: contract.submissionId,
+      signerUrl: contract.signerUrl,
+      version: contract.version,
+      createdAt: contract.createdAt,
+      updatedAt: contract.updatedAt
+    })
+
+  } catch (error) {
+    console.error('Contract status error:', error)
+    res.status(500).json({ 
+      error: 'Failed to get contract status',
+      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    })
+  }
+})
+
+// DocuSeal webhook handler (for real-time status updates)
+app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
+  try {
+    // Verify webhook signature
+    const secret = process.env.DOCUSEAL_WEBHOOK_SECRET || ''
+    const signature = req.headers['x-docuseal-signature'] || req.headers['X-DocuSeal-Signature']
+    
+    if (!secret || signature !== secret) {
+      console.error('DocuSeal webhook: Invalid signature')
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    const { event_type, data } = req.body
+    console.log('DocuSeal webhook received:', event_type, data?.id)
+
+    if (!data?.id) {
+      return res.status(400).json({ error: 'Missing submission ID' })
+    }
+
+    const db = await getDb()
+    const contract = await db.collection('contracts').findOne({ 
+      submissionId: data.id 
+    })
+
+    if (!contract) {
+      console.log('DocuSeal webhook: Contract not found for submission:', data.id)
+      return res.status(404).json({ error: 'Contract not found' })
+    }
+
+    let newStatus = contract.status
+    let shouldDownloadPdf = false
+
+    // Handle different event types
+    switch (event_type) {
+      case 'submission.created':
+        newStatus = 'ready'
+        break
+      case 'submission.started':
+        newStatus = 'signing'
+        break
+      case 'submission.completed':
+        newStatus = 'completed'
+        shouldDownloadPdf = true
+        break
+      case 'submission.declined':
+        newStatus = 'voided'
+        break
+      default:
+        console.log('DocuSeal webhook: Unhandled event type:', event_type)
+    }
+
+    // Update contract status
+    await db.collection('contracts').updateOne(
+      { _id: contract._id },
+      { 
+        $set: { 
+          status: newStatus, 
+          updatedAt: new Date(),
+          ...(data.completed_at && { completedAt: new Date(data.completed_at) })
+        },
+        $push: { 
+          audit: {
+            at: new Date(),
+            who: 'docuseal_webhook',
+            action: event_type,
+            meta: { from: contract.status, to: newStatus, eventData: data }
+          }
+        }
+      }
+    )
+
+    // Download and store signed PDF if completed
+    if (shouldDownloadPdf && data.audit_trail_url) {
+      try {
+        const pdfBuffer = await downloadFile(data.audit_trail_url)
+        const publicId = `contracts/${contract.buildId}/v${contract.version}/signed_contract`
+        
+        const cloudinaryResult = await uploadPdfToCloudinary({
+          buffer: pdfBuffer,
+          folder: 'firefly-estimator/contracts',
+          publicId
+        })
+
+        await db.collection('contracts').updateOne(
+          { _id: contract._id },
+          { 
+            $set: { 
+              signedPdfCloudinaryId: cloudinaryResult.public_id,
+              signedPdfUrl: data.audit_trail_url
+            }
+          }
+        )
+
+        console.log('DocuSeal webhook: PDF stored to Cloudinary:', cloudinaryResult.public_id)
+      } catch (error) {
+        console.error('DocuSeal webhook: Failed to store PDF:', error)
+      }
+    }
+
+    // Update build status if contract completed
+    if (newStatus === 'completed') {
+      await updateBuild(contract.buildId, { 
+        'contract.status': 'completed',
+        'contract.completedAt': new Date(),
+        step: 8 // Advance to confirmation step
+      })
+    }
+
+    res.status(200).json({ success: true })
+
+  } catch (error) {
+    console.error('DocuSeal webhook error:', error)
+    res.status(500).json({ 
+      error: 'Webhook processing failed',
+      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    })
+  }
+})
+
+// Helper function to map DocuSeal status to our status
+function mapDocuSealStatus(docusealStatus) {
+  switch (docusealStatus) {
+    case 'pending':
+    case 'awaiting_signature':
+      return 'ready'
+    case 'opened':
+    case 'in_progress':
+      return 'signing'
+    case 'completed':
+      return 'completed'
+    case 'declined':
+    case 'expired':
+      return 'voided'
+    default:
+      return 'draft'
+  }
+}
+
+// Helper function to build prefill data for DocuSeal
+function buildContractPrefill(build, settings) {
+  const pricing = build.pricing || {}
+  const buyerInfo = build.buyerInfo || {}
+  const delivery = build.delivery || {}
+  const payment = build.payment || {}
+  
+  // Calculate key amounts
+  const totalPurchasePrice = pricing.total || 0
+  const depositPercent = payment.plan?.percent || 25
+  const depositAmount = Math.round(totalPurchasePrice * depositPercent / 100)
+  const balanceAmount = totalPurchasePrice - depositAmount
+
+  return {
+    // Order Information
+    order_id: build._id || '',
+    order_date: new Date().toLocaleDateString(),
+    
+    // Dealer Information
+    dealer_name: "Firefly Tiny Homes LLC",
+    dealer_address: "6150 TX-16, Pipe Creek, TX 78063", 
+    dealer_phone: "830-328-6109",
+    dealer_rep: "Firefly Representative",
+    
+    // Buyer Information
+    buyer_name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
+    buyer_first_name: buyerInfo.firstName || '',
+    buyer_last_name: buyerInfo.lastName || '',
+    buyer_email: buyerInfo.email || '',
+    buyer_phone: buyerInfo.phone || '',
+    buyer_address: buyerInfo.address || '',
+    buyer_city: buyerInfo.city || '',
+    buyer_state: buyerInfo.state || '',
+    buyer_zip: buyerInfo.zip || '',
+    
+    // Unit Information  
+    unit_brand: "Athens Park Select",
+    unit_model: build.modelName || build.modelCode || '',
+    unit_year: new Date().getFullYear().toString(),
+    unit_dimensions: build.model?.dimensions || '',
+    unit_serial: '', // Will be assigned later
+    
+    // Pricing
+    base_price: formatCurrency(pricing.basePrice || 0),
+    options_total: formatCurrency(pricing.optionsTotal || 0),
+    delivery_estimate: formatCurrency(pricing.deliveryEstimate || 0),
+    title_fee: formatCurrency(pricing.titleFee || 0),
+    setup_fee: formatCurrency(pricing.setupFee || 0),
+    taxes: formatCurrency(pricing.taxes || 0),
+    total_price: formatCurrency(totalPurchasePrice),
+    
+    // Payment Terms
+    deposit_percent: `${depositPercent}%`,
+    deposit_amount: formatCurrency(depositAmount),
+    balance_amount: formatCurrency(balanceAmount),
+    payment_method: payment.method === 'ach_debit' ? 'ACH/Bank Transfer' : 'Cash',
+    
+    // Delivery Information
+    delivery_address: delivery.address || buyerInfo.address || '',
+    delivery_city: delivery.city || buyerInfo.city || '',
+    delivery_state: delivery.state || buyerInfo.state || '',
+    delivery_zip: delivery.zip || buyerInfo.zip || '',
+    delivery_notes: delivery.notes || '',
+    
+    // Legal/Compliance
+    state_classification: "Travel Trailer (park model RV)",
+    completion_estimate: "8-12 weeks from contract signing",
+    storage_policy: "Delivery within 12 days after factory completion; storage charges may apply"
+  }
+}
+
+// Helper function to format currency for DocuSeal
+function formatCurrency(cents) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD'
+  }).format((cents || 0) / 100)
+}
+
+// Download contract packet (ZIP of all signed PDFs)
+app.get(['/api/contracts/download/packet', '/contracts/download/packet'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId, version } = req.query
+    if (!buildId) {
+      return res.status(400).json({ error: 'Build ID is required' })
+    }
+
+    const build = await getBuildById(buildId)
+    if (!build || build.userId !== auth.userId) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    const db = await getDb()
+    let query = { buildId: buildId, userId: auth.userId }
+    if (version) {
+      query.version = parseInt(version)
+    }
+    
+    const contract = await db.collection('contracts').findOne(query, { 
+      sort: { version: -1 } 
+    })
+
+    if (!contract) {
+      return res.status(404).json({ error: 'Contract not found' })
+    }
+
+    if (contract.status !== 'completed') {
+      return res.status(400).json({ error: 'Contract not completed yet' })
+    }
+
+    if (!contract.signedPdfCloudinaryId) {
+      return res.status(404).json({ error: 'Signed documents not available' })
+    }
+
+    // Generate signed download URL from Cloudinary
+    const signedUrl = signedCloudinaryUrl(contract.signedPdfCloudinaryId)
+    
+    // For now, redirect to the single PDF. In the future, this could create a ZIP
+    res.redirect(signedUrl)
+
+  } catch (error) {
+    console.error('Contract download error:', error)
+    res.status(500).json({ 
+      error: 'Failed to download contract packet',
+      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    })
+  }
+})
+
+// Download pre-signing summary PDF
+app.get(['/api/contracts/download/summary', '/contracts/download/summary'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId } = req.query
+    if (!buildId) {
+      return res.status(400).json({ error: 'Build ID is required' })
+    }
+
+    const build = await getBuildById(buildId)
+    if (!build || build.userId !== auth.userId) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    // For now, return a placeholder response. In production, this would generate
+    // a summary PDF with order details, pricing breakdown, etc.
+    res.status(501).json({ 
+      error: 'Summary PDF generation not yet implemented',
+      message: 'This feature will generate a pre-signing order summary PDF'
+    })
+
+  } catch (error) {
+    console.error('Contract summary download error:', error)
+    res.status(500).json({ 
+      error: 'Failed to download summary',
+      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    })
+  }
+})
+
 // Bridge: create order from build and start DocuSeal; returns signer url
 app.post(['/api/builds/:id/contract', '/builds/:id/contract'], async (req, res) => {
   const auth = await requireAuth(req, res, false)

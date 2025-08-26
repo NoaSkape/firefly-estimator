@@ -280,6 +280,7 @@ export default function Agreement() {
               preparingDocs={preparingDocs}
               onOpenInNewTab={handleOpenInNewTab}
               iframeRef={iframeRef}
+              buildId={buildId}
             />
           </div>
         </div>
@@ -484,7 +485,7 @@ function ChecklistCard({ title, icon, children, isViewed, isRequired, onReview }
 }
 
 // Document Viewer Component
-function DocumentViewer({ id, signerUrl, signingState, contractStatus, currentDocTab, preparingDocs, onOpenInNewTab, iframeRef }) {
+function DocumentViewer({ id, signerUrl, signingState, contractStatus, currentDocTab, preparingDocs, onOpenInNewTab, iframeRef, buildId }) {
   if (preparingDocs) {
     return (
       <div id={id} className="bg-gray-800 rounded-lg p-8">
@@ -531,7 +532,10 @@ function DocumentViewer({ id, signerUrl, signingState, contractStatus, currentDo
             <div className="text-gray-400 mb-6">
               Thank you for completing your contract. We've sent the signed documents to your email.
             </div>
-            <button className="btn-primary">
+            <button 
+              onClick={() => window.open(`/api/contracts/download/packet?buildId=${buildId}`, '_blank')}
+              className="btn-primary"
+            >
               <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
               Download Signed Documents
             </button>
@@ -572,7 +576,10 @@ function ActionBar({ signingState, contractStatus, canContinueToSign, onContinue
   return (
     <div className="flex items-center justify-between">
       {/* Left side - Download */}
-      <button className="flex items-center px-4 py-2 text-sm text-gray-300 hover:text-white border border-gray-600 rounded-md hover:bg-gray-700">
+      <button 
+        onClick={() => window.open(`/api/contracts/download/summary?buildId=${buildId}`, '_blank')}
+        className="flex items-center px-4 py-2 text-sm text-gray-300 hover:text-white border border-gray-600 rounded-md hover:bg-gray-700"
+      >
         <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
         Download Summary (PDF)
       </button>
