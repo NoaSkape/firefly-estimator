@@ -1,5 +1,5 @@
 import Stripe from 'stripe'
-import { getAuth } from '@clerk/backend'
+import { requireAuth } from '../../lib/auth.js'
 import { getDb } from '../../lib/db.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
@@ -10,10 +10,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { userId } = await getAuth(req)
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' })
-    }
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
 
     const { orderId } = req.body
     if (!orderId) {
@@ -23,7 +21,7 @@ export default async function handler(req, res) {
     const db = await getDb()
     const order = await db.collection('orders').findOne({ 
       _id: orderId, 
-      userId: userId 
+      userId: auth.userId 
     })
 
     if (!order) {
@@ -38,7 +36,7 @@ export default async function handler(req, res) {
         name: `${order.buyerInfo?.firstName} ${order.buyerInfo?.lastName}`,
         metadata: {
           orderId: orderId,
-          userId: userId
+          userId: auth.userId
         }
       })
       customerId = customer.id
@@ -61,7 +59,7 @@ export default async function handler(req, res) {
       business_type: 'individual',
       metadata: {
         orderId: orderId,
-        userId: userId
+        userId: auth.userId
       }
     })
 
@@ -78,7 +76,7 @@ export default async function handler(req, res) {
       },
       metadata: {
         orderId: orderId,
-        userId: userId
+        userId: auth.userId
       }
     }, {
       stripeAccount: account.id

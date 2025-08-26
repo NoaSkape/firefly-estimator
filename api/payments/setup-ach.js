@@ -1,5 +1,5 @@
 import Stripe from 'stripe'
-import { getAuth } from '@clerk/backend'
+import { requireAuth } from '../../lib/auth.js'
 import { getDb } from '../../lib/db.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
@@ -18,17 +18,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { userId } = await getAuth(req)
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' })
-    }
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
 
     const { orderId } = req.body // This is actually buildId from frontend
     if (!orderId) {
       return res.status(400).json({ error: 'Build ID is required' })
     }
 
-    console.log('Setting up ACH for build:', orderId, 'user:', userId)
+    console.log('Setting up ACH for build:', orderId, 'user:', auth.userId)
 
     const db = await getDb()
     const { ObjectId } = await import('mongodb')
@@ -36,11 +34,11 @@ export default async function handler(req, res) {
     
     const build = await db.collection('builds').findOne({ 
       _id: buildId, 
-      userId: userId 
+      userId: auth.userId 
     })
 
     if (!build) {
-      console.log('Build not found:', orderId, 'for user:', userId)
+      console.log('Build not found:', orderId, 'for user:', auth.userId)
       return res.status(404).json({ error: 'Build not found' })
     }
 
@@ -54,7 +52,7 @@ export default async function handler(req, res) {
         name: `${build.buyerInfo?.firstName} ${build.buyerInfo?.lastName}`,
         metadata: {
           buildId: orderId,
-          userId: userId
+          userId: auth.userId
         }
       })
       customerId = customer.id
@@ -82,7 +80,7 @@ export default async function handler(req, res) {
       },
       metadata: {
         buildId: orderId,
-        userId: userId
+        userId: auth.userId
       }
     })
 
