@@ -2,6 +2,6 @@
   "rewrites": [
     { "source": "/checkout/create-checkout-session", "destination": "/api/checkout/create-checkout-session" },
     { "source": "/api/(.*)", "destination": "/api/index?path=/$1" },
-    { "source": "/(.*)", "destination": "/" }
+    { "source": "/((?!assets|static|favicon|manifest|sw\\.js|robots\\.txt|sitemap\\.xml).*)", "destination": "/" }
   ]
 }
