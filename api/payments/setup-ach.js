@@ -1,6 +1,6 @@
 import Stripe from 'stripe'
 import { getAuth } from '@clerk/backend'
-import { connectToDatabase } from '../../lib/db.js'
+import { getDb } from '../../lib/db.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
@@ -30,7 +30,7 @@ export default async function handler(req, res) {
 
     console.log('Setting up ACH for build:', orderId, 'user:', userId)
 
-    const db = await connectToDatabase()
+    const db = await getDb()
     const { ObjectId } = await import('mongodb')
     const buildId = new ObjectId(String(orderId))
     

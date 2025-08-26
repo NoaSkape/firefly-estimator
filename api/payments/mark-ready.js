@@ -1,5 +1,5 @@
 import { getAuth } from '@clerk/backend'
-import { connectToDatabase } from '../../lib/db.js'
+import { getDb } from '../../lib/db.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -17,7 +17,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Order ID, plan, and method are required' })
     }
 
-    const db = await connectToDatabase()
+    const db = await getDb()
     const order = await db.collection('orders').findOne({ 
       _id: orderId, 
       userId: userId 
