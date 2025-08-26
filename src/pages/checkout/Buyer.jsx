@@ -443,6 +443,39 @@ export default function Buyer() {
                >
                  Show Form State
                </button>
+               <button 
+                 className="btn-secondary" 
+                 onClick={async () => {
+                   try {
+                     console.log('Manually saving address to profile...')
+                     if (form.address && form.city && form.state && form.zip) {
+                       const addressResult = await addAddress({
+                         address: form.address,
+                         city: form.city,
+                         state: form.state,
+                         zip: form.zip,
+                         label: 'Home',
+                         isPrimary: true
+                       })
+                       console.log('Manual address save result:', JSON.stringify(addressResult, null, 2))
+                       addToast({ 
+                         type: 'success', 
+                         message: 'Address saved to profile' 
+                       })
+                     } else {
+                       addToast({ 
+                         type: 'error', 
+                         message: 'Please fill in address fields first' 
+                       })
+                     }
+                   } catch (error) {
+                     console.error('Manual address save error:', error)
+                     addToast({ type: 'error', message: 'Failed to save address' })
+                   }
+                 }}
+               >
+                 Save Address to Profile
+               </button>
             </>
           )}
         </div>
