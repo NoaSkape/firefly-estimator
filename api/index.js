@@ -832,19 +832,44 @@ app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
+    console.log('[CONTRACT_CREATE] Request received:', { 
+      method: req.method, 
+      hasBody: !!req.body, 
+      bodyKeys: req.body ? Object.keys(req.body) : [],
+      body: req.body 
+    })
+
     const { buildId } = req.body
     if (!buildId) {
-      return res.status(400).json({ error: 'Build ID is required' })
-    }
+          console.log('[CONTRACT_CREATE] Missing buildId in request body')
+    return res.status(400).json({ error: 'Build ID is required' })
+  }
 
-    const build = await getBuildById(buildId)
-    if (!build || build.userId !== auth.userId) {
-      return res.status(404).json({ error: 'Build not found' })
-    }
+  console.log('[CONTRACT_CREATE] Looking up build:', buildId)
+  const build = await getBuildById(buildId)
+  console.log('[CONTRACT_CREATE] Build lookup result:', { 
+    found: !!build, 
+    buildId: build?._id, 
+    userId: build?.userId, 
+    authUserId: auth.userId,
+    match: build?.userId === auth.userId 
+  })
+  
+  if (!build || build.userId !== auth.userId) {
+    console.log('[CONTRACT_CREATE] Build not found or access denied')
+    return res.status(404).json({ error: 'Build not found' })
+  }
 
     const settings = await getOrgSettings()
     const templateId = Number(process.env.DOCUSEAL_PURCHASE_TEMPLATE_ID || 0)
+    console.log('[CONTRACT_CREATE] DocuSeal template check:', { 
+      templateId, 
+      envValue: process.env.DOCUSEAL_PURCHASE_TEMPLATE_ID,
+      hasTemplate: !!templateId 
+    })
+    
     if (!templateId) {
+      console.log('[CONTRACT_CREATE] DocuSeal template not configured')
       return res.status(500).json({ error: 'DocuSeal template not configured' })
     }
 
