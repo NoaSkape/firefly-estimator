@@ -411,7 +411,7 @@ export default function CashPayment() {
         buildId={buildId}
       />
       
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <h1 className="section-header">Cash / ACH Payment Information</h1>
         
         {/* Test Mode Banner */}
@@ -422,6 +422,11 @@ export default function CashPayment() {
             </div>
           </div>
         )}
+
+        {/* Dark Background Container for Wizard Content */}
+        <div className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8 shadow-2xl ring-1 ring-gray-600/20">
+          {/* Inner Content with max-width constraint */}
+          <div className="max-w-3xl mx-auto">
 
         {/* Step Indicator */}
         <div className="mb-6 flex items-center justify-center space-x-4">
@@ -449,7 +454,7 @@ export default function CashPayment() {
             }`}>
               3
             </div>
-            <span className="ml-2 text-sm">Review & Authorize</span>
+            <span className="ml-2 text-sm">Review and Continue</span>
           </div>
         </div>
 
@@ -713,38 +718,72 @@ export default function CashPayment() {
           </div>
         )}
 
-        {/* Step 6C: Review & Authorize */}
+        {/* Step 6C: Review and Continue */}
         {currentStep === 'review' && (
           <div className="space-y-6">
+            {/* Welcome Section */}
+            <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+              <h2 className="text-white font-semibold text-xl mb-3">Review and Continue</h2>
+              <p className="text-gray-300 text-sm leading-relaxed">
+                Please review your payment configuration below. Your payment method has been securely saved 
+                and will be charged after you sign the purchase agreement.
+              </p>
+            </div>
+
+            {/* Payment Summary */}
             <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
               <h2 className="text-white font-semibold text-lg mb-4">Payment Summary</h2>
-              <div className="space-y-3 text-white">
-                                 <div className="flex justify-between">
-                   <span>Model:</span>
-                   <span>{build?.model?.name || build?.modelCode || 'Custom Build'}</span>
-                 </div>
-                <div className="flex justify-between">
-                  <span>Total:</span>
-                  <span>{formatCurrency(totalCents)}</span>
+              <div className="space-y-4">
+                {/* Model Info */}
+                <div className="flex justify-between py-2 border-b border-gray-600">
+                  <span className="text-gray-300">Model:</span>
+                  <span className="text-white font-medium">{build?.model?.name || build?.modelCode || 'Custom Build'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Payment Amount:</span>
-                  <span className="font-semibold text-yellow-400">{formatCurrency(currentAmountCents)}</span>
+                
+                {/* Total Price */}
+                <div className="flex justify-between py-2 border-b border-gray-600">
+                  <span className="text-gray-300">Total Price:</span>
+                  <span className="text-white font-medium">{formatCurrency(totalCents)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Payment Method:</span>
-                  <span>
-                    {paymentMethod === 'ach_debit' && 'ACH Debit'}
-                    {paymentMethod === 'bank_transfer' && 'Bank Transfer'}
+
+                {/* Payment Amount - Highlighted */}
+                <div className="flex justify-between py-3 px-4 bg-yellow-900/20 border border-yellow-600 rounded-lg">
+                  <span className="text-yellow-200 font-medium">
+                    {paymentPlan.type === 'deposit' ? 'Deposit Amount:' : 'Payment Amount:'}
+                  </span>
+                  <span className="text-yellow-400 font-bold text-lg">{formatCurrency(currentAmountCents)}</span>
+                </div>
+
+                {/* Payment Method */}
+                <div className="flex justify-between py-2 border-b border-gray-600">
+                  <span className="text-gray-300">Payment Method:</span>
+                  <span className="text-white font-medium">
+                    {paymentMethod === 'ach_debit' && 'Bank Account (ACH Debit)'}
+                    {paymentMethod === 'bank_transfer' && 'Bank Transfer (Wire/ACH Credit)'}
                     {paymentMethod === 'card' && 'Credit/Debit Card'}
                   </span>
                 </div>
+
+                {/* Balance Due (if deposit) */}
                 {paymentPlan.type === 'deposit' && (
-                  <div className="flex justify-between text-sm text-gray-300">
-                    <span>Balance Due:</span>
-                    <span>{formatCurrency(totalCents - depositCents)}</span>
+                  <div className="flex justify-between py-2 text-gray-300">
+                    <span>Remaining Balance:</span>
+                    <span>{formatCurrency(totalCents - depositCents)} <span className="text-xs">(due before delivery)</span></span>
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* Payment Timing Information */}
+            <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4">
+              <div className="text-blue-200">
+                <div className="font-semibold text-sm mb-2">💳 Payment Processing</div>
+                <ul className="text-xs space-y-1">
+                  <li>• Payment will be processed after contract signature</li>
+                  <li>• You will receive email confirmation before any charges</li>
+                  <li>• {paymentMethod === 'ach_debit' ? 'ACH payments typically process in 3-5 business days' : 'Processing time varies by method'}</li>
+                  <li>• All payment data is encrypted and securely stored</li>
+                </ul>
               </div>
             </div>
 
@@ -811,7 +850,7 @@ export default function CashPayment() {
                 onClick={continueToContract}
                 disabled={saving || !termsAccepted || !privacyAccepted}
               >
-                {saving ? 'Saving...' : 'Continue to Contract'}
+                {saving ? 'Saving...' : 'View Contract'}
               </button>
               <button 
                 className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
@@ -829,6 +868,8 @@ export default function CashPayment() {
             </div>
           </div>
         )}
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -1114,7 +1155,7 @@ function ACHElementsForm({
             onClick={handleSaveAndContinue}
             disabled={processing || !mandateAccepted}
           >
-            {processing ? 'Saving...' : 'Save Payment Method'}
+            {processing ? 'Saving...' : 'Save and Continue'}
           </button>
           <button 
             className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
