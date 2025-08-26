@@ -11,7 +11,7 @@ import { loadStripe } from '@stripe/stripe-js'
 import { Elements, useStripe, useElements, PaymentElement, CardElement } from '@stripe/react-stripe-js'
 
 // Initialize Stripe
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder')
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51S0QprRfITEPMgPOGN1k6eeR2sGhTPDhW0gAdCjrxK7xaRgMqCDhAeGQGgSq2q4sJdN1u2i5VPjf8xCJlKGHlE5700WgUf9Xrb')
 
 export default function CashPayment() {
   const navigate = useNavigate()
@@ -415,7 +415,7 @@ export default function CashPayment() {
         <h1 className="section-header">Cash / ACH Payment Information</h1>
         
         {/* Test Mode Banner */}
-        {(process.env.NEXT_PUBLIC_STRIPE_MODE === 'test' || !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) && (
+        {(import.meta.env.VITE_STRIPE_MODE === 'test' || !import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) && (
           <div className="mb-6 p-4 bg-yellow-900/30 border border-yellow-600 rounded-lg">
             <div className="text-sm text-white">
               <strong>🧪 Test Mode:</strong> This is a test environment. No real payments will be processed.
@@ -972,7 +972,7 @@ function ACHElementsForm({
     console.log('🔗 Bank account setup started:', {
       hasStripe: !!stripe,
       hasElements: !!elements,
-      setupIntentClientSecret: currentSetupIntent?.clientSecret?.substring(0, 20) + '...',
+      setupIntentClientSecret: setupIntent?.clientSecret?.substring(0, 20) + '...',
       processing
     })
 
@@ -1145,9 +1145,22 @@ function ACHElementsForm({
         <form onSubmit={handleBankAccountSetup} className="space-y-6">
           {/* Stripe Payment Element - configured for US Bank Account */}
           <div className="space-y-4">
-            <div className="p-4 border border-gray-600 rounded-lg bg-gray-800">
-              <PaymentElement options={paymentElementOptions} />
-            </div>
+            {stripe && elements ? (
+              <div className="p-4 border border-gray-600 rounded-lg bg-gray-800">
+                <PaymentElement options={paymentElementOptions} />
+              </div>
+            ) : (
+              <div className="p-4 border border-gray-600 rounded-lg bg-gray-800">
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto mb-4"></div>
+                  <div className="text-white text-sm">Loading secure payment form...</div>
+                  <div className="text-gray-400 text-xs mt-2">
+                    Connecting to Stripe's secure servers
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="bg-blue-900/20 border border-blue-600 rounded-lg p-3">
               <div className="text-blue-200 text-xs leading-relaxed">
                 <strong>🔒 Enterprise Security:</strong> Bank connections use the same 256-bit encryption 
