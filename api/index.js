@@ -2198,7 +2198,7 @@ app.patch(['/api/pages/:pageId', '/pages/:pageId'], async (req, res) => {
 })
 
 // Blog routes
-app.get(['/api/blog', '/blog'], async (req, res) => {
+app.get(['/api/blog', '/blog', '/api/blog/:path*'], async (req, res) => {
   try {
     const db = await getDb()
     const { category, limit = 10, offset = 0 } = req.query
@@ -2264,7 +2264,7 @@ app.get(['/api/blog/:slug', '/blog/:slug'], async (req, res) => {
   }
 })
 
-app.post(['/api/blog', '/blog'], async (req, res) => {
+app.post(['/api/blog', '/blog', '/api/blog/:path*'], async (req, res) => {
   // Temporarily allow blog creation without strict admin checks for testing
   const auth = await requireAuth(req, res, false) // Changed from requireAdmin to requireAuth with adminOnly=false
   if (!auth) return

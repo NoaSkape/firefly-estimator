@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { useUser, useAuth } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
-import { createTestBlogPosts } from '../utils/createBlogPosts'
 import { 
   ArrowRightIcon,
   CalendarIcon,
@@ -215,28 +214,13 @@ export default function Blog() {
 
       {/* Admin Create Post Button */}
       {isAdmin && (
-        <div className="fixed top-20 right-4 z-50 flex flex-col gap-2">
+        <div className="fixed top-20 right-4 z-50">
           <Link
             to="/blog/create"
             className="px-4 py-2 btn-primary rounded-md bg-yellow-500 text-gray-900 hover:bg-yellow-400 shadow-lg"
           >
             Create Post
           </Link>
-          <button
-            onClick={async () => {
-              try {
-                await createTestBlogPosts(getToken)
-                alert('Blog posts created successfully! Refresh the page to see them.')
-                window.location.reload()
-              } catch (error) {
-                console.error('Error creating blog posts:', error)
-                alert('Error creating blog posts. Check console for details.')
-              }
-            }}
-            className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-400 shadow-lg"
-          >
-            Create Test Posts
-          </button>
         </div>
       )}
 
