@@ -47,6 +47,9 @@ const Blog = lazy(() => import('./pages/Blog'))
 const BlogAll = lazy(() => import('./pages/BlogAll'))
 const BlogCreate = lazy(() => import('./pages/BlogCreate'))
 const BlogPost = lazy(() => import('./pages/BlogPost'))
+const WhyGoTiny = lazy(() => import('./pages/blog/WhyGoTiny'))
+const BestSkirtingOptions = lazy(() => import('./pages/blog/BestSkirtingOptions'))
+const TexasRegulations = lazy(() => import('./pages/blog/TexasRegulations'))
 import { getAllValidSlugs } from './utils/modelUrlMapping'
 import { testModelUrls, generateModelSitemap } from './utils/testModelUrls'
 import { verifyImplementation } from './utils/verifyImplementation'
@@ -340,6 +343,9 @@ function App() {
             <BlogCreate />
           </ProtectedRoute>
         } />
+        <Route path="/blog/why-go-tiny-complete-guide-park-model-living" element={<WhyGoTiny />} />
+        <Route path="/blog/best-skirting-options-park-model-homes" element={<BestSkirtingOptions />} />
+        <Route path="/blog/park-model-regulations-texas-law" element={<TexasRegulations />} />
         <Route path="/blog/:slug" element={<BlogPost />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/financing" element={<Financing />} />
