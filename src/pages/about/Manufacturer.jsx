@@ -273,10 +273,10 @@ const Manufacturer = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Admin Edit Button */}
         {isAdmin && (
-          <div className="absolute top-4 right-4 z-10">
+          <div className="fixed top-20 right-4 z-50">
             <button
               onClick={() => setIsEditorOpen(true)}
-              className="px-3 py-2 btn-primary rounded-md bg-white/90 backdrop-blur-sm"
+              className="px-3 py-2 btn-primary rounded-md bg-white/90 backdrop-blur-sm shadow-lg"
             >
               Edit
             </button>
