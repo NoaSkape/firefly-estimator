@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { useUser } from '@clerk/clerk-react'
-import { canEditModelsClient } from '../utils/canEditModels'
+import { canEditModelsClient } from '../lib/canEditModels'
 import AdminBlogEditor from '../components/AdminBlogEditor'
 
 export default function BlogPost() {
@@ -15,10 +15,12 @@ export default function BlogPost() {
   const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
-    const checkAdminStatus = async () => {
+    const checkAdminStatus = () => {
       if (user) {
-        const adminStatus = await canEditModelsClient()
+        const adminStatus = canEditModelsClient(user)
         setIsAdmin(adminStatus)
+      } else {
+        setIsAdmin(false)
       }
     }
     checkAdminStatus()
