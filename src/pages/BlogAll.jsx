@@ -45,23 +45,37 @@ export default function BlogAll() {
         params.append('category', selectedCategory)
       }
 
+      console.log('Fetching posts from API...')
       const response = await fetch(`/api/blog?${params}`)
+      console.log('API response status:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
-        if (currentPage === 1) {
-          setPosts(data.posts)
+        console.log('API data received:', data)
+        
+        if (data.posts && data.posts.length > 0) {
+          if (currentPage === 1) {
+            setPosts(data.posts)
+          } else {
+            setPosts(prev => [...prev, ...data.posts])
+          }
+          setHasMore(data.hasMore)
         } else {
-          setPosts(prev => [...prev, ...data.posts])
+          // If API returns empty posts, use sample data
+          console.log('API returned empty posts, using sample data')
+          setPosts(getSamplePosts())
+          setHasMore(false)
         }
-        setHasMore(data.hasMore)
       } else {
         // Fallback to sample data if API fails
+        console.log('API failed with status:', response.status, 'using sample data')
         setPosts(getSamplePosts())
         setHasMore(false)
       }
     } catch (error) {
       console.error('Error fetching posts:', error)
       // Fallback to sample data
+      console.log('Using sample data due to error')
       setPosts(getSamplePosts())
       setHasMore(false)
     } finally {

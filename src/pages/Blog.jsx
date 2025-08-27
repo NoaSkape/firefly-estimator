@@ -57,89 +57,72 @@ export default function Blog() {
   const fetchFeaturedPosts = async () => {
     try {
       setLoading(true)
+      console.log('Fetching featured posts from API...')
       const response = await fetch('/api/blog?limit=3')
+      console.log('Featured posts API response status:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
-        setFeaturedPosts(data.posts)
+        console.log('Featured posts API data received:', data)
+        
+        if (data.posts && data.posts.length > 0) {
+          setFeaturedPosts(data.posts)
+        } else {
+          // If API returns empty posts, use sample data
+          console.log('API returned empty featured posts, using sample data')
+          setFeaturedPosts(getSampleFeaturedPosts())
+        }
       } else {
         // Fallback to sample data if API fails
-        setFeaturedPosts([
-          {
-            id: 1,
-            title: "Why Go Tiny? The Complete Guide to Park Model Living",
-            excerpt: "Discover the incredible benefits of downsizing to a park model home and why thousands of Americans are choosing this lifestyle.",
-            image: "/hero/tiny-home-dusk.png",
-            category: "Lifestyle & Stories",
-            readTime: "12 min read",
-            date: "2024-01-15",
-            views: 1247,
-            slug: "why-go-tiny-complete-guide-park-model-living"
-          },
-          {
-            id: 2,
-            title: "Best Skirting Options for Park Model Homes: A Complete Guide",
-            excerpt: "Learn about the different skirting options available for park model homes and how to choose the best solution for your needs.",
-            image: "/hero/champion-park-model-exterior.jpg",
-            category: "Design & Inspiration",
-            readTime: "15 min read",
-            date: "2024-01-10",
-            views: 892,
-            slug: "best-skirting-options-park-model-homes"
-          },
-          {
-            id: 3,
-            title: "Park Model Regulations and Texas Law: Your Complete Guide",
-            excerpt: "Everything you need to know about park model home regulations, zoning laws, and legal requirements in Texas.",
-            image: "/hero/tiny-home-dusk.png",
-            category: "Location & Zoning",
-            readTime: "18 min read",
-            date: "2024-01-05",
-            views: 1563,
-            slug: "park-model-regulations-texas-law"
-          }
-        ])
+        console.log('Featured posts API failed with status:', response.status, 'using sample data')
+        setFeaturedPosts(getSampleFeaturedPosts())
       }
     } catch (error) {
       console.error('Error fetching featured posts:', error)
       // Fallback to sample data
-      setFeaturedPosts([
-        {
-          id: 1,
-          title: "Why Go Tiny? The Complete Guide to Park Model Living",
-          excerpt: "Discover the incredible benefits of downsizing to a park model home and why thousands of Americans are choosing this lifestyle.",
-          image: "/hero/tiny-home-dusk.png",
-          category: "Lifestyle & Stories",
-          readTime: "12 min read",
-          date: "2024-01-15",
-          views: 1247,
-          slug: "why-go-tiny-complete-guide-park-model-living"
-        },
-        {
-          id: 2,
-          title: "Best Skirting Options for Park Model Homes: A Complete Guide",
-          excerpt: "Learn about the different skirting options available for park model homes and how to choose the best solution for your needs.",
-          image: "/hero/champion-park-model-exterior.jpg",
-          category: "Design & Inspiration",
-          readTime: "15 min read",
-          date: "2024-01-10",
-          views: 892,
-          slug: "best-skirting-options-park-model-homes"
-        },
-        {
-          id: 3,
-          title: "Park Model Regulations and Texas Law: Your Complete Guide",
-          excerpt: "Everything you need to know about park model home regulations, zoning laws, and legal requirements in Texas.",
-          image: "/hero/tiny-home-dusk.png",
-          category: "Location & Zoning",
-          readTime: "18 min read",
-          date: "2024-01-05",
-          views: 1563,
-          slug: "park-model-regulations-texas-law"
-        }
-      ])
+      console.log('Using sample featured posts due to error')
+      setFeaturedPosts(getSampleFeaturedPosts())
     } finally {
       setLoading(false)
     }
+  }
+
+  const getSampleFeaturedPosts = () => {
+    return [
+      {
+        id: 1,
+        title: "Why Go Tiny? The Complete Guide to Park Model Living",
+        excerpt: "Discover the incredible benefits of downsizing to a park model home and why thousands of Americans are choosing this lifestyle.",
+        image: "/hero/tiny-home-dusk.png",
+        category: "Lifestyle & Stories",
+        readTime: "12 min read",
+        date: "2024-01-15",
+        views: 1247,
+        slug: "why-go-tiny-complete-guide-park-model-living"
+      },
+      {
+        id: 2,
+        title: "Best Skirting Options for Park Model Homes: A Complete Guide",
+        excerpt: "Learn about the different skirting options available for park model homes and how to choose the best solution for your needs.",
+        image: "/hero/champion-park-model-exterior.jpg",
+        category: "Design & Inspiration",
+        readTime: "15 min read",
+        date: "2024-01-10",
+        views: 892,
+        slug: "best-skirting-options-park-model-homes"
+      },
+      {
+        id: 3,
+        title: "Park Model Regulations and Texas Law: Your Complete Guide",
+        excerpt: "Everything you need to know about park model home regulations, zoning laws, and legal requirements in Texas.",
+        image: "/hero/tiny-home-dusk.png",
+        category: "Location & Zoning",
+        readTime: "18 min read",
+        date: "2024-01-05",
+        views: 1563,
+        slug: "park-model-regulations-texas-law"
+      }
+    ]
   }
 
   const categories = [
