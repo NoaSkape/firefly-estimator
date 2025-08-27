@@ -2198,7 +2198,17 @@ app.patch(['/api/pages/:pageId', '/pages/:pageId'], async (req, res) => {
 })
 
 // Blog routes
-app.get(['/api/blog', '/blog', '/api/blog/:path*'], async (req, res) => {
+app.get(['/api/blog', '/blog'], async (req, res) => {
+  const debug = process.env.DEBUG_ADMIN === 'true'
+  if (debug) {
+    console.log('[DEBUG_ADMIN] Blog GET route hit', { 
+      url: req.url, 
+      method: req.method, 
+      path: req.query?.path,
+      originalUrl: req.originalUrl 
+    })
+  }
+  
   try {
     const db = await getDb()
     const { category, limit = 10, offset = 0 } = req.query
@@ -2216,6 +2226,14 @@ app.get(['/api/blog', '/blog', '/api/blog/:path*'], async (req, res) => {
       .toArray()
     
     const total = await db.collection('blog_posts').countDocuments(query)
+    
+    if (debug) {
+      console.log('[DEBUG_ADMIN] Blog GET response', { 
+        postsCount: posts.length, 
+        total, 
+        hasMore: total > parseInt(offset) + posts.length 
+      })
+    }
     
     return res.status(200).json({
       posts,
@@ -2264,7 +2282,18 @@ app.get(['/api/blog/:slug', '/blog/:slug'], async (req, res) => {
   }
 })
 
-app.post(['/api/blog', '/blog', '/api/blog/:path*'], async (req, res) => {
+app.post(['/api/blog', '/blog'], async (req, res) => {
+  const debug = process.env.DEBUG_ADMIN === 'true'
+  if (debug) {
+    console.log('[DEBUG_ADMIN] Blog POST route hit', { 
+      url: req.url, 
+      method: req.method, 
+      path: req.query?.path,
+      originalUrl: req.originalUrl,
+      bodyKeys: Object.keys(req.body || {})
+    })
+  }
+  
   // Temporarily allow blog creation without strict admin checks for testing
   const auth = await requireAuth(req, res, false) // Changed from requireAdmin to requireAuth with adminOnly=false
   if (!auth) return
