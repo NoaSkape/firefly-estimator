@@ -1,5 +1,7 @@
 import { Helmet } from 'react-helmet-async'
 import { useState, useEffect, useRef } from 'react'
+import { useUser } from '@clerk/clerk-react'
+import { canEditModelsClient } from '../lib/canEditModels'
 import { ChevronDownIcon, CheckCircleIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { 
   HomeIcon, 
@@ -19,8 +21,14 @@ import {
   PhoneIcon,
   ComputerDesktopIcon
 } from '@heroicons/react/24/solid'
+import AdminPageEditor from '../components/AdminPageEditor'
 
 export default function HowItWorks() {
+  const { user } = useUser()
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [isEditorOpen, setIsEditorOpen] = useState(false)
+  const [pageContent, setPageContent] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [currentStep, setCurrentStep] = useState(0)
   const [expandedStep, setExpandedStep] = useState(null)
   const [expandedMilestone, setExpandedMilestone] = useState(null)
@@ -30,6 +38,22 @@ export default function HowItWorks() {
   const heroRef = useRef(null)
   const stepsRef = useRef(null)
   
+  useEffect(() => {
+    const checkAdminStatus = () => {
+      if (user) {
+        const adminStatus = canEditModelsClient(user)
+        setIsAdmin(adminStatus)
+      } else {
+        setIsAdmin(false)
+      }
+    }
+    checkAdminStatus()
+  }, [user])
+
+  useEffect(() => {
+    loadPageContent()
+  }, [])
+
   useEffect(() => {
     const handleScroll = () => {
       const scrollTop = window.pageYOffset
@@ -51,6 +75,87 @@ export default function HowItWorks() {
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [isManualSelection])
+
+  const loadPageContent = async () => {
+    try {
+      const response = await fetch('/api/pages/how-it-works')
+      if (response.ok) {
+        const data = await response.json()
+        setPageContent(data)
+      } else {
+        // Fallback to default content
+        setPageContent({
+          pageId: 'how-it-works',
+          content: {
+            hero: {
+              title: 'How It Works',
+              subtitle: 'Order your dream tiny home in under an hour from the comfort of your phone or computer.'
+            },
+            introduction: {
+              title: 'Becoming a tiny homeowner has never been easier',
+              content: 'At Firefly, you can shop, customize, and secure your new home in under an hour—all from the comfort of your phone or computer. Follow our simple 8-step process, then sit back while your home is built at the factory and delivered to your property.'
+            },
+            process: {
+              title: 'The Firefly 8-Step Process',
+              content: 'We designed our online experience to be clear, fast, and stress-free. Each step is visual, interactive, and only takes a few minutes. Within about an hour, you\'ll have a tiny home officially on order.'
+            },
+            timeline: {
+              title: 'After Your Order',
+              content: 'Once you\'ve completed the 8 steps, here\'s what happens next: Factory Build (4-8 weeks), Delivery & Site Prep (1-2 weeks), Setup & Leveling (1-2 days), Move-In Ready (same day).'
+            },
+            benefits: {
+              title: 'Why Firefly Is Different',
+              content: 'Fast & Simple: Order a home in under an hour. Transparent Pricing: No hidden fees, no surprises. Human Support: Always a live team member just a call away. Fully Digital: Modern, streamlined, and secure from start to finish.'
+            },
+            cta: {
+              title: 'Ready to Begin?',
+              content: 'Your dream tiny home is just a few clicks away. Start customizing today and be on your way to ownership within an hour.'
+            }
+          },
+          images: []
+        })
+      }
+    } catch (error) {
+      console.error('Failed to load page content:', error)
+      // Fallback to default content
+      setPageContent({
+        pageId: 'how-it-works',
+        content: {
+          hero: {
+            title: 'How It Works',
+            subtitle: 'Order your dream tiny home in under an hour from the comfort of your phone or computer.'
+          },
+          introduction: {
+            title: 'Becoming a tiny homeowner has never been easier',
+            content: 'At Firefly, you can shop, customize, and secure your new home in under an hour—all from the comfort of your phone or computer. Follow our simple 8-step process, then sit back while your home is built at the factory and delivered to your property.'
+          },
+          process: {
+            title: 'The Firefly 8-Step Process',
+            content: 'We designed our online experience to be clear, fast, and stress-free. Each step is visual, interactive, and only takes a few minutes. Within about an hour, you\'ll have a tiny home officially on order.'
+          },
+          timeline: {
+            title: 'After Your Order',
+            content: 'Once you\'ve completed the 8 steps, here\'s what happens next: Factory Build (4-8 weeks), Delivery & Site Prep (1-2 weeks), Setup & Leveling (1-2 days), Move-In Ready (same day).'
+          },
+          benefits: {
+            title: 'Why Firefly Is Different',
+            content: 'Fast & Simple: Order a home in under an hour. Transparent Pricing: No hidden fees, no surprises. Human Support: Always a live team member just a call away. Fully Digital: Modern, streamlined, and secure from start to finish.'
+          },
+          cta: {
+            title: 'Ready to Begin?',
+            content: 'Your dream tiny home is just a few clicks away. Start customizing today and be on your way to ownership within an hour.'
+          }
+        },
+        images: []
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleContentSaved = (updatedContent) => {
+    setPageContent(updatedContent)
+  }
 
   useEffect(() => {
     const observerOptions = {
@@ -220,6 +325,16 @@ export default function HowItWorks() {
     }, 2000)
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-300">Loading...</div>
+      </div>
+    )
+  }
+
+  const content = pageContent?.content || {}
+
   return (
     <>
       <Helmet>
@@ -227,6 +342,18 @@ export default function HowItWorks() {
         <meta name="description" content="Firefly Tiny Homes makes it easy to buy your dream park model or tiny home online. Complete our 8-step process in under an hour with full transparency, live support, and fast delivery." />
         <meta name="keywords" content="buy a tiny home online, tiny home dealership, transparent tiny home pricing, how to buy a tiny house in Texas" />
       </Helmet>
+
+      {/* Admin Edit Button */}
+      {isAdmin && (
+        <div className="fixed top-4 right-4 z-50">
+          <button
+            onClick={() => setIsEditorOpen(true)}
+            className="px-3 py-2 btn-primary rounded-md bg-white/90 backdrop-blur-sm shadow-lg"
+          >
+            Edit
+          </button>
+        </div>
+      )}
 
       {/* Progress Bar */}
       <div className="fixed top-0 left-0 right-0 z-50 h-1 bg-gray-200">
@@ -255,10 +382,10 @@ export default function HowItWorks() {
         {/* Hero Content */}
         <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
-            How It Works
+            {content.hero?.title || 'How It Works'}
           </h1>
           <p className="text-xl sm:text-2xl text-gray-200 mb-8 max-w-3xl mx-auto leading-relaxed">
-            Order your dream tiny home in under an hour from the comfort of your phone or computer.
+            {content.hero?.subtitle || 'Order your dream tiny home in under an hour from the comfort of your phone or computer.'}
           </p>
           
           {/* Scroll Indicator */}
@@ -276,10 +403,10 @@ export default function HowItWorks() {
       <section className="py-16 sm:py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
-            Becoming a tiny homeowner has never been easier
+            {content.introduction?.title || 'Becoming a tiny homeowner has never been easier'}
           </h2>
           <p className="text-lg text-gray-600 leading-relaxed">
-            At Firefly, you can shop, customize, and secure your new home in under an hour—all from the comfort of your phone or computer. Follow our simple 8-step process, then sit back while your home is built at the factory and delivered to your property.
+            {content.introduction?.content || 'At Firefly, you can shop, customize, and secure your new home in under an hour—all from the comfort of your phone or computer. Follow our simple 8-step process, then sit back while your home is built at the factory and delivered to your property.'}
           </p>
         </div>
       </section>
@@ -289,10 +416,10 @@ export default function HowItWorks() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
-              The Firefly 8-Step Process
+              {content.process?.title || 'The Firefly 8-Step Process'}
             </h2>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              We designed our online experience to be clear, fast, and stress-free. Each step is visual, interactive, and only takes a few minutes. Within about an hour, you'll have a tiny home officially on order.
+              {content.process?.content || 'We designed our online experience to be clear, fast, and stress-free. Each step is visual, interactive, and only takes a few minutes. Within about an hour, you\'ll have a tiny home officially on order.'}
             </p>
           </div>
 
@@ -382,10 +509,10 @@ export default function HowItWorks() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
-              After Your Order
+              {content.timeline?.title || 'After Your Order'}
             </h2>
             <p className="text-lg text-gray-600">
-              Once you've completed the 8 steps, here's what happens next:
+              {content.timeline?.content || 'Once you\'ve completed the 8 steps, here\'s what happens next:'}
             </p>
           </div>
 
@@ -457,7 +584,7 @@ export default function HowItWorks() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
-              Why Firefly Is Different
+              {content.benefits?.title || 'Why Firefly Is Different'}
             </h2>
           </div>
 
@@ -495,10 +622,10 @@ export default function HowItWorks() {
       <section id="cta" className="py-16 sm:py-20 bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
-            Ready to Begin?
+            {content.cta?.title || 'Ready to Begin?'}
           </h2>
           <p className="text-xl text-yellow-100 mb-8 max-w-2xl mx-auto">
-            Your dream tiny home is just a few clicks away. Start customizing today and be on your way to ownership within an hour.
+            {content.cta?.content || 'Your dream tiny home is just a few clicks away. Start customizing today and be on your way to ownership within an hour.'}
           </p>
           
           <a
@@ -524,6 +651,30 @@ export default function HowItWorks() {
         </div>
       </div>
 
+      {/* Page Images */}
+      {pageContent?.images && pageContent.images.length > 0 && (
+        <section className="py-16 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
+                Gallery
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {pageContent.images.map((image, index) => (
+                <div key={index} className="card p-0 overflow-hidden">
+                  <img 
+                    src={image.url} 
+                    alt={image.alt || 'How It Works Gallery'} 
+                    className="w-full h-64 object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Legal Disclaimer */}
       <div className="bg-gray-800 py-4">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -532,6 +683,16 @@ export default function HowItWorks() {
           </p>
         </div>
       </div>
+
+      {/* Admin Editor */}
+      {isEditorOpen && (
+        <AdminPageEditor
+          pageId="how-it-works"
+          content={pageContent?.content}
+          onClose={() => setIsEditorOpen(false)}
+          onSaved={handleContentSaved}
+        />
+      )}
     </>
   )
 }

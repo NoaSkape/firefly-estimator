@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
+import { useUser } from '@clerk/clerk-react'
+import { canEditModelsClient } from '../../lib/canEditModels'
 import { 
   BuildingOfficeIcon,
   HomeIcon,
@@ -17,11 +19,32 @@ import {
 import HeroHeader from '../../components/HeroHeader'
 import FeatureGrid from '../../components/FeatureGrid'
 import Timeline from '../../components/Timeline'
+import AdminPageEditor from '../../components/AdminPageEditor'
 
 const Manufacturer = () => {
+  const { user } = useUser()
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [isEditorOpen, setIsEditorOpen] = useState(false)
+  const [pageContent, setPageContent] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [showStickyDTA, setShowStickyCTA] = useState(false)
 
-  // Handle sticky CTA visibility
+  useEffect(() => {
+    const checkAdminStatus = () => {
+      if (user) {
+        const adminStatus = canEditModelsClient(user)
+        setIsAdmin(adminStatus)
+      } else {
+        setIsAdmin(false)
+      }
+    }
+    checkAdminStatus()
+  }, [user])
+
+  useEffect(() => {
+    loadPageContent()
+  }, [])
+
   useEffect(() => {
     const handleScroll = () => {
       const scrolled = window.scrollY / window.innerHeight
@@ -31,6 +54,87 @@ const Manufacturer = () => {
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  const loadPageContent = async () => {
+    try {
+      const response = await fetch('/api/pages/about-manufacturer')
+      if (response.ok) {
+        const data = await response.json()
+        setPageContent(data)
+      } else {
+        // Fallback to default content
+        setPageContent({
+          pageId: 'about-manufacturer',
+          content: {
+            hero: {
+              title: 'About the Manufacturer: Champion Homes — Athens Park Model Homes',
+              subtitle: 'Park model tiny homes built with precision in modern, climate-controlled factories—certified, comfortable, and made to last.'
+            },
+            overview: {
+              title: 'Who Builds Our Park Model Tiny Homes?',
+              content: 'Champion Homes is one of America\'s most established factory-home builders, and their Athens Park Model Homes division focuses specifically on park model RVs (often called "park model tiny homes"). Athens Park blends residential-grade materials, tight factory quality controls, and modern design to deliver small homes that live big—year after year.'
+            },
+            quality: {
+              title: 'Inside the Factory: How Athens Park Models Are Built',
+              content: 'Athens Park models are assembled on steel chassis in a controlled production line. Walls, floors, and roofs are framed square with jigs, fastened to spec, insulated, sheathed, and finished to residential standards. Building indoors keeps materials dry and allows stringent quality checks at each station. Plumbing and electrical are tested before the home leaves the plant.'
+            },
+            certifications: {
+              title: 'Certified for Safety, Placement, and Peace of Mind',
+              content: 'Park models from Athens Park are built to the ANSI A119.5 park model RV standard—a nationally recognized safety and construction code for this category. Translation: electrical, plumbing, fire safety, egress, and structure are held to a clear benchmark.'
+            },
+            benefits: {
+              title: 'Real-World Benefits You\'ll Feel',
+              content: 'Certifications + labeling make it easier to place your unit in compliant locations and arrange financing/insurance. Full-size appliances, real bathrooms, and smart storage mean no daily compromises. Factory checks at every stage + a manufacturer warranty give long-term peace of mind.'
+            },
+            partnership: {
+              title: 'Why We Partner with Champion',
+              content: 'We chose Champion\'s Athens Park division because their process quality, materials, and design options consistently deliver the best value to our customers. Firefly\'s role is to guide your selection, lock your build spec, and coordinate documents, payment, and delivery.'
+            }
+          },
+          images: []
+        })
+      }
+    } catch (error) {
+      console.error('Failed to load page content:', error)
+      // Fallback to default content
+      setPageContent({
+        pageId: 'about-manufacturer',
+        content: {
+          hero: {
+            title: 'About the Manufacturer: Champion Homes — Athens Park Model Homes',
+            subtitle: 'Park model tiny homes built with precision in modern, climate-controlled factories—certified, comfortable, and made to last.'
+          },
+          overview: {
+            title: 'Who Builds Our Park Model Tiny Homes?',
+            content: 'Champion Homes is one of America\'s most established factory-home builders, and their Athens Park Model Homes division focuses specifically on park model RVs (often called "park model tiny homes"). Athens Park blends residential-grade materials, tight factory quality controls, and modern design to deliver small homes that live big—year after year.'
+          },
+          quality: {
+            title: 'Inside the Factory: How Athens Park Models Are Built',
+            content: 'Athens Park models are assembled on steel chassis in a controlled production line. Walls, floors, and roofs are framed square with jigs, fastened to spec, insulated, sheathed, and finished to residential standards. Building indoors keeps materials dry and allows stringent quality checks at each station. Plumbing and electrical are tested before the home leaves the plant.'
+          },
+          certifications: {
+            title: 'Certified for Safety, Placement, and Peace of Mind',
+            content: 'Park models from Athens Park are built to the ANSI A119.5 park model RV standard—a nationally recognized safety and construction code for this category. Translation: electrical, plumbing, fire safety, egress, and structure are held to a clear benchmark.'
+          },
+          benefits: {
+            title: 'Real-World Benefits You\'ll Feel',
+            content: 'Certifications + labeling make it easier to place your unit in compliant locations and arrange financing/insurance. Full-size appliances, real bathrooms, and smart storage mean no daily compromises. Factory checks at every stage + a manufacturer warranty give long-term peace of mind.'
+          },
+          partnership: {
+            title: 'Why We Partner with Champion',
+            content: 'We chose Champion\'s Athens Park division because their process quality, materials, and design options consistently deliver the best value to our customers. Firefly\'s role is to guide your selection, lock your build spec, and coordinate documents, payment, and delivery.'
+          }
+        },
+        images: []
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleContentSaved = (updatedContent) => {
+    setPageContent(updatedContent)
+  }
 
   // Trust bar items
   const trustItems = [
@@ -127,6 +231,16 @@ const Manufacturer = () => {
     { label: 'About the Manufacturer' }
   ]
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-300">Loading...</div>
+      </div>
+    )
+  }
+
+  const content = pageContent?.content || {}
+
   return (
     <>
       <Helmet>
@@ -157,10 +271,22 @@ const Manufacturer = () => {
       </Helmet>
 
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        {/* Admin Edit Button */}
+        {isAdmin && (
+          <div className="absolute top-4 right-4 z-10">
+            <button
+              onClick={() => setIsEditorOpen(true)}
+              className="px-3 py-2 btn-primary rounded-md bg-white/90 backdrop-blur-sm"
+            >
+              Edit
+            </button>
+          </div>
+        )}
+
         {/* Hero Section */}
         <HeroHeader
-          title="About the Manufacturer: Champion Homes — Athens Park Model Homes"
-          subtitle="Park model tiny homes built with precision in modern, climate-controlled factories—certified, comfortable, and made to last."
+          title={content.hero?.title || "About the Manufacturer: Champion Homes — Athens Park Model Homes"}
+          subtitle={content.hero?.subtitle || "Park model tiny homes built with precision in modern, climate-controlled factories—certified, comfortable, and made to last."}
           backgroundImage="/hero/champion-park-model-exterior.jpg"
           breadcrumbs={breadcrumbs}
         >
@@ -186,11 +312,11 @@ const Manufacturer = () => {
           <section>
             <div className="text-center mb-12">
               <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-                Who Builds Our Park Model Tiny Homes?
+                {content.overview?.title || 'Who Builds Our Park Model Tiny Homes?'}
               </h2>
               <div className="max-w-4xl mx-auto text-lg text-gray-600 dark:text-gray-300 leading-relaxed">
                 <p className="mb-6">
-                  Champion Homes is one of America's most established factory-home builders, and their Athens Park Model Homes division focuses specifically on park model RVs (often called "park model tiny homes"). Athens Park blends residential-grade materials, tight factory quality controls, and modern design to deliver small homes that live big—year after year.
+                  {content.overview?.content || 'Champion Homes is one of America\'s most established factory-home builders, and their Athens Park Model Homes division focuses specifically on park model RVs (often called "park model tiny homes"). Athens Park blends residential-grade materials, tight factory quality controls, and modern design to deliver small homes that live big—year after year.'}
                 </p>
               </div>
             </div>
@@ -208,20 +334,14 @@ const Manufacturer = () => {
           <section>
             <div className="text-center mb-12">
               <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-                Inside the Factory: How Athens Park Models Are Built
+                {content.quality?.title || 'Inside the Factory: How Athens Park Models Are Built'}
               </h2>
             </div>
             
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div className="space-y-6">
                 <p className="text-lg text-gray-600 dark:text-gray-300 leading-relaxed">
-                  Athens Park models are assembled on steel chassis in a controlled production line. Walls, floors, and roofs are framed square with jigs, fastened to spec, insulated, sheathed, and finished to residential standards.
-                </p>
-                <p className="text-lg text-gray-600 dark:text-gray-300 leading-relaxed">
-                  Building indoors keeps materials dry and allows stringent quality checks at each station. Plumbing and electrical are tested before the home leaves the plant.
-                </p>
-                <p className="text-lg text-gray-600 dark:text-gray-300 leading-relaxed">
-                  Design choices emphasize durability and comfort: full-size appliances, real cabinetry, robust flooring, taped-and-textured interior finishes (on select lines), and LoE dual-pane windows. Custom décor packages, exterior siding and roofing options, porches, and loft layouts let you match your style.
+                  {content.quality?.content || 'Athens Park models are assembled on steel chassis in a controlled production line. Walls, floors, and roofs are framed square with jigs, fastened to spec, insulated, sheathed, and finished to residential standards. Building indoors keeps materials dry and allows stringent quality checks at each station. Plumbing and electrical are tested before the home leaves the plant. Design choices emphasize durability and comfort: full-size appliances, real cabinetry, robust flooring, taped-and-textured interior finishes (on select lines), and LoE dual-pane windows. Custom décor packages, exterior siding and roofing options, porches, and loft layouts let you match your style.'}
                 </p>
               </div>
               
@@ -262,7 +382,7 @@ const Manufacturer = () => {
           <section>
             <div className="text-center mb-12">
               <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-                Certified for Safety, Placement, and Peace of Mind
+                {content.certifications?.title || 'Certified for Safety, Placement, and Peace of Mind'}
               </h2>
             </div>
             
@@ -315,7 +435,7 @@ const Manufacturer = () => {
           <section>
             <div className="text-center mb-12">
               <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-                Real-World Benefits You'll Feel
+                {content.benefits?.title || 'Real-World Benefits You\'ll Feel'}
               </h2>
             </div>
             
@@ -377,11 +497,11 @@ const Manufacturer = () => {
           <section>
             <div className="text-center mb-12">
               <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-                Why We Partner with Champion
+                {content.partnership?.title || 'Why We Partner with Champion'}
               </h2>
               <div className="max-w-4xl mx-auto">
                 <p className="text-lg text-gray-600 dark:text-gray-300 leading-relaxed mb-8">
-                  We chose Champion's Athens Park division because their process quality, materials, and design options consistently deliver the best value to our customers. Firefly's role is to guide your selection, lock your build spec, and coordinate documents, payment, and delivery.
+                  {content.partnership?.content || 'We chose Champion\'s Athens Park division because their process quality, materials, and design options consistently deliver the best value to our customers. Firefly\'s role is to guide your selection, lock your build spec, and coordinate documents, payment, and delivery.'}
                 </p>
               </div>
             </div>
@@ -470,7 +590,41 @@ const Manufacturer = () => {
             </div>
           </section>
         </div>
+
+        {/* Page Images */}
+        {pageContent?.images && pageContent.images.length > 0 && (
+          <section className="py-16 bg-white dark:bg-gray-800">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                  Gallery
+                </h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {pageContent.images.map((image, index) => (
+                  <div key={index} className="card p-0 overflow-hidden">
+                    <img 
+                      src={image.url} 
+                      alt={image.alt || 'Manufacturer Gallery'} 
+                      className="w-full h-64 object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
       </div>
+
+      {/* Admin Editor */}
+      {isEditorOpen && (
+        <AdminPageEditor
+          pageId="about-manufacturer"
+          content={pageContent?.content}
+          onClose={() => setIsEditorOpen(false)}
+          onSaved={handleContentSaved}
+        />
+      )}
 
       {/* Sticky Mobile CTA */}
       {showStickyDTA && (

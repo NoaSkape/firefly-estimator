@@ -2122,6 +2122,162 @@ app.put(['/api/admin/policies/:id', '/admin/policies/:id'], async (req, res) => 
   }
 })
 
+// Pages routes
+app.get(['/api/pages/:pageId', '/pages/:pageId'], async (req, res) => {
+  try {
+    const { pageId } = req.params
+    const db = await getDb()
+    
+    // Get page content from database
+    const page = await db.collection('pages').findOne({ pageId })
+    
+    if (!page) {
+      // Return default content structure if page doesn't exist
+      const defaultContent = getDefaultPageContent(pageId)
+      return res.status(200).json({
+        pageId,
+        content: defaultContent,
+        images: [],
+        lastUpdated: new Date(),
+        updatedBy: 'system'
+      })
+    }
+    
+    return res.status(200).json(page)
+  } catch (error) {
+    console.error('Get page error:', error)
+    return res.status(500).json({ 
+      error: 'page_fetch_failed', 
+      message: error.message || 'Failed to fetch page content'
+    })
+  }
+})
+
+// Update page content
+app.patch(['/api/pages/:pageId', '/pages/:pageId'], async (req, res) => {
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
+  
+  try {
+    const { pageId } = req.params
+    const { content, images } = req.body
+    const db = await getDb()
+    
+    const updateData = {
+      pageId,
+      content: content || {},
+      images: Array.isArray(images) ? images : [],
+      lastUpdated: new Date(),
+      updatedBy: auth.userId
+    }
+    
+    const result = await db.collection('pages').updateOne(
+      { pageId },
+      { $set: updateData },
+      { upsert: true }
+    )
+    
+    return res.status(200).json({
+      success: true,
+      pageId,
+      content: updateData.content,
+      images: updateData.images,
+      lastUpdated: updateData.lastUpdated,
+      updatedBy: updateData.updatedBy,
+      modified: result.modifiedCount > 0,
+      created: result.upsertedCount > 0
+    })
+  } catch (error) {
+    console.error('Update page error:', error)
+    return res.status(500).json({ 
+      error: 'page_update_failed', 
+      message: error.message || 'Failed to update page content'
+    })
+  }
+})
+
+// Helper function to get default content for pages
+function getDefaultPageContent(pageId) {
+  const defaults = {
+    'about': {
+      hero: {
+        title: 'About Firefly Tiny Homes',
+        subtitle: 'Texas\'s online dealership for Champion Park Model Homes—built for transparency, speed, and savings.'
+      },
+      story: {
+        title: 'Our Story',
+        content: 'Firefly Tiny Homes was founded to make park model home buying simple and modern. Instead of a large sales lot with high overhead, we built a streamlined online experience that connects you directly with the factory. The result: faster timelines, transparent pricing, and real savings.'
+      },
+      benefits: {
+        title: 'Why Online Saves You Money',
+        content: 'Lower overhead vs traditional dealerships, no hidden lot fees or surprise markups, factory-direct scheduling and communication, digital contracts and payments for a faster close.'
+      },
+      comparison: {
+        title: 'Traditional Dealer vs Firefly',
+        content: 'Traditional: high lot overhead, slow quotes, salesperson pressure. Firefly: transparent pricing, online design, expert help when you want it. Traditional: paper contracts and weeks of back‑and‑forth. Firefly: digital e‑sign + payment—secure and convenient.'
+      },
+      location: {
+        title: 'Proudly Serving the Texas Hill Country',
+        content: 'Based in Pipe Creek, our team supports customers across Texas—from design through delivery and setup. Visit our FAQ, explore models, or contact us for help.'
+      }
+    },
+    'about-manufacturer': {
+      hero: {
+        title: 'About the Manufacturer: Champion Homes — Athens Park Model Homes',
+        subtitle: 'Park model tiny homes built with precision in modern, climate-controlled factories—certified, comfortable, and made to last.'
+      },
+      overview: {
+        title: 'Who Builds Our Park Model Tiny Homes?',
+        content: 'Champion Homes is one of America\'s most established factory-home builders, and their Athens Park Model Homes division focuses specifically on park model RVs (often called "park model tiny homes"). Athens Park blends residential-grade materials, tight factory quality controls, and modern design to deliver small homes that live big—year after year.'
+      },
+      quality: {
+        title: 'Inside the Factory: How Athens Park Models Are Built',
+        content: 'Athens Park models are assembled on steel chassis in a controlled production line. Walls, floors, and roofs are framed square with jigs, fastened to spec, insulated, sheathed, and finished to residential standards. Building indoors keeps materials dry and allows stringent quality checks at each station. Plumbing and electrical are tested before the home leaves the plant.'
+      },
+      certifications: {
+        title: 'Certified for Safety, Placement, and Peace of Mind',
+        content: 'Park models from Athens Park are built to the ANSI A119.5 park model RV standard—a nationally recognized safety and construction code for this category. Translation: electrical, plumbing, fire safety, egress, and structure are held to a clear benchmark.'
+      },
+      benefits: {
+        title: 'Real-World Benefits You\'ll Feel',
+        content: 'Certifications + labeling make it easier to place your unit in compliant locations and arrange financing/insurance. Full-size appliances, real bathrooms, and smart storage mean no daily compromises. Factory checks at every stage + a manufacturer warranty give long-term peace of mind.'
+      },
+      partnership: {
+        title: 'Why We Partner with Champion',
+        content: 'We chose Champion\'s Athens Park division because their process quality, materials, and design options consistently deliver the best value to our customers. Firefly\'s role is to guide your selection, lock your build spec, and coordinate documents, payment, and delivery.'
+      }
+    },
+    'how-it-works': {
+      hero: {
+        title: 'How It Works',
+        subtitle: 'Order your dream tiny home in under an hour from the comfort of your phone or computer.'
+      },
+      introduction: {
+        title: 'Becoming a tiny homeowner has never been easier',
+        content: 'At Firefly, you can shop, customize, and secure your new home in under an hour—all from the comfort of your phone or computer. Follow our simple 8-step process, then sit back while your home is built at the factory and delivered to your property.'
+      },
+      process: {
+        title: 'The Firefly 8-Step Process',
+        content: 'We designed our online experience to be clear, fast, and stress-free. Each step is visual, interactive, and only takes a few minutes. Within about an hour, you\'ll have a tiny home officially on order.'
+      },
+      timeline: {
+        title: 'After Your Order',
+        content: 'Once you\'ve completed the 8 steps, here\'s what happens next: Factory Build (4-8 weeks), Delivery & Site Prep (1-2 weeks), Setup & Leveling (1-2 days), Move-In Ready (same day).'
+      },
+      benefits: {
+        title: 'Why Firefly Is Different',
+        content: 'Fast & Simple: Order a home in under an hour. Transparent Pricing: No hidden fees, no surprises. Human Support: Always a live team member just a call away. Fully Digital: Modern, streamlined, and secure from start to finish.'
+      },
+      cta: {
+        title: 'Ready to Begin?',
+        content: 'Your dream tiny home is just a few clicks away. Start customizing today and be on your way to ownership within an hour.'
+      }
+    }
+  }
+  
+  return defaults[pageId] || {}
+}
+
 // Default policy content functions
 function getDefaultPrivacyPolicy() {
   return `Firefly Tiny Homes respects your privacy. This policy explains how we collect, use, and protect your information.
