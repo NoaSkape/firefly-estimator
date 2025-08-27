@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '@clerk/clerk-react'
 import AdminBlogEditor from '../components/AdminBlogEditor'
 
 export default function BlogCreate() {
   const navigate = useNavigate()
+  const { getToken } = useAuth()
   const [isEditorOpen, setIsEditorOpen] = useState(true)
   const [autoCreateIndex, setAutoCreateIndex] = useState(0)
 
@@ -734,11 +736,13 @@ export default function BlogCreate() {
     if (autoCreateIndex < predefinedPosts.length) {
       const createPost = async () => {
         try {
+          const token = await getToken()
           const postData = predefinedPosts[autoCreateIndex]
           const response = await fetch('/api/blog', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify(postData)
           })
@@ -747,7 +751,8 @@ export default function BlogCreate() {
             console.log(`Created blog post: ${postData.title}`)
             setAutoCreateIndex(prev => prev + 1)
           } else {
-            console.error('Failed to create blog post')
+            const errorData = await response.json()
+            console.error('Failed to create blog post:', errorData)
             navigate('/blog')
           }
         } catch (error) {
@@ -761,7 +766,7 @@ export default function BlogCreate() {
       // All posts created, redirect to blog
       navigate('/blog')
     }
-  }, [autoCreateIndex, navigate])
+  }, [autoCreateIndex, navigate, getToken])
 
   const handleSaved = (savedPost) => {
     if (savedPost.status === 'published') {
