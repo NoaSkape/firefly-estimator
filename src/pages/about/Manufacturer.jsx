@@ -334,11 +334,7 @@ const Manufacturer = () => {
             
             <FeatureGrid features={overviewFeatures} columns={3} />
             
-            <div className="mt-8 p-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <p className="text-sm text-blue-800 dark:text-blue-300">
-                <strong>Legal/Warranty clarity:</strong> Firefly sells manufacturer-built units; the Manufacturer's Limited Warranty applies and must be registered by the buyer.
-              </p>
-            </div>
+
           </section>
 
           {/* Quality & Materials Section */}
@@ -457,11 +453,7 @@ const Manufacturer = () => {
               </div>
             </div>
             
-            <div className="mt-8 p-4 bg-gray-100 dark:bg-gray-800/40 rounded-lg">
-              <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-                <strong>Callout:</strong> Freight quotes are estimates; final routing can vary with fuel, escorts, access, or terrain.
-              </p>
-            </div>
+
           </section>
 
           {/* Benefits Section */}
@@ -600,11 +592,7 @@ const Manufacturer = () => {
               </div>
             </div>
             
-            <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-              <p className="text-sm text-yellow-800 dark:text-yellow-300">
-                <strong>Note:</strong> Delivery access, pad/foundation readiness, utilities, and complex placements (e.g., cranes) affect timing and cost. Freight quotes can change with routing, escorts, or fuel surcharges.
-              </p>
-            </div>
+
           </section>
 
           {/* Timeline Section */}
@@ -646,29 +634,7 @@ const Manufacturer = () => {
           </section>
         </div>
 
-        {/* Page Images */}
-        {pageContent?.images && pageContent.images.length > 0 && (
-          <section className="py-16 bg-white dark:bg-gray-800">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="text-center mb-12">
-                <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-                  Gallery
-                </h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {pageContent.images.map((image, index) => (
-                  <div key={index} className="card p-0 overflow-hidden">
-                    <img 
-                      src={image.url} 
-                      alt={image.alt || 'Manufacturer Gallery'} 
-                      className="w-full h-64 object-cover"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
+
       </div>
 
               {/* Admin Editor */}
@@ -676,6 +642,7 @@ const Manufacturer = () => {
           <AdminPageEditor
             pageId="about-manufacturer"
             content={pageContent?.content}
+            images={pageContent?.images}
             onClose={() => setIsEditorOpen(false)}
             onSaved={handleContentSaved}
             imageFields={[

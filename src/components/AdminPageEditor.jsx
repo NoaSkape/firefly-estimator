@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { useUser, useAuth } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
 
-export default function AdminPageEditor({ pageId, content, onClose, onSaved, imageFields = [] }) {
+export default function AdminPageEditor({ pageId, content, images: initialImages = {}, onClose, onSaved, imageFields = [] }) {
   const { user } = useUser()
   const { getToken } = useAuth()
   const [saving, setSaving] = useState(false)
@@ -14,7 +14,7 @@ export default function AdminPageEditor({ pageId, content, onClose, onSaved, ima
 
   // Local editable state
   const [pageContent, setPageContent] = useState(content || {})
-  const [images, setImages] = useState(content?.images || {})
+  const [images, setImages] = useState(initialImages || {})
 
   const handleSave = async () => {
     try {

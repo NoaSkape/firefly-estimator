@@ -184,21 +184,22 @@ export default function About() {
       </div>
 
       {/* Admin Editor */}
-      {isEditorOpen && (
-        <AdminPageEditor
-          pageId="about"
-          content={pageContent?.content}
-          onClose={() => setIsEditorOpen(false)}
-          onSaved={handleContentSaved}
-          imageFields={[
-            { name: 'heroImage', label: 'Hero Background Image' },
-            { name: 'storyImage', label: 'Our Story Image' },
-            { name: 'benefitsImage', label: 'Benefits Section Image' },
-            { name: 'comparisonImage', label: 'Comparison Section Image' },
-            { name: 'locationImage', label: 'Location Section Image' }
-          ]}
-        />
-      )}
+              {isEditorOpen && (
+          <AdminPageEditor
+            pageId="about"
+            content={pageContent?.content}
+            images={pageContent?.images}
+            onClose={() => setIsEditorOpen(false)}
+            onSaved={handleContentSaved}
+            imageFields={[
+              { name: 'heroImage', label: 'Hero Background Image' },
+              { name: 'storyImage', label: 'Our Story Image' },
+              { name: 'benefitsImage', label: 'Benefits Section Image' },
+              { name: 'comparisonImage', label: 'Comparison Section Image' },
+              { name: 'locationImage', label: 'Location Section Image' }
+            ]}
+          />
+        )}
     </>
   )
 }

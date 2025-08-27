@@ -663,21 +663,22 @@ export default function HowItWorks() {
       </div>
 
       {/* Admin Editor */}
-      {isEditorOpen && (
-        <AdminPageEditor
-          pageId="how-it-works"
-          content={pageContent?.content}
-          onClose={() => setIsEditorOpen(false)}
-          onSaved={handleContentSaved}
-          imageFields={[
-            { name: 'heroImage', label: 'Hero Background Image' },
-            { name: 'introductionImage', label: 'Introduction Section Image' },
-            { name: 'processImage', label: 'Process Section Image' },
-            { name: 'benefitsImage', label: 'Benefits Section Image' },
-            { name: 'ctaImage', label: 'Call to Action Image' }
-          ]}
-        />
-      )}
+              {isEditorOpen && (
+          <AdminPageEditor
+            pageId="how-it-works"
+            content={pageContent?.content}
+            images={pageContent?.images}
+            onClose={() => setIsEditorOpen(false)}
+            onSaved={handleContentSaved}
+            imageFields={[
+              { name: 'heroImage', label: 'Hero Background Image' },
+              { name: 'introductionImage', label: 'Introduction Section Image' },
+              { name: 'processImage', label: 'Process Section Image' },
+              { name: 'benefitsImage', label: 'Benefits Section Image' },
+              { name: 'ctaImage', label: 'Call to Action Image' }
+            ]}
+          />
+        )}
     </>
   )
 }
