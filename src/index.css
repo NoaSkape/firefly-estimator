@@ -39,6 +39,70 @@
   @apply text-xl font-semibold text-gray-900 mb-4;
 }
 [data-theme="dark"] .section-header { @apply text-gray-100; }
+
+/* Blog-specific styles */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Prose styles for blog content */
+.prose {
+  @apply text-gray-900;
+}
+
+.prose h1 {
+  @apply text-3xl font-bold mb-6;
+}
+
+.prose h2 {
+  @apply text-2xl font-bold mb-4 mt-8;
+}
+
+.prose h3 {
+  @apply text-xl font-semibold mb-3 mt-6;
+}
+
+.prose p {
+  @apply mb-4 leading-relaxed;
+}
+
+.prose ul {
+  @apply mb-4 pl-6;
+}
+
+.prose li {
+  @apply mb-2;
+}
+
+.prose strong {
+  @apply font-semibold;
+}
+
+.prose em {
+  @apply italic;
+}
+
+.prose a {
+  @apply text-yellow-600 hover:text-yellow-700 underline;
+}
+
+[data-theme="dark"] .prose {
+  @apply text-gray-100;
+}
+
+[data-theme="dark"] .prose a {
+  @apply text-yellow-400 hover:text-yellow-300;
+}
 }
 
 /* CSS Custom Properties for dynamic viewport handling */

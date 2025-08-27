@@ -43,6 +43,9 @@ const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'))
 const TermsConditions = lazy(() => import('./pages/TermsConditions'))
 const OtherPolicies = lazy(() => import('./pages/OtherPolicies'))
 const AdminPolicies = lazy(() => import('./pages/admin/Policies'))
+const Blog = lazy(() => import('./pages/Blog'))
+const BlogCreate = lazy(() => import('./pages/BlogCreate'))
+const BlogPost = lazy(() => import('./pages/BlogPost'))
 import { getAllValidSlugs } from './utils/modelUrlMapping'
 import { testModelUrls, generateModelSitemap } from './utils/testModelUrls'
 import { verifyImplementation } from './utils/verifyImplementation'
@@ -329,6 +332,13 @@ function App() {
               } />
               <Route path="/about" element={<About />} />
               <Route path="/about/manufacturer" element={<Manufacturer />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/create" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <BlogCreate />
+                </ProtectedRoute>
+              } />
+              <Route path="/blog/:slug" element={<BlogPost />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/financing" element={<Financing />} />
               <Route path="/customize/:modelId" element={<Customize />} />

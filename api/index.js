@@ -3,6 +3,7 @@ export const runtime = 'nodejs'
 import express from 'express'
 import Stripe from 'stripe'
 import { createHash } from 'node:crypto'
+import { ObjectId } from 'mongodb'
 
 import { getDb } from '../lib/db.js'
 import { requireAuth } from '../lib/auth.js'
@@ -2192,6 +2193,194 @@ app.patch(['/api/pages/:pageId', '/pages/:pageId'], async (req, res) => {
     return res.status(500).json({ 
       error: 'page_update_failed', 
       message: error.message || 'Failed to update page content'
+    })
+  }
+})
+
+// Blog routes
+app.get(['/api/blog', '/blog'], async (req, res) => {
+  try {
+    const db = await getDb()
+    const { category, limit = 10, offset = 0 } = req.query
+    
+    let query = { status: 'published' }
+    if (category) {
+      query.category = category
+    }
+    
+    const posts = await db.collection('blog_posts')
+      .find(query)
+      .sort({ publishDate: -1 })
+      .skip(parseInt(offset))
+      .limit(parseInt(limit))
+      .toArray()
+    
+    const total = await db.collection('blog_posts').countDocuments(query)
+    
+    return res.status(200).json({
+      posts,
+      total,
+      hasMore: total > parseInt(offset) + posts.length
+    })
+  } catch (error) {
+    console.error('Get blog posts error:', error)
+    return res.status(500).json({ 
+      error: 'blog_fetch_failed', 
+      message: error.message || 'Failed to fetch blog posts'
+    })
+  }
+})
+
+app.get(['/api/blog/:slug', '/blog/:slug'], async (req, res) => {
+  try {
+    const { slug } = req.params
+    const db = await getDb()
+    
+    const post = await db.collection('blog_posts').findOne({ 
+      slug,
+      status: 'published'
+    })
+    
+    if (!post) {
+      return res.status(404).json({ 
+        error: 'post_not_found', 
+        message: 'Blog post not found'
+      })
+    }
+    
+    // Increment view count
+    await db.collection('blog_posts').updateOne(
+      { _id: post._id },
+      { $inc: { views: 1 } }
+    )
+    
+    return res.status(200).json(post)
+  } catch (error) {
+    console.error('Get blog post error:', error)
+    return res.status(500).json({ 
+      error: 'blog_post_fetch_failed', 
+      message: error.message || 'Failed to fetch blog post'
+    })
+  }
+})
+
+app.post(['/api/blog', '/blog'], async (req, res) => {
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
+  
+  try {
+    const db = await getDb()
+    const postData = req.body
+    
+    // Validate required fields
+    if (!postData.title || !postData.content) {
+      return res.status(400).json({
+        error: 'validation_failed',
+        message: 'Title and content are required'
+      })
+    }
+    
+    // Generate slug if not provided
+    if (!postData.slug) {
+      postData.slug = postData.title
+        .toLowerCase()
+        .replace(/[^a-z0-9 -]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim('-')
+    }
+    
+    // Check if slug already exists
+    const existingPost = await db.collection('blog_posts').findOne({ slug: postData.slug })
+    if (existingPost) {
+      return res.status(400).json({
+        error: 'slug_exists',
+        message: 'A post with this URL already exists'
+      })
+    }
+    
+    const newPost = {
+      ...postData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      views: 0,
+      author: auth.userId
+    }
+    
+    const result = await db.collection('blog_posts').insertOne(newPost)
+    
+    return res.status(201).json({
+      success: true,
+      id: result.insertedId,
+      ...newPost
+    })
+  } catch (error) {
+    console.error('Create blog post error:', error)
+    return res.status(500).json({ 
+      error: 'blog_post_create_failed', 
+      message: error.message || 'Failed to create blog post'
+    })
+  }
+})
+
+app.put(['/api/blog/:id', '/blog/:id'], async (req, res) => {
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
+  
+  try {
+    const { id } = req.params
+    const db = await getDb()
+    const postData = req.body
+    
+    // Validate required fields
+    if (!postData.title || !postData.content) {
+      return res.status(400).json({
+        error: 'validation_failed',
+        message: 'Title and content are required'
+      })
+    }
+    
+    // Check if slug already exists for different post
+    if (postData.slug) {
+      const existingPost = await db.collection('blog_posts').findOne({ 
+        slug: postData.slug,
+        _id: { $ne: new ObjectId(id) }
+      })
+      if (existingPost) {
+        return res.status(400).json({
+          error: 'slug_exists',
+          message: 'A post with this URL already exists'
+        })
+      }
+    }
+    
+    const updateData = {
+      ...postData,
+      updatedAt: new Date()
+    }
+    
+    const result = await db.collection('blog_posts').updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updateData }
+    )
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        error: 'post_not_found',
+        message: 'Blog post not found'
+      })
+    }
+    
+    return res.status(200).json({
+      success: true,
+      id,
+      ...updateData
+    })
+  } catch (error) {
+    console.error('Update blog post error:', error)
+    return res.status(500).json({ 
+      error: 'blog_post_update_failed', 
+      message: error.message || 'Failed to update blog post'
     })
   }
 })
