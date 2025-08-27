@@ -66,7 +66,18 @@ export async function updateBuildStep(buildId, step, token) {
     })
     
     if (!response.ok) {
-      console.error('Failed to update build step:', response.status, response.statusText)
+      const errorData = await response.json().catch(() => ({}))
+      console.error('Failed to update build step:', response.status, response.statusText, errorData)
+      
+      // Log specific validation errors for debugging
+      if (errorData.error === 'contract_not_signed') {
+        console.warn('Contract not signed yet - this is expected when reaching step 7')
+      } else if (errorData.error === 'incomplete_buyer') {
+        console.warn('Buyer information incomplete - cannot advance to step', step)
+      } else if (errorData.error === 'missing_payment_method') {
+        console.warn('Payment method not selected - cannot advance to step', step)
+      }
+      
       return false
     }
     

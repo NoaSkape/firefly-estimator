@@ -681,8 +681,8 @@ app.post(['/api/builds/:id/checkout-step', '/builds/:id/checkout-step'], async (
     return res.status(400).json({ error: 'missing_payment_method' })
   }
   
-  // Only check contract for contract step (step 7)
-  if (target >= 7) {
+  // Only check contract for confirmation step (step 8) - users need to reach step 7 to sign
+  if (target >= 8) {
     const c = b?.contract || {}
     if (c?.status !== 'signed') return res.status(400).json({ error: 'contract_not_signed' })
   }

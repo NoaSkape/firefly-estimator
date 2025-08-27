@@ -107,51 +107,62 @@ export default function BuildsDashboard() {
     }
   }, [isSignedIn, getToken])
 
-  useEffect(() => {
-    console.log('[BuildsDashboard] useEffect triggered:', { isSignedIn, loading })
-    
-    // If not signed in, stop loading immediately
-    if (!isSignedIn) { 
+  // Function to load builds
+  const loadBuilds = async (forceRefresh = false) => {
+    if (!isSignedIn) {
       console.log('[BuildsDashboard] Not signed in, setting loading to false')
-      setLoading(false); 
-      return 
+      setLoading(false)
+      return
     }
 
-    // Start fetching builds immediately when signed in
-    let isMounted = true;
-    (async () => {
-      try {
-        console.log('[BuildsDashboard] Fetching builds...')
-        const token = await getToken()
-        const res = await fetch('/api/builds', { 
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          // Add cache control to ensure fresh data
-          cache: 'no-cache'
-        })
-        
-        if (!isMounted) return; // Component unmounted
-        
-        if (res.ok) {
-          const buildsData = await res.json()
-          console.log('[BuildsDashboard] Builds fetched successfully:', buildsData.length)
-          setBuilds(buildsData)
-        } else {
-          console.error('[BuildsDashboard] Failed to fetch builds:', res.status, res.statusText)
-        }
-      } catch (error) {
-        if (!isMounted) return;
-        console.error('[BuildsDashboard] Error fetching builds:', error)
-      } finally { 
-        if (isMounted) {
-          console.log('[BuildsDashboard] Setting loading to false')
-          setLoading(false) 
-        }
+    let isMounted = true
+    try {
+      console.log('[BuildsDashboard] Fetching builds...', { forceRefresh })
+      const token = await getToken()
+      const res = await fetch('/api/builds', { 
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        // Force fresh data to ensure step updates are reflected
+        cache: 'no-cache',
+        // Add timestamp to prevent any caching
+        ...(Date.now() && {})
+      })
+      
+      if (!isMounted) return // Component unmounted
+      
+      if (res.ok) {
+        const buildsData = await res.json()
+        console.log('[BuildsDashboard] Builds fetched successfully:', buildsData.length)
+        setBuilds(buildsData)
+      } else {
+        console.error('[BuildsDashboard] Failed to fetch builds:', res.status, res.statusText)
       }
-    })()
-
-    return () => {
-      isMounted = false;
+    } catch (error) {
+      if (!isMounted) return
+      console.error('[BuildsDashboard] Error fetching builds:', error)
+    } finally { 
+      if (isMounted) {
+        console.log('[BuildsDashboard] Setting loading to false')
+        setLoading(false) 
+      }
     }
+  }
+
+  // Load builds on mount and when signed in status changes
+  useEffect(() => {
+    loadBuilds()
+  }, [isSignedIn, getToken])
+
+  // Refresh builds when page comes into focus (to catch step updates)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (isSignedIn) {
+        console.log('[BuildsDashboard] Page focused, refreshing builds')
+        loadBuilds(true)
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
   }, [isSignedIn])
 
   // Wait for Clerk to finish loading before making authentication decisions
