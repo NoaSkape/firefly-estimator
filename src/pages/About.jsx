@@ -59,7 +59,7 @@ export default function About() {
               content: 'Based in Pipe Creek, our team supports customers across Texas—from design through delivery and setup. Visit our FAQ, explore models, or contact us for help.'
             }
           },
-          images: []
+          images: {}
         })
       }
     } catch (error) {
@@ -89,7 +89,7 @@ export default function About() {
             content: 'Based in Pipe Creek, our team supports customers across Texas—from design through delivery and setup. Visit our FAQ, explore models, or contact us for help.'
           }
         },
-        images: []
+        images: {}
       })
     } finally {
       setLoading(false)
@@ -180,23 +180,7 @@ export default function About() {
           </section>
         )}
 
-        {/* Page Images */}
-        {pageContent?.images && pageContent.images.length > 0 && (
-          <section className="mt-8">
-            <h2 className="text-lg font-semibold text-gray-100 mb-4">Gallery</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pageContent.images.map((image, index) => (
-                <div key={index} className="card p-0 overflow-hidden">
-                  <img 
-                    src={image.url} 
-                    alt={image.alt || 'About Firefly Tiny Homes'} 
-                    className="w-full h-48 object-cover"
-                  />
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+
       </div>
 
       {/* Admin Editor */}
@@ -206,6 +190,13 @@ export default function About() {
           content={pageContent?.content}
           onClose={() => setIsEditorOpen(false)}
           onSaved={handleContentSaved}
+          imageFields={[
+            { name: 'heroImage', label: 'Hero Background Image' },
+            { name: 'storyImage', label: 'Our Story Image' },
+            { name: 'benefitsImage', label: 'Benefits Section Image' },
+            { name: 'comparisonImage', label: 'Comparison Section Image' },
+            { name: 'locationImage', label: 'Location Section Image' }
+          ]}
         />
       )}
     </>

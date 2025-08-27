@@ -2,19 +2,19 @@ import { useState, useRef } from 'react'
 import { useUser, useAuth } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
 
-export default function AdminPageEditor({ pageId, content, onClose, onSaved }) {
+export default function AdminPageEditor({ pageId, content, onClose, onSaved, imageFields = [] }) {
   const { user } = useUser()
   const { getToken } = useAuth()
   const [saving, setSaving] = useState(false)
-  const [uploading, setUploading] = useState(false)
+  const [uploading, setUploading] = useState({})
   const [activeTab, setActiveTab] = useState('content')
-  const fileInputRef = useRef(null)
+  const fileInputRefs = useRef({})
   const debug = (import.meta.env?.VITE_DEBUG_ADMIN === 'true')
   const isAdmin = canEditModelsClient(user)
 
   // Local editable state
   const [pageContent, setPageContent] = useState(content || {})
-  const [images, setImages] = useState(Array.isArray(content?.images) ? content.images : [])
+  const [images, setImages] = useState(content?.images || {})
 
   const handleSave = async () => {
     try {
@@ -48,7 +48,7 @@ export default function AdminPageEditor({ pageId, content, onClose, onSaved }) {
         console.log('[DEBUG_ADMIN] onSaved(updated)', {
           pageId: updated?.pageId,
           contentLength: JSON.stringify(updated?.content).length,
-          imagesLength: Array.isArray(updated?.images) ? updated.images.length : 0
+          imagesLength: Object.keys(updated?.images || {}).length
         })
       }
       onSaved?.(updated)
@@ -60,15 +60,15 @@ export default function AdminPageEditor({ pageId, content, onClose, onSaved }) {
     }
   }
 
-  const handleUploadImage = async (file) => {
+  const handleUploadImage = async (file, imageField) => {
     if (!file) return
     try {
-      setUploading(true)
+      setUploading(prev => ({ ...prev, [imageField]: true }))
       if (debug) {
-        console.log('[DEBUG_ADMIN] Upload image start', { size: file.size, type: file.type, name: file.name })
+        console.log('[DEBUG_ADMIN] Upload image start', { size: file.size, type: file.type, name: file.name, imageField })
       }
       // sign request
-      const subfolder = `pages/${pageId}`
+      const subfolder = `pages/${pageId}/${imageField}`
       const token = await getToken()
       if (debug) {
         const masked = token ? `${token.slice(0, 6)}...${token.slice(-6)}` : null
@@ -98,45 +98,65 @@ export default function AdminPageEditor({ pageId, content, onClose, onSaved }) {
       const form = new FormData()
       form.append('file', file)
       form.append('timestamp', params.timestamp)
-      form.append('signature', params.signature)
       form.append('api_key', params.apiKey)
+      form.append('signature', params.signature)
       form.append('folder', params.folder)
       form.append('tags', 'page-images')
 
-      const cloudUrl = `https://api.cloudinary.com/v1_1/${params.cloudName}/image/upload`
-      if (debug) {
-        console.log('[DEBUG_ADMIN] Cloudinary upload start', { url: cloudUrl, folder: params.folder, tags: 'page-images' })
-      }
-      const uploadRes = await fetch(cloudUrl, {
+      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${params.cloudName}/image/upload`, {
         method: 'POST',
-        body: form,
+        body: form
       })
-      if (!uploadRes.ok) {
-        let msg = 'Cloudinary upload failed'
-        try { msg = `${msg}: ${await uploadRes.text()}` } catch {}
-        throw new Error(msg)
-      }
-      const uploaded = await uploadRes.json()
+      if (!uploadRes.ok) throw new Error('Failed to upload image')
+      const uploadResult = await uploadRes.json()
       if (debug) {
-        console.log('[DEBUG_ADMIN] Cloudinary upload success', { public_id: uploaded.public_id, url: uploaded.secure_url })
+        console.log('[DEBUG_ADMIN] Upload result', { publicId: uploadResult.public_id, url: uploadResult.secure_url })
       }
 
-      // Add to local state
-      const newImage = {
-        url: uploaded.secure_url,
-        publicId: uploaded.public_id,
-        alt: `${pageId} image`,
-      }
-      setImages(prev => [...prev, newImage])
+      // Update images state
+      setImages(prev => ({
+        ...prev,
+        [imageField]: {
+          url: uploadResult.secure_url,
+          publicId: uploadResult.public_id,
+          alt: file.name
+        }
+      }))
     } catch (e) {
       alert(e.message)
     } finally {
-      setUploading(false)
+      setUploading(prev => ({ ...prev, [imageField]: false }))
     }
   }
 
-  const handleDeleteImage = (publicId) => {
-    setImages(prev => prev.filter(img => img.publicId !== publicId))
+  const handleDeleteImage = async (imageField) => {
+    try {
+      const currentImage = images[imageField]
+      if (!currentImage?.publicId) return
+
+      const token = await getToken()
+      if (!token) {
+        alert('No Clerk token from getToken(). Are you signed in?')
+        return
+      }
+
+      const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+      const res = await fetch('/api/cloudinary/delete', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ publicId: currentImage.publicId })
+      })
+
+      if (res.ok) {
+        setImages(prev => {
+          const newImages = { ...prev }
+          delete newImages[imageField]
+          return newImages
+        })
+      }
+    } catch (e) {
+      alert(e.message)
+    }
   }
 
   const updateContentField = (section, field, value) => {
@@ -161,8 +181,7 @@ export default function AdminPageEditor({ pageId, content, onClose, onSaved }) {
       ...prev,
       [sectionName]: {
         title: '',
-        content: '',
-        type: 'text'
+        content: ''
       }
     }))
   }
@@ -175,15 +194,13 @@ export default function AdminPageEditor({ pageId, content, onClose, onSaved }) {
     })
   }
 
-  if (!isAdmin) {
-    return null
-  }
+  if (!isAdmin) return null
 
   return (
     <div className="fixed inset-0 bg-black/40 flex justify-end z-50">
-      <div className="w-full max-w-4xl h-full bg-white dark:bg-gray-900 shadow-xl flex flex-col text-gray-900 dark:text-gray-100">
+      <div className="w-full max-w-6xl h-full bg-white dark:bg-gray-900 shadow-xl flex flex-col text-gray-900 dark:text-gray-100">
         <div className="p-4 border-b flex items-center justify-between">
-          <div className="font-semibold">Edit Page: {pageId}</div>
+          <div className="font-semibold">Edit Page Content</div>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
         </div>
         
@@ -191,10 +208,10 @@ export default function AdminPageEditor({ pageId, content, onClose, onSaved }) {
           {['content', 'images'].map(tab => (
             <button 
               key={tab} 
-              className={`px-3 py-2 ${activeTab === tab ? 'border-b-2 border-primary-600 text-primary-700' : ''}`} 
+              className={`px-3 py-2 ${activeTab === tab ? 'border-b-2 border-primary-600 text-primary-700' : ''}`}
               onClick={() => setActiveTab(tab)}
             >
-              {tab[0].toUpperCase() + tab.slice(1)}
+              {tab === 'content' ? 'Page Content' : 'Images'}
             </button>
           ))}
         </div>
@@ -252,6 +269,17 @@ export default function AdminPageEditor({ pageId, content, onClose, onSaved }) {
                               />
                             </div>
                           )}
+                          {content.subtitle !== undefined && (
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Subtitle</label>
+                              <textarea
+                                value={content.subtitle || ''}
+                                onChange={(e) => updateContentField(section, 'subtitle', e.target.value)}
+                                rows={3}
+                                className="w-full p-2 border rounded-md dark:bg-gray-800 dark:border-gray-700"
+                              />
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div>
@@ -285,46 +313,59 @@ export default function AdminPageEditor({ pageId, content, onClose, onSaved }) {
               <div>
                 <h3 className="text-lg font-semibold mb-4">Page Images</h3>
                 
-                {/* Upload Section */}
-                <div className="mb-6 p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleUploadImage(e.target.files[0])}
-                    className="hidden"
-                  />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                    className="w-full py-4 text-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-                  >
-                    {uploading ? 'Uploading...' : 'Click to upload image'}
-                  </button>
-                </div>
-                
-                {/* Image Gallery */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {images.map((img, idx) => (
-                    <div
-                      key={img.publicId || idx}
-                      className="border rounded p-2 space-y-2"
-                    >
-                      <img src={img.url} alt={img.alt || ''} className="w-full h-28 object-cover rounded" />
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                          {img.alt || 'Image'}
-                        </span>
-                        <button
-                          className="text-red-600 text-sm hover:text-red-800"
-                          onClick={() => handleDeleteImage(img.publicId)}
-                        >
-                          Delete
-                        </button>
+                {imageFields.length > 0 ? (
+                  <div className="space-y-6">
+                    {imageFields.map((field) => (
+                      <div key={field.name} className="border rounded-lg p-4">
+                        <h4 className="font-medium mb-3 capitalize">{field.label || field.name.replace(/([A-Z])/g, ' $1').trim()}</h4>
+                        
+                        {/* Current Image */}
+                        {images[field.name] && (
+                          <div className="mb-4">
+                            <img 
+                              src={images[field.name].url} 
+                              alt={images[field.name].alt || field.label} 
+                              className="w-full max-w-md h-48 object-cover rounded-lg"
+                            />
+                            <div className="mt-2 flex items-center justify-between">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {images[field.name].alt || 'Current image'}
+                              </span>
+                              <button
+                                onClick={() => handleDeleteImage(field.name)}
+                                className="text-red-600 text-sm hover:text-red-800"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Upload Section */}
+                        <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4">
+                          <input
+                            ref={el => fileInputRefs.current[field.name] = el}
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleUploadImage(e.target.files[0], field.name)}
+                            className="hidden"
+                          />
+                          <button
+                            onClick={() => fileInputRefs.current[field.name]?.click()}
+                            disabled={uploading[field.name]}
+                            className="w-full py-4 text-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                          >
+                            {uploading[field.name] ? 'Uploading...' : `Click to upload ${field.label || field.name} image`}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                    No image fields configured for this page
+                  </div>
+                )}
               </div>
             </div>
           )}

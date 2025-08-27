@@ -287,7 +287,7 @@ const Manufacturer = () => {
         <HeroHeader
           title={content.hero?.title || "About the Manufacturer: Champion Homes — Athens Park Model Homes"}
           subtitle={content.hero?.subtitle || "Park model tiny homes built with precision in modern, climate-controlled factories—certified, comfortable, and made to last."}
-          backgroundImage="/hero/champion-park-model-exterior.jpg"
+          backgroundImage={pageContent?.images?.heroImage?.url || "/hero/champion-park-model-exterior.jpg"}
           breadcrumbs={breadcrumbs}
         >
           {/* Trust Bar */}
@@ -321,6 +321,17 @@ const Manufacturer = () => {
               </div>
             </div>
             
+            {/* Overview Image */}
+            {pageContent?.images?.overviewImage && (
+              <div className="mb-8">
+                <img 
+                  src={pageContent.images.overviewImage.url} 
+                  alt={pageContent.images.overviewImage.alt || "Champion Homes Overview"} 
+                  className="w-full max-w-4xl mx-auto rounded-lg shadow-lg"
+                />
+              </div>
+            )}
+            
             <FeatureGrid features={overviewFeatures} columns={3} />
             
             <div className="mt-8 p-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
@@ -345,35 +356,46 @@ const Manufacturer = () => {
                 </p>
               </div>
               
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <CheckBadgeIcon className="w-4 h-4 text-green-600" />
-                    <span className="text-gray-700 dark:text-gray-300">Open-concept living areas with high ceilings</span>
+              {/* Quality Image */}
+              <div>
+                {pageContent?.images?.qualityImage ? (
+                  <img 
+                    src={pageContent.images.qualityImage.url} 
+                    alt={pageContent.images.qualityImage.alt || "Athens Park Factory Quality"} 
+                    className="w-full rounded-lg shadow-lg"
+                  />
+                ) : (
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <CheckBadgeIcon className="w-4 h-4 text-green-600" />
+                        <span className="text-gray-700 dark:text-gray-300">Open-concept living areas with high ceilings</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <CheckBadgeIcon className="w-4 h-4 text-green-600" />
+                        <span className="text-gray-700 dark:text-gray-300">Full kitchen (standard residential appliances)</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <CheckBadgeIcon className="w-4 h-4 text-green-600" />
+                        <span className="text-gray-700 dark:text-gray-300">Full bath with residential fixtures</span>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <CheckBadgeIcon className="w-4 h-4 text-green-600" />
+                        <span className="text-gray-700 dark:text-gray-300">Optional lofts (on many models)</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <CheckBadgeIcon className="w-4 h-4 text-green-600" />
+                        <span className="text-gray-700 dark:text-gray-300">Durable exterior siding & roofing options</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <CheckBadgeIcon className="w-4 h-4 text-green-600" />
+                        <span className="text-gray-700 dark:text-gray-300">Energy-smart upgrades available</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckBadgeIcon className="w-4 h-4 text-green-600" />
-                    <span className="text-gray-700 dark:text-gray-300">Full kitchen (standard residential appliances)</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckBadgeIcon className="w-4 h-4 text-green-600" />
-                    <span className="text-gray-700 dark:text-gray-300">Full bath with residential fixtures</span>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <CheckBadgeIcon className="w-4 h-4 text-green-600" />
-                    <span className="text-gray-700 dark:text-gray-300">Optional lofts (on many models)</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckBadgeIcon className="w-4 h-4 text-green-600" />
-                    <span className="text-gray-700 dark:text-gray-300">Durable exterior siding & roofing options</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckBadgeIcon className="w-4 h-4 text-green-600" />
-                    <span className="text-gray-700 dark:text-gray-300">Energy-smart upgrades available</span>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </section>
@@ -385,6 +407,17 @@ const Manufacturer = () => {
                 {content.certifications?.title || 'Certified for Safety, Placement, and Peace of Mind'}
               </h2>
             </div>
+            
+            {/* Certifications Image */}
+            {pageContent?.images?.certificationsImage && (
+              <div className="mb-8">
+                <img 
+                  src={pageContent.images.certificationsImage.url} 
+                  alt={pageContent.images.certificationsImage.alt || "Certifications and Standards"} 
+                  className="w-full max-w-4xl mx-auto rounded-lg shadow-lg"
+                />
+              </div>
+            )}
             
             <div className="grid md:grid-cols-3 gap-8">
               <div className="card bg-white dark:bg-gray-800/60 p-6">
@@ -438,6 +471,17 @@ const Manufacturer = () => {
                 {content.benefits?.title || 'Real-World Benefits You\'ll Feel'}
               </h2>
             </div>
+            
+            {/* Benefits Image */}
+            {pageContent?.images?.benefitsImage && (
+              <div className="mb-8">
+                <img 
+                  src={pageContent.images.benefitsImage.url} 
+                  alt={pageContent.images.benefitsImage.alt || "Real-World Benefits"} 
+                  className="w-full max-w-4xl mx-auto rounded-lg shadow-lg"
+                />
+              </div>
+            )}
             
             <div className="grid md:grid-cols-3 gap-8 mb-12">
               <div className="text-center">
@@ -505,6 +549,17 @@ const Manufacturer = () => {
                 </p>
               </div>
             </div>
+            
+            {/* Partnership Image */}
+            {pageContent?.images?.partnershipImage && (
+              <div className="mb-8">
+                <img 
+                  src={pageContent.images.partnershipImage.url} 
+                  alt={pageContent.images.partnershipImage.alt || "Partnership with Champion"} 
+                  className="w-full max-w-4xl mx-auto rounded-lg shadow-lg"
+                />
+              </div>
+            )}
             
             <div className="grid md:grid-cols-2 gap-6 text-sm">
               <div className="space-y-4">
@@ -616,15 +671,23 @@ const Manufacturer = () => {
         )}
       </div>
 
-      {/* Admin Editor */}
-      {isEditorOpen && (
-        <AdminPageEditor
-          pageId="about-manufacturer"
-          content={pageContent?.content}
-          onClose={() => setIsEditorOpen(false)}
-          onSaved={handleContentSaved}
-        />
-      )}
+              {/* Admin Editor */}
+        {isEditorOpen && (
+          <AdminPageEditor
+            pageId="about-manufacturer"
+            content={pageContent?.content}
+            onClose={() => setIsEditorOpen(false)}
+            onSaved={handleContentSaved}
+            imageFields={[
+              { name: 'heroImage', label: 'Hero Background Image' },
+              { name: 'overviewImage', label: 'Overview Section Image' },
+              { name: 'qualityImage', label: 'Quality Section Image' },
+              { name: 'certificationsImage', label: 'Certifications Section Image' },
+              { name: 'benefitsImage', label: 'Benefits Section Image' },
+              { name: 'partnershipImage', label: 'Partnership Section Image' }
+            ]}
+          />
+        )}
 
       {/* Sticky Mobile CTA */}
       {showStickyDTA && (

@@ -112,7 +112,7 @@ export default function HowItWorks() {
               content: 'Your dream tiny home is just a few clicks away. Start customizing today and be on your way to ownership within an hour.'
             }
           },
-          images: []
+          images: {}
         })
       }
     } catch (error) {
@@ -146,7 +146,7 @@ export default function HowItWorks() {
             content: 'Your dream tiny home is just a few clicks away. Start customizing today and be on your way to ownership within an hour.'
           }
         },
-        images: []
+        images: {}
       })
     } finally {
       setLoading(false)
@@ -651,29 +651,7 @@ export default function HowItWorks() {
         </div>
       </div>
 
-      {/* Page Images */}
-      {pageContent?.images && pageContent.images.length > 0 && (
-        <section className="py-16 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
-                Gallery
-              </h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {pageContent.images.map((image, index) => (
-                <div key={index} className="card p-0 overflow-hidden">
-                  <img 
-                    src={image.url} 
-                    alt={image.alt || 'How It Works Gallery'} 
-                    className="w-full h-64 object-cover"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+
 
       {/* Legal Disclaimer */}
       <div className="bg-gray-800 py-4">
@@ -691,6 +669,13 @@ export default function HowItWorks() {
           content={pageContent?.content}
           onClose={() => setIsEditorOpen(false)}
           onSaved={handleContentSaved}
+          imageFields={[
+            { name: 'heroImage', label: 'Hero Background Image' },
+            { name: 'introductionImage', label: 'Introduction Section Image' },
+            { name: 'processImage', label: 'Process Section Image' },
+            { name: 'benefitsImage', label: 'Benefits Section Image' },
+            { name: 'ctaImage', label: 'Call to Action Image' }
+          ]}
         />
       )}
     </>

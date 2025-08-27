@@ -2134,13 +2134,13 @@ app.get(['/api/pages/:pageId', '/pages/:pageId'], async (req, res) => {
     if (!page) {
       // Return default content structure if page doesn't exist
       const defaultContent = getDefaultPageContent(pageId)
-      return res.status(200).json({
-        pageId,
-        content: defaultContent,
-        images: [],
-        lastUpdated: new Date(),
-        updatedBy: 'system'
-      })
+          return res.status(200).json({
+      pageId,
+      content: defaultContent,
+      images: {},
+      lastUpdated: new Date(),
+      updatedBy: 'system'
+    })
     }
     
     return res.status(200).json(page)
@@ -2166,7 +2166,7 @@ app.patch(['/api/pages/:pageId', '/pages/:pageId'], async (req, res) => {
     const updateData = {
       pageId,
       content: content || {},
-      images: Array.isArray(images) ? images : [],
+      images: typeof images === 'object' && images !== null ? images : {},
       lastUpdated: new Date(),
       updatedBy: auth.userId
     }
