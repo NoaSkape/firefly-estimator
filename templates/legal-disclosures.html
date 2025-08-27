@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Legal Disclosures - Firefly Tiny Homes</title>
+    <style>
+        body {
+            font-family: 'Times New Roman', serif;
+            line-height: 1.6;
+            margin: 40px;
+            font-size: 12pt;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 25px;
+        }
+        .section-title {
+            font-weight: bold;
+            font-size: 14pt;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+        }
+        .field-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .field-label {
+            min-width: 200px;
+            font-weight: bold;
+        }
+        .field-value {
+            flex: 1;
+            border-bottom: 1px solid #000;
+            padding: 2px 5px;
+            margin-left: 10px;
+        }
+        .signature-section {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .signature-box {
+            width: 45%;
+            text-align: center;
+        }
+        .signature-line {
+            border-bottom: 1px solid #000;
+            height: 60px;
+            margin: 10px 0;
+        }
+        .disclosure-box {
+            border: 1px solid #000;
+            padding: 15px;
+            margin: 20px 0;
+            background-color: #f9f9f9;
+        }
+        .important-box {
+            border: 2px solid #007bff;
+            padding: 15px;
+            margin: 20px 0;
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        .warning-box {
+            border: 2px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .legal-text {
+            font-size: 11pt;
+            text-align: justify;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>LEGAL DISCLOSURES</h1>
+        <h2>Firefly Tiny Homes</h2>
+        <p>Order ID: <text-field name="order_id" style="width: 150px; height: 20px; display: inline-block;"></text-field></p>
+        <p>Date: <date-field name="order_date" style="width: 120px; height: 20px; display: inline-block;"></date-field></p>
+    </div>
+
+    <div class="section">
+        <div class="section-title">1. CUSTOMER INFORMATION</div>
+        <div class="field-row">
+            <span class="field-label">Customer Name:</span>
+            <div class="field-value">
+                <text-field name="buyer_name" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Customer Email:</span>
+            <div class="field-value">
+                <text-field name="buyer_email" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Customer Phone:</span>
+            <div class="field-value">
+                <phone-field name="buyer_phone" style="width: 100%; height: 20px;"></phone-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Customer Address:</span>
+            <div class="field-value">
+                <text-field name="buyer_address" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">2. VEHICLE INFORMATION</div>
+        <div class="field-row">
+            <span class="field-label">Vehicle Brand:</span>
+            <div class="field-value">
+                <text-field name="unit_brand" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Vehicle Model:</span>
+            <div class="field-value">
+                <text-field name="unit_model" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Vehicle Year:</span>
+            <div class="field-value">
+                <text-field name="unit_year" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Serial Number:</span>
+            <div class="field-value">
+                <text-field name="unit_serial" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">State Classification:</span>
+            <div class="field-value">
+                <text-field name="state_classification" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">3. IMPORTANT LEGAL DISCLOSURES</div>
+        
+        <div class="warning-box">
+            <h4>READ CAREFULLY - LEGAL DISCLOSURES</h4>
+            <p>By signing this document, you acknowledge that you have read, understood, and agree to all legal disclosures contained herein. These disclosures are legally binding and affect your rights and obligations.</p>
+        </div>
+
+        <div class="disclosure-box">
+            <h4>1. VEHICLE CLASSIFICATION DISCLOSURE</h4>
+            <p class="legal-text">This vehicle is classified as a <text-field name="state_classification" style="width: 150px; height: 20px;"></text-field> under applicable state and federal regulations. This classification affects registration, insurance, and usage requirements. You are responsible for ensuring compliance with all applicable laws and regulations in your jurisdiction.</p>
+            
+            <p class="legal-text"><strong>Important:</strong> Different states have different classifications and requirements for recreational vehicles. You must verify the classification and requirements in your state of residence and any state where you plan to use or store the vehicle.</p>
+        </div>
+
+        <div class="disclosure-box">
+            <h4>2. ZONING AND LAND USE DISCLOSURE</h4>
+            <p class="legal-text">The use of this vehicle may be subject to local zoning ordinances, building codes, and land use regulations. You are responsible for:</p>
+            <ul>
+                <li>Verifying that your intended use complies with local zoning laws</li>
+                <li>Obtaining any required permits or approvals</li>
+                <li>Ensuring compliance with homeowners' association rules (if applicable)</li>
+                <li>Understanding any restrictions on where the vehicle may be located or used</li>
+            </ul>
+            <p class="legal-text"><strong>Warning:</strong> Failure to comply with zoning and land use regulations may result in fines, penalties, or forced removal of the vehicle.</p>
+        </div>
+
+        <div class="disclosure-box">
+            <h4>3. INSURANCE REQUIREMENTS DISCLOSURE</h4>
+            <p class="legal-text">You are required to maintain appropriate insurance coverage for this vehicle. This may include:</p>
+            <ul>
+                <li>Liability insurance for damage to others</li>
+                <li>Property damage coverage</li>
+                <li>Comprehensive coverage for theft, vandalism, and weather damage</li>
+                <li>Additional coverage for personal property inside the vehicle</li>
+            </ul>
+            <p class="legal-text"><strong>Important:</strong> Standard homeowners' insurance may not provide adequate coverage. You should consult with your insurance agent to ensure proper coverage.</p>
+        </div>
+
+        <div class="disclosure-box">
+            <h4>4. TAX AND REGISTRATION DISCLOSURE</h4>
+            <p class="legal-text">This vehicle may be subject to:</p>
+            <ul>
+                <li>Sales tax at the time of purchase</li>
+                <li>Annual registration fees</li>
+                <li>Property taxes (depending on your jurisdiction)</li>
+                <li>Use taxes if used in different states</li>
+            </ul>
+            <p class="legal-text">You are responsible for understanding and complying with all applicable tax and registration requirements.</p>
+        </div>
+
+        <div class="disclosure-box">
+            <h4>5. SAFETY AND COMPLIANCE DISCLOSURE</h4>
+            <p class="legal-text">This vehicle is designed and manufactured to meet applicable safety standards at the time of manufacture. However:</p>
+            <ul>
+                <li>Safety standards may change over time</li>
+                <li>You are responsible for maintaining the vehicle in safe condition</li>
+                <li>Regular inspections and maintenance are required</li>
+                <li>Modifications may affect safety and compliance</li>
+            </ul>
+            <p class="legal-text"><strong>Warning:</strong> Failure to maintain the vehicle in safe condition may result in injury, death, or legal liability.</p>
+        </div>
+
+        <div class="disclosure-box">
+            <h4>6. ENVIRONMENTAL AND UTILITY DISCLOSURE</h4>
+            <p class="legal-text">The use of this vehicle may have environmental and utility implications:</p>
+            <ul>
+                <li>Waste disposal must comply with local regulations</li>
+                <li>Utility connections must meet local building codes</li>
+                <li>Environmental impact assessments may be required</li>
+                <li>Water and sewer connections may require permits</li>
+            </ul>
+            <p class="legal-text">You are responsible for ensuring compliance with all environmental and utility regulations.</p>
+        </div>
+
+        <div class="disclosure-box">
+            <h4>7. FINANCIAL RESPONSIBILITY DISCLOSURE</h4>
+            <p class="legal-text">By purchasing this vehicle, you acknowledge that:</p>
+            <ul>
+                <li>You have the financial means to complete this transaction</li>
+                <li>You understand all payment terms and obligations</li>
+                <li>You are responsible for all ongoing costs (insurance, maintenance, etc.)</li>
+                <li>Default on payments may result in repossession and legal action</li>
+            </ul>
+            <p class="legal-text"><strong>Important:</strong> This is a significant financial commitment. Ensure you can afford all associated costs before proceeding.</p>
+        </div>
+
+        <div class="disclosure-box">
+            <h4>8. LIMITATION OF LIABILITY DISCLOSURE</h4>
+            <p class="legal-text">Firefly Tiny Homes' liability is limited as follows:</p>
+            <ul>
+                <li>Liability is limited to the purchase price of the vehicle</li>
+                <li>No liability for consequential or incidental damages</li>
+                <li>No liability for personal injury or property damage</li>
+                <li>Warranty limitations apply as outlined in warranty documents</li>
+            </ul>
+            <p class="legal-text">This limitation of liability is a material term of the purchase agreement.</p>
+        </div>
+
+        <div class="disclosure-box">
+            <h4>9. DISPUTE RESOLUTION DISCLOSURE</h4>
+            <p class="legal-text">Any disputes arising from this transaction will be resolved as follows:</p>
+            <ul>
+                <li>First, through direct negotiation with Firefly Tiny Homes</li>
+                <li>If unresolved, through mediation</li>
+                <li>If mediation fails, through binding arbitration</li>
+                <li>Arbitration will be conducted in <text-field name="arbitration_location" style="width: 150px; height: 20px;"></text-field></li>
+            </ul>
+            <p class="legal-text">By signing this document, you agree to this dispute resolution process and waive your right to a jury trial.</p>
+        </div>
+
+        <div class="disclosure-box">
+            <h4>10. PRIVACY AND DATA DISCLOSURE</h4>
+            <p class="legal-text">Firefly Tiny Homes may collect, use, and share your personal information as follows:</p>
+            <ul>
+                <li>To process your purchase and provide service</li>
+                <li>To comply with legal and regulatory requirements</li>
+                <li>To communicate with you about your purchase</li>
+                <li>To improve our products and services</li>
+            </ul>
+            <p class="legal-text">Your personal information will be protected in accordance with our privacy policy and applicable laws.</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">4. ACKNOWLEDGMENT OF DISCLOSURES</div>
+        
+        <div class="important-box">
+            <h4>IMPORTANT - READ AND ACKNOWLEDGE</h4>
+            <p>By signing below, you acknowledge that you have read, understood, and agree to all legal disclosures contained in this document.</p>
+        </div>
+
+        <div style="margin: 20px 0;">
+            <checkbox-field name="disclosures_read" style="width: 20px; height: 20px;"></checkbox-field>
+            <span style="margin-left: 10px;">I have read all legal disclosures in this document</span>
+        </div>
+        
+        <div style="margin: 20px 0;">
+            <checkbox-field name="disclosures_understood" style="width: 20px; height: 20px;"></checkbox-field>
+            <span style="margin-left: 10px;">I understand all legal disclosures and their implications</span>
+        </div>
+        
+        <div style="margin: 20px 0;">
+            <checkbox-field name="disclosures_agreed" style="width: 20px; height: 20px;"></checkbox-field>
+            <span style="margin-left: 10px;">I agree to be bound by all legal disclosures</span>
+        </div>
+        
+        <div style="margin: 20px 0;">
+            <checkbox-field name="legal_advice_consulted" style="width: 20px; height: 20px;"></checkbox-field>
+            <span style="margin-left: 10px;">I have consulted with legal counsel if I had questions about these disclosures</span>
+        </div>
+
+        <div class="warning-box">
+            <p><strong>FINAL WARNING:</strong> These legal disclosures are binding and affect your legal rights. If you do not understand any part of these disclosures, consult with an attorney before signing.</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">5. CONTACT INFORMATION FOR QUESTIONS</div>
+        
+        <div class="important-box">
+            <h4>LEGAL QUESTIONS</h4>
+            <p>If you have questions about these legal disclosures, contact:</p>
+            <p><strong>Firefly Tiny Homes Legal Department</strong></p>
+            <p>Phone: <phone-field name="legal_phone" style="width: 150px; height: 20px;"></phone-field></p>
+            <p>Email: <text-field name="legal_email" style="width: 200px; height: 20px;"></text-field></p>
+            <p>Address: <text-field name="legal_address" style="width: 300px; height: 20px;"></text-field></p>
+        </div>
+    </div>
+
+    <div class="signature-section">
+        <div class="signature-box">
+            <p><strong>CUSTOMER SIGNATURE</strong></p>
+            <div class="signature-line">
+                <signature-field name="customer_signature" style="width: 100%; height: 60px;"></signature-field>
+            </div>
+            <p>Date: <date-field name="customer_signature_date" style="width: 120px; height: 20px;"></date-field></p>
+        </div>
+        
+        <div class="signature-box">
+            <p><strong>DEALER REPRESENTATIVE SIGNATURE</strong></p>
+            <div class="signature-line">
+                <signature-field name="dealer_signature" style="width: 100%; height: 60px;"></signature-field>
+            </div>
+            <p>Date: <date-field name="dealer_signature_date" style="width: 120px; height: 20px;"></date-field></p>
+        </div>
+    </div>
+
+    <div style="margin-top: 30px; font-size: 10pt; text-align: center; color: #666;">
+        <p>This document was generated electronically by Firefly Tiny Homes</p>
+        <p>Page <span class="pageNumber"></span> of <span class="totalPages"></span></p>
+    </div>
+</body>
+</html>

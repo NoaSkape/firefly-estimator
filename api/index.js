@@ -728,22 +728,55 @@ app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
   }
 
     const settings = await getOrgSettings()
-    const templateId = Number(process.env.DOCUSEAL_PURCHASE_TEMPLATE_ID || 0)
-    console.log('[CONTRACT_CREATE] DocuSeal template check:', { 
-      templateId, 
-      envValue: process.env.DOCUSEAL_PURCHASE_TEMPLATE_ID,
-      hasTemplate: !!templateId 
-    })
     
-    if (!templateId) {
-      console.log('[CONTRACT_CREATE] DocuSeal template not configured')
-      return res.status(500).json({ error: 'DocuSeal template not configured' })
+    // Define all required templates
+    const templates = [
+      {
+        name: 'purchase_agreement',
+        envKey: 'DOCUSEAL_PURCHASE_TEMPLATE_ID',
+        title: 'Purchase Agreement',
+        description: 'Primary purchase contract with all terms and conditions'
+      },
+      {
+        name: 'payment_terms',
+        envKey: 'DOCUSEAL_PAYMENT_TERMS_TEMPLATE_ID',
+        title: 'Payment Terms Agreement',
+        description: 'Payment method, deposit, and balance terms'
+      },
+      {
+        name: 'delivery_agreement',
+        envKey: 'DOCUSEAL_DELIVERY_TEMPLATE_ID',
+        title: 'Delivery Agreement',
+        description: 'Delivery schedule, site requirements, and setup'
+      },
+      {
+        name: 'warranty_information',
+        envKey: 'DOCUSEAL_WARRANTY_TEMPLATE_ID',
+        title: 'Warranty Information',
+        description: 'Warranty terms, coverage, and service information'
+      },
+      {
+        name: 'legal_disclosures',
+        envKey: 'DOCUSEAL_LEGAL_DISCLOSURES_TEMPLATE_ID',
+        title: 'Legal Disclosures',
+        description: 'Required consumer rights and legal disclosures'
+      }
+    ]
+
+    // Check if all templates are configured
+    const missingTemplates = templates.filter(t => !process.env[t.envKey])
+    if (missingTemplates.length > 0) {
+      console.log('[CONTRACT_CREATE] Missing template configurations:', missingTemplates.map(t => t.envKey))
+      return res.status(500).json({ 
+        error: 'DocuSeal templates not fully configured',
+        missing: missingTemplates.map(t => t.envKey)
+      })
     }
 
     // Build prefill data from build
     const prefill = buildContractPrefill(build, settings)
 
-    // Create DocuSeal submission
+    // Create DocuSeal submissions for all templates
     const buyerInfo = build.buyerInfo || {}
     const submitters = [{
       name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
@@ -751,25 +784,43 @@ app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
       role: 'buyer1'
     }]
     
-    console.log('[CONTRACT_CREATE] Calling createSubmission with:', {
-      templateId,
-      prefillKeys: Object.keys(prefill),
-      submitters,
-      sendEmail: false,
-      completedRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/confirm`,
-      cancelRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/agreement`
-    })
+    const submissions = []
     
-    const submission = await createSubmission({
-      templateId,
-      prefill,
-      submitters,
-      sendEmail: false, // Don't send email until user is ready
-      completedRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/confirm`,
-      cancelRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/agreement`
-    })
+    for (const template of templates) {
+      const templateId = Number(process.env[template.envKey])
+      console.log(`[CONTRACT_CREATE] Creating submission for ${template.name}:`, {
+        templateId,
+        templateName: template.title
+      })
+      
+      try {
+        const submission = await createSubmission({
+          templateId,
+          prefill,
+          submitters,
+          sendEmail: false, // Don't send email until user is ready
+          completedRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/confirm`,
+          cancelRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/agreement`
+        })
+        
+        submissions.push({
+          name: template.name,
+          title: template.title,
+          description: template.description,
+          templateId,
+          submissionId: submission.submissionId,
+          signerUrl: submission.signerUrl,
+          status: 'ready'
+        })
+        
+        console.log(`[CONTRACT_CREATE] Successfully created submission for ${template.name}:`, submission.submissionId)
+      } catch (error) {
+        console.error(`[CONTRACT_CREATE] Failed to create submission for ${template.name}:`, error)
+        throw new Error(`Failed to create ${template.title}: ${error.message}`)
+      }
+    }
 
-    // Store contract in database
+    // Store contract in database with all submissions
     const db = await getDb()
     const { ObjectId } = await import('mongodb')
     
@@ -780,9 +831,7 @@ app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
       version: 1,
       createdAt: new Date(),
       updatedAt: new Date(),
-      templateId: templateId,
-      submissionId: submission.submissionId,
-      signerUrl: submission.signerUrl,
+      submissions: submissions,
       status: 'ready',
       pricingSnapshot: build.pricing || {},
       buyerInfo: build.buyerInfo || {},
@@ -792,7 +841,10 @@ app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
         at: new Date(),
         who: auth.userId,
         action: 'contract_created',
-        meta: { submissionId: submission.submissionId }
+        meta: { 
+          submissionCount: submissions.length,
+          submissionIds: submissions.map(s => s.submissionId)
+        }
       }]
     }
 
@@ -800,15 +852,19 @@ app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
 
     // Update build to reference contract
     await updateBuild(buildId, { 
-      'contract.submissionId': submission.submissionId,
+      'contract.submissionIds': submissions.map(s => s.submissionId),
       'contract.status': 'ready',
       'contract.createdAt': new Date()
     })
 
+    // Return primary submission URL (Purchase Agreement)
+    const primarySubmission = submissions.find(s => s.name === 'purchase_agreement')
+    
     res.status(200).json({
       success: true,
-      submissionId: submission.submissionId,
-      signerUrl: submission.signerUrl,
+      submissions: submissions,
+      submissionId: primarySubmission?.submissionId,
+      signerUrl: primarySubmission?.signerUrl,
       status: 'ready',
       version: 1
     })
@@ -848,41 +904,85 @@ app.get(['/api/contracts/status', '/contracts/status'], async (req, res) => {
       return res.status(404).json({ error: 'Contract not found' })
     }
 
-    // Get latest status from DocuSeal
-    let docusealStatus = contract.status
-    if (contract.submissionId) {
-      try {
-        const submission = await getSubmission(contract.submissionId)
-        docusealStatus = mapDocuSealStatus(submission.status || submission.state)
-        
-        // Update our local status if it changed
-        if (docusealStatus !== contract.status) {
-          await db.collection('contracts').updateOne(
-            { _id: contract._id },
-            { 
-              $set: { status: docusealStatus, updatedAt: new Date() },
-              $push: { 
-                audit: {
-                  at: new Date(),
-                  who: 'system',
-                  action: 'status_updated',
-                  meta: { from: contract.status, to: docusealStatus }
+    // Get latest status from DocuSeal for all submissions
+    let overallStatus = contract.status
+    let updatedSubmissions = contract.submissions || []
+    let hasStatusChanges = false
+    
+    if (updatedSubmissions.length > 0) {
+      for (let i = 0; i < updatedSubmissions.length; i++) {
+        const submission = updatedSubmissions[i]
+        if (submission.submissionId) {
+          try {
+            const docusealSubmission = await getSubmission(submission.submissionId)
+            const docusealStatus = mapDocuSealStatus(docusealSubmission.status || docusealSubmission.state)
+            
+            // Update submission status if it changed
+            if (docusealStatus !== submission.status) {
+              updatedSubmissions[i] = {
+                ...submission,
+                status: docusealStatus
+              }
+              hasStatusChanges = true
+            }
+          } catch (error) {
+            console.error(`Failed to get DocuSeal status for ${submission.name}:`, error)
+            // Continue with local status
+          }
+        }
+      }
+      
+      // Determine overall status based on all submissions
+      const allCompleted = updatedSubmissions.every(s => s.status === 'completed')
+      const anySigning = updatedSubmissions.some(s => s.status === 'signing')
+      const anyVoided = updatedSubmissions.some(s => s.status === 'voided')
+      
+      if (allCompleted) {
+        overallStatus = 'completed'
+      } else if (anyVoided) {
+        overallStatus = 'voided'
+      } else if (anySigning) {
+        overallStatus = 'signing'
+      } else {
+        overallStatus = 'ready'
+      }
+      
+      // Update our local status if it changed
+      if (hasStatusChanges || overallStatus !== contract.status) {
+        await db.collection('contracts').updateOne(
+          { _id: contract._id },
+          { 
+            $set: { 
+              status: overallStatus, 
+              submissions: updatedSubmissions,
+              updatedAt: new Date() 
+            },
+            $push: { 
+              audit: {
+                at: new Date(),
+                who: 'system',
+                action: 'status_updated',
+                meta: { 
+                  from: contract.status, 
+                  to: overallStatus,
+                  submissionUpdates: updatedSubmissions.map(s => ({ name: s.name, status: s.status }))
                 }
               }
             }
-          )
-        }
-      } catch (error) {
-        console.error('Failed to get DocuSeal status:', error)
-        // Continue with local status
+          }
+        )
       }
     }
 
+    // Get primary submission for backward compatibility
+    const primarySubmission = updatedSubmissions.find(s => s.name === 'purchase_agreement') || updatedSubmissions[0]
+
     res.status(200).json({
       success: true,
-      status: docusealStatus,
-      submissionId: contract.submissionId,
-      signerUrl: contract.signerUrl,
+      status: overallStatus,
+      submissions: updatedSubmissions,
+      submissionId: primarySubmission?.submissionId,
+      signerUrl: primarySubmission?.signerUrl,
       version: contract.version,
       createdAt: contract.createdAt,
       updatedAt: contract.updatedAt
@@ -918,7 +1018,7 @@ app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
 
     const db = await getDb()
     const contract = await db.collection('contracts').findOne({ 
-      submissionId: data.id 
+      'submissions.submissionId': data.id 
     })
 
     if (!contract) {
@@ -926,34 +1026,66 @@ app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
       return res.status(404).json({ error: 'Contract not found' })
     }
 
-    let newStatus = contract.status
+    // Find the specific submission that was updated
+    const submissionIndex = contract.submissions?.findIndex(s => s.submissionId === data.id)
+    if (submissionIndex === -1 || submissionIndex === undefined) {
+      console.log('DocuSeal webhook: Submission not found in contract:', data.id)
+      return res.status(404).json({ error: 'Submission not found' })
+    }
+
+    const submission = contract.submissions[submissionIndex]
+    let newSubmissionStatus = submission.status
     let shouldDownloadPdf = false
 
-    // Handle different event types
+    // Handle different event types for the specific submission
     switch (event_type) {
       case 'submission.created':
-        newStatus = 'ready'
+        newSubmissionStatus = 'ready'
         break
       case 'submission.started':
-        newStatus = 'signing'
+        newSubmissionStatus = 'signing'
         break
       case 'submission.completed':
-        newStatus = 'completed'
+        newSubmissionStatus = 'completed'
         shouldDownloadPdf = true
         break
       case 'submission.declined':
-        newStatus = 'voided'
+        newSubmissionStatus = 'voided'
         break
       default:
         console.log('DocuSeal webhook: Unhandled event type:', event_type)
     }
 
-    // Update contract status
+    // Update the specific submission status
+    const updatedSubmissions = [...contract.submissions]
+    updatedSubmissions[submissionIndex] = {
+      ...submission,
+      status: newSubmissionStatus
+    }
+
+    // Determine overall contract status based on all submissions
+    const allCompleted = updatedSubmissions.every(s => s.status === 'completed')
+    const anySigning = updatedSubmissions.some(s => s.status === 'signing')
+    const anyVoided = updatedSubmissions.some(s => s.status === 'voided')
+    
+    let newOverallStatus = contract.status
+    if (allCompleted) {
+      newOverallStatus = 'completed'
+    } else if (anyVoided) {
+      newOverallStatus = 'voided'
+    } else if (anySigning) {
+      newOverallStatus = 'signing'
+    } else {
+      newOverallStatus = 'ready'
+    }
+
+    // Update contract with new submission statuses and overall status
     await db.collection('contracts').updateOne(
       { _id: contract._id },
       { 
         $set: { 
-          status: newStatus, 
+          status: newOverallStatus,
+          submissions: updatedSubmissions,
           updatedAt: new Date(),
           ...(data.completed_at && { completedAt: new Date(data.completed_at) })
         },
@@ -962,7 +1094,13 @@ app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
             at: new Date(),
             who: 'docuseal_webhook',
             action: event_type,
-            meta: { from: contract.status, to: newStatus, eventData: data }
+            meta: { 
+              from: contract.status, 
+              to: newOverallStatus, 
+              submissionName: submission.name,
+              submissionStatus: newSubmissionStatus,
+              eventData: data 
+            }
           }
         }
       }

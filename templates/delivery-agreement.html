@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Delivery Agreement - Firefly Tiny Homes</title>
+    <style>
+        body {
+            font-family: 'Times New Roman', serif;
+            line-height: 1.6;
+            margin: 40px;
+            font-size: 12pt;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 25px;
+        }
+        .section-title {
+            font-weight: bold;
+            font-size: 14pt;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+        }
+        .field-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .field-label {
+            min-width: 200px;
+            font-weight: bold;
+        }
+        .field-value {
+            flex: 1;
+            border-bottom: 1px solid #000;
+            padding: 2px 5px;
+            margin-left: 10px;
+        }
+        .signature-section {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .signature-box {
+            width: 45%;
+            text-align: center;
+        }
+        .signature-line {
+            border-bottom: 1px solid #000;
+            height: 60px;
+            margin: 10px 0;
+        }
+        .delivery-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .delivery-table th, .delivery-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+        }
+        .delivery-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        .terms-box {
+            border: 1px solid #000;
+            padding: 15px;
+            margin: 20px 0;
+            background-color: #f9f9f9;
+        }
+        .warning-box {
+            border: 2px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>DELIVERY AGREEMENT</h1>
+        <h2>Firefly Tiny Homes</h2>
+        <p>Order ID: <text-field name="order_id" style="width: 150px; height: 20px; display: inline-block;"></text-field></p>
+        <p>Date: <date-field name="order_date" style="width: 120px; height: 20px; display: inline-block;"></date-field></p>
+    </div>
+
+    <div class="section">
+        <div class="section-title">1. PARTIES TO AGREEMENT</div>
+        <div class="field-row">
+            <span class="field-label">Buyer Name:</span>
+            <div class="field-value">
+                <text-field name="buyer_name" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Buyer Phone:</span>
+            <div class="field-value">
+                <phone-field name="buyer_phone" style="width: 100%; height: 20px;"></phone-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Dealer Name:</span>
+            <div class="field-value">
+                <text-field name="dealer_name" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Dealer Phone:</span>
+            <div class="field-value">
+                <phone-field name="dealer_phone" style="width: 100%; height: 20px;"></phone-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">2. VEHICLE INFORMATION</div>
+        <div class="field-row">
+            <span class="field-label">Vehicle Brand:</span>
+            <div class="field-value">
+                <text-field name="unit_brand" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Vehicle Model:</span>
+            <div class="field-value">
+                <text-field name="unit_model" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Vehicle Year:</span>
+            <div class="field-value">
+                <text-field name="unit_year" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Serial Number:</span>
+            <div class="field-value">
+                <text-field name="unit_serial" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Dimensions:</span>
+            <div class="field-value">
+                <text-field name="unit_dimensions" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">3. DELIVERY LOCATION</div>
+        <div class="field-row">
+            <span class="field-label">Delivery Address:</span>
+            <div class="field-value">
+                <text-field name="delivery_address" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Delivery City:</span>
+            <div class="field-value">
+                <text-field name="delivery_city" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Delivery State:</span>
+            <div class="field-value">
+                <text-field name="delivery_state" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Delivery ZIP Code:</span>
+            <div class="field-value">
+                <text-field name="delivery_zip" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Delivery Notes:</span>
+            <div class="field-value">
+                <text-field name="delivery_notes" style="width: 100%; height: 40px;"></text-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">4. DELIVERY SCHEDULE</div>
+        <div class="field-row">
+            <span class="field-label">Estimated Completion Date:</span>
+            <div class="field-value">
+                <text-field name="completion_estimate" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Scheduled Delivery Date:</span>
+            <div class="field-value">
+                <date-field name="scheduled_delivery_date" style="width: 100%; height: 20px;"></date-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Preferred Delivery Time:</span>
+            <div class="field-value">
+                <text-field name="preferred_delivery_time" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Contact Person at Delivery:</span>
+            <div class="field-value">
+                <text-field name="delivery_contact_person" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Contact Phone at Delivery:</span>
+            <div class="field-value">
+                <phone-field name="delivery_contact_phone" style="width: 100%; height: 20px;"></phone-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">5. DELIVERY REQUIREMENTS</div>
+        
+        <div class="warning-box">
+            <h4>IMPORTANT DELIVERY REQUIREMENTS</h4>
+            <p>The buyer must ensure the following requirements are met before delivery:</p>
+        </div>
+
+        <div class="terms-box">
+            <h4>Site Preparation</h4>
+            <ul>
+                <li>Clear access path for delivery vehicle (minimum 12 feet wide)</li>
+                <li>Level ground for placement (within 6 inches of level)</li>
+                <li>No overhead obstructions (minimum 14 feet clearance)</li>
+                <li>Stable ground that can support the weight of the vehicle</li>
+                <li>Proper drainage to prevent water accumulation</li>
+            </ul>
+        </div>
+
+        <div class="terms-box">
+            <h4>Utility Connections</h4>
+            <ul>
+                <li>Electrical hookup available (if applicable)</li>
+                <li>Water connection available (if applicable)</li>
+                <li>Sewer/septic connection available (if applicable)</li>
+                <li>All connections must meet local building codes</li>
+            </ul>
+        </div>
+
+        <div class="terms-box">
+            <h4>Permits and Regulations</h4>
+            <ul>
+                <li>All necessary permits obtained by buyer</li>
+                <li>Compliance with local zoning regulations</li>
+                <li>Compliance with HOA rules (if applicable)</li>
+                <li>Proper insurance coverage in place</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">6. DELIVERY PROCESS</div>
+        
+        <div class="terms-box">
+            <h4>Delivery Day Process</h4>
+            <ol>
+                <li>Delivery team will contact buyer 1-2 hours before arrival</li>
+                <li>Buyer or designated representative must be present</li>
+                <li>Final inspection will be conducted upon arrival</li>
+                <li>Vehicle will be positioned as directed by buyer</li>
+                <li>Basic setup and leveling will be performed</li>
+                <li>Buyer will sign delivery acceptance form</li>
+            </ol>
+        </div>
+
+        <div class="terms-box">
+            <h4>What's Included in Delivery</h4>
+            <ul>
+                <li>Transportation to delivery site</li>
+                <li>Basic positioning and leveling</li>
+                <li>Removal of transport materials</li>
+                <li>Basic walkthrough of vehicle features</li>
+                <li>Delivery acceptance documentation</li>
+            </ul>
+        </div>
+
+        <div class="terms-box">
+            <h4>What's NOT Included in Delivery</h4>
+            <ul>
+                <li>Site preparation or modifications</li>
+                <li>Utility connections or hookups</li>
+                <li>Permit acquisition or compliance</li>
+                <li>Extended setup or customization</li>
+                <li>Return transportation</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">7. DELIVERY FEES AND CHARGES</div>
+        <table class="delivery-table">
+            <tr>
+                <th>Description</th>
+                <th>Amount</th>
+            </tr>
+            <tr>
+                <td>Standard Delivery (within 50 miles)</td>
+                <td>$<text-field name="delivery_estimate" style="width: 100px; height: 20px;"></text-field></td>
+            </tr>
+            <tr>
+                <td>Additional Mileage (if applicable)</td>
+                <td>$<text-field name="additional_mileage_fee" style="width: 100px; height: 20px;"></text-field></td>
+            </tr>
+            <tr>
+                <td>Setup Fee</td>
+                <td>$<text-field name="setup_fee" style="width: 100px; height: 20px;"></text-field></td>
+            </tr>
+            <tr>
+                <td>Additional Services (if any)</td>
+                <td>$<text-field name="additional_services_fee" style="width: 100px; height: 20px;"></text-field></td>
+            </tr>
+            <tr class="total-row">
+                <td><strong>TOTAL DELIVERY COST</strong></td>
+                <td><strong>$<text-field name="total_delivery_cost" style="width: 100px; height: 20px;"></text-field></strong></td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">8. DELIVERY ACCEPTANCE</div>
+        <p>Upon delivery, the buyer will conduct a final inspection of the vehicle. The buyer acknowledges that:</p>
+        
+        <div style="margin: 20px 0;">
+            <checkbox-field name="inspection_completed" style="width: 20px; height: 20px;"></checkbox-field>
+            <span style="margin-left: 10px;">I have completed a thorough inspection of the vehicle</span>
+        </div>
+        
+        <div style="margin: 20px 0;">
+            <checkbox-field name="vehicle_condition_acceptable" style="width: 20px; height: 20px;"></checkbox-field>
+            <span style="margin-left: 10px;">The vehicle is in acceptable condition</span>
+        </div>
+        
+        <div style="margin: 20px 0;">
+            <checkbox-field name="delivery_requirements_met" style="width: 20px; height: 20px;"></checkbox-field>
+            <span style="margin-left: 10px;">All delivery requirements have been met</span>
+        </div>
+        
+        <div style="margin: 20px 0;">
+            <checkbox-field name="accept_delivery" style="width: 20px; height: 20px;"></checkbox-field>
+            <span style="margin-left: 10px;">I accept delivery of the vehicle</span>
+        </div>
+
+        <div class="warning-box">
+            <p><strong>NOTE:</strong> Once delivery is accepted, the vehicle becomes the buyer's responsibility. Any issues discovered after acceptance may not be covered under warranty.</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">9. POST-DELIVERY SUPPORT</div>
+        <div class="terms-box">
+            <h4>Warranty and Support</h4>
+            <ul>
+                <li>Warranty coverage begins upon delivery acceptance</li>
+                <li>30-day warranty on delivery-related issues</li>
+                <li>Standard manufacturer warranty applies</li>
+                <li>Contact dealer for warranty claims</li>
+                <li>Emergency support available 24/7</li>
+            </ul>
+        </div>
+
+        <div class="terms-box">
+            <h4>Storage Policy</h4>
+            <p><text-field name="storage_policy" style="width: 100%; height: 40px;"></text-field></p>
+        </div>
+    </div>
+
+    <div class="signature-section">
+        <div class="signature-box">
+            <p><strong>BUYER SIGNATURE</strong></p>
+            <div class="signature-line">
+                <signature-field name="buyer_signature" style="width: 100%; height: 60px;"></signature-field>
+            </div>
+            <p>Date: <date-field name="buyer_signature_date" style="width: 120px; height: 20px;"></date-field></p>
+        </div>
+        
+        <div class="signature-box">
+            <p><strong>DEALER REPRESENTATIVE SIGNATURE</strong></p>
+            <div class="signature-line">
+                <signature-field name="dealer_signature" style="width: 100%; height: 60px;"></signature-field>
+            </div>
+            <p>Date: <date-field name="dealer_signature_date" style="width: 120px; height: 20px;"></date-field></p>
+        </div>
+    </div>
+
+    <div style="margin-top: 30px; font-size: 10pt; text-align: center; color: #666;">
+        <p>This document was generated electronically by Firefly Tiny Homes</p>
+        <p>Page <span class="pageNumber"></span> of <span class="totalPages"></span></p>
+    </div>
+</body>
+</html>

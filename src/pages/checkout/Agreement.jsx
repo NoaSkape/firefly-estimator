@@ -43,6 +43,7 @@ export default function Agreement() {
   const [signerUrl, setSignerUrl] = useState('')
   const [contractStatus, setContractStatus] = useState('draft') // 'draft', 'ready', 'signing', 'completed', 'voided'
   const [currentDocTab, setCurrentDocTab] = useState('all')
+  const [selectedSubmission, setSelectedSubmission] = useState(null)
   
   const iframeRef = useRef(null)
   const statusPollRef = useRef(null)
@@ -126,14 +127,32 @@ export default function Agreement() {
         const statusData = await statusRes.json()
         setContract(statusData)
         setContractStatus(statusData.status || 'draft')
-        setSignerUrl(statusData.signerUrl || '')
         
-        if (statusData.status === 'completed') {
-          setSigningState('completed')
-        } else if (statusData.status === 'signing') {
-          setSigningState('signing')
-        } else if (statusData.signerUrl) {
-          setSigningState('ready')
+        // Handle multiple submissions
+        if (statusData.submissions && statusData.submissions.length > 0) {
+          // Set primary submission (Purchase Agreement) as default
+          const primarySubmission = statusData.submissions.find(s => s.name === 'purchase_agreement') || statusData.submissions[0]
+          setSelectedSubmission(primarySubmission)
+          setSignerUrl(primarySubmission.signerUrl || '')
+          
+          if (statusData.status === 'completed') {
+            setSigningState('completed')
+          } else if (statusData.status === 'signing') {
+            setSigningState('signing')
+          } else if (primarySubmission.signerUrl) {
+            setSigningState('ready')
+          }
+        } else {
+          // Fallback for single submission (backward compatibility)
+          setSignerUrl(statusData.signerUrl || '')
+          
+          if (statusData.status === 'completed') {
+            setSigningState('completed')
+          } else if (statusData.status === 'signing') {
+            setSigningState('signing')
+          } else if (statusData.signerUrl) {
+            setSigningState('ready')
+          }
         }
       } else {
         // Contract doesn't exist, create it
@@ -173,7 +192,18 @@ export default function Agreement() {
         const contractData = await res.json()
         setContract(contractData)
         setContractStatus(contractData.status || 'ready')
-        setSignerUrl(contractData.signerUrl || '')
+        
+        // Handle multiple submissions
+        if (contractData.submissions && contractData.submissions.length > 0) {
+          // Set primary submission (Purchase Agreement) as default
+          const primarySubmission = contractData.submissions.find(s => s.name === 'purchase_agreement') || contractData.submissions[0]
+          setSelectedSubmission(primarySubmission)
+          setSignerUrl(primarySubmission.signerUrl || '')
+        } else {
+          // Fallback for single submission (backward compatibility)
+          setSignerUrl(contractData.signerUrl || '')
+        }
+        
         setSigningState('ready')
       } else {
         throw new Error('Failed to create contract')
@@ -250,6 +280,11 @@ export default function Agreement() {
       window.open(signerUrl, '_blank', 'noopener,noreferrer')
       setSigningState('signing')
     }
+  }
+
+  function handleSelectSubmission(submission) {
+    setSelectedSubmission(submission)
+    setSignerUrl(submission.signerUrl)
   }
 
   async function handleContinueToConfirmation() {
@@ -335,6 +370,9 @@ export default function Agreement() {
               onOpenInNewTab={handleOpenInNewTab}
               iframeRef={iframeRef}
               buildId={buildId}
+              contract={contract}
+              selectedSubmission={selectedSubmission}
+              onSelectSubmission={handleSelectSubmission}
             />
           </div>
         </div>
@@ -387,6 +425,17 @@ function StatusPill({ status }) {
 
 // Contract Checklist Component
 function ContractChecklist({ build, contract, checklistState, onUpdateChecklist, onReviewSection }) {
+  const submissions = contract?.submissions || []
+  
+  // Map submission names to checklist items
+  const submissionMap = {
+    purchase_agreement: { title: 'Purchase Agreement', icon: <DocumentTextIcon className="h-5 w-5" /> },
+    payment_terms: { title: 'Payment Terms Agreement', icon: <BanknotesIcon className="h-5 w-5" /> },
+    delivery_agreement: { title: 'Delivery Agreement', icon: <MapPinIcon className="h-5 w-5" /> },
+    warranty_information: { title: 'Warranty Information', icon: <ShieldCheckIcon className="h-5 w-5" /> },
+    legal_disclosures: { title: 'Legal Disclosures', icon: <ShieldCheckIcon className="h-5 w-5" /> }
+  }
+
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold text-white mb-4">Contract Checklist</h2>
@@ -425,56 +474,36 @@ function ContractChecklist({ build, contract, checklistState, onUpdateChecklist,
         </div>
       </ChecklistCard>
 
-      {/* Delivery Site Card */}
-      <ChecklistCard
-        title="Delivery Address & Site Readiness"
-        icon={<MapPinIcon className="h-5 w-5" />}
-        isViewed={checklistState.deliverySite}
-        onReview={() => {
-          onUpdateChecklist('deliverySite', true)
-          onReviewSection('delivery')
-        }}
-      >
-        <div className="text-sm text-gray-400">
-          Delivery address, access notes, site requirements
-        </div>
-      </ChecklistCard>
-
-      {/* Payment Terms Card */}
-      <ChecklistCard
-        title="Payment Terms (Cash/ACH)"
-        icon={<BanknotesIcon className="h-5 w-5" />}
-        isViewed={checklistState.paymentTerms}
-        onReview={() => {
-          onUpdateChecklist('paymentTerms', true)
-          onReviewSection('payment')
-        }}
-      >
-        <div className="text-sm text-gray-400 space-y-1">
-          <div>Bank account verified & linked</div>
-          <div>Deposit: 25% • Balance due before delivery</div>
-        </div>
-      </ChecklistCard>
-
-      {/* Required Disclosures Card */}
-      <ChecklistCard
-        title="Required Disclosures"
-        icon={<ShieldCheckIcon className="h-5 w-5" />}
-        isViewed={checklistState.disclosures}
-        isRequired={true}
-        onReview={() => {
-          onUpdateChecklist('disclosures', true)
-          onReviewSection('disclosures')
-        }}
-      >
-        <div className="text-sm text-gray-400 space-y-1">
-          <div>• Purchase Agreement</div>
-          <div>• Payment & Deposit Terms</div>
-          <div>• Delivery & Site Requirements</div>
-          <div>• Warranty & Service</div>
-          <div>• Consumer Rights & Disclosures</div>
-        </div>
-      </ChecklistCard>
+      {/* Document Status Cards */}
+      {submissions.map((submission) => {
+        const docInfo = submissionMap[submission.name]
+        if (!docInfo) return null
+        
+        return (
+          <ChecklistCard
+            key={submission.name}
+            title={docInfo.title}
+            icon={docInfo.icon}
+            isViewed={submission.status === 'completed'}
+            isRequired={submission.name === 'purchase_agreement' || submission.name === 'legal_disclosures'}
+            onReview={() => {
+              // This will be handled by the document viewer tabs
+            }}
+          >
+            <div className="text-sm text-gray-400 space-y-1">
+              <div className="flex items-center justify-between">
+                <span>Status: {submission.status}</span>
+                {submission.status === 'completed' && (
+                  <CheckCircleIcon className="h-4 w-4 text-green-400" />
+                )}
+                {submission.status === 'signing' && (
+                  <div className="h-2 w-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                )}
+              </div>
+            </div>
+          </ChecklistCard>
+        )
+      })}
 
       {/* Ready to Sign Indicator */}
       <div className={`p-4 rounded-lg border-2 ${
@@ -539,7 +568,7 @@ function ChecklistCard({ title, icon, children, isViewed, isRequired, onReview }
 }
 
 // Document Viewer Component
-function DocumentViewer({ id, signerUrl, signingState, contractStatus, currentDocTab, preparingDocs, onOpenInNewTab, iframeRef, buildId }) {
+function DocumentViewer({ id, signerUrl, signingState, contractStatus, currentDocTab, preparingDocs, onOpenInNewTab, iframeRef, buildId, contract, selectedSubmission, onSelectSubmission }) {
   if (preparingDocs) {
     return (
       <div id={id} className="bg-gray-800 rounded-lg p-8">
@@ -566,16 +595,39 @@ function DocumentViewer({ id, signerUrl, signingState, contractStatus, currentDo
     )
   }
 
+  const submissions = contract?.submissions || []
+  const hasMultipleDocuments = submissions.length > 1
+
   return (
     <div id={id} className="space-y-4">
       {/* Document Tabs */}
-      <div className="border-b border-gray-700">
-        <nav className="-mb-px flex space-x-8">
-          <button className="border-b-2 border-yellow-400 py-2 px-1 text-sm font-medium text-yellow-400">
-            All Documents
-          </button>
-        </nav>
-      </div>
+      {hasMultipleDocuments && (
+        <div className="border-b border-gray-700">
+          <nav className="-mb-px flex space-x-2 overflow-x-auto">
+            {submissions.map((submission, index) => (
+              <button
+                key={submission.name}
+                onClick={() => onSelectSubmission(submission)}
+                className={`border-b-2 py-2 px-3 text-sm font-medium whitespace-nowrap ${
+                  selectedSubmission?.name === submission.name
+                    ? 'border-yellow-400 text-yellow-400'
+                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-600'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <span>{submission.title}</span>
+                  {submission.status === 'completed' && (
+                    <CheckCircleIcon className="h-4 w-4 text-green-400" />
+                  )}
+                  {submission.status === 'signing' && (
+                    <div className="h-2 w-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                  )}
+                </div>
+              </button>
+            ))}
+          </nav>
+        </div>
+      )}
 
       {/* Document Content */}
       <div className="bg-gray-800 rounded-lg overflow-hidden" style={{ minHeight: '80vh' }}>
@@ -599,7 +651,7 @@ function DocumentViewer({ id, signerUrl, signingState, contractStatus, currentDo
             <iframe
               ref={iframeRef}
               src={signerUrl}
-              title="Contract Documents"
+              title={selectedSubmission?.title || "Contract Documents"}
               className="w-full h-full"
               style={{ minHeight: '80vh' }}
               allow="fullscreen; clipboard-write; autoplay"

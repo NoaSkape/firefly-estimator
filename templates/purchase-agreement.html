@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Purchase Agreement - Firefly Tiny Homes</title>
+    <style>
+        body {
+            font-family: 'Times New Roman', serif;
+            line-height: 1.6;
+            margin: 40px;
+            font-size: 12pt;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 25px;
+        }
+        .section-title {
+            font-weight: bold;
+            font-size: 14pt;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+        }
+        .field-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .field-label {
+            min-width: 200px;
+            font-weight: bold;
+        }
+        .field-value {
+            flex: 1;
+            border-bottom: 1px solid #000;
+            padding: 2px 5px;
+            margin-left: 10px;
+        }
+        .signature-section {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .signature-box {
+            width: 45%;
+            text-align: center;
+        }
+        .signature-line {
+            border-bottom: 1px solid #000;
+            height: 60px;
+            margin: 10px 0;
+        }
+        .price-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .price-table th, .price-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+        }
+        .price-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        .total-row {
+            font-weight: bold;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>PURCHASE AGREEMENT</h1>
+        <h2>Firefly Tiny Homes</h2>
+        <p>Order ID: <text-field name="order_id" style="width: 150px; height: 20px; display: inline-block;"></text-field></p>
+        <p>Date: <date-field name="order_date" style="width: 120px; height: 20px; display: inline-block;"></date-field></p>
+    </div>
+
+    <div class="section">
+        <div class="section-title">1. DEALER INFORMATION</div>
+        <div class="field-row">
+            <span class="field-label">Dealer Name:</span>
+            <div class="field-value">
+                <text-field name="dealer_name" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Dealer Address:</span>
+            <div class="field-value">
+                <text-field name="dealer_address" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Dealer Phone:</span>
+            <div class="field-value">
+                <phone-field name="dealer_phone" style="width: 100%; height: 20px;"></phone-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Dealer Representative:</span>
+            <div class="field-value">
+                <text-field name="dealer_rep" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">2. BUYER INFORMATION</div>
+        <div class="field-row">
+            <span class="field-label">Buyer Name:</span>
+            <div class="field-value">
+                <text-field name="buyer_name" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">First Name:</span>
+            <div class="field-value">
+                <text-field name="buyer_first_name" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Last Name:</span>
+            <div class="field-value">
+                <text-field name="buyer_last_name" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Email Address:</span>
+            <div class="field-value">
+                <text-field name="buyer_email" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Phone Number:</span>
+            <div class="field-value">
+                <phone-field name="buyer_phone" style="width: 100%; height: 20px;"></phone-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Address:</span>
+            <div class="field-value">
+                <text-field name="buyer_address" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">City:</span>
+            <div class="field-value">
+                <text-field name="buyer_city" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">State:</span>
+            <div class="field-value">
+                <text-field name="buyer_state" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">ZIP Code:</span>
+            <div class="field-value">
+                <text-field name="buyer_zip" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">3. VEHICLE INFORMATION</div>
+        <div class="field-row">
+            <span class="field-label">Brand:</span>
+            <div class="field-value">
+                <text-field name="unit_brand" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Model:</span>
+            <div class="field-value">
+                <text-field name="unit_model" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Year:</span>
+            <div class="field-value">
+                <text-field name="unit_year" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Dimensions:</span>
+            <div class="field-value">
+                <text-field name="unit_dimensions" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Serial Number:</span>
+            <div class="field-value">
+                <text-field name="unit_serial" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">State Classification:</span>
+            <div class="field-value">
+                <text-field name="state_classification" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">4. PRICING BREAKDOWN</div>
+        <table class="price-table">
+            <tr>
+                <th>Description</th>
+                <th>Amount</th>
+            </tr>
+            <tr>
+                <td>Base Price</td>
+                <td>$<text-field name="base_price" style="width: 100px; height: 20px;"></text-field></td>
+            </tr>
+            <tr>
+                <td>Options Total</td>
+                <td>$<text-field name="options_total" style="width: 100px; height: 20px;"></text-field></td>
+            </tr>
+            <tr>
+                <td>Delivery Estimate</td>
+                <td>$<text-field name="delivery_estimate" style="width: 100px; height: 20px;"></text-field></td>
+            </tr>
+            <tr>
+                <td>Title Fee</td>
+                <td>$<text-field name="title_fee" style="width: 100px; height: 20px;"></text-field></td>
+            </tr>
+            <tr>
+                <td>Setup Fee</td>
+                <td>$<text-field name="setup_fee" style="width: 100px; height: 20px;"></text-field></td>
+            </tr>
+            <tr>
+                <td>Taxes</td>
+                <td>$<text-field name="taxes" style="width: 100px; height: 20px;"></text-field></td>
+            </tr>
+            <tr class="total-row">
+                <td><strong>TOTAL PRICE</strong></td>
+                <td><strong>$<text-field name="total_price" style="width: 100px; height: 20px;"></text-field></strong></td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">5. PAYMENT TERMS</div>
+        <div class="field-row">
+            <span class="field-label">Deposit Percentage:</span>
+            <div class="field-value">
+                <text-field name="deposit_percent" style="width: 100%; height: 20px;"></text-field>%
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Deposit Amount:</span>
+            <div class="field-value">
+                $<text-field name="deposit_amount" style="width: 100px; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Balance Amount:</span>
+            <div class="field-value">
+                $<text-field name="balance_amount" style="width: 100px; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Payment Method:</span>
+            <div class="field-value">
+                <text-field name="payment_method" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">6. DELIVERY INFORMATION</div>
+        <div class="field-row">
+            <span class="field-label">Delivery Address:</span>
+            <div class="field-value">
+                <text-field name="delivery_address" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Delivery City:</span>
+            <div class="field-value">
+                <text-field name="delivery_city" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Delivery State:</span>
+            <div class="field-value">
+                <text-field name="delivery_state" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Delivery ZIP:</span>
+            <div class="field-value">
+                <text-field name="delivery_zip" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Delivery Notes:</span>
+            <div class="field-value">
+                <text-field name="delivery_notes" style="width: 100%; height: 40px;"></text-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">7. TIMELINE & POLICIES</div>
+        <div class="field-row">
+            <span class="field-label">Completion Estimate:</span>
+            <div class="field-value">
+                <text-field name="completion_estimate" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Storage Policy:</span>
+            <div class="field-value">
+                <text-field name="storage_policy" style="width: 100%; height: 40px;"></text-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">8. AGREEMENT TERMS</div>
+        <p>This Purchase Agreement constitutes a binding contract between the Buyer and Firefly Tiny Homes. By signing below, both parties acknowledge that they have read, understood, and agree to all terms and conditions outlined in this agreement.</p>
+        
+        <p><strong>Important Notes:</strong></p>
+        <ul>
+            <li>This agreement is subject to final inspection and approval</li>
+            <li>Delivery dates are estimates and may vary based on production schedules</li>
+            <li>All payments must be completed before delivery</li>
+            <li>This unit is classified as a recreational vehicle and may be subject to specific regulations</li>
+        </ul>
+    </div>
+
+    <div class="signature-section">
+        <div class="signature-box">
+            <p><strong>BUYER SIGNATURE</strong></p>
+            <div class="signature-line">
+                <signature-field name="buyer_signature" style="width: 100%; height: 60px;"></signature-field>
+            </div>
+            <p>Date: <date-field name="buyer_signature_date" style="width: 120px; height: 20px;"></date-field></p>
+        </div>
+        
+        <div class="signature-box">
+            <p><strong>DEALER REPRESENTATIVE SIGNATURE</strong></p>
+            <div class="signature-line">
+                <signature-field name="dealer_signature" style="width: 100%; height: 60px;"></signature-field>
+            </div>
+            <p>Date: <date-field name="dealer_signature_date" style="width: 120px; height: 20px;"></date-field></p>
+        </div>
+    </div>
+
+    <div style="margin-top: 30px; font-size: 10pt; text-align: center; color: #666;">
+        <p>This document was generated electronically by Firefly Tiny Homes</p>
+        <p>Page <span class="pageNumber"></span> of <span class="totalPages"></span></p>
+    </div>
+</body>
+</html>

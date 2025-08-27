@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Warranty Information - Firefly Tiny Homes</title>
+    <style>
+        body {
+            font-family: 'Times New Roman', serif;
+            line-height: 1.6;
+            margin: 40px;
+            font-size: 12pt;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 25px;
+        }
+        .section-title {
+            font-weight: bold;
+            font-size: 14pt;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+        }
+        .field-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .field-label {
+            min-width: 200px;
+            font-weight: bold;
+        }
+        .field-value {
+            flex: 1;
+            border-bottom: 1px solid #000;
+            padding: 2px 5px;
+            margin-left: 10px;
+        }
+        .signature-section {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .signature-box {
+            width: 45%;
+            text-align: center;
+        }
+        .signature-line {
+            border-bottom: 1px solid #000;
+            height: 60px;
+            margin: 10px 0;
+        }
+        .warranty-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .warranty-table th, .warranty-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+        }
+        .warranty-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        .terms-box {
+            border: 1px solid #000;
+            padding: 15px;
+            margin: 20px 0;
+            background-color: #f9f9f9;
+        }
+        .important-box {
+            border: 2px solid #007bff;
+            padding: 15px;
+            margin: 20px 0;
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        .exclusion-box {
+            border: 2px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>WARRANTY INFORMATION</h1>
+        <h2>Firefly Tiny Homes</h2>
+        <p>Order ID: <text-field name="order_id" style="width: 150px; height: 20px; display: inline-block;"></text-field></p>
+        <p>Date: <date-field name="order_date" style="width: 120px; height: 20px; display: inline-block;"></date-field></p>
+    </div>
+
+    <div class="section">
+        <div class="section-title">1. CUSTOMER INFORMATION</div>
+        <div class="field-row">
+            <span class="field-label">Customer Name:</span>
+            <div class="field-value">
+                <text-field name="buyer_name" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Customer Email:</span>
+            <div class="field-value">
+                <text-field name="buyer_email" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Customer Phone:</span>
+            <div class="field-value">
+                <phone-field name="buyer_phone" style="width: 100%; height: 20px;"></phone-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Customer Address:</span>
+            <div class="field-value">
+                <text-field name="buyer_address" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">2. VEHICLE INFORMATION</div>
+        <div class="field-row">
+            <span class="field-label">Vehicle Brand:</span>
+            <div class="field-value">
+                <text-field name="unit_brand" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Vehicle Model:</span>
+            <div class="field-value">
+                <text-field name="unit_model" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Vehicle Year:</span>
+            <div class="field-value">
+                <text-field name="unit_year" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Serial Number:</span>
+            <div class="field-value">
+                <text-field name="unit_serial" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Purchase Date:</span>
+            <div class="field-value">
+                <date-field name="purchase_date" style="width: 100%; height: 20px;"></date-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Delivery Date:</span>
+            <div class="field-value">
+                <date-field name="delivery_date" style="width: 100%; height: 20px;"></date-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">3. WARRANTY COVERAGE SUMMARY</div>
+        
+        <div class="important-box">
+            <h4>WARRANTY START DATE</h4>
+            <p>Warranty coverage begins on the date of delivery: <date-field name="warranty_start_date" style="width: 150px; height: 20px;"></date-field></p>
+        </div>
+
+        <table class="warranty-table">
+            <tr>
+                <th>Component/System</th>
+                <th>Warranty Period</th>
+                <th>Coverage Details</th>
+            </tr>
+            <tr>
+                <td>Structural Components</td>
+                <td>5 Years</td>
+                <td>Frame, walls, roof, floor structure</td>
+            </tr>
+            <tr>
+                <td>Roof System</td>
+                <td>3 Years</td>
+                <td>Roofing materials, seals, flashing</td>
+            </tr>
+            <tr>
+                <td>Windows & Doors</td>
+                <td>2 Years</td>
+                <td>Glass, frames, seals, hardware</td>
+            </tr>
+            <tr>
+                <td>Electrical Systems</td>
+                <td>2 Years</td>
+                <td>Wiring, outlets, switches, fixtures</td>
+            </tr>
+            <tr>
+                <td>Plumbing Systems</td>
+                <td>2 Years</td>
+                <td>Pipes, fixtures, connections</td>
+            </tr>
+            <tr>
+                <td>Appliances</td>
+                <td>1 Year</td>
+                <td>Manufacturer warranty applies</td>
+            </tr>
+            <tr>
+                <td>HVAC Systems</td>
+                <td>2 Years</td>
+                <td>Heating, cooling, ventilation</td>
+            </tr>
+            <tr>
+                <td>Interior Finishes</td>
+                <td>1 Year</td>
+                <td>Cabinets, countertops, flooring</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">4. WHAT IS COVERED</div>
+        
+        <div class="terms-box">
+            <h4>Manufacturing Defects</h4>
+            <ul>
+                <li>Defects in materials or workmanship</li>
+                <li>Structural integrity issues</li>
+                <li>System failures due to manufacturing errors</li>
+                <li>Component failures within warranty period</li>
+            </ul>
+        </div>
+
+        <div class="terms-box">
+            <h4>Repair and Replacement</h4>
+            <ul>
+                <li>Parts and materials for covered repairs</li>
+                <li>Labor costs for warranty repairs</li>
+                <li>Replacement of defective components</li>
+                <li>Transportation costs for warranty service (within 50 miles)</li>
+            </ul>
+        </div>
+
+        <div class="terms-box">
+            <h4>Emergency Service</h4>
+            <ul>
+                <li>24/7 emergency support hotline</li>
+                <li>Priority scheduling for urgent repairs</li>
+                <li>Mobile service for minor issues</li>
+                <li>Technical support and troubleshooting</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">5. WHAT IS NOT COVERED</div>
+        
+        <div class="exclusion-box">
+            <h4>WARRANTY EXCLUSIONS</h4>
+            <p>The following items are NOT covered under warranty:</p>
+        </div>
+
+        <div class="terms-box">
+            <h4>Normal Wear and Tear</h4>
+            <ul>
+                <li>Cosmetic damage from normal use</li>
+                <li>Wear on moving parts and surfaces</li>
+                <li>Fading or discoloration of materials</li>
+                <li>Minor scratches and dents</li>
+            </ul>
+        </div>
+
+        <div class="terms-box">
+            <h4>Improper Use or Maintenance</h4>
+            <ul>
+                <li>Damage from improper operation</li>
+                <li>Lack of routine maintenance</li>
+                <li>Unauthorized modifications</li>
+                <li>Use beyond intended capacity</li>
+            </ul>
+        </div>
+
+        <div class="terms-box">
+            <h4>External Factors</h4>
+            <ul>
+                <li>Damage from accidents or collisions</li>
+                <li>Weather-related damage (storms, hail, etc.)</li>
+                <li>Damage from pests or animals</li>
+                <li>Damage from improper storage or transport</li>
+            </ul>
+        </div>
+
+        <div class="terms-box">
+            <h4>Third-Party Components</h4>
+            <ul>
+                <li>Appliances (covered by manufacturer warranty)</li>
+                <li>Electronics and entertainment systems</li>
+                <li>Aftermarket accessories or modifications</li>
+                <li>Custom installations by third parties</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">6. WARRANTY CLAIM PROCESS</div>
+        
+        <div class="terms-box">
+            <h4>How to File a Warranty Claim</h4>
+            <ol>
+                <li><strong>Contact Us:</strong> Call our warranty hotline or submit online</li>
+                <li><strong>Describe the Issue:</strong> Provide detailed description of the problem</li>
+                <li><strong>Provide Information:</strong> Order number, serial number, photos if possible</li>
+                <li><strong>Schedule Inspection:</strong> We'll arrange for inspection or service</li>
+                <li><strong>Repair Authorization:</strong> We'll provide repair estimate and timeline</li>
+                <li><strong>Service Completion:</strong> Repairs completed and verified</li>
+            </ol>
+        </div>
+
+        <div class="terms-box">
+            <h4>Required Information for Claims</h4>
+            <ul>
+                <li>Order number and purchase date</li>
+                <li>Vehicle serial number</li>
+                <li>Detailed description of the issue</li>
+                <li>Photos or videos of the problem</li>
+                <li>Contact information for scheduling</li>
+            </ul>
+        </div>
+
+        <div class="important-box">
+            <h4>WARRANTY CONTACT INFORMATION</h4>
+            <p><strong>Phone:</strong> <phone-field name="warranty_phone" style="width: 150px; height: 20px;"></phone-field></p>
+            <p><strong>Email:</strong> <text-field name="warranty_email" style="width: 200px; height: 20px;"></text-field></p>
+            <p><strong>Online:</strong> <text-field name="warranty_website" style="width: 200px; height: 20px;"></text-field></p>
+            <p><strong>Hours:</strong> Monday-Friday 8AM-6PM, Emergency 24/7</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">7. MAINTENANCE REQUIREMENTS</div>
+        
+        <div class="terms-box">
+            <h4>Required Maintenance Schedule</h4>
+            <ul>
+                <li><strong>Monthly:</strong> Check for leaks, inspect seals, test systems</li>
+                <li><strong>Quarterly:</strong> Deep cleaning, system checks, filter changes</li>
+                <li><strong>Annually:</strong> Professional inspection, system maintenance</li>
+                <li><strong>As Needed:</strong> Address any issues immediately</li>
+            </ul>
+        </div>
+
+        <div class="terms-box">
+            <h4>Maintenance Documentation</h4>
+            <p>Keep records of all maintenance performed, including:</p>
+            <ul>
+                <li>Date and type of maintenance</li>
+                <li>Service provider information</li>
+                <li>Parts replaced or repaired</li>
+                <li>Receipts and invoices</li>
+            </ul>
+        </div>
+
+        <div class="important-box">
+            <p><strong>IMPORTANT:</strong> Failure to perform required maintenance may void warranty coverage. Keep all maintenance records for warranty claims.</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">8. WARRANTY TRANSFER</div>
+        
+        <div class="terms-box">
+            <h4>Transferring Warranty</h4>
+            <p>This warranty may be transferred to a new owner within the warranty period. To transfer:</p>
+            <ol>
+                <li>Complete warranty transfer form</li>
+                <li>Provide proof of ownership transfer</li>
+                <li>Pay transfer fee of $<text-field name="warranty_transfer_fee" style="width: 80px; height: 20px;"></text-field></li>
+                <li>Submit within 30 days of ownership transfer</li>
+            </ol>
+        </div>
+
+        <div class="terms-box">
+            <h4>Transfer Requirements</h4>
+            <ul>
+                <li>Vehicle must be in good condition</li>
+                <li>All maintenance records must be provided</li>
+                <li>No outstanding warranty claims</li>
+                <li>New owner must register warranty</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">9. WARRANTY ACKNOWLEDGMENT</div>
+        <p>By signing below, I acknowledge that I have read, understood, and agree to all warranty terms and conditions outlined in this document.</p>
+        
+        <div style="margin: 20px 0;">
+            <checkbox-field name="warranty_terms_acknowledged" style="width: 20px; height: 20px;"></checkbox-field>
+            <span style="margin-left: 10px;">I acknowledge that I have read and understand the warranty terms</span>
+        </div>
+        
+        <div style="margin: 20px 0;">
+            <checkbox-field name="maintenance_requirements_understood" style="width: 20px; height: 20px;"></checkbox-field>
+            <span style="margin-left: 10px;">I understand the maintenance requirements to maintain warranty coverage</span>
+        </div>
+        
+        <div style="margin: 20px 0;">
+            <checkbox-field name="contact_info_verified" style="width: 20px; height: 20px;"></checkbox-field>
+            <span style="margin-left: 10px;">I have verified the warranty contact information is correct</span>
+        </div>
+    </div>
+
+    <div class="signature-section">
+        <div class="signature-box">
+            <p><strong>CUSTOMER SIGNATURE</strong></p>
+            <div class="signature-line">
+                <signature-field name="customer_signature" style="width: 100%; height: 60px;"></signature-field>
+            </div>
+            <p>Date: <date-field name="customer_signature_date" style="width: 120px; height: 20px;"></date-field></p>
+        </div>
+        
+        <div class="signature-box">
+            <p><strong>DEALER REPRESENTATIVE SIGNATURE</strong></p>
+            <div class="signature-line">
+                <signature-field name="dealer_signature" style="width: 100%; height: 60px;"></signature-field>
+            </div>
+            <p>Date: <date-field name="dealer_signature_date" style="width: 120px; height: 20px;"></date-field></p>
+        </div>
+    </div>
+
+    <div style="margin-top: 30px; font-size: 10pt; text-align: center; color: #666;">
+        <p>This document was generated electronically by Firefly Tiny Homes</p>
+        <p>Page <span class="pageNumber"></span> of <span class="totalPages"></span></p>
+    </div>
+</body>
+</html>

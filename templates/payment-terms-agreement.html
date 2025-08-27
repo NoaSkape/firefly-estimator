@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Payment Terms Agreement - Firefly Tiny Homes</title>
+    <style>
+        body {
+            font-family: 'Times New Roman', serif;
+            line-height: 1.6;
+            margin: 40px;
+            font-size: 12pt;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 25px;
+        }
+        .section-title {
+            font-weight: bold;
+            font-size: 14pt;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+        }
+        .field-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .field-label {
+            min-width: 200px;
+            font-weight: bold;
+        }
+        .field-value {
+            flex: 1;
+            border-bottom: 1px solid #000;
+            padding: 2px 5px;
+            margin-left: 10px;
+        }
+        .signature-section {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .signature-box {
+            width: 45%;
+            text-align: center;
+        }
+        .signature-line {
+            border-bottom: 1px solid #000;
+            height: 60px;
+            margin: 10px 0;
+        }
+        .payment-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .payment-table th, .payment-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+        }
+        .payment-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        .total-row {
+            font-weight: bold;
+            background-color: #f9f9f9;
+        }
+        .terms-box {
+            border: 1px solid #000;
+            padding: 15px;
+            margin: 20px 0;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>PAYMENT TERMS AGREEMENT</h1>
+        <h2>Firefly Tiny Homes</h2>
+        <p>Order ID: <text-field name="order_id" style="width: 150px; height: 20px; display: inline-block;"></text-field></p>
+        <p>Date: <date-field name="order_date" style="width: 120px; height: 20px; display: inline-block;"></date-field></p>
+    </div>
+
+    <div class="section">
+        <div class="section-title">1. PARTIES TO AGREEMENT</div>
+        <div class="field-row">
+            <span class="field-label">Buyer Name:</span>
+            <div class="field-value">
+                <text-field name="buyer_name" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Buyer Email:</span>
+            <div class="field-value">
+                <text-field name="buyer_email" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Buyer Phone:</span>
+            <div class="field-value">
+                <phone-field name="buyer_phone" style="width: 100%; height: 20px;"></phone-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Dealer Name:</span>
+            <div class="field-value">
+                <text-field name="dealer_name" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">2. VEHICLE INFORMATION</div>
+        <div class="field-row">
+            <span class="field-label">Vehicle Brand:</span>
+            <div class="field-value">
+                <text-field name="unit_brand" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Vehicle Model:</span>
+            <div class="field-value">
+                <text-field name="unit_model" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Vehicle Year:</span>
+            <div class="field-value">
+                <text-field name="unit_year" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Serial Number:</span>
+            <div class="field-value">
+                <text-field name="unit_serial" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">3. PAYMENT BREAKDOWN</div>
+        <table class="payment-table">
+            <tr>
+                <th>Description</th>
+                <th>Amount</th>
+            </tr>
+            <tr>
+                <td>Base Price</td>
+                <td>$<text-field name="base_price" style="width: 100px; height: 20px;"></text-field></td>
+            </tr>
+            <tr>
+                <td>Options Total</td>
+                <td>$<text-field name="options_total" style="width: 100px; height: 20px;"></text-field></td>
+            </tr>
+            <tr>
+                <td>Delivery Estimate</td>
+                <td>$<text-field name="delivery_estimate" style="width: 100px; height: 20px;"></text-field></td>
+            </tr>
+            <tr>
+                <td>Title Fee</td>
+                <td>$<text-field name="title_fee" style="width: 100px; height: 20px;"></text-field></td>
+            </tr>
+            <tr>
+                <td>Setup Fee</td>
+                <td>$<text-field name="setup_fee" style="width: 100px; height: 20px;"></text-field></td>
+            </tr>
+            <tr>
+                <td>Taxes</td>
+                <td>$<text-field name="taxes" style="width: 100px; height: 20px;"></text-field></td>
+            </tr>
+            <tr class="total-row">
+                <td><strong>TOTAL PRICE</strong></td>
+                <td><strong>$<text-field name="total_price" style="width: 100px; height: 20px;"></text-field></strong></td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">4. PAYMENT SCHEDULE</div>
+        <div class="field-row">
+            <span class="field-label">Initial Deposit Percentage:</span>
+            <div class="field-value">
+                <text-field name="deposit_percent" style="width: 100%; height: 20px;"></text-field>%
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Initial Deposit Amount:</span>
+            <div class="field-value">
+                $<text-field name="deposit_amount" style="width: 100px; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Remaining Balance:</span>
+            <div class="field-value">
+                $<text-field name="balance_amount" style="width: 100px; height: 20px;"></text-field>
+            </div>
+        </div>
+        <div class="field-row">
+            <span class="field-label">Payment Method:</span>
+            <div class="field-value">
+                <text-field name="payment_method" style="width: 100%; height: 20px;"></text-field>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">5. PAYMENT TERMS AND CONDITIONS</div>
+        
+        <div class="terms-box">
+            <h4>Initial Deposit</h4>
+            <p>The buyer agrees to pay an initial deposit of <text-field name="deposit_percent" style="width: 50px; height: 20px;"></text-field>% ($<text-field name="deposit_amount" style="width: 100px; height: 20px;"></text-field>) upon signing this agreement. This deposit is non-refundable and secures the buyer's position in the production queue.</p>
+        </div>
+
+        <div class="terms-box">
+            <h4>Payment Schedule</h4>
+            <p>The remaining balance of $<text-field name="balance_amount" style="width: 100px; height: 20px;"></text-field> must be paid in full before delivery of the vehicle. Payment may be made in installments as agreed upon by both parties.</p>
+        </div>
+
+        <div class="terms-box">
+            <h4>Late Payment Penalties</h4>
+            <p>Any payment not received within 5 business days of the due date will incur a late fee of 1.5% per month on the outstanding balance. Continued late payments may result in cancellation of the order and forfeiture of the deposit.</p>
+        </div>
+
+        <div class="terms-box">
+            <h4>Payment Methods Accepted</h4>
+            <ul>
+                <li>Bank Transfer (ACH)</li>
+                <li>Cash</li>
+                <li>Certified Check</li>
+                <li>Credit/Debit Card (additional fees may apply)</li>
+            </ul>
+        </div>
+
+        <div class="terms-box">
+            <h4>Cancellation Policy</h4>
+            <p>If the buyer cancels this agreement after the initial deposit has been paid, the deposit is non-refundable. Cancellation must be made in writing and received by the dealer at least 30 days before the scheduled delivery date.</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">6. FINANCIAL AUTHORIZATION</div>
+        <p>By signing this agreement, the buyer authorizes Firefly Tiny Homes to:</p>
+        <ul>
+            <li>Process the initial deposit payment immediately</li>
+            <li>Charge the remaining balance before delivery</li>
+            <li>Apply any applicable late fees for overdue payments</li>
+            <li>Contact the buyer regarding payment status</li>
+        </ul>
+        
+        <div style="margin: 20px 0; padding: 15px; border: 2px solid #000; background-color: #fff3cd;">
+            <p><strong>IMPORTANT:</strong> This authorization remains in effect until the full payment is received or the agreement is cancelled in writing. The buyer may revoke this authorization at any time by providing written notice to Firefly Tiny Homes.</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">7. AGREEMENT ACKNOWLEDGMENT</div>
+        <p>The buyer acknowledges that they have read, understood, and agree to all payment terms and conditions outlined in this agreement. The buyer confirms that they have the financial means to complete this transaction and that all information provided is accurate and complete.</p>
+        
+        <div style="margin: 20px 0;">
+            <checkbox-field name="payment_terms_acknowledged" style="width: 20px; height: 20px;"></checkbox-field>
+            <span style="margin-left: 10px;">I acknowledge that I have read and agree to all payment terms and conditions</span>
+        </div>
+        
+        <div style="margin: 20px 0;">
+            <checkbox-field name="financial_means_confirmed" style="width: 20px; height: 20px;"></checkbox-field>
+            <span style="margin-left: 10px;">I confirm that I have the financial means to complete this transaction</span>
+        </div>
+        
+        <div style="margin: 20px 0;">
+            <checkbox-field name="information_accurate" style="width: 20px; height: 20px;"></checkbox-field>
+            <span style="margin-left: 10px;">I confirm that all information provided is accurate and complete</span>
+        </div>
+    </div>
+
+    <div class="signature-section">
+        <div class="signature-box">
+            <p><strong>BUYER SIGNATURE</strong></p>
+            <div class="signature-line">
+                <signature-field name="buyer_signature" style="width: 100%; height: 60px;"></signature-field>
+            </div>
+            <p>Date: <date-field name="buyer_signature_date" style="width: 120px; height: 20px;"></date-field></p>
+        </div>
+        
+        <div class="signature-box">
+            <p><strong>DEALER REPRESENTATIVE SIGNATURE</strong></p>
+            <div class="signature-line">
+                <signature-field name="dealer_signature" style="width: 100%; height: 60px;"></signature-field>
+            </div>
+            <p>Date: <date-field name="dealer_signature_date" style="width: 120px; height: 20px;"></date-field></p>
+        </div>
+    </div>
+
+    <div style="margin-top: 30px; font-size: 10pt; text-align: center; color: #666;">
+        <p>This document was generated electronically by Firefly Tiny Homes</p>
+        <p>Page <span class="pageNumber"></span> of <span class="totalPages"></span></p>
+    </div>
+</body>
+</html>
