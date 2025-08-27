@@ -47,42 +47,100 @@ export default function Blog() {
     }, 1000)
   }
 
-  // Featured blog posts (will be fetched from API later)
-  const featuredPosts = [
-    {
-      id: 1,
-      title: "Complete Guide to Buying a Park Model Home in 2024",
-      excerpt: "Everything you need to know about purchasing your dream park model home, from financing to delivery and setup.",
-      image: "/hero/tiny-home-dusk.png",
-      category: "Buying Guide",
-      readTime: "8 min read",
-      date: "2024-01-15",
-      views: 1247,
-      slug: "complete-guide-buying-park-model-home-2024"
-    },
-    {
-      id: 2,
-      title: "Park Model vs Tiny House: Which is Right for You?",
-      excerpt: "Discover the key differences between park models and tiny houses to make the best choice for your lifestyle.",
-      image: "/hero/champion-park-model-exterior.jpg",
-      category: "Comparison",
-      readTime: "6 min read",
-      date: "2024-01-10",
-      views: 892,
-      slug: "park-model-vs-tiny-house-comparison"
-    },
-    {
-      id: 3,
-      title: "How to Finance Your Park Model Home: A Complete Guide",
-      excerpt: "Explore all your financing options for park model homes, from traditional loans to creative solutions.",
-      image: "/hero/tiny-home-dusk.png",
-      category: "Financing",
-      readTime: "10 min read",
-      date: "2024-01-05",
-      views: 1563,
-      slug: "how-to-finance-park-model-home"
+  const [featuredPosts, setFeaturedPosts] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchFeaturedPosts()
+  }, [])
+
+  const fetchFeaturedPosts = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/blog?limit=3')
+      if (response.ok) {
+        const data = await response.json()
+        setFeaturedPosts(data.posts)
+      } else {
+        // Fallback to sample data if API fails
+        setFeaturedPosts([
+          {
+            id: 1,
+            title: "Why Go Tiny? The Complete Guide to Park Model Living",
+            excerpt: "Discover the incredible benefits of downsizing to a park model home and why thousands of Americans are choosing this lifestyle.",
+            image: "/hero/tiny-home-dusk.png",
+            category: "Lifestyle & Stories",
+            readTime: "12 min read",
+            date: "2024-01-15",
+            views: 1247,
+            slug: "why-go-tiny-complete-guide-park-model-living"
+          },
+          {
+            id: 2,
+            title: "Best Skirting Options for Park Model Homes: A Complete Guide",
+            excerpt: "Learn about the different skirting options available for park model homes and how to choose the best solution for your needs.",
+            image: "/hero/champion-park-model-exterior.jpg",
+            category: "Design & Inspiration",
+            readTime: "15 min read",
+            date: "2024-01-10",
+            views: 892,
+            slug: "best-skirting-options-park-model-homes"
+          },
+          {
+            id: 3,
+            title: "Park Model Regulations and Texas Law: Your Complete Guide",
+            excerpt: "Everything you need to know about park model home regulations, zoning laws, and legal requirements in Texas.",
+            image: "/hero/tiny-home-dusk.png",
+            category: "Location & Zoning",
+            readTime: "18 min read",
+            date: "2024-01-05",
+            views: 1563,
+            slug: "park-model-regulations-texas-law"
+          }
+        ])
+      }
+    } catch (error) {
+      console.error('Error fetching featured posts:', error)
+      // Fallback to sample data
+      setFeaturedPosts([
+        {
+          id: 1,
+          title: "Why Go Tiny? The Complete Guide to Park Model Living",
+          excerpt: "Discover the incredible benefits of downsizing to a park model home and why thousands of Americans are choosing this lifestyle.",
+          image: "/hero/tiny-home-dusk.png",
+          category: "Lifestyle & Stories",
+          readTime: "12 min read",
+          date: "2024-01-15",
+          views: 1247,
+          slug: "why-go-tiny-complete-guide-park-model-living"
+        },
+        {
+          id: 2,
+          title: "Best Skirting Options for Park Model Homes: A Complete Guide",
+          excerpt: "Learn about the different skirting options available for park model homes and how to choose the best solution for your needs.",
+          image: "/hero/champion-park-model-exterior.jpg",
+          category: "Design & Inspiration",
+          readTime: "15 min read",
+          date: "2024-01-10",
+          views: 892,
+          slug: "best-skirting-options-park-model-homes"
+        },
+        {
+          id: 3,
+          title: "Park Model Regulations and Texas Law: Your Complete Guide",
+          excerpt: "Everything you need to know about park model home regulations, zoning laws, and legal requirements in Texas.",
+          image: "/hero/tiny-home-dusk.png",
+          category: "Location & Zoning",
+          readTime: "18 min read",
+          date: "2024-01-05",
+          views: 1563,
+          slug: "park-model-regulations-texas-law"
+        }
+      ])
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
 
   const categories = [
     {
@@ -262,8 +320,25 @@ export default function Blog() {
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredPosts.map((post) => (
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white rounded-2xl shadow-lg overflow-hidden animate-pulse">
+                  <div className="h-48 bg-gray-200"></div>
+                  <div className="p-6">
+                    <div className="h-4 bg-gray-200 rounded mb-3"></div>
+                    <div className="h-6 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-6 bg-gray-200 rounded mb-4 w-3/4"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {featuredPosts.map((post) => (
               <article key={post.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
                 <div className="relative">
                   <img 
@@ -304,11 +379,12 @@ export default function Blog() {
                   >
                     Read More
                     <ArrowRightIcon className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
+                                     </Link>
+                 </div>
+               </article>
+             ))}
+           </div>
+          )}
           
           <div className="text-center mt-12">
             <Link
