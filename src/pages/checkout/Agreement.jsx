@@ -485,9 +485,9 @@ function ContractChecklist({ build, contract, checklistState, onUpdateChecklist,
             title={docInfo.title}
             icon={docInfo.icon}
             isViewed={submission.status === 'completed'}
-            isRequired={submission.name === 'purchase_agreement' || submission.name === 'legal_disclosures'}
+            isRequired={submission.name === 'purchase_agreement'}
             onReview={() => {
-              // This will be handled by the document viewer tabs
+              // This will be handled by the document viewer
             }}
           >
             <div className="text-sm text-gray-400 space-y-1">
@@ -499,6 +499,9 @@ function ContractChecklist({ build, contract, checklistState, onUpdateChecklist,
                 {submission.status === 'signing' && (
                   <div className="h-2 w-2 bg-yellow-400 rounded-full animate-pulse"></div>
                 )}
+              </div>
+              <div className="text-xs text-gray-500">
+                {submission.description}
               </div>
             </div>
           </ChecklistCard>
@@ -601,7 +604,7 @@ function DocumentViewer({ id, signerUrl, signingState, contractStatus, currentDo
   return (
     <div id={id} className="space-y-4">
       {/* Document Tabs */}
-      {hasMultipleDocuments && (
+      {hasMultipleDocuments && submissions.length > 1 && (
         <div className="border-b border-gray-700">
           <nav className="-mb-px flex space-x-2 overflow-x-auto">
             {submissions.map((submission, index) => (
@@ -626,6 +629,32 @@ function DocumentViewer({ id, signerUrl, signingState, contractStatus, currentDo
               </button>
             ))}
           </nav>
+        </div>
+      )}
+
+      {/* Single Document Header */}
+      {(!hasMultipleDocuments || submissions.length === 1) && selectedSubmission && (
+        <div className="bg-gray-800 border-b border-gray-700 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-white">{selectedSubmission.title}</h3>
+              <p className="text-sm text-gray-400">{selectedSubmission.description}</p>
+            </div>
+            <div className="flex items-center space-x-2">
+              {selectedSubmission.status === 'completed' && (
+                <div className="flex items-center text-green-400">
+                  <CheckCircleIcon className="h-4 w-4 mr-1" />
+                  <span className="text-sm">Completed</span>
+                </div>
+              )}
+              {selectedSubmission.status === 'signing' && (
+                <div className="flex items-center text-yellow-400">
+                  <div className="h-2 w-2 bg-yellow-400 rounded-full animate-pulse mr-1"></div>
+                  <span className="text-sm">Signing</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

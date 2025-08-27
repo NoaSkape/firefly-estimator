@@ -736,7 +736,21 @@ app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
         envKey: 'DOCUSEAL_PURCHASE_TEMPLATE_ID',
         title: 'Purchase Agreement',
         description: 'Primary purchase contract with all terms and conditions'
-      },
+      }
+    ]
+
+    // For now, only require the purchase agreement template
+    // TODO: Add other templates once they're configured in DocuSeal
+    if (!process.env.DOCUSEAL_PURCHASE_TEMPLATE_ID) {
+      console.log('[CONTRACT_CREATE] Missing purchase agreement template configuration')
+      return res.status(500).json({ 
+        error: 'DocuSeal purchase agreement template not configured',
+        missing: ['DOCUSEAL_PURCHASE_TEMPLATE_ID']
+      })
+    }
+
+    // Optional: Add other templates if they're configured
+    const optionalTemplates = [
       {
         name: 'payment_terms',
         envKey: 'DOCUSEAL_PAYMENT_TERMS_TEMPLATE_ID',
@@ -763,14 +777,11 @@ app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
       }
     ]
 
-    // Check if all templates are configured
-    const missingTemplates = templates.filter(t => !process.env[t.envKey])
-    if (missingTemplates.length > 0) {
-      console.log('[CONTRACT_CREATE] Missing template configurations:', missingTemplates.map(t => t.envKey))
-      return res.status(500).json({ 
-        error: 'DocuSeal templates not fully configured',
-        missing: missingTemplates.map(t => t.envKey)
-      })
+    // Add optional templates if they're configured
+    for (const template of optionalTemplates) {
+      if (process.env[template.envKey]) {
+        templates.push(template)
+      }
     }
 
     // Build prefill data from build
