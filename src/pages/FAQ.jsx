@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { useUser } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
-import { Seo } from '../components/Seo'
 import AdminFAQEditor from '../components/AdminFAQEditor'
 
 function Section({ title, children }) {
@@ -284,12 +284,61 @@ export default function FAQPage() {
 
   const content = pageContent?.content || {}
 
+  // Generate FAQ Schema for SEO
+  const generateFAQSchema = () => {
+    if (!content.faqSections) return null
+    
+    const mainEntity = []
+    content.faqSections.forEach(section => {
+      section.items?.forEach(item => {
+        mainEntity.push({
+          "@type": "Question",
+          "name": item.question,
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": item.answer.replace(/<[^>]*>/g, '') // Remove HTML tags for schema
+          }
+        })
+      })
+    })
+
+    return {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": mainEntity
+    }
+  }
+
+  const faqSchema = generateFAQSchema()
+
   return (
     <>
-      <Seo
-        title={content.title || "Park Model Homes FAQ | Firefly Tiny Homes"}
-        description={content.description || "Find answers to everything about park model homes—and why Firefly Tiny Homes is your ideal online dealership for Champion Park Models."}
-      />
+      <Helmet>
+        <title>{content.title || "Park Model Homes FAQ | Firefly Tiny Homes"}</title>
+        <meta 
+          name="description" 
+          content={content.description || "Find answers to everything about park model homes—and why Firefly Tiny Homes is your ideal online dealership for Champion Park Models."} 
+        />
+        <link rel="canonical" href="https://fireflyestimator.com/faq" />
+        
+        {/* Open Graph */}
+        <meta property="og:title" content={content.title || "Park Model Homes FAQ | Firefly Tiny Homes"} />
+        <meta property="og:description" content={content.description || "Find answers to everything about park model homes—and why Firefly Tiny Homes is your ideal online dealership for Champion Park Models."} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://fireflyestimator.com/faq" />
+        
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content={content.title || "Park Model Homes FAQ | Firefly Tiny Homes"} />
+        <meta name="twitter:description" content={content.description || "Find answers to everything about park model homes—and why Firefly Tiny Homes is your ideal online dealership for Champion Park Models."} />
+        
+        {/* FAQ Schema */}
+        {faqSchema && (
+          <script type="application/ld+json">
+            {JSON.stringify(faqSchema)}
+          </script>
+        )}
+      </Helmet>
       
       {/* Admin Edit Button */}
       {isAdmin && (

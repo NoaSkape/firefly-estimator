@@ -206,7 +206,7 @@ const Manufacturer = () => {
     }
   ]
 
-  // JSON-LD structured data
+  // Enhanced JSON-LD structured data for SEO
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "WebPage",
@@ -221,7 +221,53 @@ const Manufacturer = () => {
     "about": {
       "@type": "Organization",
       "name": "Champion Homes - Athens Park Model Homes",
-      "description": "One of America's most established factory-home builders, specializing in park model RVs"
+      "description": "One of America's most established factory-home builders, specializing in park model RVs",
+      "url": "https://championhomes.com",
+      "logo": "https://fireflyestimator.com/logo/firefly-logo.png",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Athens",
+        "addressRegion": "TX",
+        "addressCountry": "US"
+      },
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+1-830-241-2410",
+        "contactType": "customer service",
+        "areaServed": "US"
+      },
+      "sameAs": [
+        "https://championhomes.com"
+      ]
+    },
+    "mainEntity": {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What certifications do Champion park models have?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Champion Athens Park models are built to ANSI A119.5 park model RV standards and carry RVIA certification labels for code compliance, financing, and insurance purposes."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why choose Champion Homes for park models?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Champion Homes has over 60 years of experience as one of America's most established factory-home builders, with precision construction in climate-controlled facilities and comprehensive warranty coverage."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What makes Champion's manufacturing process superior?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Champion builds indoors in climate-controlled facilities with steel chassis, precision jigs, stringent quality checks, and full testing of plumbing and electrical systems before leaving the plant."
+          }
+        }
+      ]
     }
   }
 
@@ -249,6 +295,7 @@ const Manufacturer = () => {
           name="description" 
           content="Learn why Champion's Athens Park Model Homes are the gold standard in park model RV construction—quality materials, ANSI A119.5/RVIA certification, modern designs, and reliable support. Offered by Firefly Tiny Homes." 
         />
+        <meta name="keywords" content="Champion Homes, Athens Park models, park model RVs, tiny home manufacturer, Champion park models, ANSI A119.5, RVIA certification, factory-built homes, Texas park models" />
         <link rel="canonical" href="https://fireflyestimator.com/about/manufacturer" />
         
         {/* Open Graph */}
@@ -257,12 +304,20 @@ const Manufacturer = () => {
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://fireflyestimator.com/about/manufacturer" />
         <meta property="og:image" content="https://fireflyestimator.com/hero/champion-park-model-exterior.jpg" />
+        <meta property="og:site_name" content="Firefly Tiny Homes" />
         
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="About the Manufacturer | Champion Athens Park Model Homes" />
         <meta name="twitter:description" content="Learn why Champion's Athens Park Model Homes are the gold standard in park model RV construction." />
         <meta name="twitter:image" content="https://fireflyestimator.com/hero/champion-park-model-exterior.jpg" />
+        
+        {/* Additional SEO Meta Tags */}
+        <meta name="robots" content="index, follow" />
+        <meta name="author" content="Firefly Tiny Homes" />
+        <meta name="language" content="English" />
+        <meta name="geo.region" content="US-TX" />
+        <meta name="geo.placename" content="Pipe Creek, Texas" />
         
         {/* Structured Data */}
         <script type="application/ld+json">

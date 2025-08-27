@@ -337,11 +337,114 @@ export default function HowItWorks() {
 
   return (
     <>
-      <Helmet>
-        <title>How It Works | Firefly Tiny Homes – Buy Your Dream Tiny House Online</title>
-        <meta name="description" content="Firefly Tiny Homes makes it easy to buy your dream park model or tiny home online. Complete our 8-step process in under an hour with full transparency, live support, and fast delivery." />
-        <meta name="keywords" content="buy a tiny home online, tiny home dealership, transparent tiny home pricing, how to buy a tiny house in Texas" />
-      </Helmet>
+             <Helmet>
+         <title>How It Works | Firefly Tiny Homes – Buy Your Dream Tiny House Online</title>
+         <meta name="description" content="Firefly Tiny Homes makes it easy to buy your dream park model or tiny home online. Complete our 8-step process in under an hour with full transparency, live support, and fast delivery." />
+         <meta name="keywords" content="buy a tiny home online, tiny home dealership, transparent tiny home pricing, how to buy a tiny house in Texas, park model buying process, online tiny home purchase, Firefly 8-step process" />
+         <link rel="canonical" href="https://fireflyestimator.com/how-it-works" />
+         
+         {/* Open Graph */}
+         <meta property="og:title" content="How It Works | Firefly Tiny Homes – Buy Your Dream Tiny House Online" />
+         <meta property="og:description" content="Firefly Tiny Homes makes it easy to buy your dream park model or tiny home online. Complete our 8-step process in under an hour with full transparency, live support, and fast delivery." />
+         <meta property="og:type" content="website" />
+         <meta property="og:url" content="https://fireflyestimator.com/how-it-works" />
+         <meta property="og:image" content="https://fireflyestimator.com/hero/tiny-home-dusk.png" />
+         <meta property="og:site_name" content="Firefly Tiny Homes" />
+         
+         {/* Twitter Card */}
+         <meta name="twitter:card" content="summary_large_image" />
+         <meta name="twitter:title" content="How It Works | Firefly Tiny Homes – Buy Your Dream Tiny House Online" />
+         <meta name="twitter:description" content="Firefly Tiny Homes makes it easy to buy your dream park model or tiny home online. Complete our 8-step process in under an hour." />
+         <meta name="twitter:image" content="https://fireflyestimator.com/hero/tiny-home-dusk.png" />
+         
+         {/* Additional SEO Meta Tags */}
+         <meta name="robots" content="index, follow" />
+         <meta name="author" content="Firefly Tiny Homes" />
+         <meta name="language" content="English" />
+         <meta name="geo.region" content="US-TX" />
+         <meta name="geo.placename" content="Pipe Creek, Texas" />
+         
+         {/* How-To Schema */}
+         <script type="application/ld+json">
+           {JSON.stringify({
+             "@context": "https://schema.org",
+             "@type": "HowTo",
+             "name": "How to Buy a Park Model Tiny Home Online",
+             "description": "Complete guide to buying a park model tiny home online through Firefly Tiny Homes' 8-step process",
+             "image": "https://fireflyestimator.com/hero/tiny-home-dusk.png",
+             "totalTime": "PT1H",
+             "estimatedCost": {
+               "@type": "MonetaryAmount",
+               "currency": "USD",
+               "value": "50000"
+             },
+             "supply": [
+               {
+                 "@type": "HowToSupply",
+                 "name": "Computer or smartphone"
+               },
+               {
+                 "@type": "HowToSupply", 
+                 "name": "Delivery address"
+               },
+               {
+                 "@type": "HowToSupply",
+                 "name": "Payment method"
+               }
+             ],
+             "step": [
+               {
+                 "@type": "HowToStep",
+                 "name": "Choose Your Home",
+                 "text": "Browse high-quality photos, 3D floorplans, and specifications for each model.",
+                 "image": "https://fireflyestimator.com/hero/tiny-home-dusk.png"
+               },
+               {
+                 "@type": "HowToStep",
+                 "name": "Customize",
+                 "text": "Add upgrades like porches, kitchens, lofts, or premium finishes.",
+                 "image": "https://fireflyestimator.com/hero/tiny-home-dusk.png"
+               },
+               {
+                 "@type": "HowToStep",
+                 "name": "Sign In",
+                 "text": "Create your secure account in seconds.",
+                 "image": "https://fireflyestimator.com/hero/tiny-home-dusk.png"
+               },
+               {
+                 "@type": "HowToStep",
+                 "name": "Delivery Address",
+                 "text": "Enter your delivery details so we can provide an accurate quote.",
+                 "image": "https://fireflyestimator.com/hero/tiny-home-dusk.png"
+               },
+               {
+                 "@type": "HowToStep",
+                 "name": "Overview",
+                 "text": "See a clean, itemized summary: base price, options, title fee, delivery, and setup.",
+                 "image": "https://fireflyestimator.com/hero/tiny-home-dusk.png"
+               },
+               {
+                 "@type": "HowToStep",
+                 "name": "Payment Method",
+                 "text": "Choose between Cash/ACH or Financing.",
+                 "image": "https://fireflyestimator.com/hero/tiny-home-dusk.png"
+               },
+               {
+                 "@type": "HowToStep",
+                 "name": "Contract",
+                 "text": "Review and sign all documents digitally with legally binding e-signatures.",
+                 "image": "https://fireflyestimator.com/hero/tiny-home-dusk.png"
+               },
+               {
+                 "@type": "HowToStep",
+                 "name": "Confirmation",
+                 "text": "Congratulations—you're officially a tiny homeowner!",
+                 "image": "https://fireflyestimator.com/hero/tiny-home-dusk.png"
+               }
+             ]
+           })}
+         </script>
+       </Helmet>
 
       {/* Admin Edit Button */}
       {isAdmin && (
