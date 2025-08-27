@@ -288,7 +288,6 @@ const Manufacturer = () => {
           title={content.hero?.title || "About the Manufacturer: Champion Homes — Athens Park Model Homes"}
           subtitle={content.hero?.subtitle || "Park model tiny homes built with precision in modern, climate-controlled factories—certified, comfortable, and made to last."}
           backgroundImage={pageContent?.images?.heroImage?.url || "/hero/champion-park-model-exterior.jpg"}
-          breadcrumbs={breadcrumbs}
         >
           {/* Trust Bar */}
           <div className="flex flex-wrap justify-center gap-6 mt-8">
@@ -306,7 +305,7 @@ const Manufacturer = () => {
         </HeroHeader>
 
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16">
           
           {/* Overview Section */}
           <section>
