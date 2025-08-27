@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { useUser } from '@clerk/clerk-react'
-import { canEditModelsClient } from '../lib/canEditModels'
+import { canEditModelsClient } from '../utils/canEditModels'
 import { 
   ArrowRightIcon,
   CalendarIcon,
@@ -13,8 +13,7 @@ import {
   HomeIcon,
   PaintBrushIcon,
   CurrencyDollarIcon,
-  MapPinIcon,
-  LeafIcon
+  MapPinIcon
 } from '@heroicons/react/24/outline'
 
 export default function Blog() {
@@ -24,9 +23,9 @@ export default function Blog() {
   const [isSubscribing, setIsSubscribing] = useState(false)
 
   useEffect(() => {
-    const checkAdminStatus = () => {
+    const checkAdminStatus = async () => {
       if (user) {
-        const adminStatus = canEditModelsClient(user)
+        const adminStatus = await canEditModelsClient()
         setIsAdmin(adminStatus)
       } else {
         setIsAdmin(false)
@@ -123,7 +122,7 @@ export default function Blog() {
     },
     {
       name: "Sustainability",
-      icon: LeafIcon,
+      icon: SparklesIcon,
       description: "Eco-friendly living and green features",
       color: "bg-teal-500",
       count: 7
