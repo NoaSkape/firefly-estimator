@@ -61,35 +61,35 @@
 }
 
 .prose h1 {
-  @apply text-3xl font-bold mb-6;
+  @apply text-3xl font-bold mb-6 text-gray-900;
 }
 
 .prose h2 {
-  @apply text-2xl font-bold mb-4 mt-8;
+  @apply text-2xl font-bold mb-4 mt-8 text-gray-900;
 }
 
 .prose h3 {
-  @apply text-xl font-semibold mb-3 mt-6;
+  @apply text-xl font-semibold mb-3 mt-6 text-gray-900;
 }
 
 .prose p {
-  @apply mb-4 leading-relaxed;
+  @apply mb-4 leading-relaxed text-gray-900;
 }
 
 .prose ul {
-  @apply mb-4 pl-6;
+  @apply mb-4 pl-6 text-gray-900;
 }
 
 .prose li {
-  @apply mb-2;
+  @apply mb-2 text-gray-900;
 }
 
 .prose strong {
-  @apply font-semibold;
+  @apply font-semibold text-gray-900;
 }
 
 .prose em {
-  @apply italic;
+  @apply italic text-gray-900;
 }
 
 .prose a {
@@ -97,6 +97,17 @@
 }
 
 [data-theme="dark"] .prose {
+  @apply text-gray-100;
+}
+
+[data-theme="dark"] .prose h1,
+[data-theme="dark"] .prose h2,
+[data-theme="dark"] .prose h3,
+[data-theme="dark"] .prose p,
+[data-theme="dark"] .prose ul,
+[data-theme="dark"] .prose li,
+[data-theme="dark"] .prose strong,
+[data-theme="dark"] .prose em {
   @apply text-gray-100;
 }
 
