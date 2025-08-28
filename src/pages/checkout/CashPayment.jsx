@@ -745,6 +745,14 @@ export default function CashPayment() {
             <div>
               {/* Step 6C: Review and Continue */}
           <div className="space-y-6">
+            {/* Welcome Section */}
+            <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+              <h2 className="text-white font-semibold text-xl mb-3">Review and Continue</h2>
+              <p className="text-gray-300 text-sm leading-relaxed">
+                Please review your payment configuration below. Your payment method has been securely saved 
+                and will be charged after you sign the purchase agreement.
+              </p>
+            </div>
 
             {/* Payment Summary */}
             <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
@@ -794,18 +802,7 @@ export default function CashPayment() {
               </div>
             </div>
 
-            {/* Payment Timing Information */}
-            <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4">
-              <div className="text-blue-200">
-                <div className="font-semibold text-sm mb-2">💳 Payment Processing</div>
-                <ul className="text-xs space-y-1">
-                  <li>• Payment will be processed after contract signature</li>
-                  <li>• You will receive email confirmation before any charges</li>
-                  <li>• {paymentMethod === 'ach_debit' ? 'ACH payments typically process in 3-5 business days' : 'Processing time varies by method'}</li>
-                  <li>• All payment data is encrypted and securely stored</li>
-                </ul>
-              </div>
-            </div>
+
 
 
 
