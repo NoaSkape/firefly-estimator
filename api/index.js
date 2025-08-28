@@ -677,8 +677,8 @@ app.post(['/api/builds/:id/checkout-step', '/builds/:id/checkout-step'], async (
     if (!ok) return res.status(400).json({ error: 'incomplete_buyer' })
   }
   
-  // Only check financing for payment method step (step 6)
-  if (target >= 6 && !(b?.financing?.method)) {
+  // Only check financing for steps after payment method step (step 7+)
+  if (target >= 7 && !(b?.financing?.method)) {
     return res.status(400).json({ error: 'missing_payment_method' })
   }
   
