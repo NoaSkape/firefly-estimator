@@ -90,6 +90,10 @@ export default function CashPayment() {
           if (orderData.payment?.method) {
             setPaymentMethod(orderData.payment.method)
           }
+          // Load mandate acceptance status
+          if (orderData.payment?.mandateAccepted !== undefined) {
+            setMandateAccepted(orderData.payment.mandateAccepted)
+          }
 
           if (orderData.payment?.ready) {
             setCurrentStep('review')
@@ -131,6 +135,10 @@ export default function CashPayment() {
         }
         if (buildData.payment?.method) {
           setPaymentMethod(buildData.payment.method)
+        }
+        // Load mandate acceptance status
+        if (buildData.payment?.mandateAccepted !== undefined) {
+          setMandateAccepted(buildData.payment.mandateAccepted)
         }
 
         if (buildData.payment?.ready) {
