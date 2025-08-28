@@ -43,10 +43,7 @@ export default function CashPayment() {
   const [checkBalance, setCheckBalance] = useState(true)
   const [balanceWarning, setBalanceWarning] = useState(false)
 
-  // Step 6C: Review
-  const [paymentAuthAccepted, setPaymentAuthAccepted] = useState(false)
-  const [termsAccepted, setTermsAccepted] = useState(false)
-  const [privacyAccepted, setPrivacyAccepted] = useState(false)
+
 
   // Route-based step management for proper browser navigation
   useEffect(() => {
@@ -93,10 +90,7 @@ export default function CashPayment() {
           if (orderData.payment?.method) {
             setPaymentMethod(orderData.payment.method)
           }
-          // Load payment authorization status if bank account is linked
-          if (orderData.payment?.authAccepted) {
-            setPaymentAuthAccepted(orderData.payment.authAccepted)
-          }
+
           if (orderData.payment?.ready) {
             setCurrentStep('review')
           } else if (orderData.payment?.method) {
@@ -138,10 +132,7 @@ export default function CashPayment() {
         if (buildData.payment?.method) {
           setPaymentMethod(buildData.payment.method)
         }
-        // Load payment authorization status if bank account is linked
-        if (buildData.payment?.authAccepted) {
-          setPaymentAuthAccepted(buildData.payment.authAccepted)
-        }
+
         if (buildData.payment?.ready) {
           setCurrentStep('review')
         } else if (buildData.payment?.method) {
@@ -299,8 +290,7 @@ export default function CashPayment() {
         throw new Error('Failed to save ACH method')
       }
 
-      // Update local state to reflect the authorization is now accepted
-      setPaymentAuthAccepted(true)
+
 
       addToast({
         type: 'success',
@@ -317,39 +307,9 @@ export default function CashPayment() {
     }
   }
 
-  async function updatePaymentAuthStatus(accepted) {
-    try {
-      const token = await getToken()
-      const res = await fetch('/api/payments/update-auth-status', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({
-          buildId: buildId,
-          authAccepted: accepted
-        })
-      })
 
-      if (!res.ok) {
-        throw new Error('Failed to update payment authorization status')
-      }
-    } catch (error) {
-      console.error('Error updating payment auth status:', error)
-      // Don't show toast for this - it's not critical to the user experience
-    }
-  }
 
   async function markPaymentReady() {
-    if (!paymentAuthAccepted || !termsAccepted || !privacyAccepted) {
-      addToast({
-        type: 'error',
-        title: 'Required',
-        message: 'Please accept all authorization requirements.'
-      })
-      return false
-    }
 
     if (paymentMethod === 'ach_debit' && !mandateAccepted) {
       addToast({
@@ -785,14 +745,6 @@ export default function CashPayment() {
             <div>
               {/* Step 6C: Review and Continue */}
           <div className="space-y-6">
-            {/* Welcome Section */}
-            <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-              <h2 className="text-white font-semibold text-xl mb-3">Review and Continue</h2>
-              <p className="text-gray-300 text-sm leading-relaxed">
-                Please review your payment configuration below. Your payment method has been securely saved 
-                and will be charged after you sign the purchase agreement.
-              </p>
-            </div>
 
             {/* Payment Summary */}
             <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
@@ -855,56 +807,13 @@ export default function CashPayment() {
               </div>
             </div>
 
-            <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-              <h2 className="text-white font-semibold text-lg mb-4">Authorization</h2>
-              <div className="space-y-3">
-                <label className="flex items-start">
-                  <input
-                    type="checkbox"
-                    checked={paymentAuthAccepted}
-                    onChange={(e) => {
-                      const accepted = e.target.checked
-                      setPaymentAuthAccepted(accepted)
-                      updatePaymentAuthStatus(accepted)
-                    }}
-                    className="mr-3 mt-1"
-                  />
-                  <span className="text-white text-sm">
-                    I authorize Firefly to charge/deposit the amount shown using the method I provided (ACH mandate if applicable).
-                  </span>
-                </label>
-                
-                <label className="flex items-start">
-                  <input
-                    type="checkbox"
-                    checked={termsAccepted}
-                    onChange={(e) => setTermsAccepted(e.target.checked)}
-                    className="mr-3 mt-1"
-                  />
-                  <span className="text-white text-sm">
-                    I agree to the <a href="/terms" className="text-yellow-400 hover:text-yellow-300 underline">Terms and Conditions</a> and authorize Firefly Tiny Homes to process my payment according to the terms of my purchase agreement.
-                  </span>
-                </label>
-                
-                <label className="flex items-start">
-                  <input
-                    type="checkbox"
-                    checked={privacyAccepted}
-                    onChange={(e) => setPrivacyAccepted(e.target.checked)}
-                    className="mr-3 mt-1"
-                  />
-                  <span className="text-white text-sm">
-                    I agree to the <a href="/privacy" className="text-yellow-400 hover:text-yellow-300 underline">Privacy Policy</a> and consent to the collection and processing of my personal information for payment processing purposes.
-                  </span>
-                </label>
-              </div>
-            </div>
+
 
             <div className="flex gap-3">
               <button 
                 className="btn-primary"
                 onClick={continueToContract}
-                disabled={saving || !paymentAuthAccepted || !termsAccepted || !privacyAccepted}
+                disabled={saving}
               >
                 {saving ? 'Saving...' : 'Continue to Contract'}
               </button>
