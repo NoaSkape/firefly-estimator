@@ -291,7 +291,7 @@ export default function CashPayment() {
         const data = await res.json()
         setBankTransferDetails(data.virtualAccount)
         setTransferInstructions(data.virtualAccount)
-        setTransferReference(data.virtualAccount.reference)
+        setTransferReference(data.virtualAccount.referenceCode)
         setSetupError(null) // Clear any previous errors
         return data.virtualAccount
       } else {
@@ -391,9 +391,20 @@ export default function CashPayment() {
     setRetryCount(0)
     setNeedsRefresh(false)
     setSetupIntent(null)
-    setupACH()
-      .then(setSetupIntent)
-      .catch(err => handleSetupError(err, 'reset'))
+    
+    // Retry based on payment method
+    if (paymentMethod === 'ach_debit') {
+      setupACH()
+        .then(setSetupIntent)
+        .catch(err => handleSetupError(err, 'reset'))
+    } else if (paymentMethod === 'bank_transfer') {
+      provisionBankTransfer()
+        .then(data => {
+          setTransferInstructions(data)
+          setSetupError(null)
+        })
+        .catch(err => handleTransferError(err, 'reset'))
+    }
   }
 
   // Handle bank transfer errors

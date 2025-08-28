@@ -434,29 +434,29 @@ export default function BestSkirtingOptions() {
         </section>
 
         {/* Related Articles */}
-        <section className="py-16 bg-gray-50">
+        <section className="py-16 bg-gray-50 dark:bg-gray-800">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-8">Related Articles</h2>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8">Related Articles</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <Link 
                 to="/blog/why-go-tiny-complete-guide-park-model-living"
-                className="group bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6"
+                className="group bg-white dark:bg-gray-700 rounded-lg shadow-md hover:shadow-lg transition-shadow p-6"
               >
-                <h3 className="text-xl font-bold text-gray-900 group-hover:text-yellow-600 transition-colors mb-2">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors mb-2">
                   Why Go Tiny? The Complete Guide to Park Model Living
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 dark:text-gray-300">
                   Discover the incredible benefits of downsizing to a park model home and why thousands of Americans are choosing this lifestyle.
                 </p>
               </Link>
               <Link 
                 to="/blog/park-model-regulations-texas-law"
-                className="group bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6"
+                className="group bg-white dark:bg-gray-700 rounded-lg shadow-md hover:shadow-lg transition-shadow p-6"
               >
-                <h3 className="text-xl font-bold text-gray-900 group-hover:text-yellow-600 transition-colors mb-2">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors mb-2">
                   Park Model Regulations and Texas Law
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 dark:text-gray-300">
                   Everything you need to know about park model home regulations, zoning laws, and legal requirements in Texas.
                 </p>
               </Link>

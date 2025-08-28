@@ -3853,12 +3853,16 @@ app.post(['/api/payments/provision-bank-transfer', '/payments/provision-bank-tra
 
     // For now, return mock bank transfer details
     // In production, this would integrate with a real bank transfer service
+    const referenceCode = `FF-${buildId.toString().slice(-8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`
     const virtualAccount = {
-      accountNumber: '4000003947011000',
-      routingNumber: '011401533',
-      accountName: 'Firefly Tiny Homes',
-      bankName: 'Chase Bank',
-      reference: `REF-${buildId.toString().slice(-8).toUpperCase()}`
+      id: `va_${Date.now()}`,
+      referenceCode: referenceCode,
+      instructions: {
+        beneficiary: 'Firefly Tiny Homes',
+        routingNumber: '011401533',
+        accountNumber: '4000003947011000',
+        referenceCode: referenceCode
+      }
     }
 
     res.status(200).json({ virtualAccount })

@@ -1,6 +1,6 @@
 import Stripe from 'stripe'
 import { requireAuth } from '../../lib/auth.js'
-import { getDb } from '../../lib/db.js'
+import { getBuildById } from '../../lib/builds.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
@@ -13,37 +13,40 @@ export default async function handler(req, res) {
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
-    const { orderId } = req.body
-    if (!orderId) {
-      return res.status(400).json({ error: 'Order ID is required' })
+    const { buildId } = req.body
+    if (!buildId) {
+      return res.status(400).json({ error: 'Build ID is required' })
     }
 
-    const db = await getDb()
-    const order = await db.collection('orders').findOne({ 
-      _id: orderId, 
-      userId: auth.userId 
-    })
+    const build = await getBuildById(buildId)
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
 
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' })
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
     }
 
     // Get or create Stripe customer
-    let customerId = order.customerId
+    let customerId = build.customerId
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: order.buyerInfo?.email,
-        name: `${order.buyerInfo?.firstName} ${order.buyerInfo?.lastName}`,
+        email: build.buyerInfo?.email,
+        name: `${build.buyerInfo?.firstName} ${build.buyerInfo?.lastName}`,
         metadata: {
-          orderId: orderId,
+          buildId: buildId,
           userId: auth.userId
         }
       })
       customerId = customer.id
       
-      // Update order with customer ID
-      await db.collection('orders').updateOne(
-        { _id: orderId },
+      // Update build with customer ID
+      const { getDb } = await import('../../lib/db.js')
+      const db = await getDb()
+      const { ObjectId } = await import('mongodb')
+      
+      await db.collection('builds').updateOne(
+        { _id: new ObjectId(String(buildId)) },
         { $set: { customerId: customerId } }
       )
     }
@@ -58,7 +61,7 @@ export default async function handler(req, res) {
       },
       business_type: 'individual',
       metadata: {
-        orderId: orderId,
+        buildId: buildId,
         userId: auth.userId
       }
     })
@@ -75,7 +78,7 @@ export default async function handler(req, res) {
         outbound_transfers: { requested: true },
       },
       metadata: {
-        orderId: orderId,
+        buildId: buildId,
         userId: auth.userId
       }
     }, {
@@ -83,11 +86,15 @@ export default async function handler(req, res) {
     })
 
     // Generate reference code
-    const referenceCode = `FF-${orderId.slice(-8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`
+    const referenceCode = `FF-${buildId.slice(-8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`
 
-    // Update order with bank transfer details
-    await db.collection('orders').updateOne(
-      { _id: orderId },
+    // Update build with bank transfer details
+    const { getDb } = await import('../../lib/db.js')
+    const db = await getDb()
+    const { ObjectId } = await import('mongodb')
+    
+    await db.collection('builds').updateOne(
+      { _id: new ObjectId(String(buildId)) },
       { 
         $set: {
           'payment.method': 'bank_transfer',

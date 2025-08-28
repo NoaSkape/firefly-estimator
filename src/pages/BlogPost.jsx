@@ -155,7 +155,7 @@ export default function BlogPost() {
             </div>
 
             {/* Content */}
-            <div className="prose prose-lg max-w-none">
+            <div className="prose prose-lg max-w-none dark:prose-invert">
               <div dangerouslySetInnerHTML={{ __html: post.content }} />
             </div>
 
@@ -210,7 +210,7 @@ export default function BlogPost() {
             </div>
 
             {/* Content */}
-            <div className="prose prose-lg max-w-none">
+            <div className="prose prose-lg max-w-none dark:prose-invert">
               <div dangerouslySetInnerHTML={{ __html: post.content }} />
             </div>
 
@@ -261,7 +261,7 @@ export default function BlogPost() {
             </div>
 
             {/* Content */}
-            <div className="prose prose-lg max-w-none">
+            <div className="prose prose-lg max-w-none dark:prose-invert">
               <div dangerouslySetInnerHTML={{ __html: post.content }} />
             </div>
 
@@ -287,7 +287,7 @@ export default function BlogPost() {
         return (
           <article className="max-w-4xl mx-auto px-4 py-8">
             <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">{post.title}</h1>
-            <div className="prose prose-lg max-w-none">
+            <div className="prose prose-lg max-w-none dark:prose-invert">
               <div dangerouslySetInnerHTML={{ __html: post.content }} />
             </div>
           </article>
