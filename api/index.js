@@ -574,7 +574,7 @@ app.get(['/api/debug/delivery', '/debug/delivery'], async (req, res) => {
 // ===== Builds (new) =====
 // Create build (from model or migrated guest draft)
 app.post(['/api/builds', '/builds'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
+  const auth = await requireAuth(req, res, false)
   if (!auth?.userId) return
   await ensureBuildIndexes()
   try {
