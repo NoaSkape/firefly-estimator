@@ -128,10 +128,10 @@ export default function WhyGoTiny() {
           
           <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center mb-6">
-              <Link 
-                to="/blog" 
-                className="flex items-center text-yellow-400 hover:text-yellow-300 mr-6"
-              >
+                             <Link 
+                 to="/blog" 
+                 className="flex items-center text-yellow-600 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300 mr-6"
+               >
                 <ArrowLeftIcon className="w-4 h-4 mr-2" />
                 Back to Blog
               </Link>
@@ -140,15 +140,15 @@ export default function WhyGoTiny() {
               </span>
             </div>
             
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
-              Why Go Tiny? The Complete Guide to Park Model Living
-            </h1>
+                         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6">
+               Why Go Tiny? The Complete Guide to Park Model Living
+             </h1>
+             
+             <p className="text-xl sm:text-2xl text-gray-700 dark:text-gray-200 mb-8 leading-relaxed">
+               Discover the incredible benefits of downsizing to a park model home and why thousands of Americans are choosing this lifestyle.
+             </p>
             
-            <p className="text-xl sm:text-2xl text-gray-200 mb-8 leading-relaxed">
-              Discover the incredible benefits of downsizing to a park model home and why thousands of Americans are choosing this lifestyle.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row items-center gap-6 text-gray-300">
+                         <div className="flex flex-col sm:flex-row items-center gap-6 text-gray-600 dark:text-gray-300">
               <div className="flex items-center">
                 <CalendarIcon className="w-5 h-5 mr-2" />
                 <span>{formatDate('2024-01-15')}</span>
