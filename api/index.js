@@ -2199,6 +2199,7 @@ app.patch(['/api/pages/:pageId', '/pages/:pageId'], async (req, res) => {
 
 // Blog routes
 app.get(['/api/blog', '/blog'], async (req, res) => {
+  applyCors(req, res, 'GET, OPTIONS')
   const debug = process.env.DEBUG_ADMIN === 'true'
   if (debug) {
     console.log('[DEBUG_ADMIN] Blog GET route hit', { 
@@ -2250,6 +2251,7 @@ app.get(['/api/blog', '/blog'], async (req, res) => {
 })
 
 app.get(['/api/blog/:slug', '/blog/:slug'], async (req, res) => {
+  applyCors(req, res, 'GET, OPTIONS')
   try {
     const { slug } = req.params
     const db = await getDb()
@@ -2283,27 +2285,67 @@ app.get(['/api/blog/:slug', '/blog/:slug'], async (req, res) => {
 })
 
 app.post(['/api/blog', '/blog'], async (req, res) => {
-  const debug = process.env.DEBUG_ADMIN === 'true'
-  if (debug) {
-    console.log('[DEBUG_ADMIN] Blog POST route hit', { 
-      url: req.url, 
-      method: req.method, 
-      path: req.query?.path,
-      originalUrl: req.originalUrl,
-      bodyKeys: Object.keys(req.body || {})
-    })
+  applyCors(req, res, 'POST, OPTIONS')
+  
+  // Handle preflight OPTIONS request
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end()
   }
+  
+  const debug = process.env.DEBUG_ADMIN === 'true'
+  console.log('[BLOG_POST] Route hit', { 
+    url: req.url, 
+    method: req.method, 
+    path: req.query?.path,
+    originalUrl: req.originalUrl,
+    bodyKeys: Object.keys(req.body || {}),
+    hasBody: !!req.body,
+    bodyType: typeof req.body
+  })
   
   // Temporarily allow blog creation without strict admin checks for testing
   const auth = await requireAuth(req, res, false) // Changed from requireAdmin to requireAuth with adminOnly=false
-  if (!auth) return
+  if (!auth) {
+    console.log('[BLOG_POST] Auth failed')
+    return
+  }
+  console.log('[BLOG_POST] Auth successful', { userId: auth.userId })
   
   try {
     const db = await getDb()
+    
+    // Ensure blog_posts collection exists
+    try {
+      const collections = await db.listCollections().toArray()
+      const blogCollectionExists = collections.some(col => col.name === 'blog_posts')
+      if (!blogCollectionExists) {
+        console.log('[BLOG_POST] Creating blog_posts collection')
+        await db.createCollection('blog_posts')
+      }
+      console.log('[BLOG_POST] Blog collection ready')
+    } catch (error) {
+      console.error('[BLOG_POST] Error ensuring blog collection exists:', error)
+      // Continue anyway, the collection might already exist
+    }
+    
+    console.log('[BLOG_POST] Database connection successful')
     const postData = req.body
+    console.log('[BLOG_POST] Post data received', { 
+      hasTitle: !!postData.title, 
+      hasContent: !!postData.content,
+      titleLength: postData.title?.length,
+      contentLength: postData.content?.length,
+      keys: Object.keys(postData || {}),
+      title: postData.title?.substring(0, 50) + '...',
+      content: postData.content?.substring(0, 100) + '...'
+    })
     
     // Validate required fields
     if (!postData.title || !postData.content) {
+      console.log('[BLOG_POST] Validation failed', { 
+        hasTitle: !!postData.title, 
+        hasContent: !!postData.content 
+      })
       return res.status(400).json({
         error: 'validation_failed',
         message: 'Title and content are required'
@@ -2317,12 +2359,17 @@ app.post(['/api/blog', '/blog'], async (req, res) => {
         .replace(/[^a-z0-9 -]/g, '')
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-')
-        .trim('-')
+        .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+        .substring(0, 100) // Limit length to 100 characters
     }
+    
+    console.log('[BLOG_POST] Generated slug:', postData.slug)
     
     // Check if slug already exists
     const existingPost = await db.collection('blog_posts').findOne({ slug: postData.slug })
+    console.log('[BLOG_POST] Slug check:', { slug: postData.slug, exists: !!existingPost })
     if (existingPost) {
+      console.log('[BLOG_POST] Slug already exists, returning error')
       return res.status(400).json({
         error: 'slug_exists',
         message: 'A post with this URL already exists'
@@ -2338,6 +2385,10 @@ app.post(['/api/blog', '/blog'], async (req, res) => {
     }
     
     const result = await db.collection('blog_posts').insertOne(newPost)
+    console.log('[BLOG_POST] Successfully created post', { 
+      insertedId: result.insertedId,
+      title: newPost.title 
+    })
     
     return res.status(201).json({
       success: true,
@@ -2345,7 +2396,8 @@ app.post(['/api/blog', '/blog'], async (req, res) => {
       ...newPost
     })
   } catch (error) {
-    console.error('Create blog post error:', error)
+    console.error('[BLOG_POST] Create blog post error:', error)
+    console.error('[BLOG_POST] Error stack:', error.stack)
     return res.status(500).json({ 
       error: 'blog_post_create_failed', 
       message: error.message || 'Failed to create blog post'
@@ -2354,6 +2406,7 @@ app.post(['/api/blog', '/blog'], async (req, res) => {
 })
 
 app.put(['/api/blog/:id', '/blog/:id'], async (req, res) => {
+  applyCors(req, res, 'PUT, OPTIONS')
   const auth = await requireAdmin(req, res)
   if (!auth) return
   
@@ -3853,6 +3906,238 @@ app.post(['/api/payments/collect-at-confirmation', '/payments/collect-at-confirm
   } catch (error) {
     console.error('Collect payment error:', error)
     res.status(500).json({ error: 'collection_failed', message: error.message })
+  }
+})
+
+// Setup Card Payment
+app.post(['/api/payments/setup-card', '/payments/setup-card'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId } = req.body
+    if (!buildId) {
+      return res.status(400).json({ error: 'Build ID is required' })
+    }
+
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(500).json({ 
+        error: 'server_configuration_error',
+        details: 'STRIPE_SECRET_KEY environment variable is missing' 
+      })
+    }
+
+    const build = await getBuildById(buildId)
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Get or create Stripe customer
+    let customerId = build.customerId
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: build.buyerInfo?.email,
+        name: `${build.buyerInfo?.firstName} ${build.buyerInfo?.lastName}`,
+        metadata: {
+          buildId: buildId,
+          userId: auth.userId
+        }
+      })
+      customerId = customer.id
+      
+      // Update build with customer ID
+      const db = await getDb()
+      await db.collection('builds').updateOne(
+        { _id: build._id },
+        { $set: { customerId: customerId } }
+      )
+    }
+
+    // Calculate payment amount
+    const { calculateTotalPurchasePrice } = await import('../../utils/calculateTotal.js')
+    const totalAmount = calculateTotalPurchasePrice(build)
+    const totalCents = Math.round(totalAmount * 100)
+    
+    // Get payment plan from build or default to deposit
+    const paymentPlan = build.payment?.plan || { type: 'deposit', percent: 25 }
+    const depositCents = Math.round(totalCents * ((paymentPlan.percent || 25) / 100))
+    const currentAmountCents = paymentPlan.type === 'deposit' ? depositCents : totalCents
+
+    // Create PaymentIntent for card payment
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: currentAmountCents,
+      currency: 'usd',
+      customer: customerId,
+      automatic_payment_methods: {
+        enabled: true,
+      },
+      metadata: {
+        buildId: buildId,
+        userId: auth.userId,
+        paymentPlan: paymentPlan.type,
+        paymentMethod: 'card'
+      },
+      description: `Firefly Tiny Home - ${build.modelName || 'Custom Build'} - ${paymentPlan.type === 'deposit' ? 'Deposit' : 'Full Payment'}`
+    })
+
+    // Update build with payment intent
+    const db = await getDb()
+    await db.collection('builds').updateOne(
+      { _id: build._id },
+      { 
+        $set: {
+          'payment.method': 'card',
+          'payment.paymentIntentId': paymentIntent.id,
+          'payment.plan': paymentPlan,
+          'payment.amountCents': currentAmountCents,
+          'payment.status': 'setup_complete',
+          'payment.setupAt': new Date()
+        }
+      }
+    )
+
+    res.status(200).json({
+      success: true,
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      amount: currentAmountCents,
+      currency: 'usd'
+    })
+
+  } catch (error) {
+    console.error('Setup card payment error:', error)
+    res.status(500).json({ 
+      error: 'setup_failed', 
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    })
+  }
+})
+
+// Process Card Payment
+app.post(['/api/payments/process-card', '/payments/process-card'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId, paymentIntentId } = req.body
+    if (!buildId || !paymentIntentId) {
+      return res.status(400).json({ error: 'Build ID and Payment Intent ID are required' })
+    }
+
+    const build = await getBuildById(buildId)
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Verify the payment intent belongs to this build
+    if (build.payment?.paymentIntentId !== paymentIntentId) {
+      return res.status(400).json({ error: 'Invalid payment intent for this build' })
+    }
+
+    // Retrieve the payment intent to check its current status
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
+    
+    if (paymentIntent.status === 'succeeded') {
+      // Update build with success status
+      const db = await getDb()
+      await db.collection('builds').updateOne(
+        { _id: build._id },
+        { 
+          $set: {
+            'payment.status': 'succeeded',
+            'payment.processedAt': new Date(),
+            'payment.transactionId': paymentIntent.latest_charge
+          }
+        }
+      )
+
+      return res.status(200).json({
+        success: true,
+        status: 'succeeded',
+        message: 'Payment already processed successfully'
+      })
+    }
+
+    if (paymentIntent.status === 'requires_confirmation') {
+      // Confirm the payment intent
+      const confirmedIntent = await stripe.paymentIntents.confirm(paymentIntentId)
+      
+      if (confirmedIntent.status === 'succeeded') {
+        // Update build with success status
+        const db = await getDb()
+        await db.collection('builds').updateOne(
+          { _id: build._id },
+          { 
+            $set: {
+              'payment.status': 'succeeded',
+              'payment.processedAt': new Date(),
+              'payment.transactionId': confirmedIntent.latest_charge
+            }
+          }
+        )
+
+        return res.status(200).json({
+          success: true,
+          status: 'succeeded',
+          message: 'Payment processed successfully'
+        })
+      } else if (confirmedIntent.status === 'requires_action') {
+        return res.status(200).json({
+          success: false,
+          status: 'requires_action',
+          clientSecret: confirmedIntent.client_secret,
+          message: 'Additional authentication required'
+        })
+      } else {
+        return res.status(400).json({
+          success: false,
+          status: confirmedIntent.status,
+          message: 'Payment confirmation failed',
+          error: confirmedIntent.last_payment_error?.message || 'Unknown error'
+        })
+      }
+    } else {
+      return res.status(400).json({
+        success: false,
+        status: paymentIntent.status,
+        message: 'Payment intent is not ready for processing',
+        error: paymentIntent.last_payment_error?.message || 'Invalid payment intent state'
+      })
+    }
+
+  } catch (error) {
+    console.error('Process card payment error:', error)
+    
+    // Handle specific Stripe errors
+    if (error.type === 'StripeCardError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Card error',
+        message: error.message,
+        code: error.code
+      })
+    } else if (error.type === 'StripeInvalidRequestError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid request',
+        message: error.message
+      })
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to process card payment',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
   }
 })
 

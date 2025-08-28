@@ -63,10 +63,10 @@ export default function BlogPost() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading blog post...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading blog post...</p>
         </div>
       </div>
     )
@@ -74,10 +74,10 @@ export default function BlogPost() {
 
   if (error || !post) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Post Not Found</h1>
-          <p className="text-gray-600 mb-6">The blog post you're looking for doesn't exist.</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Post Not Found</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">The blog post you're looking for doesn't exist.</p>
           <Link to="/blog" className="bg-yellow-600 text-white px-6 py-3 rounded-lg hover:bg-yellow-700 transition-colors">
             Back to Blog
           </Link>
@@ -135,16 +135,16 @@ export default function BlogPost() {
                 </div>
               )}
               <div className="text-center">
-                <div className="inline-block bg-yellow-100 text-yellow-800 px-4 py-2 rounded-full text-sm font-medium mb-4">
+                <div className="inline-block bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-4 py-2 rounded-full text-sm font-medium mb-4">
                   {post.category}
                 </div>
-                <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight">
+                <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-gray-100 mb-6 leading-tight">
                   {post.title}
                 </h1>
-                <p className="text-xl text-gray-600 mb-6 max-w-3xl mx-auto">
+                <p className="text-xl text-gray-600 dark:text-gray-300 mb-6 max-w-3xl mx-auto">
                   {post.excerpt}
                 </p>
-                <div className="flex items-center justify-center space-x-4 text-sm text-gray-500">
+                <div className="flex items-center justify-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
                   <span>By Firefly Tiny Homes</span>
                   <span>•</span>
                   <span>{new Date(post.publishDate).toLocaleDateString()}</span>
@@ -161,11 +161,11 @@ export default function BlogPost() {
 
             {/* Tags */}
             {post.tags && post.tags.length > 0 && (
-              <div className="mt-12 pt-8 border-t border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Tags:</h3>
+              <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Tags:</h3>
                 <div className="flex flex-wrap gap-2">
                   {post.tags.map((tag, index) => (
-                    <span key={index} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
+                    <span key={index} className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full text-sm">
                       {tag}
                     </span>
                   ))}
@@ -181,14 +181,14 @@ export default function BlogPost() {
             {/* Header */}
             <div className="mb-12">
               <div className="flex items-center space-x-4 mb-6">
-                <div className="bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium">
+                <div className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-4 py-2 rounded-full text-sm font-medium">
                   {post.category}
                 </div>
-                <span className="text-gray-500">•</span>
-                <span className="text-gray-500">{new Date(post.publishDate).toLocaleDateString()}</span>
+                <span className="text-gray-500 dark:text-gray-400">•</span>
+                <span className="text-gray-500 dark:text-gray-400">{new Date(post.publishDate).toLocaleDateString()}</span>
               </div>
               
-              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-gray-100 mb-6">
                 {post.title}
               </h1>
               
@@ -202,8 +202,8 @@ export default function BlogPost() {
                 </div>
               )}
               
-              <div className="bg-blue-50 border-l-4 border-blue-400 p-6 rounded-r-lg mb-8">
-                <p className="text-lg text-gray-700 font-medium">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 p-6 rounded-r-lg mb-8">
+                <p className="text-lg text-gray-700 dark:text-gray-300 font-medium">
                   {post.excerpt}
                 </p>
               </div>
@@ -215,14 +215,14 @@ export default function BlogPost() {
             </div>
 
             {/* Author Box */}
-            <div className="mt-12 p-6 bg-gray-50 rounded-xl">
+            <div className="mt-12 p-6 bg-gray-50 dark:bg-gray-800 rounded-xl">
               <div className="flex items-center">
                 <div className="w-12 h-12 bg-yellow-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
                   F
                 </div>
                 <div className="ml-4">
-                  <h3 className="font-semibold text-gray-900">Firefly Tiny Homes</h3>
-                  <p className="text-gray-600">Your trusted partner in tiny home living</p>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">Firefly Tiny Homes</h3>
+                  <p className="text-gray-600 dark:text-gray-400">Your trusted partner in tiny home living</p>
                 </div>
               </div>
             </div>
@@ -286,7 +286,7 @@ export default function BlogPost() {
       default:
         return (
           <article className="max-w-4xl mx-auto px-4 py-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-6">{post.title}</h1>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">{post.title}</h1>
             <div className="prose prose-lg max-w-none">
               <div dangerouslySetInnerHTML={{ __html: post.content }} />
             </div>
@@ -336,7 +336,7 @@ export default function BlogPost() {
         </script>
       </Helmet>
 
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Admin Edit Button */}
         {isAdmin && (
           <div className="fixed top-20 right-4 z-50">
@@ -353,7 +353,7 @@ export default function BlogPost() {
         <div className="max-w-4xl mx-auto px-4 pt-8">
           <Link 
             to="/blog" 
-            className="inline-flex items-center text-yellow-600 hover:text-yellow-700 mb-8"
+            className="inline-flex items-center text-yellow-600 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300 mb-8"
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

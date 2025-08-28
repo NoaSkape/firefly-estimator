@@ -96,7 +96,8 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to save blog post')
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }))
+        throw new Error(errorData.message || `HTTP ${response.status}: Failed to save blog post`)
       }
 
       const savedPost = await response.json()
@@ -249,12 +250,12 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
         </div>
 
         {/* Tabs */}
-        <div className="border-b">
+        <div className="border-b border-gray-200 dark:border-gray-700">
           <div className="flex">
             {['content', 'settings', 'preview'].map((tab) => (
               <button 
                 key={tab} 
-                className={`px-4 py-3 ${activeTab === tab ? 'border-b-2 border-yellow-500 text-yellow-600' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-3 ${activeTab === tab ? 'border-b-2 border-yellow-500 text-yellow-600 dark:text-yellow-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}
                 onClick={() => setActiveTab(tab)}
               >
                 {tab === 'content' && <DocumentTextIcon className="w-4 h-4 inline mr-2" />}
@@ -283,7 +284,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                         className={`p-4 border-2 rounded-lg text-left transition-all ${
                           postData.template === template.id
                             ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
-                            : 'border-gray-200 hover:border-gray-300'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                       >
                         <div className="flex items-center mb-2">
@@ -342,7 +343,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                       </button>
                     </div>
                   )}
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -353,7 +354,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
-                      className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg"
                     >
                       <PhotoIcon className="w-5 h-5" />
                       {uploading ? 'Uploading...' : 'Upload Featured Image'}
@@ -372,7 +373,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                   className="w-full p-3 border rounded-lg font-mono text-sm dark:bg-gray-800 dark:border-gray-700"
                   placeholder="Write your blog post content here... You can use HTML tags for formatting."
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   You can use HTML tags like &lt;h2&gt;, &lt;p&gt;, &lt;strong&gt;, &lt;em&gt;, &lt;ul&gt;, &lt;li&gt;, etc.
                 </p>
               </div>
@@ -406,7 +407,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                   className="w-full p-3 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
                   placeholder="your-blog-post-url"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   This will be the URL: /blog/{postData.slug}
                 </p>
               </div>
@@ -421,7 +422,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                   className="w-full p-3 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
                   placeholder="SEO description for search engines..."
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {postData.metaDescription.length}/160 characters
                 </p>
               </div>
@@ -449,7 +450,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                         addTag(input.value.trim())
                         input.value = ''
                       }}
-                      className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded"
+                      className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
                     >
                       Add
                     </button>
@@ -458,13 +459,13 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                     {postData.tags.map(tag => (
                       <span
                         key={tag}
-                        className="flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm"
+                        className="flex items-center gap-1 px-2 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded-full text-sm"
                       >
                         <TagIcon className="w-3 h-3" />
                         {tag}
                         <button
                           onClick={() => removeTag(tag)}
-                          className="ml-1 hover:text-red-600"
+                          className="ml-1 hover:text-red-600 dark:hover:text-red-400"
                         >
                           ×
                         </button>
@@ -502,10 +503,10 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
 
           {activeTab === 'preview' && (
             <div className="space-y-6">
-              <div className="bg-white border rounded-lg p-6">
-                <h1 className="text-3xl font-bold mb-4">{postData.title || 'Preview Title'}</h1>
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+                <h1 className="text-3xl font-bold mb-4 text-gray-900 dark:text-gray-100">{postData.title || 'Preview Title'}</h1>
                 {postData.excerpt && (
-                  <p className="text-lg text-gray-600 mb-6 italic">{postData.excerpt}</p>
+                  <p className="text-lg text-gray-600 dark:text-gray-300 mb-6 italic">{postData.excerpt}</p>
                 )}
                 {postData.featuredImage && (
                   <img 

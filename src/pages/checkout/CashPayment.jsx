@@ -491,6 +491,16 @@ export default function CashPayment() {
   }
 
   async function continueToContract() {
+    // For card payments, check if payment was already processed
+    if (paymentMethod === 'card' && build?.payment?.status === 'succeeded') {
+      // Card payment already processed, proceed to contract
+      await updateBuildStep(buildId, 7, await getToken())
+      analytics.stepChanged(buildId, 6, 7)
+      navigate(`/checkout/${buildId}/agreement`)
+      return
+    }
+
+    // For other payment methods, mark as ready
     const ready = await markPaymentReady()
     if (ready) {
       // Update build step to 7 (Contract) when user completes payment and continues
@@ -501,6 +511,16 @@ export default function CashPayment() {
   }
 
   async function saveAndContinueLater() {
+    // For card payments, check if payment was already processed
+    if (paymentMethod === 'card' && build?.payment?.status === 'succeeded') {
+      // Card payment already processed, proceed to builds page
+      await updateBuildStep(buildId, 7, await getToken())
+      analytics.stepChanged(buildId, 6, 7)
+      navigate('/builds')
+      return
+    }
+
+    // For other payment methods, mark as ready
     const ready = await markPaymentReady()
     if (ready) {
       // Update build step to 7 (Contract) when user saves and continues later
@@ -882,6 +902,10 @@ export default function CashPayment() {
               <CardDetailsStep 
                 onContinue={() => navigate(`/checkout/${buildId}/cash-payment/review`)}
                 onBack={() => navigate(`/checkout/${buildId}/cash-payment/choose`)}
+                formatCurrency={formatCurrency}
+                currentAmountCents={currentAmountCents}
+                buildId={buildId}
+                getToken={getToken}
               />
             )}
           </div>
@@ -899,6 +923,24 @@ export default function CashPayment() {
                 and will be charged after you sign the purchase agreement.
               </p>
             </div>
+
+            {/* Card Payment Warning */}
+            {paymentMethod === 'card' && build?.payment?.status !== 'succeeded' && (
+              <div className="bg-yellow-900/30 border border-yellow-600 rounded-lg p-4 mb-6">
+                <div className="flex items-start">
+                  <span className="text-yellow-400 text-xl mr-3">⚠️</span>
+                  <div className="flex-1">
+                    <div className="font-medium text-yellow-200 mb-2">
+                      Payment Not Yet Processed
+                    </div>
+                    <div className="text-yellow-100 text-sm">
+                      Your card payment has been set up but not yet processed. You'll need to complete the payment 
+                      before proceeding to the contract. Please go back to the payment details to complete your card payment.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Payment Summary */}
             <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
@@ -945,6 +987,22 @@ export default function CashPayment() {
                     <span>{formatCurrency(totalCents - depositCents)} <span className="text-xs">(due before delivery)</span></span>
                   </div>
                 )}
+
+                {/* Card Payment Status */}
+                {paymentMethod === 'card' && build?.payment?.status === 'succeeded' && (
+                  <div className="flex justify-between py-2 px-4 bg-green-900/20 border border-green-600 rounded-lg">
+                    <span className="text-green-200 font-medium">Payment Status:</span>
+                    <span className="text-green-400 font-medium">✓ Processed Successfully</span>
+                  </div>
+                )}
+
+                {/* Card Payment Processing Fee */}
+                {paymentMethod === 'card' && (
+                  <div className="flex justify-between py-2 text-gray-300">
+                    <span>Processing Fee:</span>
+                    <span>{formatCurrency(Math.round(currentAmountCents * 0.029 + 30))}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -956,7 +1014,7 @@ export default function CashPayment() {
               <button 
                 className="btn-primary"
                 onClick={continueToContract}
-                disabled={saving}
+                disabled={saving || (paymentMethod === 'card' && build?.payment?.status !== 'succeeded')}
               >
                 {saving ? 'Saving...' : 'Continue to Contract'}
               </button>
@@ -1791,34 +1849,713 @@ function BankTransferDetailsStep({
   return null
 }
 
-// Card Details Component (Emergency Option)
-function CardDetailsStep({ onContinue, onBack }) {
-  return (
-    <div className="space-y-6">
-      <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-        <h2 className="text-white font-semibold text-lg mb-4">Credit/Debit Card Payment</h2>
-        <div className="text-white text-sm mb-4">
-          <strong>Note:</strong> Credit and debit card payments are available with additional processing fees.
+// Card Details Component - Complete Credit Card Wizard
+function CardDetailsStep({ 
+  onContinue, 
+  onBack, 
+  formatCurrency, 
+  currentAmountCents,
+  buildId,
+  getToken
+}) {
+  const [step, setStep] = useState('setup') // 'setup', 'payment', 'confirmation'
+  const [clientSecret, setClientSecret] = useState(null)
+  const [paymentIntentId, setPaymentIntentId] = useState(null)
+  const [processing, setProcessing] = useState(false)
+  const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(false)
+  const [requiresAction, setRequiresAction] = useState(false)
+  const [actionClientSecret, setActionClientSecret] = useState(null)
+  const { addToast } = useToast()
+
+  // Setup card payment
+  async function setupCardPayment() {
+    setProcessing(true)
+    setError(null)
+    
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/payments/setup-card', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ buildId })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setClientSecret(data.clientSecret)
+        setPaymentIntentId(data.paymentIntentId)
+        setStep('payment')
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to setup card payment')
+      }
+    } catch (error) {
+      console.error('Setup card payment error:', error)
+      setError({
+        message: 'Failed to setup card payment. Please try again.',
+        recoverable: true
+      })
+      addToast({
+        type: 'error',
+        title: 'Setup Error',
+        message: 'Unable to initialize card payment. Please try again.'
+      })
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  // Process card payment
+  async function processCardPayment() {
+    setProcessing(true)
+    setError(null)
+    
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/payments/process-card', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ 
+          buildId, 
+          paymentIntentId 
+        })
+      })
+
+      const data = await res.json()
+
+      if (data.success && data.status === 'succeeded') {
+        setSuccess(true)
+        setStep('confirmation')
+        addToast({
+          type: 'success',
+          title: 'Payment Successful',
+          message: 'Your card payment has been processed successfully.'
+        })
+      } else if (data.status === 'requires_action') {
+        setRequiresAction(true)
+        setActionClientSecret(data.clientSecret)
+        addToast({
+          type: 'info',
+          title: 'Additional Action Required',
+          message: 'Your bank requires additional verification. Please complete the authentication.'
+        })
+      } else {
+        throw new Error(data.message || 'Payment processing failed')
+      }
+    } catch (error) {
+      console.error('Process card payment error:', error)
+      setError({
+        message: error.message || 'Payment processing failed. Please try again.',
+        recoverable: true
+      })
+      addToast({
+        type: 'error',
+        title: 'Payment Error',
+        message: error.message || 'Unable to process payment. Please try again.'
+      })
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  // Handle 3D Secure authentication
+  async function handle3DSecureAuthentication() {
+    if (!actionClientSecret) return
+
+    setProcessing(true)
+    setError(null)
+
+    try {
+      const stripe = await stripePromise
+      const { error: confirmError } = await stripe.confirmCardPayment(actionClientSecret)
+      
+      if (confirmError) {
+        throw new Error(confirmError.message)
+      }
+
+      // Re-process the payment after 3D Secure
+      await processCardPayment()
+    } catch (error) {
+      console.error('3D Secure authentication error:', error)
+      setError({
+        message: 'Authentication failed. Please try again.',
+        recoverable: true
+      })
+      addToast({
+        type: 'error',
+        title: 'Authentication Failed',
+        message: '3D Secure authentication was not completed. Please try again.'
+      })
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  // Reset and retry
+  function resetAndRetry() {
+    setError(null)
+    setRequiresAction(false)
+    setActionClientSecret(null)
+    setClientSecret(null)
+    setPaymentIntentId(null)
+    setStep('setup')
+  }
+
+  // Step 1: Setup
+  if (step === 'setup') {
+    return (
+      <div className="space-y-6">
+        {/* Welcome Section */}
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+          <h2 className="text-white font-semibold text-xl mb-3">Credit/Debit Card Setup</h2>
+          <p className="text-gray-300 text-sm leading-relaxed">
+            We'll securely process your card payment of <strong>{formatCurrency(currentAmountCents)}</strong> 
+            using Stripe's enterprise-grade security. Your card information is encrypted and never stored on our servers.
+          </p>
         </div>
-        <div className="text-yellow-400 text-sm">
-          Card payment details will be collected in Step 8 during final confirmation.
+
+        {/* Error Display */}
+        {error && (
+          <div className={`p-4 rounded-lg border ${
+            error.recoverable 
+              ? 'bg-yellow-900/30 border-yellow-600' 
+              : 'bg-red-900/30 border-red-600'
+          }`}>
+            <div className="flex items-start">
+              <span className={`text-xl mr-3 ${
+                error.recoverable ? 'text-yellow-400' : 'text-red-400'
+              }`}>
+                {error.recoverable ? '⚠️' : '❌'}
+              </span>
+              <div className="flex-1">
+                <div className={`font-medium ${
+                  error.recoverable ? 'text-yellow-200' : 'text-red-200'
+                }`}>
+                  {error.message}
+                </div>
+                {error.recoverable && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={resetAndRetry}
+                      className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 text-white text-sm rounded transition-colors"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Security Information */}
+        <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4">
+          <div className="text-blue-200">
+            <div className="font-semibold text-sm mb-2">🔒 Secure Card Processing</div>
+            <ul className="text-xs space-y-1">
+              <li>• PCI DSS Level 1 compliant payment processing</li>
+              <li>• End-to-end encryption of all card data</li>
+              <li>• 3D Secure authentication when required by your bank</li>
+              <li>• No sensitive card information stored on our servers</li>
+              <li>• Processing fee: 2.9% + $0.30 per transaction</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Payment Summary */}
+        <div className="bg-green-900/30 border border-green-600 rounded-lg p-4">
+          <div className="text-white">
+            <div className="font-semibold text-sm mb-2">💳 Payment Summary</div>
+            <div className="text-sm space-y-1">
+              <div className="flex justify-between">
+                <span>Payment Amount:</span>
+                <span>{formatCurrency(currentAmountCents)}</span>
+              </div>
+              <div className="flex justify-between text-green-200">
+                <span>Processing Fee:</span>
+                <span>{formatCurrency(Math.round(currentAmountCents * 0.029 + 30))}</span>
+              </div>
+              <div className="flex justify-between font-semibold border-t border-green-600 pt-1 mt-1">
+                <span>Total:</span>
+                <span>{formatCurrency(currentAmountCents + Math.round(currentAmountCents * 0.029 + 30))}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <button 
+            className="btn-primary"
+            onClick={setupCardPayment}
+            disabled={processing}
+          >
+            {processing ? (
+              <span className="flex items-center justify-center">
+                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                Setting up...
+              </span>
+            ) : (
+              'Setup Card Payment'
+            )}
+          </button>
+          <button 
+            className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
+            onClick={onBack}
+          >
+            ← Back
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Step 2: Payment
+  if (step === 'payment') {
+    return (
+      <div className="space-y-6">
+        {/* Payment Form */}
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+          <h2 className="text-white font-semibold text-lg mb-4">Enter Card Details</h2>
+          <p className="text-gray-300 text-sm mb-6">
+            Please enter your card information below. Your payment will be processed securely.
+          </p>
+          
+          {clientSecret && (
+            <Elements stripe={stripePromise} options={{ clientSecret }}>
+              <CardPaymentForm 
+                onSuccess={() => {
+                  setSuccess(true)
+                  setStep('confirmation')
+                }}
+                onError={(error) => {
+                  setError({
+                    message: error.message || 'Payment failed. Please try again.',
+                    recoverable: true
+                  })
+                }}
+                onRequiresAction={(clientSecret) => {
+                  setRequiresAction(true)
+                  setActionClientSecret(clientSecret)
+                }}
+                processing={processing}
+                setProcessing={setProcessing}
+                formatCurrency={formatCurrency}
+                currentAmountCents={currentAmountCents}
+              />
+            </Elements>
+          )}
+        </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="p-4 rounded-lg border bg-red-900/30 border-red-600">
+            <div className="flex items-start">
+              <span className="text-red-400 text-xl mr-3">❌</span>
+              <div className="flex-1">
+                <div className="font-medium text-red-200">
+                  {error.message}
+                </div>
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={resetAndRetry}
+                    className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white text-sm rounded transition-colors"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3D Secure Authentication */}
+        {requiresAction && actionClientSecret && (
+          <div className="bg-yellow-900/30 border border-yellow-600 rounded-lg p-4">
+            <div className="text-yellow-200">
+              <div className="font-semibold text-sm mb-2">🔐 Additional Authentication Required</div>
+              <p className="text-sm mb-3">
+                Your bank requires additional verification. Please complete the authentication process.
+              </p>
+              <button
+                type="button"
+                onClick={handle3DSecureAuthentication}
+                disabled={processing}
+                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white rounded transition-colors"
+              >
+                {processing ? 'Processing...' : 'Complete Authentication'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button 
+            className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
+            onClick={resetAndRetry}
+            disabled={processing}
+          >
+            ← Back to Setup
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Step 3: Confirmation
+  if (step === 'confirmation') {
+    return (
+      <div className="space-y-6">
+        {/* Success Section */}
+        <div className="bg-green-900/30 border border-green-600 rounded-lg p-6">
+          <div className="flex items-center mb-4">
+            <span className="text-green-400 text-xl mr-3">✓</span>
+            <h2 className="text-white font-semibold text-xl">Payment Successful</h2>
+          </div>
+          <p className="text-green-200 text-sm leading-relaxed">
+            Your card payment of <strong>{formatCurrency(currentAmountCents)}</strong> has been processed successfully. 
+            You will receive a confirmation email shortly. You can now proceed to the next step.
+          </p>
+        </div>
+
+        {/* Payment Summary */}
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+          <h3 className="text-white font-semibold text-lg mb-4">Payment Summary</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between py-2 border-b border-gray-600">
+              <span className="text-gray-300">Payment Amount:</span>
+              <span className="text-white font-medium">{formatCurrency(currentAmountCents)}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-gray-600">
+              <span className="text-gray-300">Processing Fee:</span>
+              <span className="text-white font-medium">{formatCurrency(Math.round(currentAmountCents * 0.029 + 30))}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-gray-600">
+              <span className="text-gray-300">Transaction ID:</span>
+              <span className="text-white font-mono text-sm">{paymentIntentId?.slice(-12)}</span>
+            </div>
+            <div className="flex justify-between py-2">
+              <span className="text-gray-300">Status:</span>
+              <span className="text-green-400 font-medium">Completed</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Next Steps */}
+        <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4">
+          <div className="text-blue-200">
+            <div className="font-semibold text-sm mb-2">📋 Next Steps</div>
+            <ul className="text-xs space-y-1">
+              <li>• You'll receive a payment confirmation email</li>
+              <li>• Proceed to contract signing and final confirmation</li>
+              <li>• Your order will be scheduled for production</li>
+              <li>• We'll keep you updated on your build progress</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <button 
+            className="btn-primary"
+            onClick={onContinue}
+          >
+            Continue to Review
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return null
+}
+
+// Stripe Card Payment Form Component
+function CardPaymentForm({ 
+  onSuccess, 
+  onError, 
+  onRequiresAction, 
+  processing, 
+  setProcessing,
+  formatCurrency,
+  currentAmountCents
+}) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [cardComplete, setCardComplete] = useState(false)
+  const [billingComplete, setBillingComplete] = useState(false)
+  const [billingDetails, setBillingDetails] = useState({
+    name: '',
+    email: '',
+    address: {
+      line1: '',
+      line2: '',
+      city: '',
+      state: '',
+      postal_code: '',
+      country: 'US'
+    }
+  })
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    
+    if (!stripe || !elements) {
+      return
+    }
+
+    setProcessing(true)
+
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: window.location.href,
+          payment_method_data: {
+            billing_details: billingDetails
+          }
+        },
+        redirect: 'if_required'
+      })
+
+      if (error) {
+        if (error.type === 'card_error' || error.type === 'validation_error') {
+          onError(error)
+        } else {
+          onError(new Error('An unexpected error occurred.'))
+        }
+      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+        onSuccess()
+      } else if (paymentIntent && paymentIntent.status === 'requires_action') {
+        onRequiresAction(paymentIntent.client_secret)
+      } else {
+        onError(new Error('Payment processing failed.'))
+      }
+    } catch (error) {
+      onError(error)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const cardElementOptions = {
+    style: {
+      base: {
+        fontSize: '16px',
+        color: '#ffffff',
+        '::placeholder': {
+          color: '#aab7c4'
+        },
+        backgroundColor: 'transparent'
+      },
+      invalid: {
+        color: '#fa755a',
+        iconColor: '#fa755a'
+      }
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Card Details */}
+      <div className="space-y-4">
+        <div>
+          <label className="block text-white text-sm font-medium mb-2">
+            Card Information
+          </label>
+          <div className="border border-gray-600 rounded-lg p-3 bg-gray-800">
+            <CardElement 
+              options={cardElementOptions}
+              onChange={(event) => setCardComplete(event.complete)}
+            />
+          </div>
+        </div>
+
+        {/* Billing Information */}
+        <div className="space-y-4">
+          <h3 className="text-white font-medium">Billing Information</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-white text-sm font-medium mb-2">
+                Full Name
+              </label>
+              <input
+                type="text"
+                value={billingDetails.name}
+                onChange={(e) => {
+                  setBillingDetails(prev => ({ ...prev, name: e.target.value }))
+                  setBillingComplete(e.target.value.length > 0)
+                }}
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500"
+                placeholder="John Doe"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-white text-sm font-medium mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                value={billingDetails.email}
+                onChange={(e) => {
+                  setBillingDetails(prev => ({ ...prev, email: e.target.value }))
+                  setBillingComplete(e.target.value.length > 0)
+                }}
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500"
+                placeholder="john@example.com"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-white text-sm font-medium mb-2">
+              Address Line 1
+            </label>
+            <input
+              type="text"
+              value={billingDetails.address.line1}
+              onChange={(e) => {
+                setBillingDetails(prev => ({ 
+                  ...prev, 
+                  address: { ...prev.address, line1: e.target.value }
+                }))
+                setBillingComplete(e.target.value.length > 0)
+              }}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500"
+              placeholder="123 Main St"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-white text-sm font-medium mb-2">
+              Address Line 2 (Optional)
+            </label>
+            <input
+              type="text"
+              value={billingDetails.address.line2}
+              onChange={(e) => {
+                setBillingDetails(prev => ({ 
+                  ...prev, 
+                  address: { ...prev.address, line2: e.target.value }
+                }))
+              }}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500"
+              placeholder="Apt 4B"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-white text-sm font-medium mb-2">
+                City
+              </label>
+              <input
+                type="text"
+                value={billingDetails.address.city}
+                onChange={(e) => {
+                  setBillingDetails(prev => ({ 
+                    ...prev, 
+                    address: { ...prev.address, city: e.target.value }
+                  }))
+                  setBillingComplete(e.target.value.length > 0)
+                }}
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500"
+                placeholder="Austin"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-white text-sm font-medium mb-2">
+                State
+              </label>
+              <input
+                type="text"
+                value={billingDetails.address.state}
+                onChange={(e) => {
+                  setBillingDetails(prev => ({ 
+                    ...prev, 
+                    address: { ...prev.address, state: e.target.value }
+                  }))
+                  setBillingComplete(e.target.value.length > 0)
+                }}
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500"
+                placeholder="TX"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-white text-sm font-medium mb-2">
+                ZIP Code
+              </label>
+              <input
+                type="text"
+                value={billingDetails.address.postal_code}
+                onChange={(e) => {
+                  setBillingDetails(prev => ({ 
+                    ...prev, 
+                    address: { ...prev.address, postal_code: e.target.value }
+                  }))
+                  setBillingComplete(e.target.value.length > 0)
+                }}
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500"
+                placeholder="78701"
+                required
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="flex gap-3">
-        <button 
-          className="btn-primary"
-          onClick={onContinue}
-        >
-          Continue to Review
-        </button>
-        <button 
-          className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
-          onClick={onBack}
-        >
-          ← Back
-        </button>
+      {/* Payment Summary */}
+      <div className="bg-gray-800 border border-gray-600 rounded-lg p-4">
+        <div className="text-white">
+          <div className="font-semibold text-sm mb-2">Payment Summary</div>
+          <div className="text-sm space-y-1">
+            <div className="flex justify-between">
+              <span>Amount:</span>
+              <span>{formatCurrency(currentAmountCents)}</span>
+            </div>
+            <div className="flex justify-between text-gray-300">
+              <span>Processing Fee:</span>
+              <span>{formatCurrency(Math.round(currentAmountCents * 0.029 + 30))}</span>
+            </div>
+            <div className="flex justify-between font-semibold border-t border-gray-600 pt-1 mt-1">
+              <span>Total:</span>
+              <span>{formatCurrency(currentAmountCents + Math.round(currentAmountCents * 0.029 + 30))}</span>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+
+      {/* Submit Button */}
+      <button
+        type="submit"
+        disabled={!stripe || !cardComplete || !billingComplete || processing}
+        className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {processing ? (
+          <span className="flex items-center justify-center">
+            <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+            Processing Payment...
+          </span>
+        ) : (
+          `Pay ${formatCurrency(currentAmountCents + Math.round(currentAmountCents * 0.029 + 30))}`
+        )}
+      </button>
+    </form>
   )
 }

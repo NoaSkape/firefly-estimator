@@ -731,42 +731,43 @@ export default function BlogCreate() {
     }
   ]
 
-  useEffect(() => {
-    // Auto-create the first blog post if we haven't started yet
-    if (autoCreateIndex < predefinedPosts.length) {
-      const createPost = async () => {
-        try {
-          const token = await getToken()
-          const postData = predefinedPosts[autoCreateIndex]
-          const response = await fetch('/api/blog', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(postData)
-          })
-          
-          if (response.ok) {
-            console.log(`Created blog post: ${postData.title}`)
-            setAutoCreateIndex(prev => prev + 1)
-          } else {
-            const errorData = await response.json()
-            console.error('Failed to create blog post:', errorData)
-            navigate('/blog')
-          }
-        } catch (error) {
-          console.error('Error creating blog post:', error)
-          navigate('/blog')
-        }
-      }
-      
-      createPost()
-    } else {
-      // All posts created, redirect to blog
-      navigate('/blog')
-    }
-  }, [autoCreateIndex, navigate, getToken])
+  // Comment out auto-creation for now to allow manual post creation
+  // useEffect(() => {
+  //   // Auto-create the first blog post if we haven't started yet
+  //   if (autoCreateIndex < predefinedPosts.length) {
+  //     const createPost = async () => {
+  //       try {
+  //         const token = await getToken()
+  //         const postData = predefinedPosts[autoCreateIndex]
+  //         const response = await fetch('/api/blog', {
+  //           method: 'POST',
+  //           headers: {
+  //             'Content-Type': 'application/json',
+  //             'Authorization': `Bearer ${token}`
+  //           },
+  //           body: JSON.stringify(postData)
+  //         })
+  //         
+  //         if (response.ok) {
+  //           console.log(`Created blog post: ${postData.title}`)
+  //           setAutoCreateIndex(prev => prev + 1)
+  //         } else {
+  //           const errorData = await response.json()
+  //           console.error('Failed to create blog post:', errorData)
+  //           navigate('/blog')
+  //         }
+  //       } catch (error) {
+  //         console.error('Error creating blog post:', error)
+  //           navigate('/blog')
+  //         }
+  //     }
+  //     
+  //     createPost()
+  //   } else {
+  //     // All posts created, redirect to blog
+  //     navigate('/blog')
+  //   }
+  // }, [autoCreateIndex, navigate, getToken])
 
   const handleSaved = (savedPost) => {
     if (savedPost.status === 'published') {
@@ -782,7 +783,7 @@ export default function BlogCreate() {
 
   return (
     <>
-      {isEditorOpen && autoCreateIndex >= predefinedPosts.length && (
+      {isEditorOpen && (
         <AdminBlogEditor
           onClose={handleClose}
           onSaved={handleSaved}

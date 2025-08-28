@@ -112,7 +112,7 @@ export default function TexasRegulations() {
         </div>
       )}
 
-      <article className="min-h-screen bg-white">
+      <article className="min-h-screen bg-white dark:bg-gray-900">
         {/* Hero Section */}
         <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-20 lg:py-32">
           <div className="absolute inset-0">
@@ -166,7 +166,7 @@ export default function TexasRegulations() {
         {/* Article Content */}
         <section className="py-16">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="prose prose-lg max-w-none">
+            <div className="prose prose-lg max-w-none dark:prose-invert">
               <h2>Understanding Park Model Homes in Texas</h2>
               <p>
                 Park model homes occupy a unique legal category in Texas, falling between traditional mobile homes and recreational vehicles. Understanding the regulations governing these homes is crucial for anyone considering this lifestyle in the Lone Star State.

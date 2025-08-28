@@ -205,14 +205,14 @@ export default function BlogAll() {
         <meta name="geo.placename" content="Pipe Creek, Texas" />
       </Helmet>
 
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
-        <div className="bg-white border-b">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="flex items-center mb-6">
               <Link 
                 to="/blog" 
-                className="flex items-center text-yellow-600 hover:text-yellow-700 mr-6"
+                className="flex items-center text-yellow-600 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300 mr-6"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -221,41 +221,41 @@ export default function BlogAll() {
               </Link>
             </div>
             
-            <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+            <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               All Articles
             </h1>
-            <p className="text-xl text-gray-600 max-w-3xl">
+            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl">
               Browse our complete collection of expert articles about park model homes, tiny living, and everything you need to know about the tiny home lifestyle.
             </p>
           </div>
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-white border-b">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex flex-col lg:flex-row gap-4">
               {/* Search */}
               <div className="flex-1 relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
                 <input
                   type="text"
                   placeholder="Search articles..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-transparent dark:placeholder-gray-400"
                 />
               </div>
 
               {/* Category Filter */}
               <div className="relative">
-                <FunnelIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <FunnelIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
                 <select
                   value={selectedCategory}
                   onChange={(e) => {
                     setSelectedCategory(e.target.value)
                     setCurrentPage(1)
                   }}
-                  className="pl-10 pr-8 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-transparent appearance-none bg-white"
+                  className="pl-10 pr-8 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-transparent appearance-none"
                 >
                   {categories.map(category => (
                     <option key={category} value={category}>
@@ -273,18 +273,18 @@ export default function BlogAll() {
           {loading && currentPage === 1 ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading articles...</p>
+              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading articles...</p>
             </div>
           ) : filteredPosts.length === 0 ? (
             <div className="text-center py-12">
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No articles found</h3>
-              <p className="text-gray-600">Try adjusting your search or filter criteria.</p>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No articles found</h3>
+              <p className="text-gray-600 dark:text-gray-400">Try adjusting your search or filter criteria.</p>
             </div>
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {filteredPosts.map((post) => (
-                  <article key={post.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+                  <article key={post.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
                     <div className="relative">
                       <img 
                         src={post.image} 
@@ -299,7 +299,7 @@ export default function BlogAll() {
                     </div>
                     
                     <div className="p-6">
-                      <div className="flex items-center text-sm text-gray-500 mb-3">
+                      <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-3">
                         <CalendarIcon className="w-4 h-4 mr-1" />
                         <span>{formatDate(post.date)}</span>
                         <span className="mx-2">•</span>
@@ -310,17 +310,17 @@ export default function BlogAll() {
                         <span>{post.views.toLocaleString()}</span>
                       </div>
                       
-                      <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2">
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 line-clamp-2">
                         {post.title}
                       </h3>
                       
-                      <p className="text-gray-600 mb-4 line-clamp-3">
+                      <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3">
                         {post.excerpt}
                       </p>
                       
                       <Link
                         to={`/blog/${post.slug}`}
-                        className="inline-flex items-center text-yellow-600 hover:text-yellow-700 font-semibold group"
+                        className="inline-flex items-center text-yellow-600 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300 font-semibold group"
                       >
                         Read More
                         <ArrowRightIcon className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />

@@ -293,13 +293,13 @@ export default function Blog() {
       </section>
 
       {/* Featured Posts */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-white dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               Featured Articles
             </h2>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
               Start your tiny home journey with our most popular and comprehensive guides
             </p>
           </div>
@@ -307,15 +307,15 @@ export default function Blog() {
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-white rounded-2xl shadow-lg overflow-hidden animate-pulse">
-                  <div className="h-48 bg-gray-200"></div>
+                <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden animate-pulse">
+                  <div className="h-48 bg-gray-200 dark:bg-gray-700"></div>
                   <div className="p-6">
-                    <div className="h-4 bg-gray-200 rounded mb-3"></div>
-                    <div className="h-6 bg-gray-200 rounded mb-2"></div>
-                    <div className="h-6 bg-gray-200 rounded mb-4 w-3/4"></div>
-                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                    <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-3"></div>
+                    <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
+                    <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded mb-4 w-3/4"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
                   </div>
                 </div>
               ))}
@@ -323,7 +323,7 @@ export default function Blog() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {featuredPosts.map((post) => (
-              <article key={post.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+              <article key={post.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
                 <div className="relative">
                   <img 
                     src={post.image} 
@@ -338,7 +338,7 @@ export default function Blog() {
                 </div>
                 
                 <div className="p-6">
-                  <div className="flex items-center text-sm text-gray-500 mb-3">
+                  <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-3">
                     <CalendarIcon className="w-4 h-4 mr-1" />
                     <span>{formatDate(post.date)}</span>
                     <span className="mx-2">•</span>
@@ -349,17 +349,17 @@ export default function Blog() {
                     <span>{post.views.toLocaleString()}</span>
                   </div>
                   
-                  <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 line-clamp-2">
                     {post.title}
                   </h3>
                   
-                  <p className="text-gray-600 mb-4 line-clamp-3">
+                  <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3">
                     {post.excerpt}
                   </p>
                   
                   <Link
                     to={`/blog/${post.slug}`}
-                    className="inline-flex items-center text-yellow-600 hover:text-yellow-700 font-semibold group"
+                    className="inline-flex items-center text-yellow-600 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300 font-semibold group"
                   >
                     Read More
                     <ArrowRightIcon className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
@@ -373,7 +373,7 @@ export default function Blog() {
           <div className="text-center mt-12">
             <Link
               to="/blog/all"
-              className="inline-flex items-center px-8 py-3 bg-gray-900 text-white font-semibold rounded-lg hover:bg-gray-800 transition-colors"
+              className="inline-flex items-center px-8 py-3 bg-gray-900 dark:bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors"
             >
               View All Articles
               <ArrowRightIcon className="w-5 h-5 ml-2" />
@@ -383,13 +383,13 @@ export default function Blog() {
       </section>
 
       {/* Categories */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-gray-50 dark:bg-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               Explore by Category
             </h2>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
               Find exactly what you're looking for with our organized content categories
             </p>
           </div>
@@ -401,20 +401,20 @@ export default function Blog() {
                 <Link
                   key={category.name}
                   to={`/blog/category/${category.name.toLowerCase().replace(/\s+/g, '-')}`}
-                  className="group bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+                  className="group bg-white dark:bg-gray-700 rounded-xl p-6 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
                 >
                   <div className="flex items-center mb-4">
                     <div className={`w-12 h-12 ${category.color} rounded-lg flex items-center justify-center mr-4 group-hover:scale-110 transition-transform`}>
                       <IconComponent className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900 group-hover:text-yellow-600 transition-colors">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">
                         {category.name}
                       </h3>
-                      <span className="text-sm text-gray-500">{category.count} articles</span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">{category.count} articles</span>
                     </div>
                   </div>
-                  <p className="text-gray-600 text-sm">
+                  <p className="text-gray-600 dark:text-gray-300 text-sm">
                     {category.description}
                   </p>
                 </Link>

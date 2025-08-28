@@ -112,7 +112,7 @@ export default function BestSkirtingOptions() {
         </div>
       )}
 
-      <article className="min-h-screen bg-white">
+      <article className="min-h-screen bg-white dark:bg-gray-900">
         {/* Hero Section */}
         <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-20 lg:py-32">
           <div className="absolute inset-0">
@@ -166,7 +166,7 @@ export default function BestSkirtingOptions() {
         {/* Article Content */}
         <section className="py-16">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="prose prose-lg max-w-none">
+            <div className="prose prose-lg max-w-none dark:prose-invert">
               <h2>What is Park Model Skirting?</h2>
               <p>
                 Skirting is the material that covers the space between the bottom of your park model home and the ground. It serves both functional and aesthetic purposes, protecting your home's undercarriage while enhancing its appearance.
