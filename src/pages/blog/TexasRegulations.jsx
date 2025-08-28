@@ -51,7 +51,7 @@ export default function TexasRegulations() {
         <meta property="og:description" content="Everything you need to know about park model home regulations, zoning laws, and legal requirements in Texas." />
         <meta property="og:type" content="article" />
         <meta property="og:url" content="https://fireflyestimator.com/blog/park-model-regulations-texas-law" />
-        <meta property="og:image" content="https://fireflyestimator.com/hero/tiny-home-dusk.png" />
+                 <meta property="og:image" content="https://images.unsplash.com/photo-1568605114967-8130f3a36994?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" />
         <meta property="og:site_name" content="Firefly Tiny Homes" />
         <meta property="article:published_time" content="2024-01-05T00:00:00.000Z" />
         <meta property="article:author" content="Firefly Tiny Homes" />
@@ -61,7 +61,7 @@ export default function TexasRegulations() {
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Park Model Regulations and Texas Law: Your Complete Guide" />
         <meta name="twitter:description" content="Everything you need to know about park model home regulations, zoning laws, and legal requirements in Texas." />
-        <meta name="twitter:image" content="https://fireflyestimator.com/hero/tiny-home-dusk.png" />
+                 <meta name="twitter:image" content="https://images.unsplash.com/photo-1568605114967-8130f3a36994?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" />
         
         {/* Additional SEO Meta Tags */}
         <meta name="robots" content="index, follow" />
@@ -77,7 +77,7 @@ export default function TexasRegulations() {
             "@type": "BlogPosting",
             "headline": "Park Model Regulations and Texas Law: Your Complete Guide",
             "description": "Everything you need to know about park model home regulations, zoning laws, and legal requirements in Texas.",
-            "image": "https://fireflyestimator.com/hero/tiny-home-dusk.png",
+                         "image": "https://images.unsplash.com/photo-1568605114967-8130f3a36994?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
             "author": {
               "@type": "Organization",
               "name": "Firefly Tiny Homes"
@@ -116,11 +116,11 @@ export default function TexasRegulations() {
         {/* Hero Section */}
         <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-20 lg:py-32">
           <div className="absolute inset-0">
-            <img 
-              src="/hero/tiny-home-dusk.png" 
-              alt="Park model home in Texas" 
-              className="w-full h-full object-cover opacity-20"
-            />
+                         <img 
+               src="https://images.unsplash.com/photo-1568605114967-8130f3a36994?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" 
+               alt="Park model home in Texas" 
+               className="w-full h-full object-cover opacity-20"
+             />
             <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-gray-900/50 to-gray-900/30" />
           </div>
           

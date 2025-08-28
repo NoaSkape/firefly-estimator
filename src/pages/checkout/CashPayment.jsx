@@ -250,6 +250,7 @@ export default function CashPayment() {
 
   async function setupACH() {
     try {
+      console.log('[FRONTEND] Setting up ACH for build:', buildId)
       const token = await getToken()
       const res = await fetch('/api/payments/setup-ach', {
         method: 'POST',
@@ -260,16 +261,21 @@ export default function CashPayment() {
         body: JSON.stringify({ buildId: buildId })
       })
 
+      console.log('[FRONTEND] ACH setup response status:', res.status)
+
       if (res.ok) {
         const data = await res.json()
+        console.log('[FRONTEND] ACH setup success:', data)
         setSetupIntent(data)
         setSetupError(null) // Clear any previous errors
         return data
       } else {
         const errorData = await res.json().catch(() => ({}))
-        throw new Error(errorData.message || 'Failed to setup ACH')
+        console.error('[FRONTEND] ACH setup error response:', errorData)
+        throw new Error(errorData.message || errorData.error || 'Failed to setup ACH')
       }
     } catch (error) {
+      console.error('[FRONTEND] ACH setup error:', error)
       handleSetupError(error, 'setup_ach')
       throw error
     }
@@ -277,6 +283,7 @@ export default function CashPayment() {
 
   async function provisionBankTransfer() {
     try {
+      console.log('[FRONTEND] Provisioning bank transfer for build:', buildId)
       const token = await getToken()
       const res = await fetch('/api/payments/provision-bank-transfer', {
         method: 'POST',
@@ -287,18 +294,28 @@ export default function CashPayment() {
         body: JSON.stringify({ buildId: buildId })
       })
 
+      console.log('[FRONTEND] Bank transfer provision response status:', res.status)
+
       if (res.ok) {
         const data = await res.json()
-        setBankTransferDetails(data.virtualAccount)
-        setTransferInstructions(data.virtualAccount)
-        setTransferReference(data.virtualAccount.referenceCode)
-        setSetupError(null) // Clear any previous errors
-        return data.virtualAccount
+        console.log('[FRONTEND] Bank transfer provision success:', data)
+        
+        if (data.success && data.virtualAccount) {
+          setBankTransferDetails(data.virtualAccount)
+          setTransferInstructions(data.virtualAccount)
+          setTransferReference(data.virtualAccount.referenceCode)
+          setSetupError(null) // Clear any previous errors
+          return data.virtualAccount
+        } else {
+          throw new Error('Invalid response structure from bank transfer provision')
+        }
       } else {
         const errorData = await res.json().catch(() => ({}))
-        throw new Error(errorData.message || 'Failed to provision bank transfer')
+        console.error('[FRONTEND] Bank transfer provision error response:', errorData)
+        throw new Error(errorData.message || errorData.error || 'Failed to provision bank transfer')
       }
     } catch (error) {
+      console.error('[FRONTEND] Bank transfer provision error:', error)
       handleTransferError(error, 'provision_bank_transfer')
       throw error
     }
@@ -1885,6 +1902,7 @@ function CardDetailsStep({
     setError(null)
     
     try {
+      console.log('[FRONTEND] Setting up card payment for build:', buildId)
       const token = await getToken()
       const res = await fetch('/api/payments/setup-card', {
         method: 'POST',
@@ -1895,25 +1913,34 @@ function CardDetailsStep({
         body: JSON.stringify({ buildId })
       })
 
+      console.log('[FRONTEND] Card setup response status:', res.status)
+
       if (res.ok) {
         const data = await res.json()
-        setClientSecret(data.clientSecret)
-        setPaymentIntentId(data.paymentIntentId)
-        setStep('payment')
+        console.log('[FRONTEND] Card setup success:', data)
+        
+        if (data.success && data.clientSecret && data.paymentIntentId) {
+          setClientSecret(data.clientSecret)
+          setPaymentIntentId(data.paymentIntentId)
+          setStep('payment')
+        } else {
+          throw new Error('Invalid response structure from card setup')
+        }
       } else {
         const errorData = await res.json().catch(() => ({}))
-        throw new Error(errorData.message || 'Failed to setup card payment')
+        console.error('[FRONTEND] Card setup error response:', errorData)
+        throw new Error(errorData.message || errorData.error || 'Failed to setup card payment')
       }
     } catch (error) {
-      console.error('Setup card payment error:', error)
+      console.error('[FRONTEND] Setup card payment error:', error)
       setError({
-        message: 'Failed to setup card payment. Please try again.',
+        message: error.message || 'Failed to setup card payment. Please try again.',
         recoverable: true
       })
       addToast({
         type: 'error',
         title: 'Setup Error',
-        message: 'Unable to initialize card payment. Please try again.'
+        message: error.message || 'Unable to initialize card payment. Please try again.'
       })
     } finally {
       setProcessing(false)
@@ -1926,6 +1953,7 @@ function CardDetailsStep({
     setError(null)
     
     try {
+      console.log('[FRONTEND] Processing card payment for build:', buildId, 'paymentIntent:', paymentIntentId)
       const token = await getToken()
       const res = await fetch('/api/payments/process-card', {
         method: 'POST',
@@ -1939,29 +1967,38 @@ function CardDetailsStep({
         })
       })
 
-      const data = await res.json()
+      console.log('[FRONTEND] Card process response status:', res.status)
 
-      if (data.success && data.status === 'succeeded') {
-        setSuccess(true)
-        setStep('confirmation')
-        addToast({
-          type: 'success',
-          title: 'Payment Successful',
-          message: 'Your card payment has been processed successfully.'
-        })
-      } else if (data.status === 'requires_action') {
-        setRequiresAction(true)
-        setActionClientSecret(data.clientSecret)
-        addToast({
-          type: 'info',
-          title: 'Additional Action Required',
-          message: 'Your bank requires additional verification. Please complete the authentication.'
-        })
+      if (res.ok) {
+        const data = await res.json()
+        console.log('[FRONTEND] Card process response:', data)
+
+        if (data.success && data.status === 'succeeded') {
+          setSuccess(true)
+          setStep('confirmation')
+          addToast({
+            type: 'success',
+            title: 'Payment Successful',
+            message: 'Your card payment has been processed successfully.'
+          })
+        } else if (data.status === 'requires_action') {
+          setRequiresAction(true)
+          setActionClientSecret(data.clientSecret)
+          addToast({
+            type: 'info',
+            title: 'Additional Action Required',
+            message: 'Your bank requires additional verification. Please complete the authentication.'
+          })
+        } else {
+          throw new Error(data.message || 'Payment processing failed')
+        }
       } else {
-        throw new Error(data.message || 'Payment processing failed')
+        const errorData = await res.json().catch(() => ({}))
+        console.error('[FRONTEND] Card process error response:', errorData)
+        throw new Error(errorData.message || errorData.error || 'Payment processing failed')
       }
     } catch (error) {
-      console.error('Process card payment error:', error)
+      console.error('[FRONTEND] Process card payment error:', error)
       setError({
         message: error.message || 'Payment processing failed. Please try again.',
         recoverable: true

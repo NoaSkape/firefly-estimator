@@ -51,7 +51,7 @@ export default function BestSkirtingOptions() {
         <meta property="og:description" content="Learn about the different skirting options available for park model homes and how to choose the best solution for your needs." />
         <meta property="og:type" content="article" />
         <meta property="og:url" content="https://fireflyestimator.com/blog/best-skirting-options-park-model-homes" />
-        <meta property="og:image" content="https://fireflyestimator.com/hero/champion-park-model-exterior.jpg" />
+                 <meta property="og:image" content="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" />
         <meta property="og:site_name" content="Firefly Tiny Homes" />
         <meta property="article:published_time" content="2024-01-10T00:00:00.000Z" />
         <meta property="article:author" content="Firefly Tiny Homes" />
@@ -61,7 +61,7 @@ export default function BestSkirtingOptions() {
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Best Skirting Options for Park Model Homes: A Complete Guide" />
         <meta name="twitter:description" content="Learn about the different skirting options available for park model homes and how to choose the best solution for your needs." />
-        <meta name="twitter:image" content="https://fireflyestimator.com/hero/champion-park-model-exterior.jpg" />
+                 <meta name="twitter:image" content="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" />
         
         {/* Additional SEO Meta Tags */}
         <meta name="robots" content="index, follow" />
@@ -77,7 +77,7 @@ export default function BestSkirtingOptions() {
             "@type": "BlogPosting",
             "headline": "Best Skirting Options for Park Model Homes: A Complete Guide",
             "description": "Learn about the different skirting options available for park model homes and how to choose the best solution for your needs.",
-            "image": "https://fireflyestimator.com/hero/champion-park-model-exterior.jpg",
+                         "image": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
             "author": {
               "@type": "Organization",
               "name": "Firefly Tiny Homes"
@@ -116,11 +116,11 @@ export default function BestSkirtingOptions() {
         {/* Hero Section */}
         <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-20 lg:py-32">
           <div className="absolute inset-0">
-            <img 
-              src="/hero/champion-park-model-exterior.jpg" 
-              alt="Park model home with skirting" 
-              className="w-full h-full object-cover opacity-20"
-            />
+                         <img 
+               src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" 
+               alt="Park model home with skirting" 
+               className="w-full h-full object-cover opacity-20"
+             />
             <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-gray-900/50 to-gray-900/30" />
           </div>
           

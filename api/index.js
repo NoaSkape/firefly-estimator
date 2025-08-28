@@ -3523,7 +3523,7 @@ app.delete(['/api/models/images', '/models/images'], imagesEntry)
 
 // ----- Cloudinary sign -----
 app.post(['/api/cloudinary/sign', '/cloudinary/sign'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
+  const auth = await requireAuth(req, res, false) // Allow any authenticated user for blog uploads
   if (!auth?.userId) return
 
   const { subfolder = '', tags = [] } = req.body || {}
@@ -3831,44 +3831,133 @@ app.post(['/api/payments/update-auth-status', '/payments/update-auth-status'], a
   }
 })
 
-// Provision Bank Transfer
+// Provision Bank Transfer - UNIFIED IMPLEMENTATION
 app.post(['/api/payments/provision-bank-transfer', '/payments/provision-bank-transfer'], async (req, res) => {
+  console.log('[PROVISION-BANK-TRANSFER] Request received:', {
+    method: req.method,
+    hasBody: !!req.body,
+    bodyKeys: req.body ? Object.keys(req.body) : [],
+    hasStripeKey: !!process.env.STRIPE_SECRET_KEY
+  })
+
   try {
     const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) return
+    if (!auth?.userId) {
+      console.error('[PROVISION-BANK-TRANSFER] Authentication failed')
+      return
+    }
 
     const { buildId } = req.body
     if (!buildId) {
-      return res.status(400).json({ error: 'Build ID is required' })
+      console.error('[PROVISION-BANK-TRANSFER] Missing buildId')
+      return res.status(400).json({ 
+        error: 'validation_error', 
+        message: 'Build ID is required' 
+      })
     }
+
+    console.log('[PROVISION-BANK-TRANSFER] Processing for build:', buildId, 'user:', auth.userId)
 
     const build = await getBuildById(buildId)
     if (!build) {
-      return res.status(404).json({ error: 'Build not found' })
+      console.error('[PROVISION-BANK-TRANSFER] Build not found:', buildId)
+      return res.status(404).json({ 
+        error: 'not_found', 
+        message: 'Build not found' 
+      })
     }
 
     if (build.userId !== auth.userId) {
-      return res.status(403).json({ error: 'Access denied' })
+      console.error('[PROVISION-BANK-TRANSFER] Access denied. Build userId:', build.userId, 'Request userId:', auth.userId)
+      return res.status(403).json({ 
+        error: 'access_denied', 
+        message: 'Access denied' 
+      })
     }
 
-    // For now, return mock bank transfer details
-    // In production, this would integrate with a real bank transfer service
+    // Check if bank transfer is already provisioned
+    if (build.payment?.bankTransfer?.virtualAccountId) {
+      console.log('[PROVISION-BANK-TRANSFER] Bank transfer already provisioned:', build.payment.bankTransfer.virtualAccountId)
+      return res.status(200).json({
+        success: true,
+        virtualAccount: {
+          id: build.payment.bankTransfer.virtualAccountId,
+          referenceCode: build.payment.bankTransfer.referenceCode,
+          instructions: build.payment.bankTransfer.instructions
+        }
+      })
+    }
+
+    // Get or create Stripe customer
+    let customerId = build.customerId
+    if (!customerId) {
+      console.log('[PROVISION-BANK-TRANSFER] Creating new Stripe customer...')
+      const customer = await stripe.customers.create({
+        email: build.buyerInfo?.email,
+        name: `${build.buyerInfo?.firstName} ${build.buyerInfo?.lastName}`,
+        metadata: {
+          buildId: buildId,
+          userId: auth.userId
+        }
+      })
+      customerId = customer.id
+      
+      // Update build with customer ID
+      const db = await getDb()
+      await db.collection('builds').updateOne(
+        { _id: build._id },
+        { $set: { customerId: customerId } }
+      )
+      console.log('[PROVISION-BANK-TRANSFER] Created and saved customer:', customerId)
+    }
+
+    // Generate unique reference code
     const referenceCode = `FF-${buildId.toString().slice(-8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`
+
+    // Create virtual account details (in production, this would integrate with real banking APIs)
     const virtualAccount = {
-      id: `va_${Date.now()}`,
+      id: `va_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       referenceCode: referenceCode,
       instructions: {
         beneficiary: 'Firefly Tiny Homes',
+        bankName: 'Stripe Treasury Bank',
         routingNumber: '011401533',
         accountNumber: '4000003947011000',
         referenceCode: referenceCode
       }
     }
 
-    res.status(200).json({ virtualAccount })
+    // Update build with bank transfer details
+    const db = await getDb()
+    await db.collection('builds').updateOne(
+      { _id: build._id },
+      { 
+        $set: {
+          'payment.method': 'bank_transfer',
+          'payment.bankTransfer': {
+            virtualAccountId: virtualAccount.id,
+            referenceCode: referenceCode,
+            instructions: virtualAccount.instructions,
+            provisionedAt: new Date()
+          }
+        }
+      }
+    )
+
+    console.log('[PROVISION-BANK-TRANSFER] Successfully provisioned bank transfer:', virtualAccount.id)
+
+    res.status(200).json({
+      success: true,
+      virtualAccount: virtualAccount
+    })
+
   } catch (error) {
-    console.error('Provision bank transfer error:', error)
-    res.status(500).json({ error: 'provision_failed', message: error.message })
+    console.error('[PROVISION-BANK-TRANSFER] Error:', error)
+    res.status(500).json({ 
+      error: 'provision_failed', 
+      message: 'Failed to provision bank transfer account',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
   }
 })
 
@@ -3913,36 +4002,75 @@ app.post(['/api/payments/collect-at-confirmation', '/payments/collect-at-confirm
   }
 })
 
-// Setup Card Payment
+// Setup Card Payment - UNIFIED IMPLEMENTATION
 app.post(['/api/payments/setup-card', '/payments/setup-card'], async (req, res) => {
+  console.log('[SETUP-CARD] Request received:', {
+    method: req.method,
+    hasBody: !!req.body,
+    bodyKeys: req.body ? Object.keys(req.body) : [],
+    hasStripeKey: !!process.env.STRIPE_SECRET_KEY
+  })
+
   try {
     const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) return
+    if (!auth?.userId) {
+      console.error('[SETUP-CARD] Authentication failed')
+      return
+    }
 
     const { buildId } = req.body
     if (!buildId) {
-      return res.status(400).json({ error: 'Build ID is required' })
+      console.error('[SETUP-CARD] Missing buildId')
+      return res.status(400).json({ 
+        error: 'validation_error', 
+        message: 'Build ID is required' 
+      })
     }
 
     if (!process.env.STRIPE_SECRET_KEY) {
+      console.error('[SETUP-CARD] Missing Stripe secret key')
       return res.status(500).json({ 
         error: 'server_configuration_error',
+        message: 'Stripe not configured',
         details: 'STRIPE_SECRET_KEY environment variable is missing' 
       })
     }
 
+    console.log('[SETUP-CARD] Setting up card payment for build:', buildId, 'user:', auth.userId)
+
     const build = await getBuildById(buildId)
     if (!build) {
-      return res.status(404).json({ error: 'Build not found' })
+      console.error('[SETUP-CARD] Build not found:', buildId)
+      return res.status(404).json({ 
+        error: 'not_found', 
+        message: 'Build not found' 
+      })
     }
 
     if (build.userId !== auth.userId) {
-      return res.status(403).json({ error: 'Access denied' })
+      console.error('[SETUP-CARD] Access denied. Build userId:', build.userId, 'Request userId:', auth.userId)
+      return res.status(403).json({ 
+        error: 'access_denied', 
+        message: 'Access denied' 
+      })
+    }
+
+    // Check if card payment is already set up
+    if (build.payment?.paymentIntentId && build.payment?.method === 'card') {
+      console.log('[SETUP-CARD] Card payment already set up:', build.payment.paymentIntentId)
+      return res.status(200).json({
+        success: true,
+        clientSecret: build.payment.clientSecret,
+        paymentIntentId: build.payment.paymentIntentId,
+        amount: build.payment.amountCents,
+        currency: 'usd'
+      })
     }
 
     // Get or create Stripe customer
     let customerId = build.customerId
     if (!customerId) {
+      console.log('[SETUP-CARD] Creating new Stripe customer...')
       const customer = await stripe.customers.create({
         email: build.buyerInfo?.email,
         name: `${build.buyerInfo?.firstName} ${build.buyerInfo?.lastName}`,
@@ -3959,10 +4087,11 @@ app.post(['/api/payments/setup-card', '/payments/setup-card'], async (req, res) 
         { _id: build._id },
         { $set: { customerId: customerId } }
       )
+      console.log('[SETUP-CARD] Created and saved customer:', customerId)
     }
 
     // Calculate payment amount
-    const { calculateTotalPurchasePrice } = await import('../../utils/calculateTotal.js')
+    const { calculateTotalPurchasePrice } = await import('../../src/utils/calculateTotal.js')
     const totalAmount = calculateTotalPurchasePrice(build)
     const totalCents = Math.round(totalAmount * 100)
     
@@ -3970,6 +4099,14 @@ app.post(['/api/payments/setup-card', '/payments/setup-card'], async (req, res) 
     const paymentPlan = build.payment?.plan || { type: 'deposit', percent: 25 }
     const depositCents = Math.round(totalCents * ((paymentPlan.percent || 25) / 100))
     const currentAmountCents = paymentPlan.type === 'deposit' ? depositCents : totalCents
+
+    console.log('[SETUP-CARD] Payment calculation:', {
+      totalAmount,
+      totalCents,
+      depositCents,
+      currentAmountCents,
+      paymentPlanType: paymentPlan.type
+    })
 
     // Create PaymentIntent for card payment
     const paymentIntent = await stripe.paymentIntents.create({
@@ -3988,6 +4125,8 @@ app.post(['/api/payments/setup-card', '/payments/setup-card'], async (req, res) 
       description: `Firefly Tiny Home - ${build.modelName || 'Custom Build'} - ${paymentPlan.type === 'deposit' ? 'Deposit' : 'Full Payment'}`
     })
 
+    console.log('[SETUP-CARD] Created PaymentIntent:', paymentIntent.id)
+
     // Update build with payment intent
     const db = await getDb()
     await db.collection('builds').updateOne(
@@ -3996,6 +4135,7 @@ app.post(['/api/payments/setup-card', '/payments/setup-card'], async (req, res) 
         $set: {
           'payment.method': 'card',
           'payment.paymentIntentId': paymentIntent.id,
+          'payment.clientSecret': paymentIntent.client_secret,
           'payment.plan': paymentPlan,
           'payment.amountCents': currentAmountCents,
           'payment.status': 'setup_complete',
@@ -4013,44 +4153,83 @@ app.post(['/api/payments/setup-card', '/payments/setup-card'], async (req, res) 
     })
 
   } catch (error) {
-    console.error('Setup card payment error:', error)
+    console.error('[SETUP-CARD] Error:', error)
     res.status(500).json({ 
       error: 'setup_failed', 
-      message: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: 'Failed to setup card payment',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     })
   }
 })
 
-// Process Card Payment
+// Process Card Payment - UNIFIED IMPLEMENTATION
 app.post(['/api/payments/process-card', '/payments/process-card'], async (req, res) => {
+  console.log('[PROCESS-CARD] Request received:', {
+    method: req.method,
+    hasBody: !!req.body,
+    bodyKeys: req.body ? Object.keys(req.body) : []
+  })
+
   try {
     const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) return
+    if (!auth?.userId) {
+      console.error('[PROCESS-CARD] Authentication failed')
+      return
+    }
 
     const { buildId, paymentIntentId } = req.body
     if (!buildId || !paymentIntentId) {
-      return res.status(400).json({ error: 'Build ID and Payment Intent ID are required' })
+      console.error('[PROCESS-CARD] Missing required parameters')
+      return res.status(400).json({ 
+        error: 'validation_error', 
+        message: 'Build ID and Payment Intent ID are required' 
+      })
     }
+
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.error('[PROCESS-CARD] Missing Stripe secret key')
+      return res.status(500).json({ 
+        error: 'server_configuration_error',
+        message: 'Stripe not configured',
+        details: 'STRIPE_SECRET_KEY environment variable is missing' 
+      })
+    }
+
+    console.log('[PROCESS-CARD] Processing card payment for build:', buildId, 'paymentIntent:', paymentIntentId)
 
     const build = await getBuildById(buildId)
     if (!build) {
-      return res.status(404).json({ error: 'Build not found' })
+      console.error('[PROCESS-CARD] Build not found:', buildId)
+      return res.status(404).json({ 
+        error: 'not_found', 
+        message: 'Build not found' 
+      })
     }
 
     if (build.userId !== auth.userId) {
-      return res.status(403).json({ error: 'Access denied' })
+      console.error('[PROCESS-CARD] Access denied. Build userId:', build.userId, 'Request userId:', auth.userId)
+      return res.status(403).json({ 
+        error: 'access_denied', 
+        message: 'Access denied' 
+      })
     }
 
     // Verify the payment intent belongs to this build
     if (build.payment?.paymentIntentId !== paymentIntentId) {
-      return res.status(400).json({ error: 'Invalid payment intent for this build' })
+      console.error('[PROCESS-CARD] Invalid payment intent for build. Expected:', build.payment?.paymentIntentId, 'Received:', paymentIntentId)
+      return res.status(400).json({ 
+        error: 'validation_error', 
+        message: 'Invalid payment intent for this build' 
+      })
     }
 
     // Retrieve the payment intent to check its current status
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
+    console.log('[PROCESS-CARD] Payment intent status:', paymentIntent.status)
     
     if (paymentIntent.status === 'succeeded') {
+      console.log('[PROCESS-CARD] Payment already succeeded:', paymentIntentId)
+      
       // Update build with success status
       const db = await getDb()
       await db.collection('builds').updateOne(
@@ -4072,10 +4251,13 @@ app.post(['/api/payments/process-card', '/payments/process-card'], async (req, r
     }
 
     if (paymentIntent.status === 'requires_confirmation') {
+      console.log('[PROCESS-CARD] Confirming payment intent...')
       // Confirm the payment intent
       const confirmedIntent = await stripe.paymentIntents.confirm(paymentIntentId)
       
       if (confirmedIntent.status === 'succeeded') {
+        console.log('[PROCESS-CARD] Payment confirmed successfully:', paymentIntentId)
+        
         // Update build with success status
         const db = await getDb()
         await db.collection('builds').updateOne(
@@ -4095,6 +4277,8 @@ app.post(['/api/payments/process-card', '/payments/process-card'], async (req, r
           message: 'Payment processed successfully'
         })
       } else if (confirmedIntent.status === 'requires_action') {
+        console.log('[PROCESS-CARD] Payment requires additional action:', confirmedIntent.status)
+        
         return res.status(200).json({
           success: false,
           status: 'requires_action',
@@ -4102,6 +4286,8 @@ app.post(['/api/payments/process-card', '/payments/process-card'], async (req, r
           message: 'Additional authentication required'
         })
       } else {
+        console.error('[PROCESS-CARD] Payment confirmation failed:', confirmedIntent.status)
+        
         return res.status(400).json({
           success: false,
           status: confirmedIntent.status,
@@ -4110,6 +4296,8 @@ app.post(['/api/payments/process-card', '/payments/process-card'], async (req, r
         })
       }
     } else {
+      console.error('[PROCESS-CARD] Payment intent in unexpected state:', paymentIntent.status)
+      
       return res.status(400).json({
         success: false,
         status: paymentIntent.status,
@@ -4119,27 +4307,28 @@ app.post(['/api/payments/process-card', '/payments/process-card'], async (req, r
     }
 
   } catch (error) {
-    console.error('Process card payment error:', error)
+    console.error('[PROCESS-CARD] Error:', error)
     
     // Handle specific Stripe errors
     if (error.type === 'StripeCardError') {
       return res.status(400).json({
         success: false,
-        error: 'Card error',
+        error: 'card_error',
         message: error.message,
         code: error.code
       })
     } else if (error.type === 'StripeInvalidRequestError') {
       return res.status(400).json({
         success: false,
-        error: 'Invalid request',
+        error: 'invalid_request',
         message: error.message
       })
     }
     
     res.status(500).json({ 
       success: false,
-      error: 'Failed to process card payment',
+      error: 'processing_failed',
+      message: 'Failed to process card payment',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     })
   }

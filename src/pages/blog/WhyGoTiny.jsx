@@ -53,7 +53,7 @@ export default function WhyGoTiny() {
         <meta property="og:description" content="Discover the incredible benefits of downsizing to a park model home. Learn about financial freedom, environmental impact, and improved quality of life." />
         <meta property="og:type" content="article" />
         <meta property="og:url" content="https://fireflyestimator.com/blog/why-go-tiny-complete-guide-park-model-living" />
-        <meta property="og:image" content="https://fireflyestimator.com/hero/tiny-home-dusk.png" />
+                 <meta property="og:image" content="https://images.unsplash.com/photo-1570129477492-45c003edd2be?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" />
         <meta property="og:site_name" content="Firefly Tiny Homes" />
         <meta property="article:published_time" content="2024-01-15T00:00:00.000Z" />
         <meta property="article:author" content="Firefly Tiny Homes" />
@@ -63,7 +63,7 @@ export default function WhyGoTiny() {
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Why Go Tiny? The Complete Guide to Park Model Living" />
         <meta name="twitter:description" content="Discover the incredible benefits of downsizing to a park model home. Learn about financial freedom, environmental impact, and improved quality of life." />
-        <meta name="twitter:image" content="https://fireflyestimator.com/hero/tiny-home-dusk.png" />
+                 <meta name="twitter:image" content="https://images.unsplash.com/photo-1570129477492-45c003edd2be?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" />
         
         {/* Additional SEO Meta Tags */}
         <meta name="robots" content="index, follow" />
@@ -79,7 +79,7 @@ export default function WhyGoTiny() {
             "@type": "BlogPosting",
             "headline": "Why Go Tiny? The Complete Guide to Park Model Living",
             "description": "Discover the incredible benefits of downsizing to a park model home and why thousands of Americans are choosing this lifestyle.",
-            "image": "https://fireflyestimator.com/hero/tiny-home-dusk.png",
+                         "image": "https://images.unsplash.com/photo-1570129477492-45c003edd2be?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
             "author": {
               "@type": "Organization",
               "name": "Firefly Tiny Homes"
@@ -118,11 +118,11 @@ export default function WhyGoTiny() {
         {/* Hero Section */}
         <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-20 lg:py-32">
           <div className="absolute inset-0">
-            <img 
-              src="/hero/tiny-home-dusk.png" 
-              alt="Tiny home at sunset" 
-              className="w-full h-full object-cover opacity-20"
-            />
+                         <img 
+               src="https://images.unsplash.com/photo-1570129477492-45c003edd2be?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" 
+               alt="Tiny home at sunset" 
+               className="w-full h-full object-cover opacity-20"
+             />
             <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-gray-900/50 to-gray-900/30" />
           </div>
           
