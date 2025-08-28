@@ -43,6 +43,11 @@ export default function CashPayment() {
   const [checkBalance, setCheckBalance] = useState(true)
   const [balanceWarning, setBalanceWarning] = useState(false)
   
+  // Bank Transfer specific state
+  const [transferInstructions, setTransferInstructions] = useState(null)
+  const [transferConfirmed, setTransferConfirmed] = useState(false)
+  const [transferReference, setTransferReference] = useState('')
+  
   // Error handling state
   const [setupError, setSetupError] = useState(null)
   const [retryCount, setRetryCount] = useState(0)
@@ -99,6 +104,16 @@ export default function CashPayment() {
           if (orderData.payment?.mandateAccepted !== undefined) {
             setMandateAccepted(orderData.payment.mandateAccepted)
           }
+          // Load bank transfer data
+          if (orderData.payment?.transferInstructions) {
+            setTransferInstructions(orderData.payment.transferInstructions)
+          }
+          if (orderData.payment?.transferConfirmed !== undefined) {
+            setTransferConfirmed(orderData.payment.transferConfirmed)
+          }
+          if (orderData.payment?.transferReference) {
+            setTransferReference(orderData.payment.transferReference)
+          }
 
           if (orderData.payment?.ready) {
             setCurrentStep('review')
@@ -144,6 +159,16 @@ export default function CashPayment() {
         // Load mandate acceptance status
         if (buildData.payment?.mandateAccepted !== undefined) {
           setMandateAccepted(buildData.payment.mandateAccepted)
+        }
+        // Load bank transfer data
+        if (buildData.payment?.transferInstructions) {
+          setTransferInstructions(buildData.payment.transferInstructions)
+        }
+        if (buildData.payment?.transferConfirmed !== undefined) {
+          setTransferConfirmed(buildData.payment.transferConfirmed)
+        }
+        if (buildData.payment?.transferReference) {
+          setTransferReference(buildData.payment.transferReference)
         }
 
         if (buildData.payment?.ready) {
@@ -265,16 +290,16 @@ export default function CashPayment() {
       if (res.ok) {
         const data = await res.json()
         setBankTransferDetails(data.virtualAccount)
+        setTransferInstructions(data.virtualAccount)
+        setTransferReference(data.virtualAccount.reference)
+        setSetupError(null) // Clear any previous errors
         return data.virtualAccount
       } else {
-        throw new Error('Failed to provision bank transfer')
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to provision bank transfer')
       }
     } catch (error) {
-      addToast({
-        type: 'error',
-        title: 'Setup Failed',
-        message: 'Unable to setup bank transfer. Please try again.'
-      })
+      handleTransferError(error, 'provision_bank_transfer')
       throw error
     }
   }
@@ -371,6 +396,46 @@ export default function CashPayment() {
       .catch(err => handleSetupError(err, 'reset'))
   }
 
+  // Handle bank transfer errors
+  async function handleTransferError(error, context = 'transfer') {
+    console.error(`❌ ${context} error:`, error)
+    
+    const isRecoverable = error?.code === 'provision_failed' || 
+                          error?.type === 'network_error' ||
+                          error?.message?.includes('timeout')
+    
+    if (isRecoverable && retryCount < 2) {
+      setRetryCount(prev => prev + 1)
+      setSetupError({
+        message: 'Bank transfer setup encountered an issue. Let\'s try again.',
+        recoverable: true,
+        retryCount: retryCount + 1
+      })
+      
+      // Retry after a short delay
+      setTimeout(() => {
+        provisionBankTransfer()
+          .then(data => {
+            setTransferInstructions(data)
+            setSetupError(null)
+          })
+          .catch(err => handleTransferError(err, 'retry'))
+      }, 1000)
+    } else {
+      setNeedsRefresh(true)
+      setSetupError({
+        message: 'We\'re having trouble setting up the bank transfer. Please refresh the page to try again.',
+        recoverable: false
+      })
+      
+      addToast({
+        type: 'error',
+        title: 'Bank Transfer Setup Issue',
+        message: 'Please refresh the page and try again. If the problem persists, contact support.'
+      })
+    }
+  }
+
   async function markPaymentReady() {
 
     if (paymentMethod === 'ach_debit' && !mandateAccepted) {
@@ -395,7 +460,10 @@ export default function CashPayment() {
           buildId: buildId,
           plan: paymentPlan,
           method: paymentMethod,
-          mandateAccepted: mandateAccepted
+          mandateAccepted: mandateAccepted,
+          transferInstructions: transferInstructions,
+          transferConfirmed: transferConfirmed,
+          transferReference: transferReference
         })
       })
 
@@ -795,6 +863,18 @@ export default function CashPayment() {
                 provisionBankTransfer={provisionBankTransfer}
                 onContinue={() => navigate(`/checkout/${buildId}/cash-payment/review`)}
                 onBack={() => navigate(`/checkout/${buildId}/cash-payment/choose`)}
+                formatCurrency={formatCurrency}
+                currentAmountCents={currentAmountCents}
+                transferInstructions={transferInstructions}
+                setTransferInstructions={setTransferInstructions}
+                transferConfirmed={transferConfirmed}
+                setTransferConfirmed={setTransferConfirmed}
+                transferReference={transferReference}
+                setTransferReference={setTransferReference}
+                setupError={setupError}
+                setSetupError={setSetupError}
+                resetAndRetry={resetAndRetry}
+                needsRefresh={needsRefresh}
               />
             )}
 
@@ -1406,15 +1486,40 @@ function ACHElementsForm({
   )
 }
 
-// Bank Transfer Details Component
-function BankTransferDetailsStep({ bankTransferDetails, provisionBankTransfer, onContinue, onBack }) {
+// Bank Transfer Details Component - Complete Wizard
+function BankTransferDetailsStep({ 
+  bankTransferDetails, 
+  provisionBankTransfer, 
+  onContinue, 
+  onBack, 
+  formatCurrency, 
+  currentAmountCents,
+  transferInstructions,
+  setTransferInstructions,
+  transferConfirmed,
+  setTransferConfirmed,
+  transferReference,
+  setTransferReference,
+  setupError,
+  setSetupError,
+  resetAndRetry,
+  needsRefresh
+}) {
   const [processing, setProcessing] = useState(false)
+  const [step, setStep] = useState('setup') // 'setup', 'instructions', 'confirmation'
+
+  // Auto-advance to instructions if we already have transfer details
+  useEffect(() => {
+    if (transferInstructions && step === 'setup') {
+      setStep('instructions')
+    }
+  }, [transferInstructions, step])
 
   async function handleProvisionTransfer() {
     setProcessing(true)
     try {
       await provisionBankTransfer()
-      onContinue()
+      setStep('instructions')
     } catch (error) {
       console.error('Bank transfer provision error:', error)
     } finally {
@@ -1422,54 +1527,100 @@ function BankTransferDetailsStep({ bankTransferDetails, provisionBankTransfer, o
     }
   }
 
-  if (bankTransferDetails) {
+  function handleConfirmTransfer() {
+    setTransferConfirmed(true)
+    setStep('confirmation')
+  }
+
+  function handleBackToInstructions() {
+    setTransferConfirmed(false)
+    setStep('instructions')
+  }
+
+  // Step 1: Setup
+  if (step === 'setup') {
     return (
       <div className="space-y-6">
+        {/* Welcome Section */}
         <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-          <h2 className="text-white font-semibold text-lg mb-4">Bank Transfer Instructions</h2>
-          <div className="space-y-4">
-            <div className="text-white text-sm">
-              Use the following information to complete your bank transfer:
-            </div>
-            
-            <div className="bg-gray-800 p-4 rounded-lg space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-300">Beneficiary:</span>
-                <span className="text-white font-mono">{bankTransferDetails.instructions.beneficiary}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-300">Routing Number:</span>
-                <span className="text-white font-mono">{bankTransferDetails.instructions.routingNumber}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-300">Account Number:</span>
-                <span className="text-white font-mono">{bankTransferDetails.instructions.accountNumber}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-300">Reference Code:</span>
-                <span className="text-white font-mono">{bankTransferDetails.instructions.referenceCode}</span>
-              </div>
-            </div>
-
-            <div className="text-white text-sm">
-              <strong>Important:</strong> Include the reference code in your transfer to ensure proper matching.
-            </div>
-          </div>
+          <h2 className="text-white font-semibold text-xl mb-3">Bank Transfer Setup</h2>
+          <p className="text-gray-300 text-sm leading-relaxed">
+            We'll create a secure virtual account for your bank transfer. This allows us to receive your payment 
+            of <strong>{formatCurrency(currentAmountCents)}</strong> and automatically match it to your order.
+          </p>
         </div>
 
-        <div className="bg-green-900/30 border border-green-600 rounded-lg p-4">
-          <div className="text-sm text-white">
-            <strong>Next Steps:</strong> We'll match your transfer automatically. You can proceed to Step 7 now; 
-            we'll confirm funds before production.
+        {/* Error Display */}
+        {setupError && (
+          <div className={`p-4 rounded-lg border ${
+            setupError.recoverable 
+              ? 'bg-yellow-900/30 border-yellow-600' 
+              : 'bg-red-900/30 border-red-600'
+          }`}>
+            <div className="flex items-start">
+              <span className={`text-xl mr-3 ${
+                setupError.recoverable ? 'text-yellow-400' : 'text-red-400'
+              }`}>
+                {setupError.recoverable ? '⚠️' : '❌'}
+              </span>
+              <div className="flex-1">
+                <div className={`font-medium ${
+                  setupError.recoverable ? 'text-yellow-200' : 'text-red-200'
+                }`}>
+                  {setupError.message}
+                </div>
+                {setupError.recoverable && (
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={resetAndRetry}
+                      className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 text-white text-sm rounded transition-colors"
+                    >
+                      Try Again
+                    </button>
+                    {needsRefresh && (
+                      <button
+                        type="button"
+                        onClick={() => window.location.reload()}
+                        className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white text-sm rounded transition-colors"
+                      >
+                        Refresh Page
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Security Information */}
+        <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4">
+          <div className="text-blue-200">
+            <div className="font-semibold text-sm mb-2">🔒 Secure Bank Transfer</div>
+            <ul className="text-xs space-y-1">
+              <li>• Virtual account created specifically for your transaction</li>
+              <li>• Automatic payment matching using your unique reference code</li>
+              <li>• Enterprise-grade security with bank-level encryption</li>
+              <li>• No sensitive banking information stored on our servers</li>
+            </ul>
           </div>
         </div>
 
         <div className="flex gap-3">
           <button 
             className="btn-primary"
-            onClick={onContinue}
+            onClick={handleProvisionTransfer}
+            disabled={processing}
           >
-            Continue to Review
+            {processing ? (
+              <span className="flex items-center justify-center">
+                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                Setting up...
+              </span>
+            ) : (
+              'Setup Bank Transfer'
+            )}
           </button>
           <button 
             className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
@@ -1482,33 +1633,162 @@ function BankTransferDetailsStep({ bankTransferDetails, provisionBankTransfer, o
     )
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-        <h2 className="text-white font-semibold text-lg mb-4">Bank Transfer Setup</h2>
-        <div className="text-white text-sm mb-4">
-          We'll create a secure virtual account for your bank transfer. This allows us to receive your payment 
-          and automatically match it to your order.
+  // Step 2: Instructions
+  if (step === 'instructions') {
+    return (
+      <div className="space-y-6">
+        {/* Welcome Section */}
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+          <h2 className="text-white font-semibold text-xl mb-3">Bank Transfer Instructions</h2>
+          <p className="text-gray-300 text-sm leading-relaxed">
+            Use the following information to complete your bank transfer. Include the reference code to ensure 
+            automatic matching of your payment.
+          </p>
+        </div>
+
+        {/* Transfer Details */}
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+          <h3 className="text-white font-semibold text-lg mb-4">Transfer Information</h3>
+          <div className="space-y-4">
+            <div className="bg-gray-800 p-4 rounded-lg space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-300 text-sm">Beneficiary:</span>
+                <span className="text-white font-mono text-sm">{transferInstructions?.accountName || 'Firefly Tiny Homes'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-300 text-sm">Bank Name:</span>
+                <span className="text-white font-mono text-sm">{transferInstructions?.bankName || 'Stripe Test Bank'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-300 text-sm">Routing Number:</span>
+                <span className="text-white font-mono text-sm">{transferInstructions?.routingNumber}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-300 text-sm">Account Number:</span>
+                <span className="text-white font-mono text-sm">{transferInstructions?.accountNumber}</span>
+              </div>
+              <div className="flex justify-between items-center border-t border-gray-600 pt-3">
+                <span className="text-yellow-300 text-sm font-medium">Reference Code:</span>
+                <span className="text-yellow-400 font-mono text-sm font-bold">{transferReference}</span>
+              </div>
+            </div>
+
+            <div className="bg-yellow-900/20 border border-yellow-600 rounded-lg p-3">
+              <div className="text-yellow-200 text-xs">
+                <strong>⚠️ Important:</strong> Include the reference code in your transfer description/memo field 
+                to ensure proper matching. Without it, we may not be able to identify your payment.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Amount */}
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+          <h3 className="text-white font-semibold text-lg mb-4">Payment Amount</h3>
+          <div className="flex justify-between py-3 px-4 bg-yellow-900/20 border border-yellow-600 rounded-lg">
+            <span className="text-yellow-200 font-medium">Transfer Amount:</span>
+            <span className="text-yellow-400 font-bold text-lg">{formatCurrency(currentAmountCents)}</span>
+          </div>
+        </div>
+
+        {/* Processing Information */}
+        <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4">
+          <div className="text-blue-200">
+            <div className="font-semibold text-sm mb-2">📋 Processing Information</div>
+            <ul className="text-xs space-y-1">
+              <li>• Wire transfers typically process within 1-2 business days</li>
+              <li>• ACH transfers typically process within 3-5 business days</li>
+              <li>• We'll automatically match your payment using the reference code</li>
+              <li>• You'll receive email confirmation once payment is received</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <button 
+            className="btn-primary"
+            onClick={handleConfirmTransfer}
+          >
+            I've Completed the Transfer
+          </button>
+          <button 
+            className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
+            onClick={() => setStep('setup')}
+          >
+            ← Back to Setup
+          </button>
         </div>
       </div>
+    )
+  }
 
-      <div className="flex gap-3">
-        <button 
-          className="btn-primary"
-          onClick={handleProvisionTransfer}
-          disabled={processing}
-        >
-          {processing ? 'Setting up...' : 'Setup Bank Transfer'}
-        </button>
-        <button 
-          className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
-          onClick={onBack}
-        >
-          ← Back
-        </button>
+  // Step 3: Confirmation
+  if (step === 'confirmation') {
+    return (
+      <div className="space-y-6">
+        {/* Success Section */}
+        <div className="bg-green-900/30 border border-green-600 rounded-lg p-6">
+          <div className="flex items-center mb-4">
+            <span className="text-green-400 text-xl mr-3">✓</span>
+            <h2 className="text-white font-semibold text-xl">Transfer Confirmed</h2>
+          </div>
+          <p className="text-green-200 text-sm leading-relaxed">
+            Thank you for confirming your bank transfer. We'll automatically match your payment when it arrives 
+            and notify you via email. You can now proceed to the next step.
+          </p>
+        </div>
+
+        {/* Transfer Summary */}
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+          <h3 className="text-white font-semibold text-lg mb-4">Transfer Summary</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between py-2 border-b border-gray-600">
+              <span className="text-gray-300">Amount:</span>
+              <span className="text-white font-medium">{formatCurrency(currentAmountCents)}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-gray-600">
+              <span className="text-gray-300">Reference Code:</span>
+              <span className="text-white font-mono">{transferReference}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-gray-600">
+              <span className="text-gray-300">Status:</span>
+              <span className="text-yellow-400 font-medium">Pending Confirmation</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Next Steps */}
+        <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4">
+          <div className="text-blue-200">
+            <div className="font-semibold text-sm mb-2">📋 Next Steps</div>
+            <ul className="text-xs space-y-1">
+              <li>• Complete your bank transfer using the provided instructions</li>
+              <li>• We'll automatically match your payment when it arrives</li>
+              <li>• You'll receive email confirmation once payment is confirmed</li>
+              <li>• Proceed to contract signing - we'll verify funds before production</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <button 
+            className="btn-primary"
+            onClick={onContinue}
+          >
+            Continue to Review
+          </button>
+          <button 
+            className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
+            onClick={handleBackToInstructions}
+          >
+            ← Back to Instructions
+          </button>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
+
+  return null
 }
 
 // Card Details Component (Emergency Option)

@@ -3671,7 +3671,7 @@ app.post(['/api/payments/mark-ready', '/payments/mark-ready'], async (req, res) 
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
-    const { buildId, plan, method, mandateAccepted } = req.body
+    const { buildId, plan, method, mandateAccepted, transferInstructions, transferConfirmed, transferReference } = req.body
     if (!buildId) {
       return res.status(400).json({ error: 'Build ID is required' })
     }
@@ -3695,7 +3695,10 @@ app.post(['/api/payments/mark-ready', '/payments/mark-ready'], async (req, res) 
           'payment.readyAt': new Date(),
           ...(plan && { 'payment.plan': plan }),
           ...(method && { 'payment.method': method }),
-          ...(mandateAccepted !== undefined && { 'payment.mandateAccepted': mandateAccepted })
+          ...(mandateAccepted !== undefined && { 'payment.mandateAccepted': mandateAccepted }),
+          ...(transferInstructions && { 'payment.transferInstructions': transferInstructions }),
+          ...(transferConfirmed !== undefined && { 'payment.transferConfirmed': transferConfirmed }),
+          ...(transferReference && { 'payment.transferReference': transferReference })
         }
       }
     )
@@ -3709,7 +3712,10 @@ app.post(['/api/payments/mark-ready', '/payments/mark-ready'], async (req, res) 
           'payment.readyAt': new Date(),
           ...(plan && { 'payment.plan': plan }),
           ...(method && { 'payment.method': method }),
-          ...(mandateAccepted !== undefined && { 'payment.mandateAccepted': mandateAccepted })
+          ...(mandateAccepted !== undefined && { 'payment.mandateAccepted': mandateAccepted }),
+          ...(transferInstructions && { 'payment.transferInstructions': transferInstructions }),
+          ...(transferConfirmed !== undefined && { 'payment.transferConfirmed': transferConfirmed }),
+          ...(transferReference && { 'payment.transferReference': transferReference })
         }
       }
     )
