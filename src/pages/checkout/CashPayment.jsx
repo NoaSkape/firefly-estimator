@@ -42,6 +42,11 @@ export default function CashPayment() {
   const [mandateAccepted, setMandateAccepted] = useState(false)
   const [checkBalance, setCheckBalance] = useState(true)
   const [balanceWarning, setBalanceWarning] = useState(false)
+  
+  // Error handling state
+  const [setupError, setSetupError] = useState(null)
+  const [retryCount, setRetryCount] = useState(0)
+  const [needsRefresh, setNeedsRefresh] = useState(false)
 
 
 
@@ -233,16 +238,14 @@ export default function CashPayment() {
       if (res.ok) {
         const data = await res.json()
         setSetupIntent(data)
+        setSetupError(null) // Clear any previous errors
         return data
       } else {
-        throw new Error('Failed to setup ACH')
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to setup ACH')
       }
     } catch (error) {
-      addToast({
-        type: 'error',
-        title: 'Setup Failed',
-        message: 'Unable to setup ACH payment. Please try again.'
-      })
+      handleSetupError(error, 'setup_ach')
       throw error
     }
   }
@@ -316,6 +319,57 @@ export default function CashPayment() {
   }
 
 
+
+  // Handle setup intent errors and provide recovery options
+  async function handleSetupError(error, context = 'setup') {
+    console.error(`❌ ${context} error:`, error)
+    
+    // Determine if this is a recoverable error
+    const isRecoverable = error?.code === 'setup_intent_invalid' || 
+                          error?.code === 'setup_intent_expired' ||
+                          error?.code === 'processing_error' ||
+                          error?.type === 'validation_error'
+    
+    if (isRecoverable && retryCount < 2) {
+      setRetryCount(prev => prev + 1)
+      setSetupError({
+        message: 'Payment setup encountered an issue. Let\'s try again.',
+        recoverable: true,
+        retryCount: retryCount + 1
+      })
+      
+      // Reset setup intent and try again
+      setSetupIntent(null)
+      setTimeout(() => {
+        setupACH()
+          .then(setSetupIntent)
+          .catch(err => handleSetupError(err, 'retry'))
+      }, 1000)
+    } else {
+      setNeedsRefresh(true)
+      setSetupError({
+        message: 'We\'re having trouble with the payment setup. Please refresh the page to try again.',
+        recoverable: false
+      })
+      
+      addToast({
+        type: 'error',
+        title: 'Payment Setup Issue',
+        message: 'Please refresh the page and try again. If the problem persists, contact support.'
+      })
+    }
+  }
+
+  // Reset error state and retry
+  function resetAndRetry() {
+    setSetupError(null)
+    setRetryCount(0)
+    setNeedsRefresh(false)
+    setSetupIntent(null)
+    setupACH()
+      .then(setSetupIntent)
+      .catch(err => handleSetupError(err, 'reset'))
+  }
 
   async function markPaymentReady() {
 
@@ -728,6 +782,10 @@ export default function CashPayment() {
                 onBack={() => navigate(`/checkout/${buildId}/cash-payment/choose`)}
                 formatCurrency={formatCurrency}
                 currentAmountCents={currentAmountCents}
+                setupError={setupError}
+                setSetupError={setSetupError}
+                resetAndRetry={resetAndRetry}
+                needsRefresh={needsRefresh}
               />
             )}
 
@@ -848,7 +906,7 @@ export default function CashPayment() {
 }
 
 // ACH Details Component with Stripe Elements Integration
-function ACHDetailsStep({ setupIntent, setupACH, saveACHMethod, checkBalance, setCheckBalance, balanceWarning, setBalanceWarning, mandateAccepted, setMandateAccepted, onContinue, onBack, formatCurrency, currentAmountCents }) {
+function ACHDetailsStep({ setupIntent, setupACH, saveACHMethod, checkBalance, setCheckBalance, balanceWarning, setBalanceWarning, mandateAccepted, setMandateAccepted, onContinue, onBack, formatCurrency, currentAmountCents, setupError, setSetupError, resetAndRetry, needsRefresh }) {
   const [currentSetupIntent, setCurrentSetupIntent] = useState(setupIntent)
   const [processing, setProcessing] = useState(false)
   const [initializing, setInitializing] = useState(false)
@@ -1043,7 +1101,27 @@ function ACHElementsForm({
 
     } catch (error) {
       console.error('❌ Bank account setup error:', error)
-      // Show error to user (you could add a toast here)
+      
+      // Check if this is a Stripe-specific error that requires setup intent refresh
+      if (error?.code === 'setup_intent_invalid' || 
+          error?.code === 'setup_intent_expired' ||
+          error?.code === 'processing_error' ||
+          error?.type === 'validation_error') {
+        
+        // Signal to parent component that we need to refresh the setup intent
+        setSetupError({
+          message: 'Payment setup expired. Please try again.',
+          recoverable: true,
+          retryCount: 0
+        })
+      } else {
+        // Show generic error to user
+        setSetupError({
+          message: 'Unable to link bank account. Please try again.',
+          recoverable: true,
+          retryCount: 0
+        })
+      }
     } finally {
       setProcessing(false)
     }
@@ -1171,6 +1249,50 @@ function ACHElementsForm({
         </p>
         
         <form onSubmit={handleBankAccountSetup} className="space-y-6">
+          {/* Error Display */}
+          {setupError && (
+            <div className={`p-4 rounded-lg border ${
+              setupError.recoverable 
+                ? 'bg-yellow-900/30 border-yellow-600' 
+                : 'bg-red-900/30 border-red-600'
+            }`}>
+              <div className="flex items-start">
+                <span className={`text-xl mr-3 ${
+                  setupError.recoverable ? 'text-yellow-400' : 'text-red-400'
+                }`}>
+                  {setupError.recoverable ? '⚠️' : '❌'}
+                </span>
+                <div className="flex-1">
+                  <div className={`font-medium ${
+                    setupError.recoverable ? 'text-yellow-200' : 'text-red-200'
+                  }`}>
+                    {setupError.message}
+                  </div>
+                  {setupError.recoverable && (
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={resetAndRetry}
+                        className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 text-white text-sm rounded transition-colors"
+                      >
+                        Try Again
+                      </button>
+                      {needsRefresh && (
+                        <button
+                          type="button"
+                          onClick={() => window.location.reload()}
+                          className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white text-sm rounded transition-colors"
+                        >
+                          Refresh Page
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          
           {/* Stripe Payment Element - configured for US Bank Account */}
           <div className="space-y-4">
             {stripe && elements ? (
