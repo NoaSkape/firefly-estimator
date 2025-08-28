@@ -306,7 +306,7 @@ app.patch(['/api/orders/:id', '/orders/:id'], async (req, res) => {
 
 // list current user's orders (optionally filter by status)
 app.get(['/api/orders', '/orders'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
+  const auth = await requireAuth(req, res, false)
   if (!auth?.userId) return
   const list = await listOrdersForUser(auth.userId)
   const status = req.query?.status
@@ -3562,7 +3562,7 @@ app.post(['/api/payments/setup-ach', '/payments/setup-ach'], async (req, res) =>
         email: auth.user?.emailAddresses?.[0]?.emailAddress || `user+${auth.userId}@example.com`,
         metadata: {
           userId: auth.userId,
-          buildId: orderId
+          buildId: buildId
         }
       })
       customerId = customer.id
@@ -3589,7 +3589,7 @@ app.post(['/api/payments/setup-ach', '/payments/setup-ach'], async (req, res) =>
         }
       },
       metadata: {
-        buildId: orderId,
+        buildId: buildId,
         userId: auth.userId
       }
     })
@@ -3799,7 +3799,7 @@ app.post(['/api/payments/provision-bank-transfer', '/payments/provision-bank-tra
       routingNumber: '011401533',
       accountName: 'Firefly Tiny Homes',
       bankName: 'Chase Bank',
-      reference: `REF-${orderId.toString().slice(-8).toUpperCase()}`
+      reference: `REF-${buildId.toString().slice(-8).toUpperCase()}`
     }
 
     res.status(200).json({ virtualAccount })
