@@ -1,0 +1,62 @@
+---
+description: How to launch the Firefly Estimator website locally and deploy to production
+---
+
+### Overview
+The app is a Vite React SPA with an API served via a single Express serverless function. Local dev runs Vite for the frontend and Vercel for the API emulator.
+- Frontend: Vite config in [vite.config.js](mdc:vite.config.js)
+- API: Single handler in [api/index.js](mdc:api/index.js)
+- Rewrites: [vercel.json](mdc:vercel.json) routes `/api/*` to the serverless handler
+- Node version: 22.x (see [package.json](mdc:package.json) `engines`)
+
+### Prerequisites
+- Node 22.x installed
+- Vercel CLI installed and logged in: `npm i -g vercel` and `vercel login`
+- Install deps at root: `npm ci` (or `npm install`)
+
+### Local development (recommended)
+Run the combined frontend + serverless emulator:
+```bash
+npm run dev
+```
+- Starts Vite on http://localhost:5173
+- Starts Vercel dev server on http://localhost:3000
+- Vite proxies `/api` → port 3000 per [vite.config.js](mdc:vite.config.js)
+- Open the app at http://localhost:5173
+
+### Alternative local modes
+- Frontend only:
+```bash
+vite
+```
+(API calls will fail unless an API server is also running.)
+
+- API emulator only (serverless):
+```bash
+vercel dev --listen 3000
+```
+
+- Experimental local Express API (not used by Vite proxy by default):
+```bash
+npm run dev:api   # runs [backend/dev-server.js](mdc:backend/dev-server.js) on 3001
+npm run server    # runs [backend/server.cjs](mdc:backend/server.cjs) on 3001
+```
+Note: Vite proxies to port 3000. Use these only if you are directly hitting `http://localhost:3001/api/...` or adjusting the proxy target.
+
+- Run everything together (useful for debugging):
+```bash
+npm run dev:full
+```
+This runs Vite + Vercel dev + the Express server.
+
+### Environment variables
+- Ensure required secrets (e.g., Clerk, Stripe, MongoDB, Cloudinary) are set in your environment.
+- `vercel dev` loads env vars from your Vercel project or `.env` if configured; backend scripts use `dotenv` as needed.
+
+### Production deployment (Vercel)
+- Push to the default branch or deploy manually:
+```bash
+vercel --prod
+```
+- `vercel.json` ensures SPA fallthrough and `/api/*` → `api/index` routing.
+- Configure environment variables in your Vercel project settings.
