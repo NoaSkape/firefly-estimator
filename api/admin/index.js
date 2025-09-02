@@ -24,7 +24,7 @@ initializeAdminDatabase().catch(console.error)
 // ============================================================================
 
 // Admin authentication middleware for all routes
-router.use(adminAuth.validateAdminAccess.bind(adminAuth))
+router.use((req, res, next) => adminAuth.validateAdminAccess(req, res, next))
 
 // Request validation schemas
 const adminSchemas = {
@@ -792,7 +792,7 @@ router.get('/users', adminAuth.validatePermission(PERMISSIONS.USERS_VIEW), async
 })
 
 // Get current admin user information
-router.get('/me', async (req, res) => {
+router.get('/me', adminAuth.validatePermission(PERMISSIONS.USERS_VIEW), async (req, res) => {
   try {
     const userSummary = await adminAuth.getAdminUserSummary(req.adminUser.userId)
     

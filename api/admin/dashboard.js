@@ -14,7 +14,7 @@ const clerkClient = createClerkClient({
 const router = express.Router()
 
 // Admin authentication middleware for all routes
-router.use(adminAuth.validateAdminAccess.bind(adminAuth))
+router.use((req, res, next) => adminAuth.validateAdminAccess(req, res, next))
 
 // Get comprehensive dashboard data
 router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async (req, res) => {
