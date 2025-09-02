@@ -284,9 +284,9 @@ router.get('/', validatePermission('FINANCIAL_VIEW'), async (req, res) => {
 })
 
 // Get detailed user information (Clerk + MongoDB)
-router.get('/users/detailed', adminAuth.validatePermission(PERMISSIONS.USERS_VIEW), async (req, res) => {
+router.get('/users/detailed', validatePermission('USERS_VIEW'), async (req, res) => {
   try {
-    const usersCollection = await getCollection(COLLECTIONS.USERS)
+    const usersCollection = await getCollection('UserProfiles')
     
     // Get Clerk users
     let clerkUsers = []
@@ -338,10 +338,10 @@ router.get('/users/detailed', adminAuth.validatePermission(PERMISSIONS.USERS_VIE
 })
 
 // Get active builds information
-router.get('/builds/active', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIEW), async (req, res) => {
+router.get('/builds/active', validatePermission('ORDERS_VIEW'), async (req, res) => {
   try {
-    const ordersCollection = await getCollection(COLLECTIONS.ORDERS)
-    const modelsCollection = await getCollection(COLLECTIONS.MODELS)
+    const ordersCollection = await getCollection(ORDERS_COLLECTION)
+    const modelsCollection = await getCollection(MODELS_COLLECTION)
     
     // Get active builds (orders in production stages)
     const activeBuilds = await ordersCollection.find({
@@ -383,10 +383,10 @@ router.get('/builds/active', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIE
 })
 
 // Get paid orders information
-router.get('/orders/paid', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIEW), async (req, res) => {
+router.get('/orders/paid', validatePermission('ORDERS_VIEW'), async (req, res) => {
   try {
-    const ordersCollection = await getCollection(COLLECTIONS.ORDERS)
-    const modelsCollection = await getCollection(COLLECTIONS.MODELS)
+    const ordersCollection = await getCollection(ORDERS_COLLECTION)
+    const modelsCollection = await getCollection(MODELS_COLLECTION)
     
     // Get paid orders
     const paidOrders = await ordersCollection.find({
@@ -425,9 +425,9 @@ router.get('/orders/paid', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIEW)
 })
 
 // Get revenue breakdown
-router.get('/financial/revenue', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_REPORTS), async (req, res) => {
+router.get('/financial/revenue', validatePermission('FINANCIAL_REPORTS'), async (req, res) => {
   try {
-    const ordersCollection = await getCollection(COLLECTIONS.ORDERS)
+    const ordersCollection = await getCollection(ORDERS_COLLECTION)
     
     // Get revenue by month for the last 12 months
     const monthlyRevenue = await ordersCollection.aggregate([
