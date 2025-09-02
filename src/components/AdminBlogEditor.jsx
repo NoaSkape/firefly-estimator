@@ -401,7 +401,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
         {/* Tabs */}
         <div className="border-b border-gray-200 dark:border-gray-700">
           <div className="flex">
-            {['content', 'settings', 'preview'].map((tab) => (
+            {['content', 'settings', 'preview', 'test'].map((tab) => (
               <button 
                 key={tab} 
                 className={`px-4 py-3 ${activeTab === tab ? 'border-b-2 border-yellow-500 text-yellow-600 dark:text-yellow-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}
@@ -410,7 +410,8 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                 {tab === 'content' && <DocumentTextIcon className="w-4 h-4 inline mr-2" />}
                 {tab === 'settings' && <EyeIcon className="w-4 h-4 inline mr-2" />}
                 {tab === 'preview' && <EyeIcon className="w-4 h-4 inline mr-2" />}
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab === 'test' && <BoltIcon className="w-4 h-4 inline mr-2" />}
+                {tab === 'test' ? 'Test' : tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
             ))}
           </div>
@@ -460,40 +461,6 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                   postData={postData}
                   setPostData={setPostData}
                 />
-              </div>
-
-              {/* Simple AI Test */}
-              <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
-                <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">
-                  🧪 Simple AI Connection Test
-                </h4>
-                <div className="space-y-3">
-                  <input
-                    type="text"
-                    placeholder="Enter a simple test message (e.g., 'Hello AI')"
-                    className="w-full p-2 border rounded text-sm"
-                    value={aiTestMessage}
-                    onChange={(e) => setAiTestMessage(e.target.value)}
-                  />
-                  <button
-                    onClick={testAIConnection}
-                    disabled={aiTestLoading}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 text-sm"
-                  >
-                    {aiTestLoading ? 'Testing...' : 'Test AI Connection'}
-                  </button>
-                  {aiTestResult && (
-                    <div className="mt-3 p-3 bg-gray-100 dark:bg-gray-700 rounded text-sm">
-                      <strong>AI Response:</strong>
-                      <pre className="whitespace-pre-wrap mt-1">{aiTestResult}</pre>
-                    </div>
-                  )}
-                  {aiTestError && (
-                    <div className="mt-3 p-3 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded text-sm">
-                      <strong>Error:</strong> {aiTestError}
-                    </div>
-                  )}
-                </div>
               </div>
 
               {/* Title */}
@@ -755,6 +722,53 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                   {/* Engagement Tracker */}
                   <EngagementTracker postData={postData} />
                 </InteractivePreview>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'test' && (
+            <div className="space-y-6">
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">🧪 AI Connection Test</h2>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    Test the AI service connection and functionality
+                  </span>
+                </div>
+
+                {/* Simple AI Test */}
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
+                  <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">
+                    🧪 Simple AI Connection Test
+                  </h4>
+                  <div className="space-y-3">
+                    <input
+                      type="text"
+                      placeholder="Enter a simple test message (e.g., 'Hello AI')"
+                      className="w-full p-2 border rounded text-sm"
+                      value={aiTestMessage}
+                      onChange={(e) => setAiTestMessage(e.target.value)}
+                    />
+                    <button
+                      onClick={testAIConnection}
+                      disabled={aiTestLoading}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 text-sm"
+                    >
+                      {aiTestLoading ? 'Testing...' : 'Test AI Connection'}
+                    </button>
+                    {aiTestResult && (
+                      <div className="mt-3 p-3 bg-gray-100 dark:bg-gray-700 rounded text-sm">
+                        <strong>AI Response:</strong>
+                        <pre className="whitespace-pre-wrap mt-1">{aiTestResult}</pre>
+                      </div>
+                    )}
+                    {aiTestError && (
+                      <div className="mt-3 p-3 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded text-sm">
+                        <strong>Error:</strong> {aiTestError}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}

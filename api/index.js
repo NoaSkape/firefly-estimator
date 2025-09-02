@@ -209,10 +209,13 @@ app.use((req, _res, next) => {
   try {
     const host = req.headers.host || 'localhost'
     const url = new URL(req.url, `http://${host}`)
+    const pathname = url.pathname || ''
     const forwarded = req.headers['x-forwarded-uri'] || req.headers['x-original-uri']
-    if (typeof forwarded === 'string' && forwarded.startsWith('/')) {
+
+    // Only honor rewrites that target /api/index; never strip the /api prefix for other routes
+    if (typeof forwarded === 'string' && forwarded.startsWith('/api/index')) {
       req.url = forwarded
-    } else if (url.searchParams.has('path')) {
+    } else if ((pathname === '/api/index' || pathname === '/api/index/') && url.searchParams.has('path')) {
       const p = url.searchParams.get('path')
       if (p) req.url = p.startsWith('/') ? p : `/${p}`
     }
@@ -2764,17 +2767,38 @@ app.get(['/api/admin/blog/:id', '/admin/blog/:id'], async (req, res) => {
   }
 })
 
-// AI Content Generation Endpoint
-app.post('/ai/generate-content', async (req, res) => {
-  // Apply CORS headers for this endpoint
+// Diagnostic endpoint for AI route debugging
+app.all('/ai/test', (req, res) => {
+  res.json({
+    method: req.method,
+    path: req.path,
+    url: req.url,
+    headers: req.headers,
+    timestamp: new Date().toISOString(),
+    message: 'AI route test endpoint working'
+  })
+})
+
+// AI Content Generation Endpoint with comprehensive error handling
+app.options('/ai/generate-content', (req, res) => {
   applyCors(req, res, 'POST, OPTIONS')
-  
-  // Handle preflight OPTIONS request
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
-  }
-  
+  res.status(200).end()
+})
+
+app.post('/ai/generate-content', async (req, res) => {
   try {
+    // Apply CORS headers for this endpoint
+    applyCors(req, res, 'POST, OPTIONS')
+    
+    const debug = process.env.DEBUG_ADMIN === 'true'
+    if (debug) {
+      console.log('[DEBUG_ADMIN] AI endpoint hit:', {
+        method: req.method,
+        url: req.url,
+        headers: req.headers,
+        body: req.body
+      })
+    }
     const { topic, template, sections, type = 'full' } = req.body
     
     if (!topic) {
@@ -4942,3 +4966,15 @@ initializeAdminDatabase().catch(err => {
 
 // Vercel Node.js functions expect (req, res). Call Express directly.
 export default (req, res) => app(req, res)
+
+// Diagnostic endpoint for AI route debugging
+app.all('/ai/test', (req, res) => {
+  res.json({
+    method: req.method,
+    path: req.path,
+    url: req.url,
+    headers: req.headers,
+    timestamp: new Date().toISOString(),
+    message: 'AI route test endpoint working'
+  })
+})
