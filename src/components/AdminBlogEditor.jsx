@@ -100,6 +100,12 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
   // Template sections state
   const [activeSections, setActiveSections] = useState(post?.activeSections || getDefaultSections('story'))
 
+  // AI test state
+  const [aiTestMessage, setAiTestMessage] = useState('Hello AI')
+  const [aiTestLoading, setAiTestLoading] = useState(false)
+  const [aiTestResult, setAiTestResult] = useState('')
+  const [aiTestError, setAiTestError] = useState('')
+
   const categories = [
     'Buying Guides',
     'Design & Inspiration', 
@@ -300,6 +306,50 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
     alert('AI content generated successfully! Review and customize as needed.')
   }
 
+  const testAIConnection = async () => {
+    if (!aiTestMessage.trim()) {
+      setAiTestError('Please enter a test message')
+      return
+    }
+
+    try {
+      setAiTestLoading(true)
+      setAiTestError('')
+      setAiTestResult('')
+
+      // Simple test call to the AI endpoint
+      const response = await fetch('/ai/generate-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          topic: aiTestMessage,
+          template: 'story',
+          sections: ['introduction'],
+          type: 'section'
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(`HTTP ${response.status}: ${errorData.error || 'Failed to connect to AI service'}`)
+      }
+
+      const result = await response.json()
+      setAiTestResult(JSON.stringify(result, null, 2))
+      
+      if (debug) {
+        console.log('[DEBUG_ADMIN] AI test successful:', result)
+      }
+    } catch (error) {
+      console.error('AI test failed:', error)
+      setAiTestError(error.message)
+    } finally {
+      setAiTestLoading(false)
+    }
+  }
+
   const handleCTAsChange = (newCTAs) => {
     setPostData(prev => ({
       ...prev,
@@ -410,6 +460,40 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                   postData={postData}
                   setPostData={setPostData}
                 />
+              </div>
+
+              {/* Simple AI Test */}
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
+                <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">
+                  🧪 Simple AI Connection Test
+                </h4>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    placeholder="Enter a simple test message (e.g., 'Hello AI')"
+                    className="w-full p-2 border rounded text-sm"
+                    value={aiTestMessage}
+                    onChange={(e) => setAiTestMessage(e.target.value)}
+                  />
+                  <button
+                    onClick={testAIConnection}
+                    disabled={aiTestLoading}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 text-sm"
+                  >
+                    {aiTestLoading ? 'Testing...' : 'Test AI Connection'}
+                  </button>
+                  {aiTestResult && (
+                    <div className="mt-3 p-3 bg-gray-100 dark:bg-gray-700 rounded text-sm">
+                      <strong>AI Response:</strong>
+                      <pre className="whitespace-pre-wrap mt-1">{aiTestResult}</pre>
+                    </div>
+                  )}
+                  {aiTestError && (
+                    <div className="mt-3 p-3 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded text-sm">
+                      <strong>Error:</strong> {aiTestError}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Title */}
