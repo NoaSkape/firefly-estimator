@@ -24,6 +24,7 @@ const WhyOnline = lazy(() => import('./pages/how/WhyOnline'))
 const PortalOrders = lazy(() => import('./pages/portal/Orders'))
 const PortalDashboard = lazy(() => import('./pages/portal/Dashboard'))
 const AdminOrders = lazy(() => import('./pages/admin/Orders'))
+const AdminModels = lazy(() => import('./pages/admin/Models'))
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'))
 const AdminOverview = lazy(() => import('./pages/admin/AdminOverview'))
 const AdvancedReporting = lazy(() => import('./components/AdvancedReporting'))
@@ -388,6 +389,11 @@ function App() {
               <Route path="/admin/orders" element={
                 <ProtectedRoute requireAdmin={true}>
                   <AdminOrders />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/models" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminModels />
                 </ProtectedRoute>
               } />
               <Route path="/admin/dashboard" element={
