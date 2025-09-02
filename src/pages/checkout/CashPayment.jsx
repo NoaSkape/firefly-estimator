@@ -1171,6 +1171,10 @@ function ACHDetailsStep({ setupIntent, setupACH, saveACHMethod, checkBalance, se
           setProcessing={setProcessing}
           formatCurrency={formatCurrency}
           currentAmountCents={currentAmountCents}
+          setupError={setupError}
+          setSetupError={setSetupError}
+          resetAndRetry={resetAndRetry}
+          needsRefresh={needsRefresh}
         />
       </Elements>
     </div>
@@ -1195,7 +1199,11 @@ function ACHElementsForm({
   processing, 
   setProcessing,
   formatCurrency,
-  currentAmountCents
+  currentAmountCents,
+  setupError,
+  setSetupError,
+  resetAndRetry,
+  needsRefresh
 }) {
   const stripe = useStripe()
   const elements = useElements()
@@ -1259,7 +1267,7 @@ function ACHElementsForm({
         if (checkBalance) {
           // This would normally be done server-side via Financial Connections
           // For demo purposes, we'll simulate a balance check
-          console.log('💰 Balance check requested for account:', pm.payment_method?.us_bank_account)
+          console.log('💰 Balance check requested for account - balance verification would happen server-side')
         }
       } else {
         console.warn('⚠️ Setup Intent not completed:', confirmedSetupIntent.status)
