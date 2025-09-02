@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useUser, useAuth } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
 import { 
@@ -64,6 +64,38 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
     
     return defaults
   })
+
+  // Fetch post data for editing if we have a post ID but no full post data
+  useEffect(() => {
+    const fetchPostForEditing = async () => {
+      if (post?._id && !post.title) {
+        try {
+          const token = await getToken()
+          if (!token) return
+          
+          const response = await fetch(`/api/admin/blog/${post._id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+          
+          if (response.ok) {
+            const fetchedPost = await response.json()
+            setPostData(prev => ({
+              ...prev,
+              ...fetchedPost,
+              // Ensure publishDate is in correct format for input field
+              publishDate: fetchedPost.publishDate 
+                ? new Date(fetchedPost.publishDate).toISOString().split('T')[0]
+                : new Date().toISOString().split('T')[0]
+            }))
+          }
+        } catch (error) {
+          console.error('Failed to fetch post for editing:', error)
+        }
+      }
+    }
+    
+    fetchPostForEditing()
+  }, [post?._id, getToken])
   
   // Template sections state
   const [activeSections, setActiveSections] = useState(post?.activeSections || getDefaultSections('story'))
@@ -104,7 +136,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
       }
 
       const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
-      const url = post ? `/api/blog/${post._id || post.id}` : '/api/blog'
+      const url = post ? `/api/admin/blog/${post._id || post.id}` : '/api/blog'
       const method = post ? 'PUT' : 'POST'
 
       // Ensure publishDate is properly formatted for the API
