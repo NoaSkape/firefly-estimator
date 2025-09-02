@@ -47,15 +47,47 @@ router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async 
         previousStartDate = new Date(startDate.getTime() - (30 * 24 * 60 * 60 * 1000))
     }
 
-    // Get collections
-    const [ordersCollection, customersCollection, modelsCollection, usersCollection] = await Promise.all([
-      getCollection(COLLECTIONS.ORDERS),
-      getCollection(COLLECTIONS.CUSTOMERS),
-      getCollection(COLLECTIONS.MODELS),
-      getCollection(COLLECTIONS.USERS)
-    ])
+    // Get collections with error handling
+    let ordersCollection, customersCollection, modelsCollection, usersCollection
+    try {
+      [ordersCollection, customersCollection, modelsCollection, usersCollection] = await Promise.all([
+        getCollection(COLLECTIONS.ORDERS),
+        getCollection(COLLECTIONS.CUSTOMERS),
+        getCollection(COLLECTIONS.MODELS),
+        getCollection(COLLECTIONS.USERS)
+      ])
+    } catch (dbError) {
+      console.error('Database connection error:', dbError)
+      // Return basic response if database fails
+      return res.json({
+        success: true,
+        data: {
+          metrics: {
+            totalUsers: 0,
+            activeBuilds: 0,
+            totalOrders: 0,
+            totalRevenue: 0
+          },
+          trends: {
+            dailyRevenue: [],
+            orderStatus: { confirmed: 0, production: 0, ready: 0, delivered: 0 },
+            customerSources: { website: 0, referral: 0, advertising: 0 },
+            topModels: []
+          },
+          recentActivity: [],
+          summary: {
+            previousPeriod: {
+              totalUsers: 0,
+              activeBuilds: 0,
+              totalOrders: 0,
+              totalRevenue: 0
+            }
+          }
+        }
+      })
+    }
 
-    // Get Clerk users (total count and recent signups)
+    // Get Clerk users (total count and recent signups) with error handling
     let clerkUsers = []
     let totalClerkUsers = 0
     try {
@@ -63,127 +95,186 @@ router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async 
         limit: 1000 // Get up to 1000 users
       })
       clerkUsers = clerkResponse.data || []
-      totalClerkUsers = clerkResponse.total_count || 0
+      totalClerkUsers = clerkResponse.totalCount || clerkResponse.total_count || 0
     } catch (clerkError) {
       console.warn('Could not fetch Clerk users:', clerkError.message)
     }
 
-    // Get local MongoDB users
-    const localUsers = await usersCollection.find({}).toArray()
-    const totalLocalUsers = localUsers.length
+    // Get local MongoDB users with error handling
+    let localUsers = []
+    let totalLocalUsers = 0
+    try {
+      localUsers = await usersCollection.find({}).toArray()
+      totalLocalUsers = localUsers.length
+    } catch (usersError) {
+      console.warn('Could not fetch local users:', usersError.message)
+    }
 
     // Calculate total users (Clerk + Local)
     const totalUsers = totalClerkUsers + totalLocalUsers
 
-    // Get active builds (orders in production stages)
-    const activeBuilds = await ordersCollection.countDocuments({
-      status: { $in: ['confirmed', 'production', 'ready'] },
-      stage: { $in: ['design', 'production', 'quality'] }
-    })
+    // Get active builds (orders in production stages) with error handling
+    let activeBuilds = 0
+    try {
+      activeBuilds = await ordersCollection.countDocuments({
+        status: { $in: ['confirmed', 'production', 'ready'] },
+        stage: { $in: ['design', 'production', 'quality'] }
+      })
+    } catch (buildsError) {
+      console.warn('Could not fetch active builds:', buildsError.message)
+    }
 
-    // Get total orders (paid orders only)
-    const totalOrders = await ordersCollection.countDocuments({
-      status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
-    })
-
-    // Get total revenue from paid orders
-    const revenueData = await ordersCollection.aggregate([
-      { $match: { 
+    // Get total orders (paid orders only) with error handling
+    let totalOrders = 0
+    try {
+      totalOrders = await ordersCollection.countDocuments({
         status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
-      }},
-      { $group: { _id: null, total: { $sum: '$totalAmount' } }}
-    ]).toArray()
-    
-    const totalRevenue = revenueData[0]?.total || 0
+      })
+    } catch (ordersError) {
+      console.warn('Could not fetch total orders:', ordersError.message)
+    }
 
-    // Get daily revenue trend for the selected period
-    const dailyRevenue = await ordersCollection.aggregate([
-      { $match: { 
-        status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] },
-        createdAt: { $gte: startDate }
-      }},
-      { $group: { 
-        _id: { 
-          date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }
-        },
-        total: { $sum: '$totalAmount' },
-        count: { $sum: 1 }
-      }},
-      { $sort: { '_id.date': 1 } }
-    ]).toArray()
+    // Get total revenue from paid orders with error handling
+    let totalRevenue = 0
+    try {
+      const revenueData = await ordersCollection.aggregate([
+        { $match: { 
+          status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
+        }},
+        { $group: { _id: null, total: { $sum: '$totalAmount' } }}
+      ]).toArray()
+      
+      totalRevenue = revenueData[0]?.total || 0
+    } catch (revenueError) {
+      console.warn('Could not fetch revenue data:', revenueError.message)
+    }
 
-    // Get previous period data for comparison
-    const previousRevenueData = await ordersCollection.aggregate([
-      { $match: { 
-        status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] },
-        createdAt: { $gte: previousStartDate, $lt: startDate }
-      }},
-      { $group: { _id: null, total: { $sum: '$totalAmount' } }}
-    ]).toArray()
-    
-    const previousRevenue = previousRevenueData[0]?.total || 0
-    const revenueChange = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 0
+    // Get daily revenue trend for the selected period with error handling
+    let dailyRevenue = []
+    try {
+      dailyRevenue = await ordersCollection.aggregate([
+        { $match: { 
+          status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] },
+          createdAt: { $gte: startDate }
+        }},
+        { $group: { 
+          _id: { 
+            date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }
+          },
+          total: { $sum: '$totalAmount' },
+          count: { $sum: 1 }
+        }},
+        { $sort: { '_id.date': 1 } }
+      ]).toArray()
+    } catch (dailyRevenueError) {
+      console.warn('Could not fetch daily revenue:', dailyRevenueError.message)
+    }
 
-    // Get order status distribution
-    const orderStatusDistribution = await ordersCollection.aggregate([
-      { $group: { 
-        _id: '$status',
-        count: { $sum: 1 },
-        total: { $sum: '$totalAmount' }
-      }},
-      { $sort: { count: -1 } }
-    ]).toArray()
+    // Get previous period data for comparison with error handling
+    let previousRevenue = 0
+    let revenueChange = 0
+    try {
+      const previousRevenueData = await ordersCollection.aggregate([
+        { $match: { 
+          status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] },
+          createdAt: { $gte: previousStartDate, $lt: startDate }
+        }},
+        { $group: { _id: null, total: { $sum: '$totalAmount' } }}
+      ]).toArray()
+      
+      previousRevenue = previousRevenueData[0]?.total || 0
+      revenueChange = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 0
+    } catch (prevRevenueError) {
+      console.warn('Could not fetch previous revenue:', prevRevenueError.message)
+    }
 
-    // Get customer acquisition sources
-    const customerSources = await customersCollection.aggregate([
-      { $group: { 
-        _id: '$source',
-        count: { $sum: 1 }
-      }},
-      { $sort: { count: -1 } }
-    ]).toArray()
+    // Get order status distribution with error handling
+    let orderStatusDistribution = []
+    try {
+      orderStatusDistribution = await ordersCollection.aggregate([
+        { $group: { 
+          _id: '$status',
+          count: { $sum: 1 },
+          total: { $sum: '$totalAmount' }
+        }},
+        { $sort: { count: -1 } }
+      ]).toArray()
+    } catch (statusError) {
+      console.warn('Could not fetch order status distribution:', statusError.message)
+    }
 
-    // Get recent activity
-    const recentOrders = await ordersCollection.find({})
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .toArray()
+    // Get customer acquisition sources with error handling
+    let customerSources = []
+    try {
+      customerSources = await customersCollection.aggregate([
+        { $group: { 
+          _id: '$source',
+          count: { $sum: 1 }
+        }},
+        { $sort: { count: -1 } }
+      ]).toArray()
+    } catch (sourcesError) {
+      console.warn('Could not fetch customer sources:', sourcesError.message)
+    }
 
-    const recentCustomers = await customersCollection.find({})
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .toArray()
+    // Get recent activity with error handling
+    let recentOrders = []
+    let recentCustomers = []
+    try {
+      recentOrders = await ordersCollection.find({})
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .toArray()
+    } catch (recentOrdersError) {
+      console.warn('Could not fetch recent orders:', recentOrdersError.message)
+    }
 
-    // Get top models by orders
-    const topModels = await ordersCollection.aggregate([
-      { $match: { 
-        status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
-      }},
-      { $group: { 
-        _id: '$modelId',
-        orderCount: { $sum: 1 },
-        totalRevenue: { $sum: '$totalAmount' }
-      }},
-      { $sort: { orderCount: -1 } },
-      { $limit: 5 }
-    ]).toArray()
+    try {
+      recentCustomers = await customersCollection.find({})
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .toArray()
+    } catch (recentCustomersError) {
+      console.warn('Could not fetch recent customers:', recentCustomersError.message)
+    }
 
-    // Get model details for top models
-    const modelIds = topModels.map(item => item._id)
-    const models = await modelsCollection.find({ _id: { $in: modelIds } }).toArray()
-    const modelMap = models.reduce((acc, model) => {
-      acc[model._id] = model
-      return acc
-    }, {})
+    // Get top models by orders with error handling
+    let formattedTopModels = []
+    try {
+      const topModels = await ordersCollection.aggregate([
+        { $match: { 
+          status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
+        }},
+        { $group: { 
+          _id: '$modelId',
+          orderCount: { $sum: 1 },
+          totalRevenue: { $sum: '$totalAmount' }
+        }},
+        { $sort: { orderCount: -1 } },
+        { $limit: 5 }
+      ]).toArray()
 
-    // Format top models data
-    const formattedTopModels = topModels.map(item => ({
-      modelId: item._id,
-      modelName: modelMap[item._id]?.name || 'Unknown Model',
-      orderCount: item.orderCount,
-      totalRevenue: item.totalRevenue,
-      averageOrder: item.totalRevenue / item.orderCount
-    }))
+      // Get model details for top models
+      if (topModels.length > 0) {
+        const modelIds = topModels.map(item => item._id).filter(Boolean)
+        const models = modelIds.length > 0 ? await modelsCollection.find({ _id: { $in: modelIds } }).toArray() : []
+        const modelMap = models.reduce((acc, model) => {
+          acc[model._id] = model
+          return acc
+        }, {})
+
+        // Format top models data
+        formattedTopModels = topModels.map(item => ({
+          modelId: item._id,
+          modelName: modelMap[item._id]?.name || 'Unknown Model',
+          orderCount: item.orderCount,
+          totalRevenue: item.totalRevenue,
+          averageOrder: item.orderCount > 0 ? item.totalRevenue / item.orderCount : 0
+        }))
+      }
+    } catch (topModelsError) {
+      console.warn('Could not fetch top models:', topModelsError.message)
+    }
 
     res.json({
       success: true,
