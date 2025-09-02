@@ -285,17 +285,19 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
   }
 
   const handleContentGenerated = (generatedContent) => {
+    // Update post data with AI-generated content
     setPostData(prev => ({
       ...prev,
-      title: generatedContent.title,
-      content: generatedContent.content,
-      metaDescription: generatedContent.metaDescription,
-      tags: generatedContent.tags,
-      category: generatedContent.category
+      title: generatedContent.title || prev.title,
+      content: generatedContent.content || prev.content,
+      metaDescription: generatedContent.metaDescription || prev.metaDescription,
+      tags: generatedContent.tags || prev.tags,
+      category: generatedContent.category || prev.category,
+      slug: generatedContent.slug || prev.slug
     }))
     
-    // Switch to content tab to review and edit
-    setActiveTab('content')
+    // Show success message
+    alert('AI content generated successfully! Review and customize as needed.')
   }
 
   const handleCTAsChange = (newCTAs) => {
@@ -403,9 +405,10 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                   <BoltIcon className="w-5 h-5 inline mr-2 text-yellow-600" />
                   Quick Content Creator
                 </h3>
-                <QuickContentCreator
+                <QuickContentCreator 
                   onContentGenerated={handleContentGenerated}
-                  templateId={postData.template}
+                  postData={postData}
+                  setPostData={setPostData}
                 />
               </div>
 

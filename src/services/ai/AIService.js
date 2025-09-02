@@ -1,5 +1,3 @@
-import { getToken } from '@clerk/clerk-react'
-
 class AIService {
   constructor() {
     this.baseURL = import.meta.env.VITE_AI_API_URL || 'https://api.anthropic.com/v1'
@@ -9,11 +7,13 @@ class AIService {
   }
 
   // Initialize AI service with authentication
-  async initialize() {
+  async initialize(getToken) {
     try {
-      const token = await getToken()
-      if (!token) {
-        throw new Error('Authentication required')
+      if (getToken) {
+        const token = await getToken()
+        if (!token) {
+          throw new Error('Authentication required')
+        }
       }
       return true
     } catch (error) {
@@ -93,6 +93,133 @@ class AIService {
       console.error('AI content generation failed:', error)
       throw error
     }
+  }
+
+  // Generate specific section content
+  async generateSectionContent(topic, template, sectionKey, customPrompt = '') {
+    try {
+      const sectionPrompt = this.buildSectionPrompt(topic, template, sectionKey, customPrompt)
+      
+      const isClaude = this.baseURL.includes('anthropic.com')
+      
+      if (isClaude) {
+        const response = await fetch(`${this.baseURL}/messages`, {
+          method: 'POST',
+          headers: {
+            'x-api-key': this.apiKey,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: this.model,
+            max_tokens: 1000,
+            messages: [
+              {
+                role: 'user',
+                content: `${this.getSystemPrompt()}\n\n${sectionPrompt}`
+              }
+            ]
+          })
+        })
+
+        if (!response.ok) {
+          throw new Error(`Claude API error: ${response.status}`)
+        }
+
+        const data = await response.json()
+        return this.parseSectionResponse(data, sectionKey)
+      } else {
+        const response = await fetch(`${this.baseURL}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: this.model,
+            messages: [
+              {
+                role: 'system',
+                content: this.getSystemPrompt()
+              },
+              {
+                role: 'user',
+                content: sectionPrompt
+              }
+            ],
+            max_tokens: 1000,
+            temperature: 0.7
+          })
+        })
+
+        if (!response.ok) {
+          throw new Error(`OpenAI API error: ${response.status}`)
+        }
+
+        const data = await response.json()
+        return this.parseSectionResponse(data, sectionKey)
+      }
+    } catch (error) {
+      console.error('Section content generation failed:', error)
+      throw error
+    }
+  }
+
+  // Build prompt for specific section
+  buildSectionPrompt(topic, template, sectionKey, customPrompt = '') {
+    const sectionInfo = this.getSectionInfo(sectionKey)
+    const templateInfo = this.getTemplateInfo(template)
+    
+    return `
+Write a ${sectionInfo.label} section for a blog post about: "${topic}"
+
+Template Style: ${templateInfo.name}
+Section Purpose: ${sectionInfo.description}
+
+${customPrompt ? `Custom Instructions: ${customPrompt}` : ''}
+
+Requirements:
+- Write in a conversational, expert tone
+- Include specific examples and actionable tips
+- Optimize for SEO with relevant keywords
+- Include local Texas references when relevant
+- Make it engaging for tiny home enthusiasts
+- Word count: 150-300 words for this section
+- Use proper HTML formatting (paragraphs, lists, etc.)
+
+Please provide just the section content in HTML format, no additional formatting needed.
+    `.trim()
+  }
+
+  // Get section information
+  getSectionInfo(sectionKey) {
+    const sections = {
+      'introduction': {
+        label: 'Introduction',
+        description: 'Hook readers with an engaging opening that sets the stage for the topic'
+      },
+      'keyBenefits': {
+        label: 'Key Benefits',
+        description: 'List and explain the main advantages and positive aspects'
+      },
+      'personalStory': {
+        label: 'Personal Story',
+        description: 'Share a relevant personal experience or customer story'
+      },
+      'proTips': {
+        label: 'Pro Tips',
+        description: 'Provide expert advice and actionable tips'
+      },
+      'comparison': {
+        label: 'Comparison',
+        description: 'Compare different options, approaches, or perspectives'
+      },
+      'conclusion': {
+        label: 'Conclusion',
+        description: 'Wrap up with a compelling call-to-action and summary'
+      }
+    }
+    return sections[sectionKey] || sections['introduction']
   }
 
   // Build intelligent prompt for blog generation
@@ -214,6 +341,22 @@ Always include specific examples, real scenarios, and actionable advice. Make co
     } catch (error) {
       console.error('Failed to parse AI content:', error)
       throw new Error('Failed to parse AI-generated content')
+    }
+  }
+
+  // Parse section response into structured content
+  parseSectionResponse(data, sectionKey) {
+    try {
+      const content = data.content?.[0]?.text || ''
+      return {
+        sectionKey: sectionKey,
+        content: content,
+        aiGenerated: true,
+        generatedAt: new Date().toISOString()
+      }
+    } catch (error) {
+      console.error('Failed to parse section response:', error)
+      throw new Error('Failed to parse section-generated content')
     }
   }
 
