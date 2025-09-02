@@ -2766,6 +2766,9 @@ app.get(['/api/admin/blog/:id', '/admin/blog/:id'], async (req, res) => {
 
 // AI Content Generation Endpoint
 app.post('/ai/generate-content', async (req, res) => {
+  // Apply CORS headers
+  applyCors(req, res, 'POST, OPTIONS')
+  
   try {
     const { topic, template, sections, type = 'full' } = req.body
     
