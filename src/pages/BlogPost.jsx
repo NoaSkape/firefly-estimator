@@ -90,8 +90,8 @@ export default function BlogPost() {
     return {
       "@context": "https://schema.org",
       "@type": "BlogPosting",
-      "headline": post.title,
-      "description": post.metaDescription || post.excerpt,
+      "headline": post.title || 'Blog Post',
+      "description": post.metaDescription || post.excerpt || 'Discover amazing tiny home stories and insights from Firefly Tiny Homes.',
       "image": post.featuredImage?.url,
       "author": {
         "@type": "Organization",
@@ -112,7 +112,7 @@ export default function BlogPost() {
         "@type": "WebPage",
         "@id": `https://fireflyestimator.com/blog/${post.slug}`
       },
-      "keywords": post.tags?.join(', '),
+      "keywords": post.tags?.join(', ') || 'tiny homes, park models, firefly',
       "articleSection": post.category
     }
   }
@@ -128,7 +128,7 @@ export default function BlogPost() {
                 <div className="relative h-96 mb-8 rounded-2xl overflow-hidden">
                   <img 
                     src={post.featuredImage.url} 
-                    alt={post.title}
+                    alt={post.title || 'Blog post image'}
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
@@ -139,7 +139,7 @@ export default function BlogPost() {
                   {post.category}
                 </div>
                 <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-gray-100 mb-6 leading-tight">
-                  {post.title}
+                  {post.title || 'Blog Post'}
                 </h1>
                 <p className="text-xl text-gray-600 dark:text-gray-300 mb-6 max-w-3xl mx-auto">
                   {post.excerpt}
@@ -189,14 +189,14 @@ export default function BlogPost() {
               </div>
               
               <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-                {post.title}
+                {post.title || 'Blog Post'}
               </h1>
               
               {post.featuredImage?.url && (
                 <div className="relative h-80 mb-8 rounded-xl overflow-hidden">
                   <img 
                     src={post.featuredImage.url} 
-                    alt={post.title}
+                    alt={post.title || 'Blog post image'}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -238,7 +238,7 @@ export default function BlogPost() {
                 <div className="absolute inset-0 h-96 rounded-2xl overflow-hidden">
                   <img 
                     src={post.featuredImage.url} 
-                    alt={post.title}
+                    alt={post.title || 'Blog post image'}
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
@@ -251,7 +251,7 @@ export default function BlogPost() {
                     {post.category}
                   </div>
                   <h1 className="text-4xl md:text-5xl font-bold mb-4">
-                    {post.title}
+                    {post.title || 'Blog Post'}
                   </h1>
                   <p className="text-xl text-gray-200 max-w-2xl">
                     {post.excerpt}
@@ -286,7 +286,7 @@ export default function BlogPost() {
       default:
         return (
           <article className="max-w-4xl mx-auto px-4 py-8">
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">{post.title}</h1>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">{post.title || 'Blog Post'}</h1>
             <div className="prose prose-lg max-w-none dark:prose-invert">
               <div dangerouslySetInnerHTML={{ __html: post.content }} />
             </div>
@@ -298,14 +298,14 @@ export default function BlogPost() {
   return (
     <>
       <Helmet>
-        <title>{post.title} | Firefly Tiny Homes Blog</title>
-        <meta name="description" content={post.metaDescription || post.excerpt} />
-        <meta name="keywords" content={post.tags?.join(', ')} />
+        <title>{post.title || 'Blog Post'} | Firefly Tiny Homes Blog</title>
+        <meta name="description" content={post.metaDescription || post.excerpt || 'Discover amazing tiny home stories and insights from Firefly Tiny Homes.'} />
+        <meta name="keywords" content={post.tags?.join(', ') || 'tiny homes, park models, firefly'} />
         <link rel="canonical" href={`https://fireflyestimator.com/blog/${post.slug}`} />
         
         {/* Open Graph */}
-        <meta property="og:title" content={post.title} />
-        <meta property="og:description" content={post.metaDescription || post.excerpt} />
+        <meta property="og:title" content={post.title || 'Blog Post'} />
+        <meta property="og:description" content={post.metaDescription || post.excerpt || 'Discover amazing tiny home stories and insights from Firefly Tiny Homes.'} />
         <meta property="og:type" content="article" />
         <meta property="og:url" content={`https://fireflyestimator.com/blog/${post.slug}`} />
         <meta property="og:image" content={post.featuredImage?.url} />
@@ -319,8 +319,8 @@ export default function BlogPost() {
         
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={post.title} />
-        <meta name="twitter:description" content={post.metaDescription || post.excerpt} />
+        <meta name="twitter:title" content={post.title || 'Blog Post'} />
+        <meta name="twitter:description" content={post.metaDescription || post.excerpt || 'Discover amazing tiny home stories and insights from Firefly Tiny Homes.'} />
         <meta name="twitter:image" content={post.featuredImage?.url} />
         
         {/* Additional SEO */}

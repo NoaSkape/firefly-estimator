@@ -92,11 +92,14 @@ router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async 
     let clerkUsers = []
     let totalClerkUsers = 0
     try {
+      const debug = process.env.DEBUG_ADMIN === 'true'
       const clerkResponse = await clerkClient.users.getUserList({
         limit: 1000 // Get up to 1000 users
       })
       clerkUsers = clerkResponse.data || []
       totalClerkUsers = clerkResponse.totalCount || clerkResponse.total_count || 0
+      
+      if (debug) console.log('[DEBUG_ADMIN] Clerk users found:', totalClerkUsers)
     } catch (clerkError) {
       console.warn('Could not fetch Clerk users:', clerkError.message)
     }
@@ -107,9 +110,21 @@ router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async 
     // Get active builds from the Builds collection with error handling
     let activeBuilds = 0
     try {
+      const debug = process.env.DEBUG_ADMIN === 'true'
+      
+      // Debug: Check total documents in collection
+      const totalBuilds = await buildsCollection.countDocuments({})
+      if (debug) console.log('[DEBUG_ADMIN] Total builds in collection:', totalBuilds)
+      
+      // Debug: Check what statuses exist
+      const statusTypes = await buildsCollection.distinct('status')
+      if (debug) console.log('[DEBUG_ADMIN] Status types found:', statusTypes)
+      
       activeBuilds = await buildsCollection.countDocuments({
         status: { $in: ['DRAFT', 'REVIEW', 'CONFIRMED'] }
       })
+      
+      if (debug) console.log('[DEBUG_ADMIN] Active builds count:', activeBuilds)
     } catch (buildsError) {
       console.warn('Could not fetch active builds:', buildsError.message)
     }
