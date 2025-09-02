@@ -131,15 +131,18 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
         return
       }
 
-      // Debug logging
-      if (debug) {
-        console.log('[DEBUG_ADMIN] Saving blog post', {
-          isEdit: !!post,
-          postId: post?._id || post?.id,
-          postData: postData,
-          url: post ? `/api/blog/${post._id || post.id}` : '/api/blog'
-        })
-      }
+      // Debug logging - ALWAYS log saves
+      console.log('[BLOG_SAVE] Starting blog post save', {
+        isEdit: !!post,
+        postId: post?._id || post?.id,
+        title: postData.title,
+        status: postData.status,
+        hasToken: !!token,
+        tokenLength: token?.length,
+        url: post ? `/api/admin/blog/${post._id || post.id}` : '/api/blog',
+        method: post ? 'PUT' : 'POST',
+        dataKeys: Object.keys(postData)
+      })
 
       const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
       const url = post ? `/api/admin/blog/${post._id || post.id}` : '/api/blog'
@@ -151,26 +154,46 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
         publishDate: postData.publishDate ? new Date(postData.publishDate).toISOString() : new Date().toISOString()
       }
 
+      console.log('[BLOG_SAVE] Making API call', { url, method, bodySize: JSON.stringify(dataToSend).length })
+      
       const response = await fetch(url, {
         method,
         headers,
         body: JSON.stringify(dataToSend)
       })
 
+      console.log('[BLOG_SAVE] API response received', { 
+        status: response.status, 
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }))
-        console.error('[DEBUG_ADMIN] API error response:', {
+        const errorText = await response.text()
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          errorData = { message: errorText || 'Unknown error' }
+        }
+        
+        console.error('[BLOG_SAVE] API error response:', {
           status: response.status,
           statusText: response.statusText,
-          errorData
+          errorData,
+          errorText
         })
         throw new Error(errorData.message || `HTTP ${response.status}: Failed to save blog post`)
       }
 
       const savedPost = await response.json()
-      if (debug) {
-        console.log('[DEBUG_ADMIN] Blog post saved', { id: savedPost.id, title: savedPost.title })
-      }
+      console.log('[BLOG_SAVE] Blog post saved successfully', { 
+        id: savedPost.id || savedPost._id, 
+        title: savedPost.title,
+        status: savedPost.status,
+        slug: savedPost.slug
+      })
 
       onSaved(savedPost)
     } catch (error) {

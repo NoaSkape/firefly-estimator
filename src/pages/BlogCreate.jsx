@@ -770,9 +770,20 @@ export default function BlogCreate() {
   // }, [autoCreateIndex, navigate, getToken])
 
   const handleSaved = (savedPost) => {
+    console.log('[BLOG_CREATE] onSaved called', {
+      savedPost: {
+        id: savedPost.id || savedPost._id,
+        title: savedPost.title,
+        status: savedPost.status,
+        slug: savedPost.slug
+      }
+    })
+    
     if (savedPost.status === 'published') {
+      console.log('[BLOG_CREATE] Navigating to published post:', `/blog/${savedPost.slug}`)
       navigate(`/blog/${savedPost.slug}`)
     } else {
+      console.log('[BLOG_CREATE] Navigating to blog home for draft post')
       navigate('/blog')
     }
   }
