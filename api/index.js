@@ -4396,7 +4396,7 @@ app.post(['/api/payments/process-card', '/payments/process-card'], async (req, r
 
 // Import and mount admin router
 import adminRouter from './admin/index.js'
-app.use('/api/admin', adminRouter)
+app.use('/admin', adminRouter)
 
 // Fallback to JSON 404 to avoid hanging requests
 app.use((req, res) => {

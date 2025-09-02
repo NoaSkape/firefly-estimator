@@ -11,6 +11,11 @@ export { default as InteractivePreview } from './InteractivePreview'
 export { default as EngagementTracker } from './EngagementTracker'
 export { default as MicroInteractions } from './MicroInteractions'
 
+// Export drag-and-drop components
+export { default as DragDropSectionManager } from './DragDropSectionManager'
+export { default as TouchDragDrop } from './TouchDragDrop'
+export { default as VisualDragInterface } from './VisualDragInterface'
+
 // Export micro-interaction components
 export { 
   AnimatedSection, 

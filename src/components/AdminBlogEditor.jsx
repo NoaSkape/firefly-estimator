@@ -13,7 +13,7 @@ import {
   CheckIcon
 } from '@heroicons/react/24/outline'
 import TemplateRenderer from './blog-templates/TemplateRenderer'
-import SectionManager from './blog-templates/SectionManager'
+import DragDropSectionManager from './blog-templates/DragDropSectionManager'
 import { TEMPLATE_REGISTRY, getDefaultSections } from './blog-templates/TemplateRegistry'
 import InteractivePreview from './blog-templates/InteractivePreview'
 import EngagementTracker from './blog-templates/EngagementTracker'
