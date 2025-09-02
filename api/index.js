@@ -4655,20 +4655,16 @@ if (adminRouter) {
   })
 }
 
-// Fallback to JSON 404 to avoid hanging requests
-app.use((req, res) => {
-  const debug = process.env.DEBUG_ADMIN === 'true'
-  if (debug) console.log('[DEBUG_ADMIN] 404', { method: req.method, url: req.url })
-  res.status(404).json({ error: 'not_found', url: req.url })
-})
-
-// Initialize admin database collections and indexes
-initializeAdminDatabase().catch(err => {
-  console.error('Failed to initialize admin database:', err)
-})
-
 // AI Content Generation Endpoint
-app.post('/api/ai/generate-content', async (req, res) => {
+app.post('/ai/generate-content', async (req, res) => {
+  // Apply CORS headers for this endpoint
+  applyCors(req, res, 'POST, OPTIONS')
+  
+  // Handle preflight OPTIONS request
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end()
+  }
+  
   try {
     const { topic, template, sections, type = 'full' } = req.body
     
@@ -4925,6 +4921,20 @@ function generateSlug(text) {
     .replace(/-+/g, '-')
     .trim('-')
 }
+
+// Fallback to JSON 404 to avoid hanging requests
+app.use((req, res) => {
+  const debug = process.env.DEBUG_ADMIN === 'true'
+  if (debug) console.log('[DEBUG_ADMIN] 404', { method: req.method, url: req.url })
+  res.status(404).json({ error: 'not_found', url: req.url })
+})
+
+// Initialize admin database collections and indexes
+initializeAdminDatabase().catch(err => {
+  console.error('Failed to initialize admin database:', err)
+})
+
+
 
 // Vercel Node.js functions expect (req, res). Call Express directly.
 export default (req, res) => app(req, res)
