@@ -41,6 +41,7 @@
     "express": "^4.19.2",
     "html2canvas": "^1.4.1",
     "html2pdf.js": "^0.10.1",
+    "isomorphic-dompurify": "^2.26.0",
     "jspdf": "^3.0.1",
     "mongodb": "^6.18.0",
     "papaparse": "^5.4.1",

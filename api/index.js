@@ -27,11 +27,69 @@ import {
   getAutoFillData 
 } from '../lib/user-profile.js'
 import { z } from 'zod'
+import { createRateLimiter } from '../lib/rateLimiter.js'
+import { validateRequest } from '../lib/requestValidation.js'
 // import { Webhook } from 'svix' // Temporarily disabled - causing deployment crashes
 
 const app = express()
+
+// Security headers and middleware
 app.disable('x-powered-by')
 app.use(express.json({ limit: '2mb' }))
+
+// Security headers middleware
+app.use((req, res, next) => {
+  // Content Security Policy
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://checkout.stripe.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "img-src 'self' data: blob: https: https://images.unsplash.com https://res.cloudinary.com",
+    "connect-src 'self' https://api.stripe.com https://hooks.stripe.com https://api.openai.com",
+    "frame-src https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+    "form-action 'self' https://checkout.stripe.com",
+    "upgrade-insecure-requests"
+  ].join('; '))
+  
+  // HTTP Strict Transport Security
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
+  
+  // X-Frame-Options
+  res.setHeader('X-Frame-Options', 'DENY')
+  
+  // X-Content-Type-Options
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  
+  // Referrer Policy
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+  
+  // Permissions Policy
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(self)')
+  
+  // X-XSS-Protection (for older browsers)
+  res.setHeader('X-XSS-Protection', '1; mode=block')
+  
+  next()
+})
+
+// Rate limiting
+const apiRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  maxRequests: 100, // 100 requests per 15 minutes
+  keyGenerator: (req) => req.user?.id || req.ip // User ID if authenticated, IP otherwise
+})
+
+const authRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  maxRequests: 5, // 5 authentication attempts per 15 minutes
+  keyGenerator: (req) => req.ip
+})
+
+// Apply rate limiting to all routes
+app.use('/api/', apiRateLimiter)
+app.use('/api/auth/', authRateLimiter)
 
 // Stripe
 const stripeSecret = process.env.STRIPE_SECRET_KEY

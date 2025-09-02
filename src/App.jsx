@@ -70,6 +70,8 @@ import { useGlobalAuthErrorInterceptor } from './components/AuthErrorHandler'
 import { useScrollToTop } from './hooks/useScrollToTop'
 import CustomizationMigration from './components/CustomizationMigration'
 import PerformanceMonitor from './components/PerformanceMonitor'
+import CookieConsentBanner from './components/CookieConsentBanner'
+import SecurityAuditReport from './components/SecurityAuditReport'
 
 import './utils/performance' // Initialize performance monitoring
 import './utils/accessibility' // Initialize accessibility features
@@ -237,6 +239,7 @@ function App() {
         <Router>
           <ScrollToTop />
           <PerformanceMonitor />
+          <CookieConsentBanner />
           <div className="min-h-screen flex flex-col transition-colors duration-300" data-app-container>
             {/* Skip links for accessibility */}
             <a href="#main-content" className="skip-link sr-only-focusable">
@@ -401,6 +404,11 @@ function App() {
               <Route path="/admin/analytics" element={
                 <ProtectedRoute requireAdmin={true}>
                   <AnalyticsDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/security-audit" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <SecurityAuditReport />
                 </ProtectedRoute>
               } />
               <Route path="/faq" element={<FAQPage />} />
