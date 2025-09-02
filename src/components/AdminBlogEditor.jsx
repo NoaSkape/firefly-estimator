@@ -30,7 +30,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
     content: '',
     category: '',
     template: 'story', // story, educational, inspiration
-    featuredImage: '',
+    featuredImage: null,
     slug: '',
     metaDescription: '',
     tags: [],
@@ -134,8 +134,8 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
-          folder: 'blog-images',
-          tags: 'blog-featured'
+          subfolder: 'blog-images',
+          tags: ['blog-featured']
         })
       })
 
@@ -163,9 +163,14 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
         console.log('[DEBUG_ADMIN] Upload result', { publicId: uploadResult.public_id, url: uploadResult.secure_url })
       }
 
+      // Store image as an object with both URL and publicId for consistency
       setPostData(prev => ({
         ...prev,
-        featuredImage: uploadResult.secure_url
+        featuredImage: {
+          url: uploadResult.secure_url,
+          publicId: uploadResult.public_id,
+          alt: `Featured image for ${prev.title || 'blog post'}`
+        }
       }))
     } catch (error) {
       console.error('Error uploading image:', error)
@@ -331,12 +336,12 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                   {postData.featuredImage && (
                     <div className="relative">
                       <img 
-                        src={postData.featuredImage} 
-                        alt="Featured" 
+                        src={typeof postData.featuredImage === 'string' ? postData.featuredImage : postData.featuredImage.url} 
+                        alt={typeof postData.featuredImage === 'string' ? 'Featured' : postData.featuredImage.alt} 
                         className="w-full max-w-md h-48 object-cover rounded-lg"
                       />
                       <button
-                        onClick={() => setPostData(prev => ({ ...prev, featuredImage: '' }))}
+                        onClick={() => setPostData(prev => ({ ...prev, featuredImage: null }))}
                         className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
                       >
                         ×
@@ -510,8 +515,8 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                 )}
                 {postData.featuredImage && (
                   <img 
-                    src={postData.featuredImage} 
-                    alt="Featured" 
+                    src={typeof postData.featuredImage === 'string' ? postData.featuredImage : postData.featuredImage.url} 
+                    alt={typeof postData.featuredImage === 'string' ? 'Featured' : postData.featuredImage.alt} 
                     className="w-full h-64 object-cover rounded-lg mb-6"
                   />
                 )}

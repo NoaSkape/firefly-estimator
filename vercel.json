@@ -3,5 +3,15 @@
     { "source": "/checkout/create-checkout-session", "destination": "/api/checkout/create-checkout-session" },
     { "source": "/api/(.*)", "destination": "/api/index?path=/$1" },
     { "source": "/((?!assets|static|favicon|manifest|sw\\.js|robots\\.txt|sitemap\\.xml).*)", "destination": "/" }
-  ]
+  ],
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "nodejs22.x"
+    }
+  },
+  "build": {
+    "env": {
+      "NODE_VERSION": "22.x"
+    }
+  }
 }

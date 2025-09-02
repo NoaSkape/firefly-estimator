@@ -1,0 +1,28 @@
+# Python files
+*.py
+requirements.txt
+*.pyc
+__pycache__/
+
+# Node modules (already handled by Vercel)
+node_modules/
+
+# Environment files
+.env.local
+.env.production
+
+# Build artifacts
+dist/
+build/
+
+# Test files
+test/
+tests/
+*.test.js
+*.spec.js
+
+# Development files
+backend/dev-server.js
+backend/server.cjs
+backend/test-db.cjs
+scripts/
