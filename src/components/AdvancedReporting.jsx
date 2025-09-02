@@ -1,61 +1,85 @@
-import React, { useState, useEffect } from 'react'
-import { useUser } from '@clerk/clerk-react'
-import { useToast } from './ToastProvider'
-import analytics from '../utils/analytics'
+// Advanced Reporting Component
+// Comprehensive business analytics with Chart.js integration
 
-export default function AdvancedReporting() {
-  const { user } = useUser()
-  const { addToast } = useToast()
-  const [loading, setLoading] = useState(true)
-  const [reportData, setReportData] = useState({
-    funnelData: [],
-    revenueData: [],
-    userActivity: [],
-    modelPerformance: []
-  })
-  const [filters, setFilters] = useState({
-    dateRange: '30d',
-    modelFilter: 'all',
-    userType: 'all'
-  })
-  const [selectedChart, setSelectedChart] = useState('funnel')
+import React, { useState, useEffect } from 'react'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  Filler,
+  RadialLinearScale
+} from 'chart.js'
+import { Line, Bar, Doughnut, Radar, Scatter } from 'react-chartjs-2'
+import {
+  DocumentChartBarIcon,
+  CalendarIcon,
+  CurrencyDollarIcon,
+  UsersIcon,
+  CubeIcon,
+  ShoppingCartIcon,
+  ArrowDownTrayIcon,
+  FunnelIcon
+} from '@heroicons/react/24/outline'
+
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  Filler,
+  RadialLinearScale
+)
+
+const AdvancedReporting = () => {
+  const [reportData, setReportData] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [selectedReport, setSelectedReport] = useState('revenue')
+  const [dateRange, setDateRange] = useState('30d')
+  const [filters, setFilters] = useState({})
+
+  const reportTypes = [
+    { id: 'revenue', name: 'Revenue Analysis', icon: CurrencyDollarIcon },
+    { id: 'orders', name: 'Order Performance', icon: ShoppingCartIcon },
+    { id: 'customers', name: 'Customer Insights', icon: UsersIcon },
+    { id: 'models', name: 'Model Performance', icon: CubeIcon },
+    { id: 'trends', name: 'Business Trends', icon: DocumentChartBarIcon }
+  ]
 
   useEffect(() => {
-    loadReportData()
-  }, [filters])
+    fetchReportData()
+  }, [selectedReport, dateRange, filters])
 
-  const loadReportData = async () => {
+  const fetchReportData = async () => {
     try {
       setLoading(true)
-      const token = await user.getToken()
-      
-      const response = await fetch('/api/admin/reports', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(filters)
+      const params = new URLSearchParams({
+        report: selectedReport,
+        range: dateRange,
+        ...filters
       })
 
+      const response = await fetch(`/api/admin/reports?${params}`)
       if (response.ok) {
         const data = await response.json()
-        setReportData(data)
+        setReportData(data.data)
       } else {
-        throw new Error('Failed to load report data')
+        throw new Error('Failed to fetch report data')
       }
-
-      analytics.trackEvent('admin_report_generated', {
-        filters,
-        chartType: selectedChart
-      })
     } catch (error) {
-      console.error('Report loading error:', error)
-      addToast({
-        type: 'error',
-        title: 'Report Error',
-        message: 'Failed to load report data.'
-      })
+      console.error('Report fetch error:', error)
     } finally {
       setLoading(false)
     }
@@ -63,364 +87,468 @@ export default function AdvancedReporting() {
 
   const exportReport = async (format = 'csv') => {
     try {
-      const token = await user.getToken()
-      const response = await fetch('/api/admin/reports/export', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          filters,
-          chartType: selectedChart,
-          format
-        })
+      const params = new URLSearchParams({
+        report: selectedReport,
+        range: dateRange,
+        format,
+        ...filters
       })
 
+      const response = await fetch(`/api/admin/reports/export?${params}`)
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `report_${selectedChart}_${new Date().toISOString().split('T')[0]}.${format}`
+        a.download = `${selectedReport}_report_${new Date().toISOString().split('T')[0]}.${format}`
         document.body.appendChild(a)
         a.click()
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
-
-        addToast({
-          type: 'success',
-          title: 'Export Complete',
-          message: `Report exported as ${format.toUpperCase()}`
-        })
-
-        analytics.trackEvent('admin_report_exported', {
-          format,
-          chartType: selectedChart
-        })
-      } else {
-        throw new Error('Export failed')
       }
     } catch (error) {
       console.error('Export error:', error)
-      addToast({
-        type: 'error',
-        title: 'Export Failed',
-        message: 'Failed to export report.'
-      })
     }
   }
 
-  const renderFunnelChart = () => (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Conversion Funnel</h3>
-      <div className="space-y-4">
-        {reportData.funnelData.map((step, index) => (
-          <div key={index} className="flex items-center">
-            <div className="w-32 text-sm font-medium text-gray-700">{step.name}</div>
-            <div className="flex-1 mx-4">
-              <div className="bg-gray-200 rounded-full h-4">
-                <div 
-                  className="bg-yellow-500 h-4 rounded-full transition-all duration-500"
-                  style={{ width: `${step.percentage}%` }}
-                />
-              </div>
-            </div>
-            <div className="w-20 text-sm text-gray-600 text-right">
-              {step.count.toLocaleString()}
-            </div>
-            <div className="w-16 text-sm text-gray-500 text-right">
-              {step.percentage.toFixed(1)}%
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
+  const renderRevenueChart = () => {
+    if (!reportData?.revenue) return null
 
-  const renderRevenueChart = () => (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue Trends</h3>
-      <div className="space-y-4">
-        {reportData.revenueData.map((item, index) => (
-          <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-            <div>
-              <div className="text-sm font-medium text-gray-900">{item.period}</div>
-              <div className="text-sm text-gray-500">{item.orders} orders</div>
-            </div>
-            <div className="text-right">
-              <div className="text-lg font-semibold text-gray-900">
-                ${item.revenue.toLocaleString()}
-              </div>
-              <div className={`text-sm ${item.growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {item.growth >= 0 ? '+' : ''}{item.growth.toFixed(1)}%
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
+    const data = {
+      labels: reportData.revenue.map(item => item.period),
+      datasets: [
+        {
+          label: 'Revenue',
+          data: reportData.revenue.map(item => item.total),
+          borderColor: 'rgb(59, 130, 246)',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: true,
+          tension: 0.4
+        },
+        {
+          label: 'Orders',
+          data: reportData.revenue.map(item => item.orderCount),
+          borderColor: 'rgb(16, 185, 129)',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          fill: false,
+          yAxisID: 'y1'
+        }
+      ]
+    }
 
-  const renderUserActivityChart = () => (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">User Activity</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {reportData.userActivity.map((metric, index) => (
-          <div key={index} className="p-4 bg-gray-50 rounded-lg">
-            <div className="text-sm font-medium text-gray-700">{metric.name}</div>
-            <div className="text-2xl font-bold text-gray-900">{metric.value.toLocaleString()}</div>
-            <div className={`text-sm ${metric.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {metric.change >= 0 ? '+' : ''}{metric.change.toFixed(1)}% from last period
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
+    const options = {
+      responsive: true,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      scales: {
+        y: {
+          type: 'linear',
+          display: true,
+          position: 'left',
+          title: {
+            display: true,
+            text: 'Revenue ($)'
+          }
+        },
+        y1: {
+          type: 'linear',
+          display: true,
+          position: 'right',
+          title: {
+            display: true,
+            text: 'Orders'
+          },
+          grid: {
+            drawOnChartArea: false,
+          },
+        },
+      },
+      plugins: {
+        title: {
+          display: true,
+          text: 'Revenue vs Orders Over Time'
+        }
+      }
+    }
 
-  const renderModelPerformanceChart = () => (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Model Performance</h3>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Model
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Views
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Builds
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Orders
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Conversion
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Revenue
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {reportData.modelPerformance.map((model, index) => (
-              <tr key={index}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {model.name}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {model.views.toLocaleString()}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {model.builds.toLocaleString()}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {model.orders.toLocaleString()}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {model.conversionRate.toFixed(1)}%
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  ${model.revenue.toLocaleString()}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
+    return <Line data={data} options={options} />
+  }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 animate-spin rounded-full border-3 border-gray-300 border-t-yellow-500 mx-auto mb-4" />
-          <div className="text-gray-400 text-lg">Generating report...</div>
+  const renderOrderStatusChart = () => {
+    if (!reportData?.orderStatuses) return null
+
+    const data = {
+      labels: reportData.orderStatuses.map(status => 
+        status.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+      ),
+      datasets: [
+        {
+          data: reportData.orderStatuses.map(status => status.count),
+          backgroundColor: [
+            'rgba(59, 130, 246, 0.8)',
+            'rgba(16, 185, 129, 0.8)',
+            'rgba(245, 158, 11, 0.8)',
+            'rgba(239, 68, 68, 0.8)',
+            'rgba(139, 92, 246, 0.8)',
+            'rgba(236, 72, 153, 0.8)',
+          ],
+          borderWidth: 2,
+          borderColor: '#ffffff'
+        }
+      ]
+    }
+
+    const options = {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'bottom',
+        },
+        title: {
+          display: true,
+          text: 'Order Status Distribution'
+        }
+      }
+    }
+
+    return <Doughnut data={data} options={options} />
+  }
+
+  const renderCustomerAcquisitionChart = () => {
+    if (!reportData?.customerSources) return null
+
+    const data = {
+      labels: reportData.customerSources.map(source => 
+        source.source.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())
+      ),
+      datasets: [
+        {
+          label: 'New Customers',
+          data: reportData.customerSources.map(source => source.count),
+          backgroundColor: [
+            'rgba(59, 130, 246, 0.8)',
+            'rgba(16, 185, 129, 0.8)',
+            'rgba(245, 158, 11, 0.8)',
+            'rgba(139, 92, 246, 0.8)',
+          ],
+          borderWidth: 2,
+          borderColor: '#ffffff'
+        }
+      ]
+    }
+
+    const options = {
+      responsive: true,
+      plugins: {
+        legend: {
+          display: false,
+        },
+        title: {
+          display: true,
+          text: 'Customer Acquisition by Source'
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+        }
+      }
+    }
+
+    return <Bar data={data} options={options} />
+  }
+
+  const renderModelPerformanceChart = () => {
+    if (!reportData?.topModels) return null
+
+    const data = {
+      labels: reportData.topModels.map(model => model.name),
+      datasets: [
+        {
+          label: 'Orders',
+          data: reportData.topModels.map(model => model.orderCount),
+          backgroundColor: 'rgba(59, 130, 246, 0.8)',
+          borderColor: 'rgb(59, 130, 246)',
+          borderWidth: 1
+        },
+        {
+          label: 'Revenue',
+          data: reportData.topModels.map(model => model.totalRevenue),
+          backgroundColor: 'rgba(16, 185, 129, 0.8)',
+          borderColor: 'rgb(16, 185, 129)',
+          borderWidth: 1,
+          yAxisID: 'y1'
+        }
+      ]
+    }
+
+    const options = {
+      responsive: true,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      scales: {
+        y: {
+          type: 'linear',
+          display: true,
+          position: 'left',
+          title: {
+            display: true,
+            text: 'Orders'
+          }
+        },
+        y1: {
+          type: 'linear',
+          display: true,
+          position: 'right',
+          title: {
+            display: true,
+            text: 'Revenue ($)'
+          },
+          grid: {
+            drawOnChartArea: false,
+          },
+        },
+      },
+      plugins: {
+        title: {
+          display: true,
+          text: 'Model Performance: Orders vs Revenue'
+        }
+      }
+    }
+
+    return <Bar data={data} options={options} />
+  }
+
+  const renderBusinessTrendsChart = () => {
+    if (!reportData?.trends) return null
+
+    const data = {
+      labels: reportData.trends.map(trend => trend.period),
+      datasets: [
+        {
+          label: 'Revenue Growth',
+          data: reportData.trends.map(trend => trend.revenueGrowth),
+          borderColor: 'rgb(59, 130, 246)',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: true,
+          tension: 0.4
+        },
+        {
+          label: 'Customer Growth',
+          data: reportData.trends.map(trend => trend.customerGrowth),
+          borderColor: 'rgb(16, 185, 129)',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          fill: false,
+          tension: 0.4
+        }
+      ]
+    }
+
+    const options = {
+      responsive: true,
+      plugins: {
+        title: {
+          display: true,
+          text: 'Business Growth Trends'
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Growth Rate (%)'
+          }
+        }
+      }
+    }
+
+    return <Line data={data} options={options} />
+  }
+
+  const renderReportContent = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
-      </div>
-    )
+      )
+    }
+
+    switch (selectedReport) {
+      case 'revenue':
+        return renderRevenueChart()
+      case 'orders':
+        return renderOrderStatusChart()
+      case 'customers':
+        return renderCustomerAcquisitionChart()
+      case 'models':
+        return renderModelPerformanceChart()
+      case 'trends':
+        return renderBusinessTrendsChart()
+      default:
+        return <div className="text-center text-gray-500 py-8">Select a report type</div>
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Advanced Reporting</h1>
-          <p className="text-gray-600">Comprehensive analytics and insights</p>
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Report Filters</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Date Range
-              </label>
-              <select
-                value={filters.dateRange}
-                onChange={(e) => setFilters(prev => ({ ...prev, dateRange: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
-              >
-                <option value="7d">Last 7 days</option>
-                <option value="30d">Last 30 days</option>
-                <option value="90d">Last 90 days</option>
-                <option value="1y">Last year</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Model Filter
-              </label>
-              <select
-                value={filters.modelFilter}
-                onChange={(e) => setFilters(prev => ({ ...prev, modelFilter: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
-              >
-                <option value="all">All Models</option>
-                <option value="popular">Popular Models</option>
-                <option value="premium">Premium Models</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                User Type
-              </label>
-              <select
-                value={filters.userType}
-                onChange={(e) => setFilters(prev => ({ ...prev, userType: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
-              >
-                <option value="all">All Users</option>
-                <option value="new">New Users</option>
-                <option value="returning">Returning Users</option>
-                <option value="active">Active Users</option>
-              </select>
-            </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Advanced Reporting</h1>
+            <p className="text-gray-600">Comprehensive business analytics and insights</p>
           </div>
-        </div>
-
-        {/* Chart Selection */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Chart Type</h2>
-            <div className="flex gap-2">
-              <button
-                onClick={() => exportReport('csv')}
-                className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-              >
-                Export CSV
-              </button>
-              <button
-                onClick={() => exportReport('pdf')}
-                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
-              >
-                Export PDF
-              </button>
-            </div>
-          </div>
-          
-          <div className="flex space-x-4">
+          <div className="flex items-center space-x-4">
             <button
-              onClick={() => setSelectedChart('funnel')}
-              className={`px-4 py-2 rounded-md transition-colors ${
-                selectedChart === 'funnel'
-                  ? 'bg-yellow-500 text-gray-900'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
+              onClick={() => exportReport('csv')}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              Conversion Funnel
+              <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+              Export CSV
             </button>
             <button
-              onClick={() => setSelectedChart('revenue')}
-              className={`px-4 py-2 rounded-md transition-colors ${
-                selectedChart === 'revenue'
-                  ? 'bg-yellow-500 text-gray-900'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
+              onClick={() => exportReport('json')}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              Revenue Trends
+              <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+              Export JSON
             </button>
-            <button
-              onClick={() => setSelectedChart('activity')}
-              className={`px-4 py-2 rounded-md transition-colors ${
-                selectedChart === 'activity'
-                  ? 'bg-yellow-500 text-gray-900'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              User Activity
-            </button>
-            <button
-              onClick={() => setSelectedChart('models')}
-              className={`px-4 py-2 rounded-md transition-colors ${
-                selectedChart === 'models'
-                  ? 'bg-yellow-500 text-gray-900'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              Model Performance
-            </button>
-          </div>
-        </div>
-
-        {/* Chart Display */}
-        <div className="mb-8">
-          {selectedChart === 'funnel' && renderFunnelChart()}
-          {selectedChart === 'revenue' && renderRevenueChart()}
-          {selectedChart === 'activity' && renderUserActivityChart()}
-          {selectedChart === 'models' && renderModelPerformanceChart()}
-        </div>
-
-        {/* Insights */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Key Insights</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <div className="text-sm font-medium text-blue-800">Top Performing Model</div>
-              <div className="text-2xl font-bold text-blue-900">Magnolia</div>
-              <div className="text-sm text-blue-600">23% of total revenue</div>
-            </div>
-            
-            <div className="p-4 bg-green-50 rounded-lg">
-              <div className="text-sm font-medium text-green-800">Conversion Rate</div>
-              <div className="text-2xl font-bold text-green-900">12.4%</div>
-              <div className="text-sm text-green-600">+2.1% from last month</div>
-            </div>
-            
-            <div className="p-4 bg-purple-50 rounded-lg">
-              <div className="text-sm font-medium text-purple-800">Average Order Value</div>
-              <div className="text-2xl font-bold text-purple-900">$45,200</div>
-              <div className="text-sm text-purple-600">+8.3% from last month</div>
-            </div>
-            
-            <div className="p-4 bg-yellow-50 rounded-lg">
-              <div className="text-sm font-medium text-yellow-800">Customer Lifetime Value</div>
-              <div className="text-2xl font-bold text-yellow-900">$67,800</div>
-              <div className="text-sm text-yellow-600">+15.2% from last month</div>
-            </div>
-            
-            <div className="p-4 bg-red-50 rounded-lg">
-              <div className="text-sm font-medium text-red-800">Cart Abandonment</div>
-              <div className="text-2xl font-bold text-red-900">34.2%</div>
-              <div className="text-sm text-red-600">-5.1% from last month</div>
-            </div>
-            
-            <div className="p-4 bg-indigo-50 rounded-lg">
-              <div className="text-sm font-medium text-indigo-800">Mobile Conversion</div>
-              <div className="text-2xl font-bold text-indigo-900">8.7%</div>
-              <div className="text-sm text-indigo-600">+12.3% from last month</div>
-            </div>
           </div>
         </div>
       </div>
+
+      {/* Report Type Selector */}
+      <div className="mb-6">
+        <div className="flex items-center space-x-2 mb-4">
+          <FunnelIcon className="h-5 w-5 text-gray-400" />
+          <span className="text-sm font-medium text-gray-700">Report Type:</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {reportTypes.map((report) => {
+            const Icon = report.icon
+            return (
+              <button
+                key={report.id}
+                onClick={() => setSelectedReport(report.id)}
+                className={`p-4 rounded-lg border-2 transition-all ${
+                  selectedReport === report.id
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                <Icon className="h-8 w-8 mx-auto mb-2" />
+                <span className="text-sm font-medium">{report.name}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Date Range and Filters */}
+      <div className="mb-6 bg-white p-4 rounded-lg shadow">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Date Range
+            </label>
+            <select
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="7d">Last 7 Days</option>
+              <option value="30d">Last 30 Days</option>
+              <option value="90d">Last 90 Days</option>
+              <option value="1y">Last Year</option>
+              <option value="custom">Custom Range</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Category Filter
+            </label>
+            <select
+              value={filters.category || ''}
+              onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Categories</option>
+              <option value="standard">Standard</option>
+              <option value="premium">Premium</option>
+              <option value="luxury">Luxury</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Status Filter
+            </label>
+            <select
+              value={filters.status || ''}
+              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Statuses</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="production">Production</option>
+              <option value="ready">Ready</option>
+              <option value="delivered">Delivered</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Report Content */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900">
+            {reportTypes.find(r => r.id === selectedReport)?.name}
+          </h3>
+          <p className="text-sm text-gray-500">
+            {dateRange === '7d' ? 'Last 7 Days' : 
+             dateRange === '30d' ? 'Last 30 Days' : 
+             dateRange === '90d' ? 'Last 90 Days' : 
+             dateRange === '1y' ? 'Last Year' : 'Custom Range'}
+          </p>
+        </div>
+        <div className="p-6">
+          {renderReportContent()}
+        </div>
+      </div>
+
+      {/* Report Summary */}
+      {reportData && (
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+          {reportData.summary?.map((metric, index) => (
+            <div key={index} className="bg-white p-4 rounded-lg shadow">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <span className="text-sm font-medium text-blue-600">
+                      {metric.label[0]}
+                    </span>
+                  </div>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-500">{metric.label}</p>
+                  <p className="text-lg font-semibold text-gray-900">{metric.value}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
+
+export default AdvancedReporting

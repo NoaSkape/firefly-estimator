@@ -61,6 +61,12 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
       permission: 'financial:reports'
     },
     {
+      name: 'Advanced Reporting',
+      href: '/admin/reports',
+      icon: DocumentTextIcon,
+      permission: 'financial:reports'
+    },
+    {
       name: 'Financial',
       href: '/admin/financial',
       icon: CurrencyDollarIcon,

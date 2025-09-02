@@ -403,12 +403,17 @@ function App() {
                   <AdminCustomers />
                 </ProtectedRoute>
               } />
-              <Route path="/admin/analytics" element={
-                <ProtectedRoute requireAdmin={true}>
-                  <AdminAnalytics />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/dashboard" element={
+                              <Route path="/admin/analytics" element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <AdminAnalytics />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/reports" element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <AdvancedReporting />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/dashboard" element={
                 <ProtectedRoute requireAdmin={true}>
                   <AdminDashboard />
                 </ProtectedRoute>

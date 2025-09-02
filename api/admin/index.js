@@ -11,6 +11,8 @@ import {
 } from '../../lib/adminSchema.js'
 import { validateRequest } from '../../lib/requestValidation.js'
 import analyticsRouter from './analytics.js'
+import dashboardRouter from './dashboard.js'
+import reportsRouter from './reports.js'
 
 const router = express.Router()
 
@@ -926,6 +928,20 @@ router.post('/export', hasPermission(PERMISSIONS.FINANCIAL_REPORTS), async (req,
     res.status(500).json({ error: 'Failed to export data' })
   }
 })
+
+            // ============================================================================
+            // DASHBOARD ROUTES
+            // ============================================================================
+
+            // Mount dashboard router
+            router.use('/dashboard', dashboardRouter)
+
+            // ============================================================================
+            // REPORTS ROUTES
+            // ============================================================================
+
+            // Mount reports router
+            router.use('/reports', reportsRouter)
 
             // ============================================================================
             // ANALYTICS ROUTES
