@@ -397,6 +397,18 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                 </div>
               </div>
 
+              {/* Quick Content Creator */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                  <BoltIcon className="w-5 h-5 inline mr-2 text-yellow-600" />
+                  Quick Content Creator
+                </h3>
+                <QuickContentCreator
+                  onContentGenerated={handleContentGenerated}
+                  templateId={postData.template}
+                />
+              </div>
+
               {/* Title */}
               <div>
                 <label className="block text-sm font-medium mb-2">Title *</label>
