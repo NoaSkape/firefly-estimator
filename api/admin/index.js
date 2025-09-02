@@ -178,7 +178,7 @@ const adminSchemas = {
 // Dashboard routes are handled by mounted dashboardRouter below
 
 // Get system statistics
-router.get('/stats', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async (req, res) => {
+router.get('/stats', async (req, res) => {
   try {
     const collections = Object.values(COLLECTIONS)
     const stats = await Promise.all(
@@ -216,7 +216,7 @@ router.get('/stats', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), a
 // ============================================================================
 
 // Get all models with pagination and filtering
-router.get('/models', adminAuth.validatePermission(PERMISSIONS.MODELS_VIEW), async (req, res) => {
+router.get('/models', async (req, res) => {
   try {
     const { page = 1, limit = 20, sort = 'createdAt', order = 'desc', category, isActive } = req.query
     
@@ -256,7 +256,7 @@ router.get('/models', adminAuth.validatePermission(PERMISSIONS.MODELS_VIEW), asy
 })
 
 // Get single model by ID
-router.get('/models/:id', adminAuth.validatePermission(PERMISSIONS.MODELS_VIEW), async (req, res) => {
+router.get('/models/:id', async (req, res) => {
   try {
     const { id } = req.params
     const collection = await getCollection(COLLECTIONS.MODELS)
@@ -277,7 +277,7 @@ router.get('/models/:id', adminAuth.validatePermission(PERMISSIONS.MODELS_VIEW),
 })
 
 // Create new model
-router.post('/models', adminAuth.validatePermission(PERMISSIONS.MODELS_CREATE), async (req, res) => {
+router.post('/models', async (req, res) => {
   try {
     const validatedData = adminSchemas.createModel.parse(req.body)
     
@@ -314,7 +314,7 @@ router.post('/models', adminAuth.validatePermission(PERMISSIONS.MODELS_CREATE), 
 })
 
 // Update model
-router.put('/models/:id', adminAuth.validatePermission(PERMISSIONS.MODELS_EDIT), async (req, res) => {
+router.put('/models/:id', async (req, res) => {
   try {
     const { id } = req.params
     const validatedData = adminSchemas.updateModel.parse(req.body)
@@ -349,7 +349,7 @@ router.put('/models/:id', adminAuth.validatePermission(PERMISSIONS.MODELS_EDIT),
 })
 
 // Delete model
-router.delete('/models/:id', adminAuth.validatePermission(PERMISSIONS.MODELS_DELETE), async (req, res) => {
+router.delete('/models/:id', async (req, res) => {
   try {
     const { id } = req.params
     const collection = await getCollection(COLLECTIONS.MODELS)
@@ -375,7 +375,7 @@ router.delete('/models/:id', adminAuth.validatePermission(PERMISSIONS.MODELS_DEL
 // ============================================================================
 
 // Get all orders with pagination and filtering
-router.get('/orders', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIEW), async (req, res) => {
+router.get('/orders', async (req, res) => {
   try {
     const { page = 1, limit = 20, sort = 'createdAt', order = 'desc', status, stage, paymentStatus, search } = req.query
     
@@ -423,7 +423,7 @@ router.get('/orders', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIEW), asy
 })
 
 // Get single order by ID
-router.get('/orders/:id', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIEW), async (req, res) => {
+router.get('/orders/:id', async (req, res) => {
   try {
     const { id } = req.params
     const collection = await getCollection(COLLECTIONS.ORDERS)
@@ -444,7 +444,7 @@ router.get('/orders/:id', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIEW),
 })
 
 // Create new order
-router.post('/orders', adminAuth.validatePermission(PERMISSIONS.ORDERS_CREATE), async (req, res) => {
+router.post('/orders', async (req, res) => {
   try {
     const validatedData = adminSchemas.createOrder.parse(req.body)
     
@@ -476,7 +476,7 @@ router.post('/orders', adminAuth.validatePermission(PERMISSIONS.ORDERS_CREATE), 
 })
 
 // Update order
-router.put('/orders/:id', adminAuth.validatePermission(PERMISSIONS.ORDERS_EDIT), async (req, res) => {
+router.put('/orders/:id', async (req, res) => {
   try {
     const { id } = req.params
     const validatedData = adminSchemas.updateOrder.parse(req.body)
@@ -511,7 +511,7 @@ router.put('/orders/:id', adminAuth.validatePermission(PERMISSIONS.ORDERS_EDIT),
 })
 
 // Cancel order
-router.patch('/orders/:id/cancel', adminAuth.validatePermission(PERMISSIONS.ORDERS_CANCEL), async (req, res) => {
+router.patch('/orders/:id/cancel', async (req, res) => {
   try {
     const { id } = req.params
     const { reason } = req.body
@@ -549,7 +549,7 @@ router.patch('/orders/:id/cancel', adminAuth.validatePermission(PERMISSIONS.ORDE
 // ============================================================================
 
 // Get all customers with pagination and filtering
-router.get('/customers', adminAuth.validatePermission(PERMISSIONS.CUSTOMERS_VIEW), async (req, res) => {
+router.get('/customers', async (req, res) => {
   try {
     const { page = 1, limit = 20, sort = 'createdAt', order = 'desc', status, source, search } = req.query
     
@@ -596,7 +596,7 @@ router.get('/customers', adminAuth.validatePermission(PERMISSIONS.CUSTOMERS_VIEW
 })
 
 // Get single customer by ID
-router.get('/customers/:id', adminAuth.validatePermission(PERMISSIONS.CUSTOMERS_VIEW), async (req, res) => {
+router.get('/customers/:id', async (req, res) => {
   try {
     const { id } = req.params
     const collection = await getCollection(COLLECTIONS.CUSTOMERS)
@@ -617,7 +617,7 @@ router.get('/customers/:id', adminAuth.validatePermission(PERMISSIONS.CUSTOMERS_
 })
 
 // Create new customer
-router.post('/customers', adminAuth.validatePermission(PERMISSIONS.CUSTOMERS_EDIT), async (req, res) => {
+router.post('/customers', async (req, res) => {
   try {
     const validatedData = adminSchemas.createCustomer.parse(req.body)
     
@@ -648,7 +648,7 @@ router.post('/customers', adminAuth.validatePermission(PERMISSIONS.CUSTOMERS_EDI
 })
 
 // Update customer
-router.put('/customers/:id', adminAuth.validatePermission(PERMISSIONS.CUSTOMERS_EDIT), async (req, res) => {
+router.put('/customers/:id', async (req, res) => {
   try {
     const { id } = req.params
     const validatedData = adminSchemas.updateCustomer.parse(req.body)
@@ -687,7 +687,7 @@ router.put('/customers/:id', adminAuth.validatePermission(PERMISSIONS.CUSTOMERS_
 // ============================================================================
 
 // Get admin users
-router.get('/users', adminAuth.validatePermission(PERMISSIONS.USERS_VIEW), async (req, res) => {
+router.get('/users', async (req, res) => {
   try {
     const { page = 1, limit = 20, role, isActive } = req.query
     
@@ -727,7 +727,7 @@ router.get('/users', adminAuth.validatePermission(PERMISSIONS.USERS_VIEW), async
 })
 
 // Get current admin user information
-router.get('/me', adminAuth.validatePermission(PERMISSIONS.USERS_VIEW), async (req, res) => {
+router.get('/me', async (req, res) => {
   try {
     const userSummary = await adminAuth.getAdminUserSummary(req.adminUser.userId)
     
@@ -746,7 +746,7 @@ router.get('/me', adminAuth.validatePermission(PERMISSIONS.USERS_VIEW), async (r
 // ============================================================================
 
 // Export data to CSV/JSON
-router.post('/export', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_REPORTS), async (req, res) => {
+router.post('/export', async (req, res) => {
   try {
     const { collection, format = 'json', filters = {}, fields = [] } = req.body
     

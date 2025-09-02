@@ -17,7 +17,7 @@ const router = express.Router()
 router.use((req, res, next) => adminAuth.validateAdminAccess(req, res, next))
 
 // Get comprehensive report data
-router.get('/:report', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_REPORTS), async (req, res) => {
+router.get('/:report', async (req, res) => {
   try {
     const { report } = req.params
     const { dateRange = '30d', category, status, format = 'json' } = req.query
@@ -237,7 +237,7 @@ router.get('/:report', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_REPORT
 })
 
 // Export report data
-router.post('/export', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_REPORTS), async (req, res) => {
+router.post('/export', async (req, res) => {
   try {
     const { report, dateRange, category, status, format = 'csv' } = req.body
     

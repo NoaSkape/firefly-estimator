@@ -17,7 +17,7 @@ const router = express.Router()
 router.use((req, res, next) => adminAuth.validateAdminAccess(req, res, next))
 
 // Get analytics dashboard data
-router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_REPORTS), async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { range = '30d' } = req.query
     
@@ -176,7 +176,7 @@ router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_REPORTS), asy
 })
 
 // Get specific metric data
-router.get('/:metric', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_REPORTS), async (req, res) => {
+router.get('/:metric', async (req, res) => {
   try {
     const { metric } = req.params
     const { range = '30d', groupBy = 'day' } = req.query
