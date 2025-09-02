@@ -64,7 +64,10 @@ export default function Blog() {
       
       if (response.ok) {
         const data = await response.json()
-        console.log('Featured posts API data received:', data)
+        console.log('Featured posts API data received:', {
+          postsLength: data.posts?.length,
+          posts: data.posts?.map(p => ({ id: p._id, title: p.title, status: p.status }))
+        })
         
         if (data.posts && data.posts.length > 0) {
           setFeaturedPosts(data.posts)

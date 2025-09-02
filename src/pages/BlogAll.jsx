@@ -45,13 +45,18 @@ export default function BlogAll() {
         params.append('category', selectedCategory)
       }
 
-      console.log('Fetching posts from API...')
+      console.log('Fetching posts from API...', `/api/blog?${params}`)
       const response = await fetch(`/api/blog?${params}`)
       console.log('API response status:', response.status)
       
       if (response.ok) {
         const data = await response.json()
-        console.log('API data received:', data)
+        console.log('API data received:', {
+          postsLength: data.posts?.length,
+          total: data.total,
+          hasMore: data.hasMore,
+          posts: data.posts?.map(p => ({ id: p._id, title: p.title, status: p.status }))
+        })
         
         if (data.posts && data.posts.length > 0) {
           if (currentPage === 1) {
