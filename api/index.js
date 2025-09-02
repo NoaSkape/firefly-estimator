@@ -2574,6 +2574,196 @@ app.put(['/api/blog/:id', '/blog/:id'], async (req, res) => {
   }
 })
 
+// Admin-specific blog editing endpoint with enhanced security
+app.put(['/api/admin/blog/:id', '/admin/blog/:id'], async (req, res) => {
+  applyCors(req, res, 'PUT, OPTIONS')
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
+  
+  try {
+    const { id } = req.params
+    const db = await getDb()
+    const postData = req.body
+    
+    // Enhanced validation for admin editing
+    if (!postData.title || !postData.content) {
+      return res.status(400).json({
+        error: 'validation_failed',
+        message: 'Title and content are required'
+      })
+    }
+    
+    // Validate ObjectId format
+    let objectId
+    try {
+      objectId = new ObjectId(id)
+    } catch (error) {
+      return res.status(400).json({
+        error: 'invalid_id',
+        message: 'Invalid blog post ID format'
+      })
+    }
+    
+    // Check if post exists and user has permission
+    const existingPost = await db.collection('blog_posts').findOne({ _id: objectId })
+    if (!existingPost) {
+      return res.status(404).json({
+        error: 'post_not_found',
+        message: 'Blog post not found'
+      })
+    }
+    
+    // Check if slug already exists for different post
+    if (postData.slug && postData.slug !== existingPost.slug) {
+      const slugConflict = await db.collection('blog_posts').findOne({ 
+        slug: postData.slug,
+        _id: { $ne: objectId }
+      })
+      if (slugConflict) {
+        return res.status(400).json({
+          error: 'slug_exists',
+          message: 'A post with this URL already exists'
+        })
+      }
+    }
+    
+    // COMPREHENSIVE DATA SANITIZATION
+    const {
+      _id,           // MongoDB immutable field
+      __v,           // Mongoose version field
+      createdAt,     // System field - creation timestamp
+      views,         // System field - view count
+      updatedAt,     // System field - will be set by API
+      ...sanitizedData
+    } = postData
+    
+    // Add system fields and admin metadata
+    const updateData = {
+      ...sanitizedData,
+      updatedAt: new Date(),
+      lastEditedBy: auth.userId,
+      lastEditedAt: new Date()
+    }
+    
+    // Perform the update
+    const result = await db.collection('blog_posts').updateOne(
+      { _id: objectId },
+      { $set: updateData }
+    )
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        error: 'post_not_found',
+        message: 'Blog post not found during update'
+      })
+    }
+    
+    // Fetch updated post to return
+    const updatedPost = await db.collection('blog_posts').findOne({ _id: objectId })
+    
+    // Log admin action for audit trail
+    await db.collection('admin_actions').insertOne({
+      action: 'blog_post_updated',
+      adminId: auth.userId,
+      postId: objectId,
+      postTitle: postData.title,
+      timestamp: new Date(),
+      changes: Object.keys(updateData)
+    })
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Blog post updated successfully',
+      id,
+      post: updatedPost,
+      changes: result.modifiedCount > 0 ? 'Modified' : 'No changes'
+    })
+  } catch (error) {
+    console.error('Admin blog update error:', error)
+    
+    // Handle specific MongoDB errors with detailed messages
+    if (error.code === 66) {
+      return res.status(400).json({
+        error: 'immutable_field_error',
+        message: 'Cannot update immutable fields like _id',
+        details: 'The system automatically excludes immutable fields from updates'
+      })
+    }
+    
+    if (error.name === 'MongoServerError' && error.code === 11000) {
+      return res.status(400).json({
+        error: 'duplicate_key_error',
+        message: 'A post with this slug already exists',
+        details: 'Please choose a different URL slug for this post'
+      })
+    }
+    
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        error: 'validation_error',
+        message: 'Data validation failed',
+        details: error.message
+      })
+    }
+    
+    return res.status(500).json({ 
+      error: 'admin_blog_update_failed', 
+      message: 'Failed to update blog post',
+      details: error.message || 'Internal server error'
+    })
+  }
+})
+
+// Admin endpoint for fetching blog posts for editing (includes unpublished posts)
+app.get(['/api/admin/blog/:id', '/admin/blog/:id'], async (req, res) => {
+  applyCors(req, res, 'GET, OPTIONS')
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
+  
+  try {
+    const { id } = req.params
+    const db = await getDb()
+    
+    // Validate ObjectId format
+    let objectId
+    try {
+      objectId = new ObjectId(id)
+    } catch (error) {
+      return res.status(400).json({
+        error: 'invalid_id',
+        message: 'Invalid blog post ID format'
+      })
+    }
+    
+    // Fetch post for editing (admin can see all posts regardless of status)
+    const post = await db.collection('blog_posts').findOne({ _id: objectId })
+    
+    if (!post) {
+      return res.status(404).json({ 
+        error: 'post_not_found', 
+        message: 'Blog post not found'
+      })
+    }
+    
+    // Log admin access for audit trail
+    await db.collection('admin_actions').insertOne({
+      action: 'blog_post_accessed_for_editing',
+      adminId: auth.userId,
+      postId: objectId,
+      postTitle: post.title,
+      timestamp: new Date()
+    })
+    
+    return res.status(200).json(post)
+  } catch (error) {
+    console.error('Admin blog fetch error:', error)
+    return res.status(500).json({ 
+      error: 'admin_blog_fetch_failed', 
+      message: error.message || 'Failed to fetch blog post for editing'
+    })
+  }
+})
+
 // Helper function to get default content for pages
 function getDefaultPageContent(pageId) {
   const defaults = {
@@ -4446,7 +4636,7 @@ app.post(['/api/payments/process-card', '/payments/process-card'], async (req, r
 
 // Import and mount admin router
 import adminRouter from './admin/index.js'
-app.use('/admin', adminRouter)
+app.use('/api/admin', adminRouter)
 
 // Fallback to JSON 404 to avoid hanging requests
 app.use((req, res) => {
@@ -4461,196 +4651,3 @@ initializeAdminDatabase().catch(err => {
 })
 
 // Vercel Node.js functions expect (req, res). Call Express directly.
-export default (req, res) => app(req, res)
-
-// Admin-specific blog editing endpoint with enhanced security
-app.put(['/api/admin/blog/:id', '/admin/blog/:id'], async (req, res) => {
-  applyCors(req, res, 'PUT, OPTIONS')
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
-  
-  try {
-    const { id } = req.params
-    const db = await getDb()
-    const postData = req.body
-    
-    // Enhanced validation for admin editing
-    if (!postData.title || !postData.content) {
-      return res.status(400).json({
-        error: 'validation_failed',
-        message: 'Title and content are required'
-      })
-    }
-    
-    // Validate ObjectId format
-    let objectId
-    try {
-      objectId = new ObjectId(id)
-    } catch (error) {
-      return res.status(400).json({
-        error: 'invalid_id',
-        message: 'Invalid blog post ID format'
-      })
-    }
-    
-    // Check if post exists and user has permission
-    const existingPost = await db.collection('blog_posts').findOne({ _id: objectId })
-    if (!existingPost) {
-      return res.status(404).json({
-        error: 'post_not_found',
-        message: 'Blog post not found'
-      })
-    }
-    
-    // Check if slug already exists for different post
-    if (postData.slug && postData.slug !== existingPost.slug) {
-      const slugConflict = await db.collection('blog_posts').findOne({ 
-        slug: postData.slug,
-        _id: { $ne: objectId }
-      })
-      if (slugConflict) {
-        return res.status(400).json({
-          error: 'slug_exists',
-          message: 'A post with this URL already exists'
-        })
-      }
-    }
-    
-    // COMPREHENSIVE DATA SANITIZATION
-    const {
-      _id,           // MongoDB immutable field
-      __v,           // Mongoose version field
-      createdAt,     // System field - creation timestamp
-      views,         // System field - view count
-      updatedAt,     // System field - will be set by API
-      ...sanitizedData
-    } = postData
-    
-    // Add system fields and admin metadata
-    const updateData = {
-      ...sanitizedData,
-      updatedAt: new Date(),
-      lastEditedBy: auth.userId,
-      lastEditedAt: new Date()
-    }
-    
-    // Perform the update
-    const result = await db.collection('blog_posts').updateOne(
-      { _id: objectId },
-      { $set: updateData }
-    )
-    
-    if (result.matchedCount === 0) {
-      return res.status(404).json({
-        error: 'post_not_found',
-        message: 'Blog post not found during update'
-      })
-    }
-    
-    // Fetch updated post to return
-    const updatedPost = await db.collection('blog_posts').findOne({ _id: objectId })
-    
-    // Log admin action for audit trail
-    await db.collection('admin_actions').insertOne({
-      action: 'blog_post_updated',
-      adminId: auth.userId,
-      postId: objectId,
-      postTitle: postData.title,
-      timestamp: new Date(),
-      changes: Object.keys(updateData)
-    })
-    
-    return res.status(200).json({
-      success: true,
-      message: 'Blog post updated successfully',
-      id,
-      post: updatedPost,
-      changes: result.modifiedCount > 0 ? 'Modified' : 'No changes'
-    })
-  } catch (error) {
-    console.error('Admin blog update error:', error)
-    
-    // Handle specific MongoDB errors with detailed messages
-    if (error.code === 66) {
-      return res.status(400).json({
-        error: 'immutable_field_error',
-        message: 'Cannot update immutable fields like _id',
-        details: 'The system automatically excludes immutable fields from updates'
-      })
-    }
-    
-    if (error.name === 'MongoServerError' && error.code === 11000) {
-      return res.status(400).json({
-        error: 'duplicate_key_error',
-        message: 'A post with this slug already exists',
-        details: 'Please choose a different URL slug for this post'
-      })
-    }
-    
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({
-        error: 'validation_error',
-        message: 'Data validation failed',
-        details: error.message
-      })
-    }
-    
-    return res.status(500).json({ 
-      error: 'admin_blog_update_failed', 
-      message: 'Failed to update blog post',
-      details: error.message || 'Internal server error'
-    })
-  }
-})
-
-// Admin endpoint for fetching blog posts for editing (includes unpublished posts)
-app.get(['/api/admin/blog/:id', '/admin/blog/:id'], async (req, res) => {
-  applyCors(req, res, 'GET, OPTIONS')
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
-  
-  try {
-    const { id } = req.params
-    const db = await getDb()
-    
-    // Validate ObjectId format
-    let objectId
-    try {
-      objectId = new ObjectId(id)
-    } catch (error) {
-      return res.status(400).json({
-        error: 'invalid_id',
-        message: 'Invalid blog post ID format'
-      })
-    }
-    
-    // Fetch post for editing (admin can see all posts regardless of status)
-    const post = await db.collection('blog_posts').findOne({ _id: objectId })
-    
-    if (!post) {
-      return res.status(404).json({ 
-        error: 'post_not_found', 
-        message: 'Blog post not found'
-      })
-    }
-    
-    // Log admin access for audit trail
-    await db.collection('admin_actions').insertOne({
-      action: 'blog_post_accessed_for_editing',
-      adminId: auth.userId,
-      postId: objectId,
-      postTitle: post.title,
-      timestamp: new Date()
-    })
-    
-    return res.status(200).json(post)
-  } catch (error) {
-    console.error('Admin blog fetch error:', error)
-    return res.status(500).json({ 
-      error: 'admin_blog_fetch_failed', 
-      message: error.message || 'Failed to fetch blog post for editing'
-    })
-  }
-})
-
-
