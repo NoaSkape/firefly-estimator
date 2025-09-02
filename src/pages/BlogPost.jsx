@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async'
 import { useUser } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
 import AdminBlogEditor from '../components/AdminBlogEditor'
+import { BlogEngagement } from '../components/blog-templates'
 
 export default function BlogPost() {
   const { slug } = useParams()
@@ -172,6 +173,15 @@ export default function BlogPost() {
                 </div>
               </div>
             )}
+
+            {/* Engagement Section */}
+            <BlogEngagement 
+              postData={post}
+              views={post.views || 0}
+              likes={post.likes || 0}
+              comments={post.comments || 0}
+              readTime={post.readTime || '5 min read'}
+            />
           </article>
         )
 
@@ -226,6 +236,15 @@ export default function BlogPost() {
                 </div>
               </div>
             </div>
+
+            {/* Engagement Section */}
+            <BlogEngagement 
+              postData={post}
+              views={post.views || 0}
+              likes={post.likes || 0}
+              comments={post.comments || 0}
+              readTime={post.readTime || '5 min read'}
+            />
           </article>
         )
 
@@ -280,6 +299,15 @@ export default function BlogPost() {
                 Browse Our Models
               </Link>
             </div>
+
+            {/* Engagement Section */}
+            <BlogEngagement 
+              postData={post}
+              views={post.views || 0}
+              likes={post.likes || 0}
+              comments={post.comments || 0}
+              readTime={post.readTime || '5 min read'}
+            />
           </article>
         )
 
@@ -290,6 +318,15 @@ export default function BlogPost() {
             <div className="prose prose-lg max-w-none dark:prose-invert">
               <div dangerouslySetInnerHTML={{ __html: post.content }} />
             </div>
+
+            {/* Engagement Section */}
+            <BlogEngagement 
+              postData={post}
+              views={post.views || 0}
+              likes={post.likes || 0}
+              comments={post.comments || 0}
+              readTime={post.readTime || '5 min read'}
+            />
           </article>
         )
     }

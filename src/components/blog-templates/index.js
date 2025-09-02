@@ -9,6 +9,7 @@ export { default as BaseTemplate } from './BaseTemplate'
 // Export interactive components
 export { default as InteractivePreview } from './InteractivePreview'
 export { default as EngagementTracker } from './EngagementTracker'
+export { default as BlogEngagement } from './BlogEngagement'
 export { default as MicroInteractions } from './MicroInteractions'
 
 // Export drag-and-drop components
