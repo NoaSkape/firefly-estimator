@@ -745,7 +745,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                     <input
                       type="text"
                       placeholder="Enter a simple test message (e.g., 'Hello AI')"
-                      className="w-full p-2 border rounded text-sm"
+                      className="w-full p-2 border rounded text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
                       value={aiTestMessage}
                       onChange={(e) => setAiTestMessage(e.target.value)}
                     />

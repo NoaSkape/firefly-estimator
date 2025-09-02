@@ -9,7 +9,7 @@
   "scripts": {
     "seed:models": "node -r dotenv/config scripts/seed-models.cjs",
     "seed:complete": "node scripts/seed-models-complete.js",
-    "dev": "concurrently \"vite\" \"vercel dev --listen 3000\"",
+    "dev": "concurrently \"vite\" \"npm run dev:api\"",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -19,7 +19,7 @@
     "dev:local": "concurrently \"npm run dev\" \"npm run dev:api\"",
     "migrate": "node -r dotenv/config scripts/migrate-data.js",
     "migrate:slugs": "node -r dotenv/config scripts/add-slugs.js",
-    "debug:dev": "cross-env DEBUG_ADMIN=true VITE_DEBUG_ADMIN=true concurrently \"vite\" \"vercel dev --listen 3000\"",
+    "debug:dev": "cross-env DEBUG_ADMIN=true VITE_DEBUG_ADMIN=true concurrently \"vite\" \"npm run dev:api\"",
     "debug:api": "cross-env DEBUG_ADMIN=true node backend/dev-server.js",
     "debug:server": "cross-env DEBUG_ADMIN=true node backend/dev-server.js",
     "test": "vitest",

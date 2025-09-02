@@ -235,7 +235,9 @@ app.use((req, res, next) => {
 app.use('/api/index', (req, _res, next) => {
   const p = (req.query && (req.query.path || req.query.p)) || null
   if (p) {
-    req.url = String(p).startsWith('/') ? String(p) : `/${String(p)}`
+    const normalized = String(p).startsWith('/') ? String(p) : `/${String(p)}`
+    // Always preserve /api prefix so downstream mounts (e.g., /api/admin) match
+    req.url = `/api${normalized}`
   }
   next()
 })
@@ -4966,15 +4968,3 @@ initializeAdminDatabase().catch(err => {
 
 // Vercel Node.js functions expect (req, res). Call Express directly.
 export default (req, res) => app(req, res)
-
-// Diagnostic endpoint for AI route debugging
-app.all('/ai/test', (req, res) => {
-  res.json({
-    method: req.method,
-    path: req.path,
-    url: req.url,
-    headers: req.headers,
-    timestamp: new Date().toISOString(),
-    message: 'AI route test endpoint working'
-  })
-})
