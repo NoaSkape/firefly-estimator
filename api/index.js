@@ -4651,7 +4651,7 @@ initializeAdminDatabase().catch(err => {
 })
 
 // AI Content Generation Endpoint
-app.post('/api/ai/generate-content', async (req, res) => {
+app.post('/ai/generate-content', async (req, res) => {
   try {
     const { topic, template, sections, type = 'full' } = req.body
     

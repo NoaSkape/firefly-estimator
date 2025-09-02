@@ -1,6 +1,6 @@
 class AIService {
   constructor() {
-    this.baseURL = '/api/ai' // Use our backend proxy
+    this.baseURL = '/ai' // Use our backend proxy (Vercel strips /api prefix)
     this.apiKey = import.meta.env.VITE_AI_API_KEY
     this.model = import.meta.env.VITE_AI_MODEL || 'claude-3-5-sonnet-20241022'
     this.maxTokens = 2000
