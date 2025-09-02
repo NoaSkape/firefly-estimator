@@ -26,6 +26,14 @@ router.use(validateAdminAccess)
 
 // Get comprehensive dashboard data
 router.get('/', validatePermission('FINANCIAL_VIEW'), async (req, res) => {
+  console.log('[DEBUG_DASHBOARD] Starting dashboard request:', {
+    method: req.method,
+    url: req.url,
+    hasAuth: !!req.headers.authorization,
+    adminUser: req.adminUser,
+    query: req.query
+  })
+  
   try {
     const { range = '30d' } = req.query
     

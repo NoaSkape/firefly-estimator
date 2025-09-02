@@ -1,6 +1,6 @@
 class AIService {
   constructor() {
-    this.baseURL = '/api/ai' // Use our backend proxy
+    this.baseURL = import.meta.env.VITE_AI_API_URL || 'https://api.anthropic.com/v1'
     this.apiKey = import.meta.env.VITE_AI_API_KEY
     this.model = import.meta.env.VITE_AI_MODEL || 'claude-3-5-sonnet-20241022'
     this.maxTokens = 2000
@@ -23,25 +23,70 @@ class AIService {
   // Generate blog post content using AI
   async generateBlogPost(topic, template, sections = []) {
     try {
-      const response = await fetch(`${this.baseURL}/generate-content`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          topic,
-          template,
-          sections,
-          type: 'full'
+      const prompt = this.buildBlogPrompt(topic, template, sections)
+      
+      // Check if using Claude or OpenAI
+      const isClaude = this.baseURL.includes('anthropic.com')
+      
+      if (isClaude) {
+        // Claude API format
+        const response = await fetch(`${this.baseURL}/messages`, {
+          method: 'POST',
+          headers: {
+            'x-api-key': this.apiKey,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: this.model,
+            max_tokens: this.maxTokens,
+            messages: [
+              {
+                role: 'user',
+                content: `${this.getSystemPrompt()}\n\n${prompt}`
+              }
+            ]
+          })
         })
-      })
 
-      if (!response.ok) {
-        throw new Error(`AI API error: ${response.status}`)
+        if (!response.ok) {
+          throw new Error(`Claude API error: ${response.status}`)
+        }
+
+        const data = await response.json()
+        return this.parseClaudeResponse(data, topic, template)
+      } else {
+        // OpenAI API format
+        const response = await fetch(`${this.baseURL}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: this.model,
+            messages: [
+              {
+                role: 'system',
+                content: this.getSystemPrompt()
+              },
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            max_tokens: this.maxTokens,
+            temperature: 0.7
+          })
+        })
+
+        if (!response.ok) {
+          throw new Error(`OpenAI API error: ${response.status}`)
+        }
+
+        const data = await response.json()
+        return this.parseOpenAIResponse(data, topic, template)
       }
-
-      const data = await response.json()
-      return data
     } catch (error) {
       console.error('AI content generation failed:', error)
       throw error
@@ -51,32 +96,74 @@ class AIService {
   // Generate specific section content
   async generateSectionContent(topic, template, sectionKey, customPrompt = '') {
     try {
-      const response = await fetch(`${this.baseURL}/generate-content`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          topic,
-          template,
-          sections: [sectionKey],
-          type: 'section'
+      const sectionPrompt = this.buildSectionPrompt(topic, template, sectionKey, customPrompt)
+      
+      const isClaude = this.baseURL.includes('anthropic.com')
+      
+      if (isClaude) {
+        const response = await fetch(`${this.baseURL}/messages`, {
+          method: 'POST',
+          headers: {
+            'x-api-key': this.apiKey,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: this.model,
+            max_tokens: 1000,
+            messages: [
+              {
+                role: 'user',
+                content: `${this.getSystemPrompt()}\n\n${sectionPrompt}`
+              }
+            ]
+          })
         })
-      })
 
-      if (!response.ok) {
-        throw new Error(`AI API error: ${response.status}`)
+        if (!response.ok) {
+          throw new Error(`Claude API error: ${response.status}`)
+        }
+
+        const data = await response.json()
+        return this.parseSectionResponse(data, sectionKey)
+      } else {
+        const response = await fetch(`${this.baseURL}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: this.model,
+            messages: [
+              {
+                role: 'system',
+                content: this.getSystemPrompt()
+              },
+              {
+                role: 'user',
+                content: sectionPrompt
+              }
+            ],
+            max_tokens: 1000,
+            temperature: 0.7
+          })
+        })
+
+        if (!response.ok) {
+          throw new Error(`OpenAI API error: ${response.status}`)
+        }
+
+        const data = await response.json()
+        return this.parseSectionResponse(data, sectionKey)
       }
-
-      const data = await response.json()
-      return data
     } catch (error) {
       console.error('Section content generation failed:', error)
       throw error
     }
   }
 
-  // Build prompt for specific section (kept for backward compatibility)
+  // Build prompt for specific section
   buildSectionPrompt(topic, template, sectionKey, customPrompt = '') {
     const sectionInfo = this.getSectionInfo(sectionKey)
     const templateInfo = this.getTemplateInfo(template)
@@ -133,7 +220,7 @@ Please provide just the section content in HTML format, no additional formatting
     return sections[sectionKey] || sections['introduction']
   }
 
-  // Build intelligent prompt for blog generation (kept for backward compatibility)
+  // Build intelligent prompt for blog generation
   buildBlogPrompt(topic, template, sections = []) {
     const templateInfo = this.getTemplateInfo(template)
     
@@ -164,7 +251,7 @@ SLUG: [URL-friendly slug]
     `.trim()
   }
 
-  // Get system prompt for AI behavior (kept for backward compatibility)
+  // Get system prompt for AI behavior
   getSystemPrompt() {
     return `You are an expert content writer specializing in tiny homes, park model homes, and sustainable living. 
 
@@ -204,7 +291,7 @@ Always include specific examples, real scenarios, and actionable advice. Make co
     return templates[template] || templates['story']
   }
 
-  // Parse Claude response into structured content (kept for backward compatibility)
+  // Parse Claude response into structured content
   parseClaudeResponse(data, topic, template) {
     try {
       const content = data.content?.[0]?.text || ''
@@ -215,7 +302,7 @@ Always include specific examples, real scenarios, and actionable advice. Make co
     }
   }
 
-  // Parse OpenAI response into structured content (kept for backward compatibility)
+  // Parse OpenAI response into structured content
   parseOpenAIResponse(data, topic, template) {
     try {
       const content = data.choices?.[0]?.message?.content || ''
@@ -226,7 +313,7 @@ Always include specific examples, real scenarios, and actionable advice. Make co
     }
   }
 
-  // Parse section response into structured content (kept for backward compatibility)
+  // Parse section response into structured content
   parseSectionResponse(data, sectionKey) {
     try {
       const content = data.content?.[0]?.text || ''
@@ -242,7 +329,7 @@ Always include specific examples, real scenarios, and actionable advice. Make co
     }
   }
 
-  // Parse content from either AI provider (kept for backward compatibility)
+  // Parse content from either AI provider
   parseContent(content, topic, template) {
     try {
       // Extract structured content from AI response
