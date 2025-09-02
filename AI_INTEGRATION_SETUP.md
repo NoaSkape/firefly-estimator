@@ -47,14 +47,14 @@ This guide will help you set up the AI-powered content generation system for you
 Create or update your `.env.local` file in the project root:
 
 ```bash
-# AI Configuration
-VITE_AI_API_KEY=your_api_key_here
-VITE_AI_API_URL=https://api.openai.com/v1
-VITE_AI_MODEL=gpt-4
+# AI Configuration (Claude)
+VITE_AI_API_KEY=your_claude_api_key_here
+VITE_AI_API_URL=https://api.anthropic.com/v1
+VITE_AI_MODEL=claude-3-5-sonnet-20241022
 
-# Optional: Custom Claude setup
-# VITE_AI_API_URL=https://api.anthropic.com
-# VITE_AI_MODEL=claude-3-sonnet-20240229
+# Optional: OpenAI setup
+# VITE_AI_API_URL=https://api.openai.com/v1
+# VITE_AI_MODEL=gpt-4
 ```
 
 ### 4. Set Up the AI Content Manager
@@ -132,11 +132,13 @@ VITE_AI_MODEL=gpt-4
 
 ## 💰 Cost Estimation
 
-### OpenAI GPT-4 Pricing (Approximate)
-- **Per blog post**: $0.10 - $0.20
-- **Weekly cost**: $0.40 - $0.80
-- **Monthly cost**: $1.60 - $3.20
-- **Yearly cost**: $19.20 - $38.40
+### Claude 3.5 Sonnet Pricing (Approximate)
+- **Per blog post**: $0.15 - $0.30
+- **Weekly cost**: $0.60 - $1.20
+- **Monthly cost**: $2.40 - $4.80
+- **Yearly cost**: $28.80 - $57.60
+
+*Note: Claude pricing is slightly higher but provides more natural, engaging content*
 
 ### Cost Optimization Tips
 1. **Use GPT-3.5-turbo** for less critical content (50% cheaper)

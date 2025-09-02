@@ -2,9 +2,9 @@ import { getToken } from '@clerk/clerk-react'
 
 class AIService {
   constructor() {
-    this.baseURL = import.meta.env.VITE_AI_API_URL || 'https://api.openai.com/v1'
+    this.baseURL = import.meta.env.VITE_AI_API_URL || 'https://api.anthropic.com/v1'
     this.apiKey = import.meta.env.VITE_AI_API_KEY
-    this.model = import.meta.env.VITE_AI_MODEL || 'gpt-4'
+    this.model = import.meta.env.VITE_AI_MODEL || 'claude-3-5-sonnet-20241022'
     this.maxTokens = 2000
   }
 
@@ -27,35 +27,68 @@ class AIService {
     try {
       const prompt = this.buildBlogPrompt(topic, template, sections)
       
-      const response = await fetch(`${this.baseURL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            {
-              role: 'system',
-              content: this.getSystemPrompt()
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          max_tokens: this.maxTokens,
-          temperature: 0.7
+      // Check if using Claude or OpenAI
+      const isClaude = this.baseURL.includes('anthropic.com')
+      
+      if (isClaude) {
+        // Claude API format
+        const response = await fetch(`${this.baseURL}/messages`, {
+          method: 'POST',
+          headers: {
+            'x-api-key': this.apiKey,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: this.model,
+            max_tokens: this.maxTokens,
+            messages: [
+              {
+                role: 'user',
+                content: `${this.getSystemPrompt()}\n\n${prompt}`
+              }
+            ]
+          })
         })
-      })
 
-      if (!response.ok) {
-        throw new Error(`AI API error: ${response.status}`)
+        if (!response.ok) {
+          throw new Error(`Claude API error: ${response.status}`)
+        }
+
+        const data = await response.json()
+        return this.parseClaudeResponse(data, topic, template)
+      } else {
+        // OpenAI API format
+        const response = await fetch(`${this.baseURL}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: this.model,
+            messages: [
+              {
+                role: 'system',
+                content: this.getSystemPrompt()
+              },
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            max_tokens: this.maxTokens,
+            temperature: 0.7
+          })
+        })
+
+        if (!response.ok) {
+          throw new Error(`OpenAI API error: ${response.status}`)
+        }
+
+        const data = await response.json()
+        return this.parseOpenAIResponse(data, topic, template)
       }
-
-      const data = await response.json()
-      return this.parseAIResponse(data, topic, template)
     } catch (error) {
       console.error('AI content generation failed:', error)
       throw error
@@ -133,11 +166,31 @@ Always include specific examples, real scenarios, and actionable advice. Make co
     return templates[template] || templates['story']
   }
 
-  // Parse AI response into structured content
-  parseAIResponse(data, topic, template) {
+  // Parse Claude response into structured content
+  parseClaudeResponse(data, topic, template) {
     try {
-      const content = data.choices[0]?.message?.content || ''
-      
+      const content = data.content?.[0]?.text || ''
+      return this.parseContent(content, topic, template)
+    } catch (error) {
+      console.error('Failed to parse Claude response:', error)
+      throw new Error('Failed to parse Claude-generated content')
+    }
+  }
+
+  // Parse OpenAI response into structured content
+  parseOpenAIResponse(data, topic, template) {
+    try {
+      const content = data.choices?.[0]?.message?.content || ''
+      return this.parseContent(content, topic, template)
+    } catch (error) {
+      console.error('Failed to parse OpenAI response:', error)
+      throw new Error('Failed to parse OpenAI-generated content')
+    }
+  }
+
+  // Parse content from either AI provider
+  parseContent(content, topic, template) {
+    try {
       // Extract structured content from AI response
       const titleMatch = content.match(/TITLE:\s*(.+)/i)
       const metaMatch = content.match(/META_DESCRIPTION:\s*(.+)/i)
@@ -159,7 +212,7 @@ Always include specific examples, real scenarios, and actionable advice. Make co
         generatedAt: new Date().toISOString()
       }
     } catch (error) {
-      console.error('Failed to parse AI response:', error)
+      console.error('Failed to parse AI content:', error)
       throw new Error('Failed to parse AI-generated content')
     }
   }
