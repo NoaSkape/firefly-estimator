@@ -2,7 +2,7 @@
 // Integrates with Clerk and MongoDB to provide real-time business metrics
 
 import express from 'express'
-import { adminAuth, hasPermission, PERMISSIONS } from '../../lib/adminAuth.js'
+import { adminAuth, PERMISSIONS } from '../../lib/adminAuth.js'
 import { getCollection, COLLECTIONS } from '../../lib/adminSchema.js'
 import { createClerkClient } from '@clerk/backend'
 
@@ -99,54 +99,54 @@ router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async 
     // Get daily revenue trend for the selected period
     const dailyRevenue = await ordersCollection.aggregate([
       { $match: { 
-        createdAt: { $gte: startDate },
-        status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
+        status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] },
+        createdAt: { $gte: startDate }
       }},
       { $group: { 
         _id: { 
-          $dateToString: { format: '%Y-%m-%d', date: '$createdAt' }
+          date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }
         },
-        revenue: { $sum: '$totalAmount' },
-        orders: { $sum: 1 }
+        total: { $sum: '$totalAmount' },
+        count: { $sum: 1 }
       }},
-      { $sort: { _id: 1 } }
+      { $sort: { '_id.date': 1 } }
     ]).toArray()
+
+    // Get previous period data for comparison
+    const previousRevenueData = await ordersCollection.aggregate([
+      { $match: { 
+        status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] },
+        createdAt: { $gte: previousStartDate, $lt: startDate }
+      }},
+      { $group: { _id: null, total: { $sum: '$totalAmount' } }}
+    ]).toArray()
+    
+    const previousRevenue = previousRevenueData[0]?.total || 0
+    const revenueChange = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 0
 
     // Get order status distribution
-    const orderStatuses = await ordersCollection.aggregate([
-      { $match: { createdAt: { $gte: startDate } } },
-      { $group: { _id: '$status', count: { $sum: 1 } } },
+    const orderStatusDistribution = await ordersCollection.aggregate([
+      { $group: { 
+        _id: '$status',
+        count: { $sum: 1 },
+        total: { $sum: '$totalAmount' }
+      }},
       { $sort: { count: -1 } }
     ]).toArray()
-
-    const statusColors = {
-      'quote': 'bg-yellow-400',
-      'pending': 'bg-blue-400',
-      'confirmed': 'bg-green-400',
-      'production': 'bg-purple-400',
-      'ready': 'bg-indigo-400',
-      'delivered': 'bg-teal-400',
-      'completed': 'bg-green-600',
-      'cancelled': 'bg-red-400'
-    }
-
-    const orderStatusesWithColors = orderStatuses.map(status => ({
-      status: status._id,
-      count: status.count,
-      color: statusColors[status._id] || 'bg-gray-400'
-    }))
 
     // Get customer acquisition sources
     const customerSources = await customersCollection.aggregate([
-      { $match: { createdAt: { $gte: startDate } } },
-      { $group: { _id: '$source', count: { $sum: 1 } } },
+      { $group: { 
+        _id: '$source',
+        count: { $sum: 1 }
+      }},
       { $sort: { count: -1 } }
     ]).toArray()
 
-    // Get recent activity (last 10 orders and user signups)
+    // Get recent activity
     const recentOrders = await ordersCollection.find({})
       .sort({ createdAt: -1 })
-      .limit(10)
+      .limit(5)
       .toArray()
 
     const recentCustomers = await customersCollection.find({})
@@ -154,143 +154,66 @@ router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async 
       .limit(5)
       .toArray()
 
-    // Combine recent activity
-    const recentActivity = [
-      ...recentOrders.map(order => ({
-        timestamp: order.createdAt,
-        description: `Order ${order.orderId} created for ${order.customerInfo?.name || 'Customer'}`,
-        type: 'order_created',
-        orderId: order.orderId
-      })),
-      ...recentCustomers.map(customer => ({
-        timestamp: customer.createdAt,
-        description: `New customer ${customer.firstName} ${customer.lastName} signed up`,
-        type: 'customer_created',
-        customerId: customer.customerId
-      }))
-    ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 10)
-
-    // Get top performing models
+    // Get top models by orders
     const topModels = await ordersCollection.aggregate([
       { $match: { 
-        createdAt: { $gte: startDate },
         status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
       }},
       { $group: { 
-        _id: '$modelId', 
+        _id: '$modelId',
         orderCount: { $sum: 1 },
         totalRevenue: { $sum: '$totalAmount' }
       }},
       { $sort: { orderCount: -1 } },
-      { $limit: 10 }
+      { $limit: 5 }
     ]).toArray()
 
     // Get model details for top models
-    const modelIds = topModels.map(m => m._id)
+    const modelIds = topModels.map(item => item._id)
     const models = await modelsCollection.find({ _id: { $in: modelIds } }).toArray()
     const modelMap = models.reduce((acc, model) => {
       acc[model._id] = model
       return acc
     }, {})
 
-    const topModelsWithDetails = topModels.map(model => ({
-      _id: model._id,
-      name: modelMap[model._id]?.name || 'Unknown Model',
-      category: modelMap[model._id]?.category || 'Unknown',
-      orderCount: model.orderCount,
-      totalRevenue: model.totalRevenue
+    // Format top models data
+    const formattedTopModels = topModels.map(item => ({
+      modelId: item._id,
+      modelName: modelMap[item._id]?.name || 'Unknown Model',
+      orderCount: item.orderCount,
+      totalRevenue: item.totalRevenue,
+      averageOrder: item.totalRevenue / item.orderCount
     }))
-
-    // Calculate metrics for comparison
-    const previousPeriodMetrics = await Promise.all([
-      // Previous period revenue
-      ordersCollection.aggregate([
-        { $match: { 
-          createdAt: { $gte: previousStartDate, $lt: startDate },
-          status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
-        }},
-        { $group: { _id: null, total: { $sum: '$totalAmount' } }}
-      ]).toArray(),
-      
-      // Previous period orders
-      ordersCollection.countDocuments({ 
-        createdAt: { $gte: previousStartDate, $lt: startDate },
-        status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
-      }),
-      
-      // Previous period users
-      usersCollection.countDocuments({ 
-        createdAt: { $gte: previousStartDate, $lt: startDate } 
-      })
-    ])
-
-    const previousRevenue = previousPeriodMetrics[0][0]?.total || 0
-    const previousOrders = previousPeriodMetrics[1]
-    const previousUsers = previousPeriodMetrics[2]
-
-    // Calculate percentage changes
-    const revenueChange = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 0
-    const ordersChange = previousOrders > 0 ? ((totalOrders - previousOrders) / previousOrders) * 100 : 0
-    const usersChange = previousUsers > 0 ? ((totalUsers - previousUsers) / previousUsers) * 100 : 0
 
     res.json({
       success: true,
       data: {
-        timeRange: range,
-        period: {
-          current: { start: startDate, end: now },
-          previous: { start: previousStartDate, end: startDate }
-        },
         metrics: {
           totalUsers,
           activeBuilds,
           totalOrders,
           totalRevenue,
-          revenueChange,
-          ordersChange,
-          usersChange
+          revenueChange
         },
-        orderStatuses: orderStatusesWithColors,
-        topModels: topModelsWithDetails,
-        customerSources,
-        recentActivity,
-        dailyRevenue,
-        clerkUsers: {
-          total: totalClerkUsers,
-          recent: clerkUsers.slice(0, 10)
+        trends: {
+          dailyRevenue,
+          previousRevenue,
+          revenueChange
         },
-        localUsers: {
-          total: totalLocalUsers,
-          recent: localUsers.slice(0, 10)
-        }
+        distribution: {
+          orderStatus: orderStatusDistribution,
+          customerSources
+        },
+        recentActivity: {
+          orders: recentOrders,
+          customers: recentCustomers
+        },
+        topModels: formattedTopModels
       }
     })
-
   } catch (error) {
     console.error('Dashboard API error:', error)
     res.status(500).json({ error: 'Failed to fetch dashboard data' })
-  }
-})
-
-// Get current admin user information
-router.get('/me', adminAuth.validatePermission(PERMISSIONS.USERS_VIEW), async (req, res) => {
-  try {
-    const userId = req.adminUser?.userId
-    
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' })
-    }
-
-    // Get user summary from adminAuth
-    const userSummary = await adminAuth.getAdminUserSummary(userId)
-    
-    res.json({
-      success: true,
-      data: userSummary
-    })
-  } catch (error) {
-    console.error('Admin user info API error:', error)
-    res.status(500).json({ error: 'Failed to fetch user information' })
   }
 })
 
@@ -372,13 +295,14 @@ router.get('/builds/active', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIE
     const formattedBuilds = activeBuilds.map(build => ({
       id: build._id,
       orderId: build.orderId,
-      modelName: modelMap[build.modelId]?.name || 'Unknown Model',
       customerName: build.customerInfo?.name || 'Unknown Customer',
+      modelName: modelMap[build.modelId]?.name || 'Unknown Model',
       status: build.status,
       stage: build.stage,
-      startDate: build.productionStartDate || build.createdAt,
-      estimatedCompletion: build.estimatedCompletionDate,
-      totalAmount: build.totalAmount
+      totalAmount: build.totalAmount,
+      createdAt: build.createdAt,
+      estimatedCompletionDate: build.estimatedCompletionDate,
+      productionStartDate: build.productionStartDate
     }))
 
     res.json({
@@ -433,60 +357,6 @@ router.get('/orders/paid', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIEW)
     res.status(500).json({ error: 'Failed to fetch paid orders data' })
   }
 })
-
-// Get detailed user information
-router.get('/users/detailed', adminAuth.validatePermission(PERMISSIONS.USERS_VIEW), async (req, res) => {
-  try {
-    const usersCollection = await getCollection(COLLECTIONS.USERS)
-    
-    // Get Clerk users
-    let clerkUsers = []
-    try {
-      const clerkResponse = await clerkClient.users.getUserList({
-        limit: 1000
-      })
-      clerkUsers = clerkResponse.data || []
-    } catch (clerkError) {
-      console.warn('Could not fetch Clerk users:', clerkError.message)
-    }
-
-    // Get local MongoDB users
-    const localUsers = await usersCollection.find({}).toArray()
-
-    // Combine and format user data
-    const allUsers = [
-      ...clerkUsers.map(user => ({
-        firstName: user.firstName || 'Unknown',
-        lastName: user.lastName || 'Unknown',
-        email: user.emailAddresses?.[0]?.emailAddress || 'No email',
-        role: user.publicMetadata?.role || 'user',
-        status: user.status || 'active',
-        createdAt: user.createdAt,
-        source: 'clerk'
-      })),
-      ...localUsers.map(user => ({
-        firstName: user.firstName || 'Unknown',
-        lastName: user.lastName || 'Unknown',
-        email: user.email || 'No email',
-        role: user.role || 'user',
-        status: user.status || 'active',
-        createdAt: user.createdAt,
-        source: 'local'
-      }))
-    ]
-
-    res.json({
-      success: true,
-      data: allUsers
-    })
-
-  } catch (error) {
-    console.error('Users detailed API error:', error)
-    res.status(500).json({ error: 'Failed to fetch user data' })
-  }
-})
-
-
 
 // Get revenue breakdown
 router.get('/financial/revenue', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_REPORTS), async (req, res) => {

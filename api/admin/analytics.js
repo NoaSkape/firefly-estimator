@@ -1,9 +1,15 @@
-// Admin Analytics API Endpoint
-// Provides comprehensive business intelligence and reporting data
+// Enhanced Admin Analytics API
+// Provides comprehensive analytics and reporting capabilities
 
 import express from 'express'
-import { adminAuth, hasPermission, PERMISSIONS } from '../../lib/adminAuth.js'
+import { adminAuth, PERMISSIONS } from '../../lib/adminAuth.js'
 import { getCollection, COLLECTIONS } from '../../lib/adminSchema.js'
+import { createClerkClient } from '@clerk/backend'
+
+// Initialize Clerk client
+const clerkClient = createClerkClient({ 
+  secretKey: process.env.CLERK_SECRET_KEY 
+})
 
 const router = express.Router()
 
@@ -42,202 +48,98 @@ router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_REPORTS), asy
     }
 
     // Get collections
-    const [ordersCollection, customersCollection, modelsCollection, financialCollection] = await Promise.all([
+    const [ordersCollection, customersCollection, modelsCollection] = await Promise.all([
       getCollection(COLLECTIONS.ORDERS),
       getCollection(COLLECTIONS.CUSTOMERS),
-      getCollection(COLLECTIONS.MODELS),
-      getCollection(COLLECTIONS.FINANCIAL)
+      getCollection(COLLECTIONS.MODELS)
     ])
 
-    // Current period metrics
-    const currentPeriodMetrics = await Promise.all([
-      // Total revenue
-      ordersCollection.aggregate([
-        { $match: { 
-          createdAt: { $gte: startDate },
-          status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
-        }},
-        { $group: { _id: null, total: { $sum: '$totalAmount' } }}
-      ]).toArray(),
-      
-      // Total orders
-      ordersCollection.countDocuments({ createdAt: { $gte: startDate } }),
-      
-      // New customers
-      customersCollection.countDocuments({ createdAt: { $gte: startDate } }),
-      
-      // Average order value
-      ordersCollection.aggregate([
-        { $match: { 
-          createdAt: { $gte: startDate },
-          status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
-        }},
-        { $group: { _id: null, avg: { $avg: '$totalAmount' } }}
-      ]).toArray()
-    ])
+    // Get revenue analytics
+    const revenueAnalytics = await ordersCollection.aggregate([
+      { $match: { 
+        status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] },
+        createdAt: { $gte: startDate }
+      }},
+      { $group: { 
+        _id: { 
+          date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }
+        },
+        total: { $sum: '$totalAmount' },
+        count: { $sum: 1 }
+      }},
+      { $sort: { '_id.date': 1 } }
+    ]).toArray()
 
-    // Previous period metrics for comparison
-    const previousPeriodMetrics = await Promise.all([
-      // Total revenue
-      ordersCollection.aggregate([
-        { $match: { 
-          createdAt: { $gte: previousStartDate, $lt: startDate },
-          status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
-        }},
-        { $group: { _id: null, total: { $sum: '$totalAmount' } }}
-      ]).toArray(),
-      
-      // Total orders
-      ordersCollection.countDocuments({ 
-        createdAt: { $gte: previousStartDate, $lt: startDate } 
-      }),
-      
-      // New customers
-      customersCollection.countDocuments({ 
-        createdAt: { $gte: previousStartDate, $lt: startDate } 
-      }),
-      
-      // Average order value
-      ordersCollection.aggregate([
-        { $match: { 
-          createdAt: { $gte: previousStartDate, $lt: startDate },
-          status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
-        }},
-        { $group: { _id: null, avg: { $avg: '$totalAmount' } }}
-      ]).toArray()
-    ])
+    // Get previous period for comparison
+    const previousRevenue = await ordersCollection.aggregate([
+      { $match: { 
+        status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] },
+        createdAt: { $gte: previousStartDate, $lt: startDate }
+      }},
+      { $group: { _id: null, total: { $sum: '$totalAmount' } }}
+    ]).toArray()
 
-    // Calculate metrics
-    const currentRevenue = currentPeriodMetrics[0][0]?.total || 0
-    const currentOrders = currentPeriodMetrics[1]
-    const currentCustomers = currentPeriodMetrics[2]
-    const currentAOV = currentPeriodMetrics[3][0]?.avg || 0
-
-    const previousRevenue = previousPeriodMetrics[0][0]?.total || 0
-    const previousOrders = previousPeriodMetrics[1]
-    const previousCustomers = previousPeriodMetrics[2]
-    const previousAOV = previousPeriodMetrics[3][0]?.avg || 0
-
-    // Calculate percentage changes
-    const revenueChange = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0
-    const ordersChange = previousOrders > 0 ? ((currentOrders - previousOrders) / previousOrders) * 100 : 0
-    const customersChange = previousCustomers > 0 ? ((currentCustomers - previousCustomers) / previousCustomers) * 100 : 0
-    const aovChange = previousAOV > 0 ? ((currentAOV - previousAOV) / previousAOV) * 100 : 0
-
-    // Get order status distribution
-    const orderStatuses = await ordersCollection.aggregate([
+    // Get order analytics
+    const orderAnalytics = await ordersCollection.aggregate([
       { $match: { createdAt: { $gte: startDate } } },
-      { $group: { _id: '$status', count: { $sum: 1 } } },
+      { $group: { 
+        _id: '$status',
+        count: { $sum: 1 },
+        total: { $sum: '$totalAmount' }
+      }},
       { $sort: { count: -1 } }
     ]).toArray()
 
-    const statusColors = {
-      'quote': 'bg-yellow-400',
-      'pending': 'bg-blue-400',
-      'confirmed': 'bg-green-400',
-      'production': 'bg-purple-400',
-      'ready': 'bg-indigo-400',
-      'delivered': 'bg-teal-400',
-      'completed': 'bg-green-600',
-      'cancelled': 'bg-red-400'
-    }
+    // Get customer analytics
+    const customerAnalytics = await customersCollection.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      { $group: { 
+        _id: '$source',
+        count: { $sum: 1 }
+      }},
+      { $sort: { count: -1 } }
+    ]).toArray()
 
-    const orderStatusesWithColors = orderStatuses.map(status => ({
-      status: status._id,
-      count: status.count,
-      color: statusColors[status._id] || 'bg-gray-400'
-    }))
-
-    // Get top performing models
-    const topModels = await ordersCollection.aggregate([
+    // Get model performance analytics
+    const modelAnalytics = await ordersCollection.aggregate([
       { $match: { 
-        createdAt: { $gte: startDate },
-        status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
+        status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] },
+        createdAt: { $gte: startDate }
       }},
       { $group: { 
-        _id: '$modelId', 
+        _id: '$modelId',
         orderCount: { $sum: 1 },
         totalRevenue: { $sum: '$totalAmount' }
       }},
-      { $sort: { orderCount: -1 } },
+      { $sort: { totalRevenue: -1 } },
       { $limit: 10 }
     ]).toArray()
 
-    // Get model details for top models
-    const modelIds = topModels.map(m => m._id)
+    // Get model details for top performers
+    const modelIds = modelAnalytics.map(item => item._id)
     const models = await modelsCollection.find({ _id: { $in: modelIds } }).toArray()
     const modelMap = models.reduce((acc, model) => {
       acc[model._id] = model
       return acc
     }, {})
 
-    const topModelsWithDetails = topModels.map(model => ({
-      _id: model._id,
-      name: modelMap[model._id]?.name || 'Unknown Model',
-      category: modelMap[model._id]?.category || 'Unknown',
-      orderCount: model.orderCount,
-      totalRevenue: model.totalRevenue
+    // Format model analytics
+    const formattedModelAnalytics = modelAnalytics.map(item => ({
+      modelId: item._id,
+      modelName: modelMap[item._id]?.name || 'Unknown Model',
+      category: modelMap[item._id]?.category || 'Unknown',
+      orderCount: item.orderCount,
+      totalRevenue: item.totalRevenue,
+      averageOrder: item.totalRevenue / item.orderCount
     }))
 
-    // Get customer acquisition sources
-    const customerSources = await customersCollection.aggregate([
-      { $match: { createdAt: { $gte: startDate } } },
-      { $group: { _id: '$source', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]).toArray()
+    // Calculate current period totals
+    const currentRevenue = revenueAnalytics.reduce((sum, item) => sum + item.total, 0)
+    const currentOrders = revenueAnalytics.reduce((sum, item) => sum + item.count, 0)
+    const previousRevenueTotal = previousRevenue[0]?.total || 0
 
-    // Get recent activity (last 10 orders)
-    const recentActivity = await ordersCollection.find({})
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .toArray()
-
-    const activityLog = recentActivity.map(order => ({
-      timestamp: order.createdAt,
-      description: `Order ${order.orderId} created for ${order.customerInfo?.name || 'Customer'}`,
-      type: 'order_created',
-      orderId: order.orderId
-    }))
-
-    // Get daily revenue trend for the selected period
-    const dailyRevenue = await ordersCollection.aggregate([
-      { $match: { 
-        createdAt: { $gte: startDate },
-        status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
-      }},
-      { $group: { 
-        _id: { 
-          $dateToString: { format: '%Y-%m-%d', date: '$createdAt' }
-        },
-        revenue: { $sum: '$totalAmount' },
-        orders: { $sum: 1 }
-      }},
-      { $sort: { _id: 1 } }
-    ]).toArray()
-
-    // Get customer lifetime value data
-    const customerLTV = await customersCollection.aggregate([
-      { $match: { totalSpent: { $gt: 0 } } },
-      { $group: { 
-        _id: null,
-        avgLTV: { $avg: '$totalSpent' },
-        maxLTV: { $max: '$totalSpent' },
-        totalCustomers: { $sum: 1 }
-      }}
-    ]).toArray()
-
-    // Get inventory status
-    const inventoryStatus = await modelsCollection.aggregate([
-      { $group: { 
-        _id: '$isActive', 
-        count: { $sum: 1 }
-      }}
-    ]).toArray()
-
-    const inventorySummary = {
-      active: inventoryStatus.find(s => s._id === true)?.count || 0,
-      inactive: inventoryStatus.find(s => s._id === false)?.count || 0
-    }
+    // Calculate percentage changes
+    const revenueChange = previousRevenueTotal > 0 ? ((currentRevenue - previousRevenueTotal) / previousRevenueTotal) * 100 : 0
 
     res.json({
       success: true,
@@ -248,25 +150,25 @@ router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_REPORTS), asy
           previous: { start: previousStartDate, end: startDate }
         },
         metrics: {
-          totalRevenue: currentRevenue,
-          totalOrders: currentOrders,
-          newCustomers: currentCustomers,
-          averageOrderValue: currentAOV,
-          revenueChange,
-          ordersChange,
-          customersChange,
-          aovChange
-        },
-        orderStatuses: orderStatusesWithColors,
-        topModels: topModelsWithDetails,
-        customerSources,
-        recentActivity: activityLog,
-        dailyRevenue,
-        customerLTV: customerLTV[0] || { avgLTV: 0, maxLTV: 0, totalCustomers: 0 },
-        inventory: inventorySummary
+          revenue: {
+            current: currentRevenue,
+            previous: previousRevenueTotal,
+            change: revenueChange,
+            daily: revenueAnalytics
+          },
+          orders: {
+            current: currentOrders,
+            byStatus: orderAnalytics
+          },
+          customers: {
+            bySource: customerAnalytics
+          },
+          models: {
+            topPerformers: formattedModelAnalytics
+          }
+        }
       }
     })
-
   } catch (error) {
     console.error('Analytics API error:', error)
     res.status(500).json({ error: 'Failed to fetch analytics data' })
@@ -277,71 +179,152 @@ router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_REPORTS), asy
 router.get('/:metric', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_REPORTS), async (req, res) => {
   try {
     const { metric } = req.params
-    const { range = '30d' } = req.query
-
+    const { range = '30d', groupBy = 'day' } = req.query
+    
     // Calculate date range
     const now = new Date()
-    const startDate = new Date(now.getTime() - (parseInt(range) * 24 * 60 * 60 * 1000))
+    let startDate
+    
+    switch (range) {
+      case '7d':
+        startDate = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000))
+        break
+      case '30d':
+        startDate = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000))
+        break
+      case '90d':
+        startDate = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000))
+        break
+      case '1y':
+        startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+        break
+      default:
+        startDate = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000))
+    }
 
     const ordersCollection = await getCollection(COLLECTIONS.ORDERS)
-
-    let data = null
+    
+    let aggregationPipeline = []
+    let dateFormat = '%Y-%m-%d'
+    
+    // Set grouping based on parameter
+    switch (groupBy) {
+      case 'hour':
+        dateFormat = '%Y-%m-%d-%H'
+        break
+      case 'day':
+        dateFormat = '%Y-%m-%d'
+        break
+      case 'week':
+        dateFormat = '%Y-%U'
+        break
+      case 'month':
+        dateFormat = '%Y-%m'
+        break
+      default:
+        dateFormat = '%Y-%m-%d'
+    }
 
     switch (metric) {
-      case 'revenue-trend':
-        data = await ordersCollection.aggregate([
+      case 'revenue':
+        aggregationPipeline = [
           { $match: { 
-            createdAt: { $gte: startDate },
-            status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
+            status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] },
+            createdAt: { $gte: startDate }
           }},
           { $group: { 
             _id: { 
-              $dateToString: { format: '%Y-%m-%d', date: '$createdAt' }
+              date: { $dateToString: { format: dateFormat, date: '$createdAt' } }
             },
-            revenue: { $sum: '$totalAmount' },
-            orders: { $sum: 1 }
+            total: { $sum: '$totalAmount' },
+            count: { $sum: 1 }
           }},
-          { $sort: { _id: 1 } }
-        ]).toArray()
+          { $sort: { '_id.date': 1 } }
+        ]
         break
-
-      case 'order-status':
-        data = await ordersCollection.aggregate([
+        
+      case 'orders':
+        aggregationPipeline = [
           { $match: { createdAt: { $gte: startDate } } },
-          { $group: { _id: '$status', count: { $sum: 1 } } },
-          { $sort: { count: -1 } }
-        ]).toArray()
+          { $group: { 
+            _id: { 
+              date: { $dateToString: { format: dateFormat, date: '$createdAt' } }
+            },
+            count: { $sum: 1 },
+            total: { $sum: '$totalAmount' }
+          }},
+          { $sort: { '_id.date': 1 } }
+        ]
         break
-
-      case 'model-performance':
-        data = await ordersCollection.aggregate([
+        
+      case 'customers':
+        const customersCollection = await getCollection(COLLECTIONS.CUSTOMERS)
+        const customerData = await customersCollection.aggregate([
+          { $match: { createdAt: { $gte: startDate } } },
+          { $group: { 
+            _id: { 
+              date: { $dateToString: { format: dateFormat, date: '$createdAt' } }
+            },
+            count: { $sum: 1 }
+          }},
+          { $sort: { '_id.date': 1 } }
+        ]).toArray()
+        
+        return res.json({
+          success: true,
+          data: {
+            metric,
+            timeRange: range,
+            groupBy,
+            data: customerData
+          }
+        })
+        
+      case 'models':
+        aggregationPipeline = [
           { $match: { 
-            createdAt: { $gte: startDate },
-            status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
+            status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] },
+            createdAt: { $gte: startDate }
           }},
           { $group: { 
-            _id: '$modelId', 
+            _id: { 
+              date: { $dateToString: { format: dateFormat, date: '$createdAt' } },
+              modelId: '$modelId'
+            },
             orderCount: { $sum: 1 },
             totalRevenue: { $sum: '$totalAmount' }
           }},
-          { $sort: { totalRevenue: -1 } },
-          { $limit: 20 }
-        ]).toArray()
+          { $group: { 
+            _id: '$_id.date',
+            models: { 
+              $push: { 
+                modelId: '$_id.modelId',
+                orderCount: '$orderCount',
+                totalRevenue: '$totalRevenue'
+              }
+            },
+            totalOrders: { $sum: '$orderCount' },
+            totalRevenue: { $sum: '$totalRevenue' }
+          }},
+          { $sort: { '_id': 1 } }
+        ]
         break
-
+        
       default:
         return res.status(400).json({ error: 'Invalid metric specified' })
     }
 
+    const data = await ordersCollection.aggregate(aggregationPipeline).toArray()
+    
     res.json({
       success: true,
       data: {
         metric,
         timeRange: range,
+        groupBy,
         data
       }
     })
-
   } catch (error) {
     console.error('Metric API error:', error)
     res.status(500).json({ error: 'Failed to fetch metric data' })
@@ -349,3 +332,4 @@ router.get('/:metric', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_REPORT
 })
 
 export default router
+

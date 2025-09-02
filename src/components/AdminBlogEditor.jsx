@@ -15,6 +15,8 @@ import {
 import TemplateRenderer from './blog-templates/TemplateRenderer'
 import SectionManager from './blog-templates/SectionManager'
 import { TEMPLATE_REGISTRY, getDefaultSections } from './blog-templates/TemplateRegistry'
+import InteractivePreview from './blog-templates/InteractivePreview'
+import EngagementTracker from './blog-templates/EngagementTracker'
 
 export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
   const { user } = useUser()
@@ -514,22 +516,31 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
             <div className="space-y-6">
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Template Preview</h2>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Interactive Template Preview</h2>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
                     {postData.template === 'story' && 'Story-Driven Template'}
                     {postData.template === 'educational' && 'Educational Template'}
                     {postData.template === 'inspiration' && 'Inspirational Template'}
                   </span>
                 </div>
-                
-                {/* Template Renderer */}
-                <TemplateRenderer
+
+                {/* Interactive Preview with Enhanced Controls */}
+                <InteractivePreview
                   postData={postData}
                   templateId={postData.template}
-                  activeSections={activeSections}
-                  isPreview={true}
-                  isEditing={false}
-                />
+                >
+                  {/* Template Renderer */}
+                  <TemplateRenderer
+                    postData={postData}
+                    templateId={postData.template}
+                    activeSections={activeSections}
+                    isPreview={true}
+                    isEditing={false}
+                  />
+                  
+                  {/* Engagement Tracker */}
+                  <EngagementTracker postData={postData} />
+                </InteractivePreview>
               </div>
             </div>
           )}

@@ -3,7 +3,7 @@
 
 import express from 'express'
 import { z } from 'zod'
-import { adminAuth, hasPermission, PERMISSIONS } from '../../lib/adminAuth.js'
+import { adminAuth, PERMISSIONS } from '../../lib/adminAuth.js'
 import {
   getCollection,
   COLLECTIONS,
@@ -301,7 +301,7 @@ router.get('/models', adminAuth.validatePermission(PERMISSIONS.MODELS_VIEW), asy
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .toArray()
-    
+
     res.json({
       success: true,
       data: {
@@ -315,7 +315,7 @@ router.get('/models', adminAuth.validatePermission(PERMISSIONS.MODELS_VIEW), asy
       }
     })
   } catch (error) {
-    console.error('Get models error:', error)
+    console.error('Models fetch error:', error)
     res.status(500).json({ error: 'Failed to fetch models' })
   }
 })
@@ -326,20 +326,17 @@ router.get('/models/:id', adminAuth.validatePermission(PERMISSIONS.MODELS_VIEW),
     const { id } = req.params
     const collection = await getCollection(COLLECTIONS.MODELS)
     
-    const model = await collection.findOne({ 
-      $or: [{ _id: id }, { modelCode: id }, { slug: id }] 
-    })
-    
+    const model = await collection.findOne({ _id: id })
     if (!model) {
       return res.status(404).json({ error: 'Model not found' })
     }
-    
+
     res.json({
       success: true,
       data: model
     })
   } catch (error) {
-    console.error('Get model error:', error)
+    console.error('Model fetch error:', error)
     res.status(500).json({ error: 'Failed to fetch model' })
   }
 })
@@ -348,48 +345,35 @@ router.get('/models/:id', adminAuth.validatePermission(PERMISSIONS.MODELS_VIEW),
 router.post('/models', adminAuth.validatePermission(PERMISSIONS.MODELS_CREATE), async (req, res) => {
   try {
     const validatedData = adminSchemas.createModel.parse(req.body)
+    
     const collection = await getCollection(COLLECTIONS.MODELS)
     
-    // Check for duplicate modelCode or slug
-    const existing = await collection.findOne({
-      $or: [
-        { modelCode: validatedData.modelCode },
-        { slug: validatedData.slug }
-      ]
-    })
-    
-    if (existing) {
-      return res.status(400).json({ 
-        error: 'Model with this code or slug already exists' 
-      })
+    // Check if model code already exists
+    const existingModel = await collection.findOne({ modelCode: validatedData.modelCode })
+    if (existingModel) {
+      return res.status(400).json({ error: 'Model code already exists' })
     }
-    
-    // Create model
+
     const newModel = {
       ...validatedData,
       createdAt: new Date(),
-      updatedAt: new Date(),
-      createdBy: req.adminUser.userId,
-      updatedBy: req.adminUser.userId
+      updatedAt: new Date()
     }
-    
+
     const result = await collection.insertOne(newModel)
     
     res.status(201).json({
       success: true,
       data: {
-        _id: result.insertedId,
+        id: result.insertedId,
         ...newModel
       }
     })
   } catch (error) {
     if (error.name === 'ZodError') {
-      return res.status(400).json({ 
-        error: 'Validation failed', 
-        details: error.errors 
-      })
+      return res.status(400).json({ error: 'Validation failed', details: error.errors })
     }
-    console.error('Create model error:', error)
+    console.error('Model creation error:', error)
     res.status(500).json({ error: 'Failed to create model' })
   }
 })
@@ -399,45 +383,32 @@ router.put('/models/:id', adminAuth.validatePermission(PERMISSIONS.MODELS_EDIT),
   try {
     const { id } = req.params
     const validatedData = adminSchemas.updateModel.parse(req.body)
+    
     const collection = await getCollection(COLLECTIONS.MODELS)
     
-    // Check if model exists
-    const existing = await collection.findOne({ 
-      $or: [{ _id: id }, { modelCode: id }, { slug: id }] 
-    })
-    
-    if (!existing) {
-      return res.status(404).json({ error: 'Model not found' })
-    }
-    
-    // Update model
     const updateData = {
       ...validatedData,
-      updatedAt: new Date(),
-      updatedBy: req.adminUser.userId
+      updatedAt: new Date()
     }
-    
+
     const result = await collection.updateOne(
-      { _id: existing._id },
+      { _id: id },
       { $set: updateData }
     )
-    
+
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Model not found' })
     }
-    
+
     res.json({
       success: true,
-      data: { message: 'Model updated successfully' }
+      message: 'Model updated successfully'
     })
   } catch (error) {
     if (error.name === 'ZodError') {
-      return res.status(400).json({ 
-        error: 'Validation failed', 
-        details: error.errors 
-      })
+      return res.status(400).json({ error: 'Validation failed', details: error.errors })
     }
-    console.error('Update model error:', error)
+    console.error('Model update error:', error)
     res.status(500).json({ error: 'Failed to update model' })
   }
 })
@@ -448,38 +419,18 @@ router.delete('/models/:id', adminAuth.validatePermission(PERMISSIONS.MODELS_DEL
     const { id } = req.params
     const collection = await getCollection(COLLECTIONS.MODELS)
     
-    // Check if model exists
-    const existing = await collection.findOne({ 
-      $or: [{ _id: id }, { modelCode: id }, { slug: id }] 
-    })
-    
-    if (!existing) {
-      return res.status(404).json({ error: 'Model not found' })
-    }
-    
-    // Check if model has orders
-    const ordersCollection = await getCollection(COLLECTIONS.ORDERS)
-    const hasOrders = await ordersCollection.countDocuments({ modelId: existing._id })
-    
-    if (hasOrders > 0) {
-      return res.status(400).json({ 
-        error: 'Cannot delete model with existing orders' 
-      })
-    }
-    
-    // Delete model
-    const result = await collection.deleteOne({ _id: existing._id })
+    const result = await collection.deleteOne({ _id: id })
     
     if (result.deletedCount === 0) {
       return res.status(404).json({ error: 'Model not found' })
     }
-    
+
     res.json({
       success: true,
-      data: { message: 'Model deleted successfully' }
+      message: 'Model deleted successfully'
     })
   } catch (error) {
-    console.error('Delete model error:', error)
+    console.error('Model deletion error:', error)
     res.status(500).json({ error: 'Failed to delete model' })
   }
 })
@@ -491,15 +442,22 @@ router.delete('/models/:id', adminAuth.validatePermission(PERMISSIONS.MODELS_DEL
 // Get all orders with pagination and filtering
 router.get('/orders', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIEW), async (req, res) => {
   try {
-    const { page = 1, limit = 20, sort = 'createdAt', order = 'desc', status, customerId, modelId } = req.query
+    const { page = 1, limit = 20, sort = 'createdAt', order = 'desc', status, stage, paymentStatus, search } = req.query
     
     const collection = await getCollection(COLLECTIONS.ORDERS)
     
     // Build filter
     const filter = {}
     if (status) filter.status = status
-    if (customerId) filter.customerId = customerId
-    if (modelId) filter.modelId = modelId
+    if (stage) filter.stage = stage
+    if (paymentStatus) filter['payment.status'] = paymentStatus
+    if (search) {
+      filter.$or = [
+        { orderId: { $regex: search, $options: 'i' } },
+        { 'customerInfo.name': { $regex: search, $options: 'i' } },
+        { 'customerInfo.email': { $regex: search, $options: 'i' } }
+      ]
+    }
     
     // Get total count
     const total = await collection.countDocuments(filter)
@@ -510,7 +468,7 @@ router.get('/orders', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIEW), asy
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .toArray()
-    
+
     res.json({
       success: true,
       data: {
@@ -524,7 +482,7 @@ router.get('/orders', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIEW), asy
       }
     })
   } catch (error) {
-    console.error('Get orders error:', error)
+    console.error('Orders fetch error:', error)
     res.status(500).json({ error: 'Failed to fetch orders' })
   }
 })
@@ -535,20 +493,17 @@ router.get('/orders/:id', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIEW),
     const { id } = req.params
     const collection = await getCollection(COLLECTIONS.ORDERS)
     
-    const order = await collection.findOne({ 
-      $or: [{ _id: id }, { orderId: id }] 
-    })
-    
+    const order = await collection.findOne({ _id: id })
     if (!order) {
       return res.status(404).json({ error: 'Order not found' })
     }
-    
+
     res.json({
       success: true,
       data: order
     })
   } catch (error) {
-    console.error('Get order error:', error)
+    console.error('Order fetch error:', error)
     res.status(500).json({ error: 'Failed to fetch order' })
   }
 })
@@ -557,38 +512,30 @@ router.get('/orders/:id', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIEW),
 router.post('/orders', adminAuth.validatePermission(PERMISSIONS.ORDERS_CREATE), async (req, res) => {
   try {
     const validatedData = adminSchemas.createOrder.parse(req.body)
+    
     const collection = await getCollection(COLLECTIONS.ORDERS)
     
-    // Generate unique order ID
-    const orderId = `FF-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`
-    
-    // Create order
     const newOrder = {
       ...validatedData,
-      orderId,
+      orderId: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date(),
-      updatedAt: new Date(),
-      createdBy: req.adminUser.userId,
-      updatedBy: req.adminUser.userId
+      updatedAt: new Date()
     }
-    
+
     const result = await collection.insertOne(newOrder)
     
     res.status(201).json({
       success: true,
       data: {
-        _id: result.insertedId,
+        id: result.insertedId,
         ...newOrder
       }
     })
   } catch (error) {
     if (error.name === 'ZodError') {
-      return res.status(400).json({ 
-        error: 'Validation failed', 
-        details: error.errors 
-      })
+      return res.status(400).json({ error: 'Validation failed', details: error.errors })
     }
-    console.error('Create order error:', error)
+    console.error('Order creation error:', error)
     res.status(500).json({ error: 'Failed to create order' })
   }
 })
@@ -598,46 +545,67 @@ router.put('/orders/:id', adminAuth.validatePermission(PERMISSIONS.ORDERS_EDIT),
   try {
     const { id } = req.params
     const validatedData = adminSchemas.updateOrder.parse(req.body)
+    
     const collection = await getCollection(COLLECTIONS.ORDERS)
     
-    // Check if order exists
-    const existing = await collection.findOne({ 
-      $or: [{ _id: id }, { orderId: id }] 
-    })
-    
-    if (!existing) {
-      return res.status(404).json({ error: 'Order not found' })
-    }
-    
-    // Update order
     const updateData = {
       ...validatedData,
-      updatedAt: new Date(),
-      updatedBy: req.adminUser.userId
+      updatedAt: new Date()
     }
-    
+
     const result = await collection.updateOne(
-      { _id: existing._id },
+      { _id: id },
       { $set: updateData }
     )
-    
+
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Order not found' })
     }
-    
+
     res.json({
       success: true,
-      data: { message: 'Order updated successfully' }
+      message: 'Order updated successfully'
     })
   } catch (error) {
     if (error.name === 'ZodError') {
-      return res.status(400).json({ 
-        error: 'Validation failed', 
-        details: error.errors 
-      })
+      return res.status(400).json({ error: 'Validation failed', details: error.errors })
     }
-    console.error('Update order error:', error)
+    console.error('Order update error:', error)
     res.status(500).json({ error: 'Failed to update order' })
+  }
+})
+
+// Cancel order
+router.patch('/orders/:id/cancel', adminAuth.validatePermission(PERMISSIONS.ORDERS_CANCEL), async (req, res) => {
+  try {
+    const { id } = req.params
+    const { reason } = req.body
+    
+    const collection = await getCollection(COLLECTIONS.ORDERS)
+    
+    const result = await collection.updateOne(
+      { _id: id },
+      { 
+        $set: { 
+          status: 'cancelled',
+          cancelledAt: new Date(),
+          cancelReason: reason,
+          updatedAt: new Date()
+        }
+      }
+    )
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Order not found' })
+    }
+
+    res.json({
+      success: true,
+      message: 'Order cancelled successfully'
+    })
+  } catch (error) {
+    console.error('Order cancellation error:', error)
+    res.status(500).json({ error: 'Failed to cancel order' })
   }
 })
 
@@ -648,7 +616,7 @@ router.put('/orders/:id', adminAuth.validatePermission(PERMISSIONS.ORDERS_EDIT),
 // Get all customers with pagination and filtering
 router.get('/customers', adminAuth.validatePermission(PERMISSIONS.CUSTOMERS_VIEW), async (req, res) => {
   try {
-    const { page = 1, limit = 20, sort = 'createdAt', order = 'desc', status, source } = req.query
+    const { page = 1, limit = 20, sort = 'createdAt', order = 'desc', status, source, search } = req.query
     
     const collection = await getCollection(COLLECTIONS.CUSTOMERS)
     
@@ -656,6 +624,13 @@ router.get('/customers', adminAuth.validatePermission(PERMISSIONS.CUSTOMERS_VIEW
     const filter = {}
     if (status) filter.status = status
     if (source) filter.source = source
+    if (search) {
+      filter.$or = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ]
+    }
     
     // Get total count
     const total = await collection.countDocuments(filter)
@@ -666,7 +641,7 @@ router.get('/customers', adminAuth.validatePermission(PERMISSIONS.CUSTOMERS_VIEW
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .toArray()
-    
+
     res.json({
       success: true,
       data: {
@@ -680,7 +655,7 @@ router.get('/customers', adminAuth.validatePermission(PERMISSIONS.CUSTOMERS_VIEW
       }
     })
   } catch (error) {
-    console.error('Get customers error:', error)
+    console.error('Customers fetch error:', error)
     res.status(500).json({ error: 'Failed to fetch customers' })
   }
 })
@@ -691,20 +666,17 @@ router.get('/customers/:id', adminAuth.validatePermission(PERMISSIONS.CUSTOMERS_
     const { id } = req.params
     const collection = await getCollection(COLLECTIONS.CUSTOMERS)
     
-    const customer = await collection.findOne({ 
-      $or: [{ _id: id }, { customerId: id }, { email: id }] 
-    })
-    
+    const customer = await collection.findOne({ _id: id })
     if (!customer) {
       return res.status(404).json({ error: 'Customer not found' })
     }
-    
+
     res.json({
       success: true,
       data: customer
     })
   } catch (error) {
-    console.error('Get customer error:', error)
+    console.error('Customer fetch error:', error)
     res.status(500).json({ error: 'Failed to fetch customer' })
   }
 })
@@ -713,48 +685,29 @@ router.get('/customers/:id', adminAuth.validatePermission(PERMISSIONS.CUSTOMERS_
 router.post('/customers', adminAuth.validatePermission(PERMISSIONS.CUSTOMERS_EDIT), async (req, res) => {
   try {
     const validatedData = adminSchemas.createCustomer.parse(req.body)
+    
     const collection = await getCollection(COLLECTIONS.CUSTOMERS)
     
-    // Check for duplicate email
-    const existing = await collection.findOne({ email: validatedData.email })
-    
-    if (existing) {
-      return res.status(400).json({ 
-        error: 'Customer with this email already exists' 
-      })
-    }
-    
-    // Generate unique customer ID
-    const customerId = `CUST-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`
-    
-    // Create customer
     const newCustomer = {
       ...validatedData,
-      customerId,
-      totalOrders: 0,
-      totalSpent: 0,
-      lastActivity: new Date(),
       createdAt: new Date(),
       updatedAt: new Date()
     }
-    
+
     const result = await collection.insertOne(newCustomer)
     
     res.status(201).json({
       success: true,
       data: {
-        _id: result.insertedId,
+        id: result.insertedId,
         ...newCustomer
       }
     })
   } catch (error) {
     if (error.name === 'ZodError') {
-      return res.status(400).json({ 
-        error: 'Validation failed', 
-        details: error.errors 
-      })
+      return res.status(400).json({ error: 'Validation failed', details: error.errors })
     }
-    console.error('Create customer error:', error)
+    console.error('Customer creation error:', error)
     res.status(500).json({ error: 'Failed to create customer' })
   }
 })
@@ -764,44 +717,32 @@ router.put('/customers/:id', adminAuth.validatePermission(PERMISSIONS.CUSTOMERS_
   try {
     const { id } = req.params
     const validatedData = adminSchemas.updateCustomer.parse(req.body)
+    
     const collection = await getCollection(COLLECTIONS.CUSTOMERS)
     
-    // Check if customer exists
-    const existing = await collection.findOne({ 
-      $or: [{ _id: id }, { customerId: id }, { email: id }] 
-    })
-    
-    if (!existing) {
-      return res.status(404).json({ error: 'Customer not found' })
-    }
-    
-    // Update customer
     const updateData = {
       ...validatedData,
       updatedAt: new Date()
     }
-    
+
     const result = await collection.updateOne(
-      { _id: existing._id },
+      { _id: id },
       { $set: updateData }
     )
-    
+
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Customer not found' })
     }
-    
+
     res.json({
       success: true,
-      data: { message: 'Customer updated successfully' }
+      message: 'Customer updated successfully'
     })
   } catch (error) {
     if (error.name === 'ZodError') {
-      return res.status(400).json({ 
-        error: 'Validation failed', 
-        details: error.errors 
-      })
+      return res.status(400).json({ error: 'Validation failed', details: error.errors })
     }
-    console.error('Update customer error:', error)
+    console.error('Customer update error:', error)
     res.status(500).json({ error: 'Failed to update customer' })
   }
 })
@@ -831,7 +772,7 @@ router.get('/users', adminAuth.validatePermission(PERMISSIONS.USERS_VIEW), async
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .toArray()
-    
+
     res.json({
       success: true,
       data: {
@@ -845,12 +786,12 @@ router.get('/users', adminAuth.validatePermission(PERMISSIONS.USERS_VIEW), async
       }
     })
   } catch (error) {
-    console.error('Get users error:', error)
+    console.error('Users fetch error:', error)
     res.status(500).json({ error: 'Failed to fetch users' })
   }
 })
 
-// Get current admin user info
+// Get current admin user information
 router.get('/me', async (req, res) => {
   try {
     const userSummary = await adminAuth.getAdminUserSummary(req.adminUser.userId)
@@ -929,35 +870,27 @@ router.post('/export', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_REPORT
   }
 })
 
-            // ============================================================================
-            // DASHBOARD ROUTES
-            // ============================================================================
+// ============================================================================
+// ROUTER MOUNTING
+// ============================================================================
 
-            // Mount dashboard router
-            router.use('/dashboard', dashboardRouter)
+// Mount dashboard router
+router.use('/dashboard', dashboardRouter)
 
-            // ============================================================================
-            // REPORTS ROUTES
-            // ============================================================================
+// Mount reports router
+router.use('/reports', reportsRouter)
 
-            // Mount reports router
-            router.use('/reports', reportsRouter)
+// Mount analytics router
+router.use('/analytics', analyticsRouter)
 
-            // ============================================================================
-            // ANALYTICS ROUTES
-            // ============================================================================
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
 
-            // Mount analytics router
-            router.use('/analytics', analyticsRouter)
-
-            // ============================================================================
-            // ERROR HANDLING
-            // ============================================================================
-
-            // 404 handler for admin routes
-            router.use('*', (req, res) => {
-              res.status(404).json({ error: 'Admin endpoint not found' })
-            })
+// 404 handler for admin routes
+router.use('*', (req, res) => {
+  res.status(404).json({ error: 'Admin endpoint not found' })
+})
 
 // Error handler
 router.use((error, req, res, next) => {
