@@ -13,6 +13,7 @@ export default function AdminOverview() {
   const { getToken } = useAuth()
   const [settings, setSettings] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [dashboardData, setDashboardData] = useState(null)
 
   React.useEffect(() => {
     const checkAdminStatus = () => {
@@ -33,6 +34,19 @@ export default function AdminOverview() {
         const token = await getToken()
         const res = await fetch('/api/admin/settings', { headers: token?{ Authorization:`Bearer ${token}` }:{} })
         if (res.ok) setSettings(await res.json())
+      } catch {}
+    })()
+  }, [getToken])
+
+  useEffect(() => {
+    (async ()=>{
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/admin/dashboard', { headers: token?{ Authorization:`Bearer ${token}` }:{} })
+        if (res.ok) {
+          const data = await res.json()
+          setDashboardData(data.data)
+        }
       } catch {}
     })()
   }, [getToken])
@@ -188,7 +202,7 @@ export default function AdminOverview() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Users</p>
-                  <p className="text-2xl font-bold text-gray-900">Loading...</p>
+                  <p className="text-2xl font-bold text-gray-900">{dashboardData?.metrics?.totalUsers || 0}</p>
                 </div>
               </div>
             </div>
@@ -200,7 +214,7 @@ export default function AdminOverview() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Active Builds</p>
-                  <p className="text-2xl font-bold text-gray-900">Loading...</p>
+                  <p className="text-2xl font-bold text-gray-900">{dashboardData?.metrics?.activeBuilds || 0}</p>
                 </div>
               </div>
             </div>
@@ -212,7 +226,7 @@ export default function AdminOverview() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Orders</p>
-                  <p className="text-2xl font-bold text-gray-900">Loading...</p>
+                  <p className="text-2xl font-bold text-gray-900">{dashboardData?.metrics?.totalOrders || 0}</p>
                 </div>
               </div>
             </div>
@@ -224,7 +238,7 @@ export default function AdminOverview() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Revenue</p>
-                  <p className="text-2xl font-bold text-gray-900">Loading...</p>
+                  <p className="text-2xl font-bold text-gray-900">${(dashboardData?.metrics?.totalRevenue || 0).toLocaleString()}</p>
                 </div>
               </div>
             </div>
