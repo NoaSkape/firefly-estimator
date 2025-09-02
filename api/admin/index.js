@@ -809,14 +809,24 @@ router.post('/export', async (req, res) => {
 // ROUTER MOUNTING
 // ============================================================================
 
-// Mount dashboard router
-router.use('/dashboard', dashboardRouter)
+// Defensive mount helper to avoid Express "apply" errors if a subrouter fails to load
+function mountSafe(path, subrouter, name) {
+  const isFn = typeof subrouter === 'function'
+  if (!isFn) {
+    console.error(`[ADMIN] Failed to mount ${name}: not a function`, { path, type: typeof subrouter })
+    // Provide a diagnostic endpoint so requests don't crash the router
+    router.use(path, (req, res) => {
+      res.status(500).json({ error: `${name} router misconfigured` })
+    })
+    return
+  }
+  router.use(path, subrouter)
+}
 
-// Mount reports router
-router.use('/reports', reportsRouter)
-
-// Mount analytics router
-router.use('/analytics', analyticsRouter)
+// Mount sub-routers safely
+mountSafe('/dashboard', dashboardRouter, 'dashboardRouter')
+mountSafe('/reports', reportsRouter, 'reportsRouter')
+mountSafe('/analytics', analyticsRouter, 'analyticsRouter')
 
 // ============================================================================
 // ERROR HANDLING

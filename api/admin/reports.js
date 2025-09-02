@@ -6,10 +6,16 @@ import { adminAuth, PERMISSIONS } from '../../lib/adminAuth.js'
 import { getCollection, COLLECTIONS } from '../../lib/adminSchema.js'
 import { createClerkClient } from '@clerk/backend'
 
-// Initialize Clerk client
-const clerkClient = createClerkClient({ 
-  secretKey: process.env.CLERK_SECRET_KEY 
-})
+// Initialize Clerk client defensively
+let clerkClient
+try {
+  if (!process.env.CLERK_SECRET_KEY) {
+    throw new Error('CLERK_SECRET_KEY missing')
+  }
+  clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY })
+} catch (e) {
+  console.error('[ADMIN][reports] Clerk init failed:', e?.message || e)
+}
 
 const router = express.Router()
 
