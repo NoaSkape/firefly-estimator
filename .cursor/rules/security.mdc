@@ -1,0 +1,928 @@
+# Security Rules
+
+## **CRITICAL: Security is Non-Negotiable**
+
+The Firefly Estimator project handles **sensitive customer data, payment information, and business operations**. Security vulnerabilities can result in data breaches, financial losses, legal liability, and irreparable damage to customer trust. **ALWAYS** follow established security patterns.
+
+## **INTENT**
+
+Success means every authentication, authorization, and data handling operation follows established security patterns that protect user data, prevent unauthorized access, and maintain system integrity. AI assistants must understand and implement security measures correctly.
+
+## **WHEN THIS APPLIES**
+
+- Implementing user authentication and authorization
+- Creating protected routes and components
+- Handling sensitive user data and payment information
+- Implementing API security measures
+- Managing user sessions and permissions
+- Handling file uploads and data validation
+- Implementing audit logging and monitoring
+- Managing environment variables and secrets
+
+## **1. Authentication & Authorization**
+
+### **Clerk Integration Pattern**
+```javascript
+// CORRECT: Proper Clerk authentication implementation
+import { useUser, useAuth } from '@clerk/clerk-react'
+import { createClerkClient } from '@clerk/backend'
+
+// Client-side authentication hook
+export function useAuthenticatedUser() {
+  const { user, isLoaded, isSignedIn } = useUser()
+  const { signOut } = useAuth()
+  
+  return {
+    user,
+    isLoaded,
+    isSignedIn,
+    signOut,
+    userId: user?.id,
+    email: user?.emailAddresses?.[0]?.emailAddress,
+    firstName: user?.firstName,
+    lastName: user?.lastName
+  }
+}
+
+// Server-side Clerk client
+const clerk = createClerkClient({ 
+  secretKey: process.env.CLERK_SECRET_KEY 
+})
+
+// Authentication middleware
+export async function requireAuth(req, res, next) {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    
+    if (!token) {
+      return res.status(401).json({ 
+        error: 'Authentication required',
+        code: 'AUTH_REQUIRED'
+      })
+    }
+    
+    // Verify session with Clerk
+    const session = await clerk.sessions.verifySession(token)
+    if (!session) {
+      return res.status(401).json({ 
+        error: 'Invalid session',
+        code: 'INVALID_SESSION'
+      })
+    }
+    
+    // Attach user to request
+    req.user = session.user
+    req.session = session
+    
+    next()
+  } catch (error) {
+    console.error('Authentication error:', error)
+    return res.status(401).json({ 
+      error: 'Authentication failed',
+      code: 'AUTH_FAILED'
+    })
+  }
+}
+```
+
+### **Role-Based Access Control**
+```javascript
+// CORRECT: Role-based authorization system
+export const USER_ROLES = {
+  CUSTOMER: 'customer',
+  SALES_AGENT: 'sales_agent',
+  ADMIN: 'admin',
+  SUPER_ADMIN: 'super_admin'
+}
+
+export const ROLE_PERMISSIONS = {
+  [USER_ROLES.CUSTOMER]: [
+    'view_own_quotes',
+    'create_quotes',
+    'edit_own_quotes',
+    'view_own_orders'
+  ],
+  [USER_ROLES.SALES_AGENT]: [
+    'view_own_quotes',
+    'create_quotes',
+    'edit_own_quotes',
+    'view_own_orders',
+    'view_customer_quotes',
+    'create_orders',
+    'edit_orders'
+  ],
+  [USER_ROLES.ADMIN]: [
+    'view_all_quotes',
+    'edit_all_quotes',
+    'view_all_orders',
+    'edit_all_orders',
+    'manage_users',
+    'view_reports',
+    'manage_settings'
+  ],
+  [USER_ROLES.SUPER_ADMIN]: [
+    'view_all_quotes',
+    'edit_all_quotes',
+    'view_all_orders',
+    'edit_all_orders',
+    'manage_users',
+    'view_reports',
+    'manage_settings',
+    'manage_admins',
+    'system_configuration'
+  ]
+}
+
+// Permission checking function
+export function hasPermission(userRole, permission) {
+  const permissions = ROLE_PERMISSIONS[userRole] || []
+  return permissions.includes(permission)
+}
+
+// Authorization middleware
+export function requirePermission(permission) {
+  return async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ 
+          error: 'Authentication required',
+          code: 'AUTH_REQUIRED'
+        })
+      }
+      
+      const userRole = req.user.publicMetadata?.role || USER_ROLES.CUSTOMER
+      
+      if (!hasPermission(userRole, permission)) {
+        return res.status(403).json({ 
+          error: 'Insufficient permissions',
+          code: 'INSUFFICIENT_PERMISSIONS',
+          required: permission,
+          current: userRole
+        })
+      }
+      
+      next()
+    } catch (error) {
+      console.error('Authorization error:', error)
+      return res.status(500).json({ 
+        error: 'Authorization check failed',
+        code: 'AUTHZ_FAILED'
+      })
+    }
+  }
+}
+
+// Usage in API routes
+export default async function adminHandler(req, res) {
+  // Apply authentication and authorization
+  await requireAuth(req, res, async () => {
+    await requirePermission('manage_users')(req, res, async () => {
+      // Route logic here
+      res.json({ success: true, data: 'Admin data' })
+    })
+  })
+}
+```
+
+### **Protected Route Components**
+```javascript
+// CORRECT: Protected route implementation
+import { useUser } from '@clerk/clerk-react'
+import { Navigate, useLocation } from 'react-router-dom'
+
+export default function ProtectedRoute({ 
+  children, 
+  requiredPermissions = [],
+  fallback = null 
+}) {
+  const { user, isLoaded } = useUser()
+  const location = useLocation()
+  
+  // Show loading state while Clerk loads
+  if (!isLoaded) {
+    return fallback || <div>Loading...</div>
+  }
+  
+  // Redirect to sign-in if not authenticated
+  if (!user) {
+    return <Navigate to="/sign-in" state={{ from: location }} replace />
+  }
+  
+  // Check permissions if required
+  if (requiredPermissions.length > 0) {
+    const userRole = user.publicMetadata?.role || 'customer'
+    const hasAllPermissions = requiredPermissions.every(permission => 
+      hasPermission(userRole, permission)
+    )
+    
+    if (!hasAllPermissions) {
+      return <Navigate to="/unauthorized" replace />
+    }
+  }
+  
+  return children
+}
+
+// Usage in routing
+<Route 
+  path="/admin" 
+  element={
+    <ProtectedRoute requiredPermissions={['manage_users']}>
+      <AdminDashboard />
+    </ProtectedRoute>
+  } 
+/>
+```
+
+## **2. Data Protection & Validation**
+
+### **Input Validation & Sanitization**
+```javascript
+// CORRECT: Comprehensive input validation
+import { z } from 'zod'
+
+// Validation schemas
+export const userProfileSchema = z.object({
+  firstName: z.string()
+    .min(1, 'First name is required')
+    .max(50, 'First name must be less than 50 characters')
+    .regex(/^[a-zA-Z\s'-]+$/, 'First name contains invalid characters'),
+  
+  lastName: z.string()
+    .min(1, 'Last name is required')
+    .max(50, 'Last name must be less than 50 characters')
+    .regex(/^[a-zA-Z\s'-]+$/, 'Last name contains invalid characters'),
+  
+  email: z.string()
+    .email('Invalid email address')
+    .max(255, 'Email must be less than 255 characters'),
+  
+  phone: z.string()
+    .regex(/^\+?[\d\s\-\(\)]+$/, 'Invalid phone number format')
+    .max(20, 'Phone number too long'),
+  
+  address: z.object({
+    street: z.string().max(100, 'Street address too long'),
+    city: z.string().max(50, 'City name too long'),
+    state: z.string().length(2, 'State must be 2 characters'),
+    zip: z.string().regex(/^\d{5}(-\d{4})?$/, 'Invalid ZIP code format')
+  })
+})
+
+// Validation function
+export function validateUserProfile(data) {
+  try {
+    const validated = userProfileSchema.parse(data)
+    return { success: true, data: validated }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const errors = error.errors.map(err => ({
+        field: err.path.join('.'),
+        message: err.message
+      }))
+      return { success: false, errors }
+    }
+    throw error
+  }
+}
+
+// API route with validation
+export default async function updateProfileHandler(req, res) {
+  try {
+    // Validate input
+    const validation = validateUserProfile(req.body)
+    if (!validation.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: validation.errors
+      })
+    }
+    
+    const validatedData = validation.data
+    
+    // Update user profile
+    const result = await updateUserProfile(req.user.id, validatedData)
+    
+    res.json({ success: true, data: result })
+    
+  } catch (error) {
+    console.error('Profile update error:', error)
+    res.status(500).json({ 
+      error: 'Failed to update profile',
+      code: 'UPDATE_FAILED'
+    })
+  }
+}
+```
+
+### **SQL Injection Prevention**
+```javascript
+// CORRECT: Safe database operations
+import { ObjectId } from 'mongodb'
+
+// Safe query construction
+export async function findUserById(userId) {
+  try {
+    // Validate ObjectId format
+    if (!ObjectId.isValid(userId)) {
+      throw new Error('Invalid user ID format')
+    }
+    
+    const db = await getDb()
+    const user = await db.collection('users').findOne({
+      _id: new ObjectId(userId)
+    })
+    
+    return user
+  } catch (error) {
+    console.error('Database query error:', error)
+    throw new Error('Failed to find user')
+  }
+}
+
+// Safe aggregation with parameter validation
+export async function getUserStats(userId, dateRange) {
+  try {
+    // Validate parameters
+    if (!ObjectId.isValid(userId)) {
+      throw new Error('Invalid user ID format')
+    }
+    
+    if (!dateRange || !dateRange.start || !dateRange.end) {
+      throw new Error('Invalid date range')
+    }
+    
+    const startDate = new Date(dateRange.start)
+    const endDate = new Date(dateRange.end)
+    
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      throw new Error('Invalid date format')
+    }
+    
+    const db = await getDb()
+    const stats = await db.collection('orders').aggregate([
+      {
+        $match: {
+          userId: new ObjectId(userId),
+          createdAt: {
+            $gte: startDate,
+            $lte: endDate
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalOrders: { $sum: 1 },
+          totalValue: { $sum: '$pricing.total' }
+        }
+      }
+    ]).toArray()
+    
+    return stats[0] || { totalOrders: 0, totalValue: 0 }
+    
+  } catch (error) {
+    console.error('Stats query error:', error)
+    throw new Error('Failed to get user stats')
+  }
+}
+```
+
+### **XSS Prevention**
+```javascript
+// CORRECT: XSS prevention in React components
+import DOMPurify from 'dompurify'
+
+// Safe HTML rendering
+export default function SafeHTML({ html, className = '' }) {
+  const sanitizedHTML = DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br'],
+    ALLOWED_ATTR: ['href', 'target']
+  })
+  
+  return (
+    <div 
+      className={className}
+      dangerouslySetInnerHTML={{ __html: sanitizedHTML }}
+    />
+  )
+}
+
+// Safe user input display
+export default function UserInput({ value, className = '' }) {
+  // Never render user input as HTML
+  return (
+    <span className={className}>
+      {value}
+    </span>
+  )
+}
+
+// Safe form handling
+export default function SafeForm() {
+  const [input, setInput] = useState('')
+  
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    
+    // Validate and sanitize input before processing
+    const sanitizedInput = DOMPurify.sanitize(input, {
+      ALLOWED_TAGS: [],
+      ALLOWED_ATTR: []
+    })
+    
+    // Process sanitized input
+    processUserInput(sanitizedInput)
+  }
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="text"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        className="border rounded px-3 py-2"
+      />
+      <button type="submit">Submit</button>
+    </form>
+  )
+}
+```
+
+## **3. API Security**
+
+### **CORS Configuration**
+```javascript
+// CORRECT: Secure CORS configuration
+import cors from 'cors'
+
+// Dynamic CORS with origin validation
+export function applyCors(req, res) {
+  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
+    'http://localhost:5173',
+    'https://fireflyestimator.com',
+    'https://www.fireflyestimator.com'
+  ]
+  
+  const origin = req.headers.origin
+  
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+    res.setHeader('Vary', 'Origin')
+  }
+  
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
+  res.setHeader('Access-Control-Max-Age', '86400')
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end()
+    return true
+  }
+  
+  return false
+}
+
+// Apply to all API routes
+export default async function apiHandler(req, res) {
+  // Apply CORS first
+  if (applyCors(req, res)) return
+  
+  // Continue with route handling
+  // ... route logic
+}
+```
+
+### **Rate Limiting**
+```javascript
+// CORRECT: Rate limiting implementation
+import { createHash } from 'crypto'
+
+// Simple in-memory rate limiter (use Redis in production)
+const rateLimitStore = new Map()
+
+export function createRateLimiter({
+  windowMs = 15 * 60 * 1000, // 15 minutes
+  maxRequests = 100, // max requests per window
+  keyGenerator = (req) => req.ip // default key generator
+}) {
+  return (req, res, next) => {
+    const key = keyGenerator(req)
+    const now = Date.now()
+    const windowStart = now - windowMs
+    
+    // Get current rate limit data
+    const rateLimitData = rateLimitStore.get(key) || { requests: [], resetTime: now + windowMs }
+    
+    // Clean old requests outside current window
+    rateLimitData.requests = rateLimitData.requests.filter(time => time > windowStart)
+    
+    // Check if limit exceeded
+    if (rateLimitData.requests.length >= maxRequests) {
+      const retryAfter = Math.ceil((rateLimitData.resetTime - now) / 1000)
+      
+      res.setHeader('Retry-After', retryAfter)
+      res.setHeader('X-RateLimit-Limit', maxRequests)
+      res.setHeader('X-RateLimit-Remaining', 0)
+      res.setHeader('X-RateLimit-Reset', rateLimitData.resetTime)
+      
+      return res.status(429).json({
+        error: 'Rate limit exceeded',
+        retryAfter,
+        code: 'RATE_LIMIT_EXCEEDED'
+      })
+    }
+    
+    // Add current request
+    rateLimitData.requests.push(now)
+    rateLimitStore.set(key, rateLimitData)
+    
+    // Set response headers
+    res.setHeader('X-RateLimit-Limit', maxRequests)
+    res.setHeader('X-RateLimit-Remaining', maxRequests - rateLimitData.requests.length)
+    res.setHeader('X-RateLimit-Reset', rateLimitData.resetTime)
+    
+    next()
+  }
+}
+
+// Apply rate limiting to API routes
+const apiRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  maxRequests: 100, // 100 requests per 15 minutes
+  keyGenerator: (req) => req.user?.id || req.ip // User ID if authenticated, IP otherwise
+})
+
+export default async function apiHandler(req, res) {
+  // Apply rate limiting
+  apiRateLimiter(req, res, () => {
+    // Continue with route handling
+    // ... route logic
+  })
+}
+```
+
+### **Request Validation**
+```javascript
+// CORRECT: Request validation and sanitization
+import { z } from 'zod'
+
+// Request validation middleware
+export function validateRequest(schema) {
+  return (req, res, next) => {
+    try {
+      // Validate request body
+      if (req.body && Object.keys(req.body).length > 0) {
+        req.body = schema.parse(req.body)
+      }
+      
+      // Validate query parameters
+      if (req.query && Object.keys(req.query).length > 0) {
+        req.query = schema.partial().parse(req.query)
+      }
+      
+      next()
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errors = error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message,
+          code: err.code
+        }))
+        
+        return res.status(400).json({
+          error: 'Request validation failed',
+          details: errors,
+          code: 'VALIDATION_FAILED'
+        })
+      }
+      
+      next(error)
+    }
+  }
+}
+
+// Usage with validation schemas
+const createOrderSchema = z.object({
+  modelId: z.string().min(1, 'Model ID is required'),
+  options: z.array(z.object({
+    id: z.string().min(1, 'Option ID is required'),
+    quantity: z.number().int().positive('Quantity must be positive')
+  })),
+  delivery: z.object({
+    address: z.string().min(1, 'Delivery address is required'),
+    zip: z.string().regex(/^\d{5}(-\d{4})?$/, 'Invalid ZIP code')
+  })
+})
+
+export default async function createOrderHandler(req, res) {
+  // Apply validation middleware
+  validateRequest(createOrderSchema)(req, res, async () => {
+    try {
+      // Request is now validated and sanitized
+      const orderData = req.body
+      
+      // Create order logic
+      const order = await createOrder(orderData, req.user.id)
+      
+      res.status(201).json({ success: true, data: order })
+      
+    } catch (error) {
+      console.error('Order creation error:', error)
+      res.status(500).json({ 
+        error: 'Failed to create order',
+        code: 'ORDER_CREATION_FAILED'
+      })
+    }
+  })
+}
+```
+
+## **4. Environment & Secrets Management**
+
+### **Environment Variable Security**
+```javascript
+// CORRECT: Secure environment variable handling
+import dotenv from 'dotenv'
+
+// Load environment variables
+dotenv.config()
+
+// Environment validation
+export function validateEnvironment() {
+  const requiredVars = [
+    'CLERK_SECRET_KEY',
+    'MONGODB_URI',
+    'STRIPE_SECRET_KEY',
+    'CLOUDINARY_CLOUD_NAME',
+    'CLOUDINARY_API_KEY',
+    'CLOUDINARY_API_SECRET'
+  ]
+  
+  const missingVars = requiredVars.filter(varName => !process.env[varName])
+  
+  if (missingVars.length > 0) {
+    throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`)
+  }
+  
+  // Validate environment-specific variables
+  if (process.env.NODE_ENV === 'production') {
+    const productionVars = [
+      'ALLOWED_ORIGINS',
+      'SESSION_SECRET',
+      'ENCRYPTION_KEY'
+    ]
+    
+    const missingProdVars = productionVars.filter(varName => !process.env[varName])
+    
+    if (missingProdVars.length > 0) {
+      throw new Error(`Missing production environment variables: ${missingProdVars.join(', ')}`)
+    }
+  }
+}
+
+// Secure configuration object
+export const config = {
+  // Authentication
+  clerk: {
+    secretKey: process.env.CLERK_SECRET_KEY,
+    publishableKey: process.env.VITE_CLERK_PUBLISHABLE_KEY
+  },
+  
+  // Database
+  database: {
+    uri: process.env.MONGODB_URI,
+    name: process.env.MONGODB_DB || 'firefly-estimator'
+  },
+  
+  // Payments
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY,
+    publishableKey: process.env.VITE_STRIPE_PUBLISHABLE_KEY,
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET
+  },
+  
+  // File storage
+  cloudinary: {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    apiSecret: process.env.CLOUDINARY_API_SECRET,
+    rootFolder: process.env.CLOUDINARY_ROOT_FOLDER
+  },
+  
+  // Security
+  security: {
+    allowedOrigins: process.env.ALLOWED_ORIGINS?.split(',') || [],
+    sessionSecret: process.env.SESSION_SECRET,
+    encryptionKey: process.env.ENCRYPTION_KEY
+  }
+}
+
+// Validate on startup
+validateEnvironment()
+```
+
+### **Secrets Encryption**
+```javascript
+// CORRECT: Secure secrets handling
+import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
+
+// Encryption utilities
+export class SecretsManager {
+  constructor(encryptionKey) {
+    if (!encryptionKey || encryptionKey.length !== 32) {
+      throw new Error('Encryption key must be 32 bytes (256 bits)')
+    }
+    this.encryptionKey = Buffer.from(encryptionKey, 'hex')
+  }
+  
+  // Encrypt sensitive data
+  encrypt(text) {
+    try {
+      const iv = randomBytes(16)
+      const cipher = createCipheriv('aes-256-gcm', this.encryptionKey, iv)
+      
+      let encrypted = cipher.update(text, 'utf8', 'hex')
+      encrypted += cipher.final('hex')
+      
+      const authTag = cipher.getAuthTag()
+      
+      return {
+        encrypted,
+        iv: iv.toString('hex'),
+        authTag: authTag.toString('hex')
+      }
+    } catch (error) {
+      throw new Error(`Encryption failed: ${error.message}`)
+    }
+  }
+  
+  // Decrypt sensitive data
+  decrypt(encryptedData) {
+    try {
+      const decipher = createDecipheriv(
+        'aes-256-gcm', 
+        this.encryptionKey, 
+        Buffer.from(encryptedData.iv, 'hex')
+      )
+      
+      decipher.setAuthTag(Buffer.from(encryptedData.authTag, 'hex'))
+      
+      let decrypted = decipher.update(encryptedData.encrypted, 'hex', 'utf8')
+      decrypted += decipher.final('utf8')
+      
+      return decrypted
+    } catch (error) {
+      throw new Error(`Decryption failed: ${error.message}`)
+    }
+  }
+}
+
+// Usage for sensitive data
+const secretsManager = new SecretsManager(process.env.ENCRYPTION_KEY)
+
+// Encrypt sensitive user data
+export async function storeSensitiveUserData(userId, sensitiveData) {
+  const encrypted = secretsManager.encrypt(JSON.stringify(sensitiveData))
+  
+  const db = await getDb()
+  await db.collection('user_secrets').updateOne(
+    { userId },
+    { 
+      $set: { 
+        encrypted,
+        updatedAt: new Date()
+      }
+    },
+    { upsert: true }
+  )
+}
+
+// Decrypt sensitive user data
+export async function retrieveSensitiveUserData(userId) {
+  const db = await getDb()
+  const userSecret = await db.collection('user_secrets').findOne({ userId })
+  
+  if (!userSecret) {
+    return null
+  }
+  
+  const decrypted = secretsManager.decrypt(userSecret.encrypted)
+  return JSON.parse(decrypted)
+}
+```
+
+## **Common Security Mistakes**
+
+### **❌ DON'T Skip Input Validation**
+```javascript
+// WRONG: No input validation
+export async function createUser(req, res) {
+  const { name, email, password } = req.body
+  
+  // Directly use user input without validation
+  const user = await createUserInDB({ name, email, password })
+  res.json(user)
+}
+
+// CORRECT: Comprehensive input validation
+export async function createUser(req, res) {
+  try {
+    // Validate input
+    const validation = userSchema.parse(req.body)
+    
+    // Sanitize input
+    const sanitizedData = sanitizeUserInput(validation)
+    
+    // Create user
+    const user = await createUserInDB(sanitizedData)
+    res.json(user)
+  } catch (error) {
+    res.status(400).json({ error: 'Validation failed', details: error.errors })
+  }
+}
+```
+
+### **❌ DON'T Expose Sensitive Information**
+```javascript
+// WRONG: Exposing sensitive data
+console.log('User data:', user)
+console.log('API key:', process.env.STRIPE_SECRET_KEY)
+
+// CORRECT: Secure logging
+console.log('User action:', { userId: user.id, action: 'login', timestamp: new Date() })
+console.log('API key configured:', !!process.env.STRIPE_SECRET_KEY)
+```
+
+### **❌ DON'T Skip Authentication Checks**
+```javascript
+// WRONG: No authentication check
+export default function adminHandler(req, res) {
+  // Directly process request without checking if user is admin
+  const adminData = getAdminData()
+  res.json(adminData)
+}
+
+// CORRECT: Proper authentication and authorization
+export default async function adminHandler(req, res) {
+  await requireAuth(req, res, async () => {
+    await requirePermission('manage_users')(req, res, async () => {
+      const adminData = getAdminData()
+      res.json(adminData)
+    })
+  })
+}
+```
+
+## **Validation Checklist**
+
+Before implementing any security features, verify:
+
+- [ ] **Authentication** - All protected routes require valid authentication
+- [ ] **Authorization** - Users can only access resources they're authorized for
+- [ ] **Input validation** - All user input is validated and sanitized
+- [ ] **Output encoding** - User data is properly encoded to prevent XSS
+- [ ] **SQL injection** - Database queries use parameterized statements
+- [ ] **CSRF protection** - Forms include CSRF tokens where appropriate
+- [ ] **Rate limiting** - API endpoints are protected against abuse
+- [ ] **Secure headers** - Security headers are properly configured
+- [ ] **Error handling** - Errors don't expose sensitive information
+- [ ] **Audit logging** - Security events are logged for monitoring
+- [ ] **Environment security** - Secrets are properly managed
+- [ ] **HTTPS enforcement** - All production traffic uses HTTPS
+
+## **Related Files**
+
+- **`src/lib/auth.js`**: Authentication utilities and middleware
+- **`src/components/ProtectedRoute.jsx`**: Route protection components
+- **`api/**/*`**: API security implementations
+- **`lib/**/*`**: Security utilities and helpers
+- **`src/hooks/useUserProfile.js`**: User profile security
+
+## **When in Doubt**
+
+1. **Follow security best practices** - Use established security patterns
+2. **Validate everything** - Never trust user input
+3. **Principle of least privilege** - Grant minimum necessary permissions
+4. **Defense in depth** - Implement multiple security layers
+5. **Security by design** - Build security into the architecture
+6. **Regular audits** - Review security measures periodically
+7. **Stay updated** - Keep security dependencies current
+8. **Ask security experts** - When in doubt, consult security professionals
+
+## **Security Quality Metrics**
+
+- **Authentication**: 100% - All protected routes require valid authentication
+- **Authorization**: 100% - Users can only access authorized resources
+- **Input validation**: 100% - All user input is validated and sanitized
+- **Data protection**: 100% - Sensitive data is encrypted and protected
+- **Vulnerability prevention**: 95% - Common vulnerabilities are prevented
+- **Monitoring**: 90% - Security events are logged and monitored
+
+Remember: **Security is not a feature, it's a requirement. A single security vulnerability can compromise your entire system and damage your reputation irreparably. Always prioritize security over convenience.**
+description:
+globs:
+alwaysApply: true
+---

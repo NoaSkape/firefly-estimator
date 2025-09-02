@@ -1,0 +1,996 @@
+# Marketing, SEO & AI Search Engine Optimization Rules
+
+## **CRITICAL: Search Visibility is Non-Negotiable**
+
+The Firefly Estimator project must achieve **maximum online visibility** across all search engines, AI-powered platforms, and marketing channels. Poor SEO and marketing optimization results in lost customers, reduced conversions, and missed business opportunities. **ALWAYS** follow established optimization patterns.
+
+## **INTENT**
+
+Success means every page, component, and digital asset is optimized for maximum discoverability across traditional search engines, AI-powered search platforms, voice search, and social media. AI assistants must understand and implement comprehensive optimization strategies.
+
+## **WHEN THIS APPLIES**
+
+- Creating or modifying web pages and components
+- Building landing pages and marketing content
+- Implementing structured data and schema markup
+- Optimizing images, videos, and media assets
+- Creating meta tags and SEO elements
+- Building internal linking structures
+- Implementing performance optimizations
+- Creating content for voice and conversational search
+
+## **1. Core Web Vitals & Performance Optimization**
+
+### **Page Speed Requirements**
+```javascript
+// CORRECT: Performance optimization implementation
+export default function PerformanceOptimizedPage() {
+  return (
+    <>
+      {/* Preload critical resources */}
+      <link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+      <link rel="preload" href="/hero/tiny-home-dusk.webp" as="image" />
+      
+      {/* Optimize images with proper formats and sizes */}
+      <picture>
+        <source 
+          srcSet="/hero/tiny-home-dusk.webp" 
+          type="image/webp" 
+          media="(min-width: 768px)"
+        />
+        <source 
+          srcSet="/hero/tiny-home-dusk-mobile.webp" 
+          type="image/webp" 
+          media="(max-width: 767px)"
+        />
+        <img 
+          src="/hero/tiny-home-dusk.jpg" 
+          alt="Beautiful tiny home at dusk with warm lighting"
+          loading="eager"
+          width="1200"
+          height="800"
+          className="w-full h-auto"
+        />
+      </picture>
+      
+      {/* Lazy load non-critical images */}
+      <img 
+        src="/models/magnolia-exterior.jpg" 
+        alt="Magnolia tiny home exterior view"
+        loading="lazy"
+        width="600"
+        height="400"
+        className="w-full h-auto"
+      />
+    </>
+  )
+}
+
+// Performance monitoring component
+export function PerformanceMonitor() {
+  useEffect(() => {
+    // Monitor Core Web Vitals
+    if ('web-vital' in window) {
+      import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
+        getCLS(console.log)
+        getFID(console.log)
+        getFCP(console.log)
+        getLCP(console.log)
+        getTTFB(console.log)
+      })
+    }
+  }, [])
+  
+  return null
+}
+```
+
+### **Bundle Optimization**
+```javascript
+// CORRECT: Vite configuration for optimal bundling
+// vite.config.js
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    target: 'es2015',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+          ui: ['@heroicons/react', 'tailwindcss'],
+          forms: ['react-hook-form', 'zod']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom']
+  }
+})
+```
+
+## **2. Structured Data & Schema Markup**
+
+### **JSON-LD Schema Implementation**
+```javascript
+// CORRECT: Comprehensive schema markup
+export default function SchemaMarkup({ pageType, data }) {
+  const getSchema = () => {
+    switch (pageType) {
+      case 'homepage':
+        return {
+          '@context': 'https://schema.org',
+          '@type': 'Organization',
+          name: 'Firefly Tiny Homes',
+          url: 'https://fireflyestimator.com',
+          logo: 'https://fireflyestimator.com/logo/firefly-logo.png',
+          description: 'Premium tiny home manufacturer specializing in custom, high-quality tiny homes with innovative design and sustainable materials.',
+          address: {
+            '@type': 'PostalAddress',
+            streetAddress: '123 Tiny Home Lane',
+            addressLocality: 'Austin',
+            addressRegion: 'TX',
+            postalCode: '78701',
+            addressCountry: 'US'
+          },
+          contactPoint: {
+            '@type': 'ContactPoint',
+            telephone: '+1-555-123-4567',
+            contactType: 'customer service',
+            areaServed: 'US',
+            availableLanguage: 'English'
+          },
+          sameAs: [
+            'https://www.facebook.com/fireflytinyhomes',
+            'https://www.instagram.com/fireflytinyhomes',
+            'https://www.linkedin.com/company/fireflytinyhomes'
+          ]
+        }
+      
+      case 'product':
+        return {
+          '@context': 'https://schema.org',
+          '@type': 'Product',
+          name: data.name,
+          description: data.description,
+          brand: {
+            '@type': 'Brand',
+            name: 'Firefly Tiny Homes'
+          },
+          manufacturer: {
+            '@type': 'Organization',
+            name: 'Firefly Tiny Homes'
+          },
+          model: data.modelCode,
+          category: 'Tiny Homes',
+          offers: {
+            '@type': 'Offer',
+            price: data.basePrice,
+            priceCurrency: 'USD',
+            availability: 'https://schema.org/InStock',
+            seller: {
+              '@type': 'Organization',
+              name: 'Firefly Tiny Homes'
+            }
+          },
+          image: data.images.map(img => img.url),
+          additionalProperty: [
+            {
+              '@type': 'PropertyValue',
+              name: 'Size',
+              value: data.size
+            },
+            {
+              '@type': 'PropertyValue',
+              name: 'Length',
+              value: `${data.specifications.length} feet`
+            },
+            {
+              '@type': 'PropertyValue',
+              name: 'Width',
+              value: `${data.specifications.width} feet`
+            }
+          ]
+        }
+      
+      case 'faq':
+        return {
+          '@context': 'https://schema.org',
+          '@type': 'FAQPage',
+          mainEntity: data.faqs.map(faq => ({
+            '@type': 'Question',
+            name: faq.question,
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: faq.answer
+            }
+          }))
+        }
+      
+      case 'how-to':
+        return {
+          '@context': 'https://schema.org',
+          '@type': 'HowTo',
+          name: data.title,
+          description: data.description,
+          image: data.image,
+          totalTime: data.duration,
+          step: data.steps.map((step, index) => ({
+            '@type': 'HowToStep',
+            position: index + 1,
+            name: step.title,
+            text: step.description,
+            image: step.image
+          }))
+        }
+      
+      default:
+        return null
+    }
+  }
+  
+  const schema = getSchema()
+  if (!schema) return null
+  
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  )
+}
+
+// Usage in components
+export default function HomePage() {
+  return (
+    <>
+      <SchemaMarkup pageType="homepage" />
+      {/* Page content */}
+    </>
+  )
+}
+```
+
+### **Open Graph & Twitter Cards**
+```javascript
+// CORRECT: Social media optimization
+export default function SocialMediaMeta({ 
+  title, 
+  description, 
+  image, 
+  url, 
+  type = 'website' 
+}) {
+  return (
+    <>
+      {/* Open Graph */}
+      <meta property="og:title" content={title} />
+      <meta property="og:description" content={description} />
+      <meta property="og:image" content={image} />
+      <meta property="og:url" content={url} />
+      <meta property="og:type" content={type} />
+      <meta property="og:site_name" content="Firefly Tiny Homes" />
+      <meta property="og:locale" content="en_US" />
+      
+      {/* Twitter Cards */}
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:site" content="@fireflytinyhomes" />
+      <meta name="twitter:creator" content="@fireflytinyhomes" />
+      <meta name="twitter:title" content={title} />
+      <meta name="twitter:description" content={description} />
+      <meta name="twitter:image" content={image} />
+      
+      {/* Additional social meta */}
+      <meta name="twitter:label1" content="Est. reading time" />
+      <meta name="twitter:data1" content="5 min read" />
+    </>
+  )
+}
+```
+
+## **3. Content Optimization & Keyword Strategy**
+
+### **SEO-Optimized Content Structure**
+```javascript
+// CORRECT: SEO-optimized page structure
+export default function SEOOptimizedPage({ 
+  title, 
+  description, 
+  keywords, 
+  canonicalUrl,
+  children 
+}) {
+  return (
+    <>
+      {/* Essential SEO meta tags */}
+      <title>{title}</title>
+      <meta name="description" content={description} />
+      <meta name="keywords" content={keywords.join(', ')} />
+      <link rel="canonical" href={canonicalUrl} />
+      
+      {/* Language and encoding */}
+      <meta charSet="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+      
+      {/* Robots and indexing */}
+      <meta name="robots" content="index, follow" />
+      <meta name="googlebot" content="index, follow" />
+      
+      {/* Page content with semantic HTML */}
+      <main>
+        <header>
+          <h1>{title}</h1>
+          <p className="lead">{description}</p>
+        </header>
+        
+        <article>
+          {children}
+        </article>
+      </main>
+    </>
+  )
+}
+
+// SEO-optimized content component
+export function SEOContent({ 
+  heading, 
+  content, 
+  keywords = [],
+  structuredData = null 
+}) {
+  return (
+    <section className="seo-content">
+      {/* Use proper heading hierarchy */}
+      <h2 className="text-2xl font-bold mb-4">{heading}</h2>
+      
+      {/* Optimize content for featured snippets */}
+      <div className="prose max-w-none">
+        {/* Start with direct answer for voice search */}
+        <p className="text-lg font-medium text-gray-700 mb-4">
+          {content.summary}
+        </p>
+        
+        {/* Structured content for better indexing */}
+        {content.sections.map((section, index) => (
+          <div key={index} className="mb-6">
+            <h3 className="text-xl font-semibold mb-3">{section.title}</h3>
+            <p className="mb-3">{section.description}</p>
+            
+            {/* Use lists for better scanning */}
+            {section.bulletPoints && (
+              <ul className="list-disc pl-6 mb-3">
+                {section.bulletPoints.map((point, idx) => (
+                  <li key={idx} className="mb-2">{point}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
+      </div>
+      
+      {/* Include structured data if provided */}
+      {structuredData && (
+        <SchemaMarkup pageType="article" data={structuredData} />
+      )}
+    </section>
+  )
+}
+```
+
+### **Keyword Optimization Patterns**
+```javascript
+// CORRECT: Keyword optimization implementation
+export const KEYWORD_STRATEGIES = {
+  // Primary keywords for tiny homes
+  primary: [
+    'tiny homes',
+    'tiny house',
+    'small house',
+    'micro home',
+    'prefab tiny home',
+    'custom tiny home'
+  ],
+  
+  // Location-based keywords
+  location: [
+    'Texas tiny homes',
+    'Austin tiny homes',
+    'Houston tiny homes',
+    'Dallas tiny homes',
+    'San Antonio tiny homes'
+  ],
+  
+  // Feature-based keywords
+  features: [
+    'off-grid tiny home',
+    'solar tiny home',
+    'luxury tiny home',
+    'affordable tiny home',
+    'customizable tiny home'
+  ],
+  
+  // Intent-based keywords
+  intent: [
+    'buy tiny home',
+    'tiny home for sale',
+    'tiny home builder',
+    'tiny home manufacturer',
+    'tiny home quote'
+  ]
+}
+
+// Keyword optimization component
+export function KeywordOptimizedContent({ 
+  content, 
+  targetKeywords, 
+  location = 'Texas' 
+}) {
+  // Naturally integrate keywords into content
+  const optimizedContent = content.replace(
+    /(tiny home|tiny house)/gi,
+    (match) => {
+      // Vary keyword usage for natural language
+      const variations = ['tiny home', 'tiny house', 'small house', 'micro home']
+      return variations[Math.floor(Math.random() * variations.length)]
+    }
+  )
+  
+  return (
+    <div className="keyword-optimized-content">
+      {/* Include location naturally */}
+      <p className="mb-4">
+        Looking for quality tiny homes in {location}? Our {location} tiny home 
+        collection offers the perfect blend of style and functionality.
+      </p>
+      
+      {/* Optimized content */}
+      <div dangerouslySetInnerHTML={{ __html: optimizedContent }} />
+      
+      {/* Include related keywords naturally */}
+      <div className="related-keywords mt-6 p-4 bg-gray-50 rounded-lg">
+        <h4 className="font-semibold mb-2">Related Topics:</h4>
+        <ul className="list-disc pl-6">
+          {targetKeywords.map((keyword, index) => (
+            <li key={index} className="text-sm text-gray-600">
+              {keyword}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+```
+
+## **4. Technical SEO & Site Structure**
+
+### **Sitemap Generation**
+```javascript
+// CORRECT: Dynamic sitemap generation
+export async function generateSitemap() {
+  const baseUrl = 'https://fireflyestimator.com'
+  
+  // Static pages
+  const staticPages = [
+    { url: '/', priority: 1.0, changefreq: 'daily' },
+    { url: '/models', priority: 0.9, changefreq: 'weekly' },
+    { url: '/quote-builder', priority: 0.8, changefreq: 'weekly' },
+    { url: '/about', priority: 0.7, changefreq: 'monthly' },
+    { url: '/contact', priority: 0.7, changefreq: 'monthly' },
+    { url: '/blog', priority: 0.6, changefreq: 'weekly' }
+  ]
+  
+  // Dynamic model pages
+  const models = await getModels()
+  const modelPages = models.map(model => ({
+    url: `/models/${model.slug}`,
+    priority: 0.8,
+    changefreq: 'monthly',
+    lastmod: model.updatedAt
+  }))
+  
+  // Blog posts
+  const blogPosts = await getBlogPosts()
+  const blogPages = blogPosts.map(post => ({
+    url: `/blog/${post.slug}`,
+    priority: 0.6,
+    changefreq: 'monthly',
+    lastmod: post.updatedAt
+  }))
+  
+  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  ${[...staticPages, ...modelPages, ...blogPages]
+    .map(page => `
+  <url>
+    <loc>${baseUrl}${page.url}</loc>
+    <lastmod>${page.lastmod ? new Date(page.lastmod).toISOString() : new Date().toISOString()}</lastmod>
+    <changefreq>${page.changefreq}</changefreq>
+    <priority>${page.priority}</priority>
+  </url>`)
+    .join('')}
+</urlset>`
+  
+  return sitemap
+}
+```
+
+### **Robots.txt Configuration**
+```javascript
+// CORRECT: Robots.txt implementation
+export function generateRobotsTxt() {
+  return `User-agent: *
+Allow: /
+
+# Disallow admin and private areas
+Disallow: /admin/
+Disallow: /api/
+Disallow: /_debug/
+Disallow: /checkout/
+
+# Allow important pages
+Allow: /models/
+Allow: /blog/
+Allow: /about/
+Allow: /contact/
+
+# Sitemap location
+Sitemap: https://fireflyestimator.com/sitemap.xml
+
+# Crawl delay for respectful crawling
+Crawl-delay: 1`
+}
+```
+
+### **Internal Linking Strategy**
+```javascript
+// CORRECT: Internal linking implementation
+export function InternalLink({ 
+  href, 
+  children, 
+  className = '',
+  isPrimary = false 
+}) {
+  return (
+    <Link 
+      to={href}
+      className={`
+        ${isPrimary ? 'text-primary-600 hover:text-primary-800' : 'text-gray-600 hover:text-gray-800'}
+        underline hover:no-underline transition-colors
+        ${className}
+      `}
+    >
+      {children}
+    </Link>
+  )
+}
+
+// Breadcrumb navigation
+export function BreadcrumbNav({ items }) {
+  return (
+    <nav aria-label="Breadcrumb" className="mb-6">
+      <ol className="flex items-center space-x-2 text-sm text-gray-500">
+        {items.map((item, index) => (
+          <li key={index} className="flex items-center">
+            {index > 0 && (
+              <svg className="w-4 h-4 mx-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+              </svg>
+            )}
+            {index === items.length - 1 ? (
+              <span className="text-gray-900 font-medium">{item.label}</span>
+            ) : (
+              <Link to={item.href} className="hover:text-gray-700">
+                {item.label}
+              </Link>
+            )}
+          </li>
+        ))}
+      </ol>
+    </nav>
+  )
+}
+
+// Related content linking
+export function RelatedContent({ 
+  currentPage, 
+  relatedPages, 
+  maxItems = 3 
+}) {
+  const filteredRelated = relatedPages
+    .filter(page => page.slug !== currentPage)
+    .slice(0, maxItems)
+  
+  return (
+    <section className="related-content mt-12 p-6 bg-gray-50 rounded-lg">
+      <h3 className="text-lg font-semibold mb-4">Related Content</h3>
+      <div className="grid gap-4 md:grid-cols-3">
+        {filteredRelated.map(page => (
+          <Link 
+            key={page.slug}
+            to={page.href}
+            className="block p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
+          >
+            <h4 className="font-medium text-gray-900 mb-2">{page.title}</h4>
+            <p className="text-sm text-gray-600">{page.excerpt}</p>
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
+}
+```
+
+## **5. Voice Search & Conversational AI Optimization**
+
+### **Natural Language Content**
+```javascript
+// CORRECT: Voice search optimization
+export function VoiceSearchOptimized({ question, answer, relatedQuestions = [] }) {
+  return (
+    <div className="voice-search-content">
+      {/* Use question format for voice search */}
+      <h2 className="text-2xl font-bold mb-4">
+        {question}
+      </h2>
+      
+      {/* Direct, conversational answer */}
+      <div className="answer-section mb-6">
+        <p className="text-lg leading-relaxed">
+          {answer}
+        </p>
+      </div>
+      
+      {/* Related questions for voice search */}
+      {relatedQuestions.length > 0 && (
+        <div className="related-questions">
+          <h3 className="text-lg font-semibold mb-3">
+            People also ask:
+          </h3>
+          <ul className="space-y-2">
+            {relatedQuestions.map((q, index) => (
+              <li key={index}>
+                <details className="group">
+                  <summary className="cursor-pointer font-medium text-gray-700 hover:text-gray-900">
+                    {q.question}
+                  </summary>
+                  <p className="mt-2 text-gray-600 pl-4">
+                    {q.answer}
+                  </p>
+                </details>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// FAQ optimization for voice search
+export function VoiceOptimizedFAQ({ faqs }) {
+  return (
+    <section className="faq-section">
+      <h2 className="text-2xl font-bold mb-6">
+        Frequently Asked Questions About Tiny Homes
+      </h2>
+      
+      <div className="space-y-4">
+        {faqs.map((faq, index) => (
+          <details key={index} className="faq-item bg-white border border-gray-200 rounded-lg">
+            <summary className="cursor-pointer p-4 font-medium text-gray-900 hover:bg-gray-50">
+              {faq.question}
+            </summary>
+            <div className="px-4 pb-4">
+              <p className="text-gray-600 leading-relaxed">
+                {faq.answer}
+              </p>
+              
+              {/* Include related keywords naturally */}
+              {faq.relatedKeywords && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-sm text-gray-500">
+                    Related: {faq.relatedKeywords.join(', ')}
+                  </p>
+                </div>
+              )}
+            </div>
+          </details>
+        ))}
+      </div>
+    </section>
+  )
+}
+```
+
+## **6. Local SEO & Google My Business**
+
+### **Local Business Schema**
+```javascript
+// CORRECT: Local business optimization
+export function LocalBusinessSchema() {
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'LocalBusiness',
+          name: 'Firefly Tiny Homes',
+          description: 'Premium tiny home manufacturer in Austin, Texas',
+          url: 'https://fireflyestimator.com',
+          telephone: '+1-555-123-4567',
+          email: 'info@fireflyestimator.com',
+          address: {
+            '@type': 'PostalAddress',
+            streetAddress: '123 Tiny Home Lane',
+            addressLocality: 'Austin',
+            addressRegion: 'TX',
+            postalCode: '78701',
+            addressCountry: 'US'
+          },
+          geo: {
+            '@type': 'GeoCoordinates',
+            latitude: 30.2672,
+            longitude: -97.7431
+          },
+          openingHours: 'Mo-Fr 09:00-17:00',
+          priceRange: '$$$',
+          paymentAccepted: ['Cash', 'Credit Card', 'Financing'],
+          areaServed: [
+            {
+              '@type': 'City',
+              name: 'Austin'
+            },
+            {
+              '@type': 'City',
+              name: 'Houston'
+            },
+            {
+              '@type': 'City',
+              name: 'Dallas'
+            }
+          ],
+          hasOfferCatalog: {
+            '@type': 'OfferCatalog',
+            name: 'Tiny Home Models',
+            itemListElement: [
+              {
+                '@type': 'Offer',
+                itemOffered: {
+                  '@type': 'Product',
+                  name: 'Magnolia Tiny Home',
+                  description: '20x8 premium tiny home'
+                }
+              }
+            ]
+          }
+        })
+      }}
+    />
+  )
+}
+```
+
+### **Local Content Optimization**
+```javascript
+// CORRECT: Local SEO content
+export function LocalSEOContent({ city, state, services = [] }) {
+  return (
+    <section className="local-seo-content">
+      <h1 className="text-3xl font-bold mb-6">
+        Tiny Homes in {city}, {state} | Firefly Tiny Homes
+      </h1>
+      
+      <div className="prose max-w-none">
+        <p className="text-lg mb-4">
+          Looking for quality tiny homes in {city}, {state}? Firefly Tiny Homes 
+          is your premier {city} tiny home manufacturer, offering custom-built, 
+          high-quality tiny homes designed for modern living.
+        </p>
+        
+        <h2 className="text-2xl font-semibold mb-4">
+          Why Choose Firefly Tiny Homes in {city}?
+        </h2>
+        
+        <ul className="list-disc pl-6 mb-6">
+          <li>Local {city} tiny home expertise</li>
+          <li>Custom design and construction</li>
+          <li>Quality materials and craftsmanship</li>
+          <li>Professional installation and delivery</li>
+          <li>Ongoing support and maintenance</li>
+        </ul>
+        
+        <h2 className="text-2xl font-semibold mb-4">
+          Our {city} Tiny Home Services
+        </h2>
+        
+        <div className="grid md:grid-cols-2 gap-6">
+          {services.map((service, index) => (
+            <div key={index} className="service-card p-4 border border-gray-200 rounded-lg">
+              <h3 className="font-semibold mb-2">{service.title}</h3>
+              <p className="text-gray-600">{service.description}</p>
+            </div>
+          ))}
+        </div>
+        
+        <h2 className="text-2xl font-semibold mb-4 mt-8">
+          {city} Tiny Home Areas We Serve
+        </h2>
+        
+        <p className="mb-4">
+          Firefly Tiny Homes proudly serves {city} and surrounding areas including:
+        </p>
+        
+        <ul className="list-disc pl-6 mb-6">
+          <li>Downtown {city}</li>
+          <li>{city} suburbs</li>
+          <li>Nearby communities</li>
+          <li>Rural {state} areas</li>
+        </ul>
+      </div>
+    </section>
+  )
+}
+```
+
+## **7. Analytics & Performance Monitoring**
+
+### **Google Analytics Integration**
+```javascript
+// CORRECT: Analytics implementation
+export function AnalyticsProvider({ children }) {
+  useEffect(() => {
+    // Google Analytics 4
+    if (process.env.NODE_ENV === 'production') {
+      const script = document.createElement('script')
+      script.async = true
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${process.env.VITE_GA_MEASUREMENT_ID}`
+      document.head.appendChild(script)
+      
+      window.dataLayer = window.dataLayer || []
+      function gtag(...args) {
+        window.dataLayer.push(args)
+      }
+      gtag('js', new Date())
+      gtag('config', process.env.VITE_GA_MEASUREMENT_ID, {
+        page_title: document.title,
+        page_location: window.location.href
+      })
+      
+      window.gtag = gtag
+    }
+  }, [])
+  
+  return children
+}
+
+// Custom event tracking
+export function trackEvent(eventName, parameters = {}) {
+  if (window.gtag) {
+    window.gtag('event', eventName, parameters)
+  }
+}
+
+// Page view tracking
+export function trackPageView(url, title) {
+  if (window.gtag) {
+    window.gtag('config', process.env.VITE_GA_MEASUREMENT_ID, {
+      page_title: title,
+      page_location: url
+    })
+  }
+}
+```
+
+## **Common SEO & Marketing Mistakes**
+
+### **❌ DON'T Ignore Core Web Vitals**
+```javascript
+// WRONG: No performance optimization
+<img src="/large-image.jpg" alt="Tiny home" />
+
+// CORRECT: Optimized for performance
+<picture>
+  <source srcSet="/large-image.webp" type="image/webp" />
+  <img 
+    src="/large-image.jpg" 
+    alt="Beautiful tiny home with modern design"
+    loading="lazy"
+    width="800"
+    height="600"
+  />
+</picture>
+```
+
+### **❌ DON'T Skip Structured Data**
+```javascript
+// WRONG: No schema markup
+<div>
+  <h1>Magnolia Tiny Home</h1>
+  <p>Beautiful 20x8 tiny home</p>
+</div>
+
+// CORRECT: With structured data
+<>
+  <SchemaMarkup pageType="product" data={productData} />
+  <div>
+    <h1>Magnolia Tiny Home</h1>
+    <p>Beautiful 20x8 tiny home</p>
+  </div>
+</>
+```
+
+### **❌ DON'T Use Generic Meta Tags**
+```javascript
+// WRONG: Generic meta description
+<meta name="description" content="Tiny homes for sale" />
+
+// CORRECT: Specific, compelling description
+<meta 
+  name="description" 
+  content="Custom tiny homes in Austin, TX. Premium quality, innovative design, and sustainable materials. Get your free quote today!" 
+/>
+```
+
+## **Validation Checklist**
+
+Before publishing any content, verify:
+
+- [ ] **Performance optimization** - Page loads under 2.5 seconds
+- [ ] **Structured data** - JSON-LD schema implemented correctly
+- [ ] **Meta tags** - Title, description, and Open Graph tags optimized
+- [ ] **Content optimization** - Keywords integrated naturally
+- [ ] **Internal linking** - Strategic links to related content
+- [ ] **Image optimization** - WebP format, proper alt text, lazy loading
+- [ ] **Mobile optimization** - Responsive design, touch-friendly elements
+- [ ] **Local SEO** - Location-based keywords and business schema
+- [ ] **Voice search** - Natural language, question-based content
+- [ ] **Analytics tracking** - Google Analytics and custom events
+- [ ] **Social media** - Open Graph and Twitter Card optimization
+- [ ] **Technical SEO** - Sitemap, robots.txt, canonical URLs
+
+## **Related Files**
+
+- **`index.html`**: Main HTML template with meta tags
+- **`src/components/`**: SEO-optimized components
+- **`src/pages/`**: Content pages with structured data
+- **`public/`**: Static assets and sitemap
+- **`vite.config.js`**: Build optimization configuration
+- **`tailwind.config.js`**: Design system configuration
+
+## **When in Doubt**
+
+1. **Check Core Web Vitals** - Ensure performance meets standards
+2. **Validate structured data** - Use Google's Rich Results Test
+3. **Test mobile experience** - Verify responsive design works
+4. **Optimize for voice** - Use natural, conversational language
+5. **Include local context** - Add location-based keywords naturally
+6. **Monitor analytics** - Track performance and user behavior
+7. **Stay updated** - Follow latest SEO and AI search trends
+8. **Ask SEO experts** - When in doubt, consult SEO professionals
+
+## **Marketing & SEO Quality Metrics**
+
+- **Performance**: 95% - Pages load under 2.5 seconds
+- **SEO optimization**: 100% - All pages have proper meta tags and schema
+- **Content quality**: 95% - Content is optimized for target keywords
+- **Local SEO**: 100% - Business information properly structured
+- **Voice search**: 90% - Content optimized for conversational queries
+- **Analytics**: 100% - Proper tracking and monitoring implemented
+
+Remember: **SEO and marketing optimization is not a one-time task, but an ongoing process. Regular monitoring, testing, and optimization are essential for maintaining search visibility and driving business growth.**
+description:
+globs:
+alwaysApply: true
+---

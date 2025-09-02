@@ -1,0 +1,771 @@
+# UI/UX Design Rules
+
+## **CRITICAL: Design Consistency is Non-Negotiable**
+
+The Firefly Estimator project maintains **strict design consistency** that ensures professional appearance, excellent user experience, and brand integrity. Inconsistent design leads to poor user experience, reduced conversions, and brand confusion.
+
+## **INTENT**
+
+Success means every component, page, and interaction follows established design patterns that create a cohesive, professional, and intuitive user experience. AI assistants must understand the complete design system and apply it consistently.
+
+## **WHEN THIS APPLIES**
+
+- Creating or modifying React components
+- Building new pages or interfaces
+- Implementing user interactions and workflows
+- Styling components with TailwindCSS
+- Designing forms and input elements
+- Creating responsive layouts
+- Implementing accessibility features
+- Managing visual hierarchy and spacing
+
+## **1. Design System Foundation**
+
+### **Color Palette**
+```javascript
+// CORRECT: Use established color system from tailwind.config.js
+// Primary colors (brand colors)
+<div className="bg-primary-500 text-primary-900">Primary content</div>
+<div className="bg-primary-100 border-primary-300">Primary background</div>
+
+// Semantic colors
+<button className="bg-green-500 hover:bg-green-600 text-white">
+  Success action
+</button>
+
+<button className="bg-red-500 hover:bg-red-600 text-white">
+  Destructive action
+</button>
+
+<button className="bg-yellow-500 hover:bg-yellow-600 text-white">
+  Warning action
+</button>
+
+// Neutral colors
+<div className="bg-gray-50 text-gray-900">Light background</div>
+<div className="bg-gray-900 text-gray-50">Dark background</div>
+```
+
+### **Typography Scale**
+```javascript
+// CORRECT: Consistent typography hierarchy
+<h1 className="text-4xl font-bold text-gray-900 mb-6">
+  Page Title
+</h1>
+
+<h2 className="text-2xl font-semibold text-gray-800 mb-4">
+  Section Heading
+</h2>
+
+<h3 className="text-xl font-medium text-gray-700 mb-3">
+  Subsection Heading
+</h3>
+
+<p className="text-base text-gray-600 leading-relaxed">
+  Body text with proper line height
+</p>
+
+<p className="text-sm text-gray-500">
+  Small text for captions and metadata
+</p>
+```
+
+### **Spacing System**
+```javascript
+// CORRECT: Consistent spacing using Tailwind scale
+// Container spacing
+<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+  Content with consistent margins
+</div>
+
+// Component spacing
+<div className="space-y-4"> {/* Vertical spacing between children */}
+  <div className="p-4">Component 1</div>
+  <div className="p-4">Component 2</div>
+</div>
+
+// Form spacing
+<form className="space-y-6">
+  <div className="space-y-2">
+    <label className="block text-sm font-medium text-gray-700">
+      Field Label
+    </label>
+    <input className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+  </div>
+</form>
+```
+
+## **2. Component Library Standards**
+
+### **Button Components**
+```javascript
+// CORRECT: Standardized button variants
+export default function Button({ 
+  children, 
+  variant = 'primary', 
+  size = 'md', 
+  disabled = false,
+  onClick,
+  type = 'button',
+  className = '',
+  ...props 
+}) {
+  const baseClasses = 'inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors'
+  
+  const variants = {
+    primary: 'bg-primary-600 hover:bg-primary-700 text-white focus:ring-primary-500',
+    secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-900 focus:ring-gray-500',
+    success: 'bg-green-600 hover:bg-green-700 text-white focus:ring-green-500',
+    danger: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500',
+    outline: 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 focus:ring-primary-500'
+  }
+  
+  const sizes = {
+    sm: 'px-3 py-1.5 text-sm',
+    md: 'px-4 py-2 text-sm',
+    lg: 'px-6 py-3 text-base',
+    xl: 'px-8 py-4 text-lg'
+  }
+  
+  const disabledClasses = disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+  
+  return (
+    <button
+      type={type}
+      disabled={disabled}
+      onClick={onClick}
+      className={`
+        ${baseClasses}
+        ${variants[variant]}
+        ${sizes[size]}
+        ${disabledClasses}
+        ${className}
+      `}
+      {...props}
+    >
+      {children}
+    </button>
+  )
+}
+
+// Usage examples
+<Button variant="primary" size="lg" onClick={handleSubmit}>
+  Submit Quote
+</Button>
+
+<Button variant="secondary" size="md" onClick={handleCancel}>
+  Cancel
+</Button>
+
+<Button variant="danger" size="sm" onClick={handleDelete}>
+  Delete
+</Button>
+```
+
+### **Form Components**
+```javascript
+// CORRECT: Standardized form input components
+export default function Input({
+  label,
+  id,
+  type = 'text',
+  error,
+  required = false,
+  className = '',
+  ...props
+}) {
+  return (
+    <div className="space-y-2">
+      {label && (
+        <label htmlFor={id} className="block text-sm font-medium text-gray-700">
+          {label}
+          {required && <span className="text-red-500 ml-1">*</span>}
+        </label>
+      )}
+      
+      <input
+        id={id}
+        type={type}
+        className={`
+          w-full px-3 py-2 border rounded-md shadow-sm
+          focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
+          ${error 
+            ? 'border-red-300 text-red-900 placeholder-red-300' 
+            : 'border-gray-300 text-gray-900 placeholder-gray-400'
+          }
+          ${className}
+        `}
+        {...props}
+      />
+      
+      {error && (
+        <p className="text-sm text-red-600">{error}</p>
+      )}
+    </div>
+  )
+}
+
+// Form group component
+export default function FormGroup({ children, className = '' }) {
+  return (
+    <div className={`space-y-6 ${className}`}>
+      {children}
+    </div>
+  )
+}
+
+// Usage
+<FormGroup>
+  <Input
+    label="First Name"
+    id="firstName"
+    required
+    placeholder="Enter your first name"
+  />
+  
+  <Input
+    label="Email"
+    id="email"
+    type="email"
+    required
+    placeholder="Enter your email"
+  />
+</FormGroup>
+```
+
+### **Card Components**
+```javascript
+// CORRECT: Standardized card components
+export default function Card({ 
+  children, 
+  variant = 'default',
+  padding = 'md',
+  className = '',
+  ...props 
+}) {
+  const baseClasses = 'bg-white rounded-lg shadow-sm border border-gray-200'
+  
+  const variants = {
+    default: 'bg-white',
+    elevated: 'bg-white shadow-lg',
+    outlined: 'bg-white border-2 border-gray-200',
+    filled: 'bg-gray-50'
+  }
+  
+  const paddingSizes = {
+    sm: 'p-4',
+    md: 'p-6',
+    lg: 'p-8',
+    xl: 'p-10'
+  }
+  
+  return (
+    <div
+      className={`
+        ${baseClasses}
+        ${variants[variant]}
+        ${paddingSizes[padding]}
+        ${className}
+      `}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+}
+
+// Card header component
+export function CardHeader({ title, subtitle, action, className = '' }) {
+  return (
+    <div className={`flex items-center justify-between ${className}`}>
+      <div>
+        <h3 className="text-lg font-medium text-gray-900">{title}</h3>
+        {subtitle && (
+          <p className="text-sm text-gray-500">{subtitle}</p>
+        )}
+      </div>
+      {action && <div>{action}</div>}
+    </div>
+  )
+}
+
+// Usage
+<Card variant="elevated" padding="lg">
+  <CardHeader 
+    title="Quote Summary" 
+    subtitle="Review your selections"
+    action={<Button variant="outline">Edit</Button>}
+  />
+  <div className="mt-6">
+    {/* Card content */}
+  </div>
+</Card>
+```
+
+## **3. Layout and Grid Systems**
+
+### **Container System**
+```javascript
+// CORRECT: Consistent container usage
+export default function PageContainer({ 
+  children, 
+  maxWidth = '7xl',
+  padding = 'default',
+  className = '' 
+}) {
+  const maxWidths = {
+    sm: 'max-w-screen-sm',
+    md: 'max-w-screen-md',
+    lg: 'max-w-screen-lg',
+    xl: 'max-w-screen-xl',
+    '2xl': 'max-w-screen-2xl',
+    '7xl': 'max-w-7xl'
+  }
+  
+  const paddingSizes = {
+    none: '',
+    sm: 'px-4 py-4',
+    default: 'px-4 sm:px-6 lg:px-8 py-8',
+    lg: 'px-6 sm:px-8 lg:px-12 py-12',
+    xl: 'px-8 sm:px-12 lg:px-16 py-16'
+  }
+  
+  return (
+    <div className={`
+      ${maxWidths[maxWidth]} 
+      mx-auto 
+      ${paddingSizes[padding]}
+      ${className}
+    `}>
+      {children}
+    </div>
+  )
+}
+
+// Section component
+export default function Section({ 
+  children, 
+  spacing = 'default',
+  className = '' 
+}) {
+  const spacingSizes = {
+    none: '',
+    sm: 'py-4',
+    default: 'py-8',
+    lg: 'py-12',
+    xl: 'py-16'
+  }
+  
+  return (
+    <section className={`${spacingSizes[spacing]} ${className}`}>
+      {children}
+    </section>
+  )
+}
+```
+
+### **Grid System**
+```javascript
+// CORRECT: Responsive grid layouts
+export default function Grid({ 
+  children, 
+  cols = 1,
+  gap = 'md',
+  className = '' 
+}) {
+  const columnClasses = {
+    1: 'grid-cols-1',
+    2: 'grid-cols-1 sm:grid-cols-2',
+    3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+    4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+    6: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'
+  }
+  
+  const gapSizes = {
+    sm: 'gap-4',
+    md: 'gap-6',
+    lg: 'gap-8',
+    xl: 'gap-12'
+  }
+  
+  return (
+    <div className={`
+      grid 
+      ${columnClasses[cols]} 
+      ${gapSizes[gap]}
+      ${className}
+    `}>
+      {children}
+    </div>
+  )
+}
+
+// Grid item component
+export function GridItem({ 
+  children, 
+  span = 1,
+  className = '' 
+}) {
+  const spanClasses = {
+    1: '',
+    2: 'col-span-1 sm:col-span-2',
+    3: 'col-span-1 sm:col-span-2 lg:col-span-3',
+    full: 'col-span-full'
+  }
+  
+  return (
+    <div className={`${spanClasses[span]} ${className}`}>
+      {children}
+    </div>
+  )
+}
+
+// Usage
+<Grid cols={3} gap="lg">
+  <GridItem>
+    <Card>Feature 1</Card>
+  </GridItem>
+  <GridItem>
+    <Card>Feature 2</Card>
+  </GridItem>
+  <GridItem>
+    <Card>Feature 3</Card>
+  </GridItem>
+</Grid>
+```
+
+## **4. Responsive Design Patterns**
+
+### **Mobile-First Approach**
+```javascript
+// CORRECT: Mobile-first responsive design
+export default function ResponsiveComponent() {
+  return (
+    <div className="
+      // Base (mobile)
+      w-full px-4 py-4
+      
+      // Small screens
+      sm:w-auto sm:px-6 sm:py-6
+      
+      // Medium screens
+      md:px-8 md:py-8
+      
+      // Large screens
+      lg:px-12 lg:py-12
+      
+      // Extra large
+      xl:max-w-7xl xl:mx-auto
+    ">
+      <div className="
+        // Mobile: single column
+        grid grid-cols-1 gap-4
+        
+        // Tablet: two columns
+        sm:grid-cols-2 sm:gap-6
+        
+        // Desktop: three columns
+        lg:grid-cols-3 lg:gap-8
+      ">
+        {/* Grid items */}
+      </div>
+    </div>
+  )
+}
+```
+
+### **Responsive Typography**
+```javascript
+// CORRECT: Responsive text sizing
+<h1 className="
+  text-2xl font-bold
+  sm:text-3xl
+  md:text-4xl
+  lg:text-5xl
+">
+  Responsive Heading
+</h1>
+
+<p className="
+  text-sm leading-relaxed
+  sm:text-base
+  lg:text-lg
+  xl:text-xl
+">
+  Responsive body text that scales appropriately
+</p>
+```
+
+### **Responsive Spacing**
+```javascript
+// CORRECT: Responsive spacing
+<div className="
+  // Mobile: compact spacing
+  space-y-4 px-4 py-6
+  
+  // Tablet: medium spacing
+  sm:space-y-6 sm:px-6 sm:py-8
+  
+  // Desktop: generous spacing
+  lg:space-y-8 lg:px-8 lg:py-12
+  
+  // Large screens: maximum spacing
+  xl:space-y-12 xl:px-12 xl:py-16
+">
+  Content with responsive spacing
+</div>
+```
+
+## **5. Interactive Elements**
+
+### **Hover and Focus States**
+```javascript
+// CORRECT: Consistent interactive states
+<button className="
+  bg-primary-600 
+  text-white 
+  px-4 py-2 
+  rounded-md 
+  font-medium
+  
+  // Hover state
+  hover:bg-primary-700 
+  hover:shadow-md
+  
+  // Focus state
+  focus:outline-none 
+  focus:ring-2 
+  focus:ring-primary-500 
+  focus:ring-offset-2
+  
+  // Active state
+  active:bg-primary-800
+  
+  // Disabled state
+  disabled:opacity-50 
+  disabled:cursor-not-allowed
+  
+  // Transitions
+  transition-all 
+  duration-200
+">
+  Interactive Button
+</button>
+```
+
+### **Loading States**
+```javascript
+// CORRECT: Consistent loading patterns
+export default function LoadingButton({ 
+  children, 
+  loading = false,
+  loadingText = 'Loading...',
+  ...props 
+}) {
+  return (
+    <button
+      disabled={loading}
+      className={`
+        inline-flex items-center justify-center
+        px-4 py-2 border border-transparent
+        text-sm font-medium rounded-md
+        text-white bg-primary-600
+        hover:bg-primary-700
+        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500
+        disabled:opacity-50 disabled:cursor-not-allowed
+        transition-colors duration-200
+      `}
+      {...props}
+    >
+      {loading && (
+        <svg 
+          className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" 
+          fill="none" 
+          viewBox="0 0 24 24"
+        >
+          <circle 
+            className="opacity-25" 
+            cx="12" 
+            cy="12" 
+            r="10" 
+            stroke="currentColor" 
+            strokeWidth="4"
+          />
+          <path 
+            className="opacity-75" 
+            fill="currentColor" 
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          />
+        </svg>
+      )}
+      {loading ? loadingText : children}
+    </button>
+  )
+}
+```
+
+## **6. Accessibility Standards**
+
+### **Semantic HTML**
+```javascript
+// CORRECT: Semantic HTML structure
+export default function AccessibleComponent() {
+  return (
+    <main role="main" aria-label="Main content">
+      <header role="banner">
+        <nav role="navigation" aria-label="Main navigation">
+          <ul>
+            <li><a href="#home">Home</a></li>
+            <li><a href="#models">Models</a></li>
+            <li><a href="#contact">Contact</a></li>
+          </ul>
+        </nav>
+      </header>
+      
+      <section aria-labelledby="models-heading">
+        <h2 id="models-heading">Available Models</h2>
+        <div role="group" aria-label="Model selection">
+          {/* Model options */}
+        </div>
+      </section>
+      
+      <footer role="contentinfo">
+        <p>&copy; 2024 Firefly Tiny Homes</p>
+      </footer>
+    </main>
+  )
+}
+```
+
+### **ARIA Labels and Descriptions**
+```javascript
+// CORRECT: Proper ARIA usage
+export default function AccessibleForm() {
+  const [errors, setErrors] = useState({})
+  
+  return (
+    <form aria-labelledby="form-title" aria-describedby="form-description">
+      <h2 id="form-title">Quote Request Form</h2>
+      <p id="form-description">
+        Fill out this form to request a custom quote for your tiny home.
+      </p>
+      
+      <div role="group" aria-labelledby="personal-info">
+        <h3 id="personal-info">Personal Information</h3>
+        
+        <label htmlFor="name">Full Name</label>
+        <input
+          id="name"
+          type="text"
+          aria-describedby="name-error"
+          aria-invalid={!!errors.name}
+        />
+        {errors.name && (
+          <div id="name-error" role="alert" className="text-red-600">
+            {errors.name}
+          </div>
+        )}
+      </div>
+    </form>
+  )
+}
+```
+
+## **Common UI/UX Mistakes**
+
+### **❌ DON'T Ignore Responsive Design**
+```javascript
+// WRONG: Fixed dimensions without responsive consideration
+<div className="w-96 h-64 px-8 py-6">
+  Fixed size component
+</div>
+
+// CORRECT: Responsive design
+<div className="w-full max-w-md h-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+  Responsive component
+</div>
+```
+
+### **❌ DON'T Skip Loading States**
+```javascript
+// WRONG: No loading indication
+const handleSubmit = async () => {
+  const result = await submitForm()
+  // User doesn't know if form is processing
+}
+
+// CORRECT: Loading state management
+const [isLoading, setIsLoading] = useState(false)
+
+const handleSubmit = async () => {
+  setIsLoading(true)
+  try {
+    const result = await submitForm()
+  } finally {
+    setIsLoading(false)
+  }
+}
+```
+
+### **❌ DON'T Use Inconsistent Spacing**
+```javascript
+// WRONG: Inconsistent spacing
+<div className="p-4">
+  <h2 className="mb-2">Title</h2>
+  <p className="mb-8">Content</p>
+  <button className="mt-4">Action</button>
+</div>
+
+// CORRECT: Consistent spacing system
+<div className="space-y-4 p-4">
+  <h2>Title</h2>
+  <p>Content</p>
+  <button>Action</button>
+</div>
+```
+
+## **Validation Checklist**
+
+Before implementing any UI/UX changes, verify:
+
+- [ ] **Design consistency** - Follows established design patterns
+- [ ] **Responsive design** - Works on all screen sizes
+- [ ] **Accessibility** - Includes proper ARIA labels and semantic HTML
+- [ ] **Interactive states** - Hover, focus, and loading states implemented
+- [ ] **Spacing consistency** - Uses established spacing system
+- [ ] **Color usage** - Follows established color palette
+- [ ] **Typography** - Uses consistent text sizing and hierarchy
+- [ ] **Component reuse** - Uses existing component library when possible
+- [ ] **Performance** - No unnecessary re-renders or heavy animations
+- [ ] **User testing** - Design decisions are validated with users
+
+## **Related Files**
+
+- **`src/components/`**: Reusable UI components
+- **`src/pages/`**: Page layouts and interfaces
+- **`src/styles/`**: CSS and styling files
+- **`tailwind.config.js`**: Design system configuration
+- **`src/assets/`**: Images, icons, and visual assets
+
+## **When in Doubt**
+
+1. **Check existing components** - Use established patterns as templates
+2. **Follow design system** - Stick to defined colors, spacing, and typography
+3. **Test responsiveness** - Verify on multiple screen sizes
+4. **Validate accessibility** - Ensure screen readers can navigate properly
+5. **Ask for feedback** - Get input from designers or users when unsure
+6. **Document decisions** - Record design choices for future reference
+
+## **UI/UX Quality Metrics**
+
+- **Consistency**: 95% - All components follow established patterns
+- **Responsiveness**: 100% - Works perfectly on all screen sizes
+- **Accessibility**: 100% - Meets WCAG AA standards
+- **Performance**: 90% - Smooth interactions and fast rendering
+- **User Experience**: 95% - Intuitive and easy to use
+
+Remember: **Great design is invisible. Users should focus on their goals, not on the interface. Always prioritize usability and accessibility over visual flair.**
+description:
+globs:
+alwaysApply: true
+---

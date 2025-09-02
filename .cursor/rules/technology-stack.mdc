@@ -1,0 +1,673 @@
+---
+description: "Technology stack and framework-specific rules for the Firefly Estimator project"
+globs: ["src/**/*", "api/**/*", "lib/**/*", "package.json", "vite.config.js", "tailwind.config.js"]
+alwaysApply: false
+---
+
+# Technology Stack Rules
+
+## **CRITICAL: Technology Versions and Compatibility**
+
+The Firefly Estimator project uses **specific technology versions** that must be maintained for stability and deployment success. Using incorrect versions will cause build failures, runtime errors, and deployment issues.
+
+## **1. Core Technology Stack**
+
+### **Frontend Framework**
+- **React 19.1.0**: Latest React version with concurrent features
+- **React Router DOM 7.7.1**: Latest routing with new data APIs
+- **Vite 7.0.4**: Modern build tool with HMR and fast refresh
+- **Node.js 22.x**: Required runtime (specified in package.json engines)
+
+### **Backend & API**
+- **Express 4.19.2**: Web framework for API routes
+- **MongoDB 6.18.0**: Database with native driver
+- **Serverless-http 3.2.0**: Vercel serverless compatibility
+
+### **Styling & UI**
+- **TailwindCSS 3.4.1**: Utility-first CSS framework
+- **Heroicons 2.2.0**: Icon library for React
+- **PostCSS 8.4.35**: CSS processing and autoprefixer
+
+### **Authentication & Payments**
+- **Clerk 5.42.0**: Authentication and user management
+- **Stripe 16.12.0**: Payment processing and webhooks
+
+## **2. React 19 Specific Rules**
+
+### **Component Patterns**
+```javascript
+// CORRECT: Use modern React 19 patterns
+import { useState, useEffect, useCallback, useMemo } from 'react'
+
+export default function ModernComponent() {
+  // Use useState for local state
+  const [state, setState] = useState(null)
+  
+  // Use useCallback for stable function references
+  const handleClick = useCallback(() => {
+    setState(prev => !prev)
+  }, [])
+  
+  // Use useMemo for expensive calculations
+  const expensiveValue = useMemo(() => {
+    return computeExpensiveValue(state)
+  }, [state])
+  
+  return (
+    <div onClick={handleClick}>
+      {expensiveValue}
+    </div>
+  )
+}
+```
+
+### **Hooks Usage**
+```javascript
+// CORRECT: Follow React 19 hooks best practices
+export default function ComponentWithHooks() {
+  // Group related state
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  
+  // Use useEffect for side effects
+  useEffect(() => {
+    if (user) {
+      // Effect logic
+    }
+  }, [user])
+  
+  // Custom hooks for reusable logic
+  const { data, isLoading } = useCustomHook()
+}
+```
+
+### **Error Boundaries**
+```javascript
+// CORRECT: Implement proper error boundaries for React 19
+import { Component } from 'react'
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+  
+  componentDidCatch(error, errorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo)
+  }
+  
+  render() {
+    if (this.state.hasError) {
+      return <div>Something went wrong. Please try again.</div>
+    }
+    
+    return this.props.children
+  }
+}
+```
+
+## **3. Vite Build System Rules**
+
+### **Configuration**
+```javascript
+// CORRECT: vite.config.js structure
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': 'http://localhost:3000'
+    }
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: true
+  }
+})
+```
+
+### **Import Patterns**
+```javascript
+// CORRECT: Use Vite-compatible imports
+import React from 'react'
+import { useState } from 'react'
+import Component from './Component.jsx'  // .jsx extension required
+import utility from '../utils/utility.js'  // .js extension required
+import styles from './Component.module.css'  // CSS modules supported
+```
+
+### **Asset Handling**
+```javascript
+// CORRECT: Asset import patterns
+import logo from '../assets/firefly-logo.svg'
+import heroImage from '../assets/hero/tiny-home-dusk.png'
+import pdfStyles from '../styles/pdf.css'
+
+// Use in components
+<img src={logo} alt="Firefly Logo" />
+<div style={{ backgroundImage: `url(${heroImage})` }} />
+```
+
+## **4. TailwindCSS Usage Rules**
+
+### **Class Organization**
+```javascript
+// CORRECT: Organized Tailwind classes
+<div className={`
+  // Layout
+  flex flex-col items-center justify-center
+  
+  // Spacing
+  p-4 md:p-6 lg:p-8
+  
+  // Colors
+  bg-white dark:bg-gray-900
+  
+  // Typography
+  text-gray-900 dark:text-white
+  
+  // Responsive
+  text-sm md:text-base lg:text-lg
+  
+  // Interactive
+  hover:bg-gray-50 dark:hover:bg-gray-800
+  focus:ring-2 focus:ring-primary-500
+`}>
+  Content
+</div>
+```
+
+### **Custom Color Scheme**
+```javascript
+// CORRECT: Use the established color palette
+// Primary colors (defined in tailwind.config.js)
+<div className="bg-primary-500 text-primary-900">
+  Primary content
+</div>
+
+// Semantic colors
+<button className="bg-green-500 hover:bg-green-600 text-white">
+  Success action
+</button>
+
+<button className="bg-red-500 hover:bg-red-600 text-white">
+  Destructive action
+</button>
+```
+
+### **Responsive Design**
+```javascript
+// CORRECT: Mobile-first responsive design
+<div className="
+  // Base (mobile)
+  w-full px-4 py-2
+  
+  // Small screens
+  sm:w-auto sm:px-6
+  
+  // Medium screens
+  md:px-8 md:py-4
+  
+  // Large screens
+  lg:px-12 lg:py-6
+  
+  // Extra large
+  xl:max-w-7xl xl:mx-auto
+">
+  Responsive content
+</div>
+```
+
+## **5. Express and API Development**
+
+### **Middleware Setup**
+```javascript
+// CORRECT: Express middleware configuration
+import express from 'express'
+import cors from 'cors'
+
+const app = express()
+
+// Security middleware
+app.disable('x-powered-by')
+app.use(express.json({ limit: '2mb' }))
+
+// CORS configuration
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173'],
+  credentials: true
+}))
+```
+
+### **Route Handler Pattern**
+```javascript
+// CORRECT: API route handler structure
+export default async function handler(req, res) {
+  try {
+    // Apply CORS
+    applyCors(req, res)
+    
+    // Parse request
+    const { method, path, body, query } = req
+    
+    // Route handling
+    if (path.startsWith('/models/')) {
+      return await handleModels(req, res)
+    }
+    
+    // Method validation
+    if (method !== 'GET') {
+      return res.status(405).json({ error: 'Method not allowed' })
+    }
+    
+    // Success response
+    res.json({ success: true, data: result })
+    
+  } catch (error) {
+    console.error('API error:', error)
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message 
+    })
+  }
+}
+```
+
+### **Error Handling**
+```javascript
+// CORRECT: Comprehensive error handling
+function handleApiError(error, res) {
+  if (error.name === 'ValidationError') {
+    return res.status(400).json({
+      error: 'Validation failed',
+      details: error.details
+    })
+  }
+  
+  if (error.name === 'MongoError') {
+    return res.status(500).json({
+      error: 'Database error',
+      message: 'Please try again later'
+    })
+  }
+  
+  // Default error
+  return res.status(500).json({
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+  })
+}
+```
+
+## **6. MongoDB Integration Rules**
+
+### **Connection Management**
+```javascript
+// CORRECT: Database connection pattern
+import { MongoClient } from 'mongodb'
+
+let client = null
+let db = null
+
+export async function getDb() {
+  if (db) return db
+  
+  if (!client) {
+    client = new MongoClient(process.env.MONGODB_URI)
+    await client.connect()
+  }
+  
+  db = client.db(process.env.MONGODB_DB)
+  return db
+}
+
+export async function closeConnection() {
+  if (client) {
+    await client.close()
+    client = null
+    db = null
+  }
+}
+```
+
+### **Collection Operations**
+```javascript
+// CORRECT: MongoDB operation patterns
+import { ObjectId } from 'mongodb'
+
+export async function findModelById(id) {
+  const db = await getDb()
+  const collection = db.collection('models')
+  
+  try {
+    const objectId = new ObjectId(id)
+    return await collection.findOne({ _id: objectId })
+  } catch (error) {
+    if (error.name === 'BSONTypeError') {
+      return null // Invalid ObjectId
+    }
+    throw error
+  }
+}
+
+export async function createModel(modelData) {
+  const db = await getDb()
+  const collection = db.collection('models')
+  
+  const result = await collection.insertOne({
+    ...modelData,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  })
+  
+  return result.insertedId
+}
+```
+
+### **Index Management**
+```javascript
+// CORRECT: Index creation and management
+export async function ensureModelIndexes() {
+  const db = await getDb()
+  const collection = db.collection('models')
+  
+  // Create indexes for performance
+  await collection.createIndex({ modelCode: 1 }, { unique: true })
+  await collection.createIndex({ slug: 1 }, { unique: true })
+  await collection.createIndex({ createdAt: -1 })
+  await collection.createIndex({ updatedAt: -1 })
+}
+```
+
+## **7. Clerk Authentication Rules**
+
+### **Client-Side Integration**
+```javascript
+// CORRECT: Clerk React integration
+import { useUser, useAuth } from '@clerk/clerk-react'
+
+export default function AuthenticatedComponent() {
+  const { user, isLoaded } = useUser()
+  const { signOut } = useAuth()
+  
+  if (!isLoaded) {
+    return <div>Loading...</div>
+  }
+  
+  if (!user) {
+    return <div>Please sign in</div>
+  }
+  
+  return (
+    <div>
+      <p>Welcome, {user.firstName}!</p>
+      <button onClick={() => signOut()}>Sign Out</button>
+    </div>
+  )
+}
+```
+
+### **Server-Side Verification**
+```javascript
+// CORRECT: Server-side auth verification
+import { createClerkClient } from '@clerk/backend'
+
+const clerk = createClerkClient({ 
+  secretKey: process.env.CLERK_SECRET_KEY 
+})
+
+export async function requireAuth(req, res, next) {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' })
+    }
+    
+    const session = await clerk.sessions.verifySession(token)
+    req.user = session.user
+    next()
+  } catch (error) {
+    return res.status(401).json({ error: 'Invalid token' })
+  }
+}
+```
+
+## **8. Stripe Payment Integration**
+
+### **Payment Intent Creation**
+```javascript
+// CORRECT: Stripe payment flow
+import Stripe from 'stripe'
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+
+export async function createPaymentIntent(amount, currency = 'usd') {
+  try {
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // Convert to cents
+      currency,
+      automatic_payment_methods: {
+        enabled: true,
+      },
+    })
+    
+    return paymentIntent
+  } catch (error) {
+    console.error('Stripe error:', error)
+    throw new Error('Payment creation failed')
+  }
+}
+```
+
+### **Webhook Handling**
+```javascript
+// CORRECT: Stripe webhook verification
+import { headers } from 'next/headers'
+import Stripe from 'stripe'
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+
+export async function handleStripeWebhook(req, res) {
+  const body = req.body
+  const signature = req.headers['stripe-signature']
+  
+  try {
+    const event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      webhookSecret
+    )
+    
+    switch (event.type) {
+      case 'payment_intent.succeeded':
+        await handlePaymentSuccess(event.data.object)
+        break
+      case 'payment_intent.payment_failed':
+        await handlePaymentFailure(event.data.object)
+        break
+    }
+    
+    res.json({ received: true })
+  } catch (error) {
+    console.error('Webhook error:', error)
+    res.status(400).json({ error: 'Webhook signature verification failed' })
+  }
+}
+```
+
+## **9. Testing Framework Rules**
+
+### **Vitest Configuration**
+```javascript
+// CORRECT: Vitest test setup
+import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./tests/setup.js'],
+    globals: true
+  }
+})
+```
+
+### **Component Testing**
+```javascript
+// CORRECT: React component testing
+import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import Component from './Component'
+
+describe('Component', () => {
+  it('renders correctly', () => {
+    render(<Component />)
+    expect(screen.getByText('Expected Text')).toBeInTheDocument()
+  })
+  
+  it('handles user interaction', () => {
+    const mockHandler = vi.fn()
+    render(<Component onClick={mockHandler} />)
+    
+    fireEvent.click(screen.getByRole('button'))
+    expect(mockHandler).toHaveBeenCalledTimes(1)
+  })
+})
+```
+
+### **API Testing**
+```javascript
+// CORRECT: API endpoint testing
+import request from 'supertest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import app from '../api/index.js'
+
+describe('API Endpoints', () => {
+  beforeAll(async () => {
+    // Setup test database
+  })
+  
+  afterAll(async () => {
+    // Cleanup test database
+  })
+  
+  it('GET /api/health returns 200', async () => {
+    const response = await request(app)
+      .get('/api/health')
+      .expect(200)
+    
+    expect(response.body).toEqual({ status: 'ok' })
+  })
+})
+```
+
+## **10. Development and Build Scripts**
+
+### **Package.json Scripts**
+```json
+{
+  "scripts": {
+    "dev": "concurrently \"vite\" \"vercel dev --listen 3000\"",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint .",
+    "seed:models": "node -r dotenv/config scripts/seed-models.cjs"
+  }
+}
+```
+
+### **Environment Management**
+```bash
+# CORRECT: Environment variable setup
+# .env.local for local development
+NODE_ENV=development
+VITE_API_URL=http://localhost:3000
+MONGODB_URI=mongodb://localhost:27017/firefly-dev
+
+# Production environment variables in Vercel
+NODE_ENV=production
+MONGODB_URI=mongodb+srv://...
+STRIPE_SECRET_KEY=sk_live_...
+CLERK_SECRET_KEY=sk_test_...
+```
+
+## **Common Technology Mistakes**
+
+### **❌ DON'T Mix Technology Versions**
+```javascript
+// WRONG: Don't use different React versions
+import React from 'react'  // React 18
+import { useState } from 'react'  // React 19
+
+// WRONG: Don't use deprecated patterns
+class Component extends React.Component {}  // Use functional components
+```
+
+### **❌ DON'T Ignore Build Requirements**
+```javascript
+// WRONG: Don't skip file extensions in imports
+import Component from './Component'  // Missing .jsx extension
+
+// WRONG: Don't use CommonJS in ES modules
+const express = require('express')  // Use import instead
+```
+
+### **❌ DON'T Bypass Security Middleware**
+```javascript
+// WRONG: Don't skip CORS or security headers
+app.use(express.json())  // Missing security middleware
+
+// WRONG: Don't expose sensitive information
+console.log('Database URI:', process.env.MONGODB_URI)  // Security risk
+```
+
+## **Technology Validation Checklist**
+
+Before implementing any changes, verify:
+
+- [ ] Are you using the correct technology versions from package.json?
+- [ ] Does this follow React 19 best practices?
+- [ ] Are you using the established Vite import patterns?
+- [ ] Does this follow TailwindCSS usage guidelines?
+- [ ] Are you using the correct Express middleware patterns?
+- [ ] Does this follow MongoDB best practices?
+- [ ] Are you implementing proper Clerk authentication?
+- [ ] Does this follow Stripe integration patterns?
+- [ ] Are you using the correct testing framework setup?
+
+## **Related Files and References**
+
+- **`package.json`**: Technology versions and dependencies
+- **`vite.config.js`**: Build configuration
+- **`tailwind.config.js`**: CSS framework configuration
+- **`eslint.config.js`**: Code quality rules
+- **`vitest.config.js`**: Testing configuration
+- **`vercel.json`**: Deployment configuration
+
+## **When in Doubt About Technology**
+
+1. **Check package.json** for exact version requirements
+2. **Refer to official documentation** for the specific technology
+3. **Study existing implementations** in the codebase
+4. **Test thoroughly** before committing changes
+5. **Ask for clarification** if the technology pattern isn't clear
+
+Remember: **Using incorrect technology versions or patterns will cause build failures and runtime errors. Always verify compatibility first.**
+description:
+globs:
+alwaysApply: true
+---

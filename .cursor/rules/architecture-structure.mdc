@@ -1,0 +1,326 @@
+---
+description: "Architecture and structure patterns for the Firefly Estimator project"
+globs: ["src/**/*", "api/**/*", "lib/**/*", "backend/**/*"]
+alwaysApply: false
+---
+
+# Architecture & Structure Rules
+
+## **CRITICAL: Always Follow These Patterns**
+
+The Firefly Estimator project follows a **strict monorepo architecture** that must be maintained. Deviating from these patterns will cause deployment failures, routing issues, and maintenance problems.
+
+## **Project Structure Overview**
+
+```
+firefly-estimator/
+├── src/                    # Frontend React application
+│   ├── components/         # Reusable UI components
+│   ├── pages/             # Route components (lazy-loaded)
+│   ├── utils/             # Utility functions and helpers
+│   ├── hooks/             # Custom React hooks
+│   ├── lib/               # Client-side libraries and utilities
+│   ├── data/              # Static data files
+│   └── styles/            # CSS and styling files
+├── api/                   # Vercel serverless functions
+│   └── index.js          # SINGLE Express handler for ALL API routes
+├── backend/               # Local development server files
+├── lib/                   # Server-side utilities and database functions
+├── data/                  # JSON data files for models and options
+├── templates/             # HTML templates for PDF generation
+├── scripts/               # Database migration and seeding scripts
+└── tests/                 # Test files and test utilities
+```
+
+## **1. API Architecture Pattern (CRITICAL)**
+
+### **Single Express Handler Pattern**
+- **ALWAYS** use the single Express serverless function at `api/index.js`
+- **NEVER** create individual API route files in the `api/` directory
+- **NEVER** create `api/models/[code].js` or similar dynamic route files
+- All API routes are handled through path-based routing in the single handler
+
+### **Path-Based Routing Implementation**
+```javascript
+// CORRECT: Use path-based routing in api/index.js
+const path = req.query.path || req.path || '/'
+
+if (path.startsWith('/models/')) {
+  // Handle model-related routes
+} else if (path.startsWith('/admin/')) {
+  // Handle admin routes
+} else if (path.startsWith('/checkout/')) {
+  // Handle checkout routes
+}
+```
+
+### **Vercel Configuration**
+- The `vercel.json` file routes ALL `/api/*` requests to `/api/index?path=/$1`
+- This pattern ensures SPA fallthrough and prevents infinite loading issues
+- **NEVER** modify the rewrite rules without understanding the full impact
+
+## **2. Directory Organization Rules**
+
+### **Frontend (`src/`)**
+- **`components/`**: Reusable UI components (PascalCase naming)
+- **`pages/`**: Route components that are lazy-loaded in `App.jsx`
+- **`utils/`**: Pure utility functions, no React dependencies
+- **`hooks/`**: Custom React hooks following the `use` prefix convention
+- **`lib/`**: Client-side libraries (auth, API clients, etc.)
+- **`data/`**: Static JSON data files for models, options, etc.
+
+### **Backend (`api/` and `lib/`)**
+- **`api/index.js`**: Single Express handler for all API routes
+- **`lib/`**: Server-side utilities (database, auth, external services)
+- **`backend/`**: Local development server files (not used in production)
+
+### **Data and Templates**
+- **`data/`**: JSON files for models, options, delivery rates
+- **`templates/`**: HTML templates for PDF generation and emails
+- **`scripts/`**: Database migration, seeding, and utility scripts
+
+## **3. File Naming Conventions**
+
+### **React Components**
+- **PascalCase** for all component files: `ModelSelector.jsx`, `PriceBreakdown.jsx`
+- **PascalCase** for component names in JSX: `<ModelSelector />`, `<PriceBreakdown />`
+- **PascalCase** for component function names: `function ModelSelector() {}`
+
+### **Utilities and Hooks**
+- **camelCase** for utility files: `modelUtils.js`, `priceCalculation.js`
+- **camelCase** for function names: `calculatePrice()`, `formatCurrency()`
+- **`use` prefix** for custom hooks: `useBuildData.js`, `useUserProfile.js`
+
+### **API and Database**
+- **camelCase** for API route handlers: `getModels()`, `createOrder()`
+- **camelCase** for database functions: `findModelById()`, `ensureModelIndexes()`
+- **SCREAMING_SNAKE_CASE** for constants: `COLLECTION`, `ORDERS_COLLECTION`
+
+## **4. Import and Export Patterns**
+
+### **Lazy Loading for Pages**
+```javascript
+// CORRECT: Lazy load all page components in App.jsx
+const QuoteBuilder = lazy(() => import('./pages/QuoteBuilder'))
+const ModelDetail = lazy(() => import('./pages/ModelDetail'))
+const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'))
+```
+
+### **Utility Imports**
+```javascript
+// CORRECT: Import utilities from lib/ directory
+import { findModelById, ensureModelIndexes } from '../lib/model-utils.js'
+import { createOrderDraft, getOrderById } from '../lib/orders.js'
+import { applyCors } from '../lib/cors.js'
+```
+
+### **Component Imports**
+```javascript
+// CORRECT: Import components from components/ directory
+import Header from '../components/Header'
+import MobileNavigation from '../components/MobileNavigation'
+import Footer from '../components/Footer'
+```
+
+## **5. Component Architecture Rules**
+
+### **Component Structure**
+```javascript
+// CORRECT: Functional component with proper imports and exports
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+
+export default function ComponentName({ prop1, prop2 }) {
+  // State and effects
+  const [state, setState] = useState(null)
+  
+  // Event handlers
+  const handleClick = () => {
+    // Handler logic
+  }
+  
+  // Render
+  return (
+    <div className="component-container">
+      {/* Component content */}
+    </div>
+  )
+}
+```
+
+### **Page Component Pattern**
+```javascript
+// CORRECT: Page components should be in src/pages/ directory
+// and follow the established routing patterns
+export default function PageName() {
+  // Page-specific logic
+  return (
+    <div className="page-container">
+      <h1>Page Title</h1>
+      {/* Page content */}
+    </div>
+  )
+}
+```
+
+## **6. Database and API Integration**
+
+### **Database Connection Pattern**
+```javascript
+// CORRECT: Use the established database connection pattern
+import { getDb } from '../lib/db.js'
+
+export async function handler(req, res) {
+  try {
+    const db = await getDb()
+    // Database operations
+  } catch (error) {
+    console.error('Database error:', error)
+    res.status(500).json({ error: 'Database connection failed' })
+  }
+}
+```
+
+### **API Route Handler Pattern**
+```javascript
+// CORRECT: Follow the established API handler pattern
+export default async function handler(req, res) {
+  // Apply CORS
+  applyCors(req, res)
+  
+  // Parse path for routing
+  const path = req.query.path || req.path || '/'
+  
+  // Route to appropriate handler
+  if (path.startsWith('/models/')) {
+    return handleModels(req, res)
+  }
+  
+  // Default response
+  res.status(404).json({ error: 'Route not found' })
+}
+```
+
+## **7. Error Handling and Validation**
+
+### **Error Boundary Pattern**
+```javascript
+// CORRECT: Use ErrorBoundary for component error handling
+import ErrorBoundary from '../components/ErrorBoundary'
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      {/* App content */}
+    </ErrorBoundary>
+  )
+}
+```
+
+### **API Error Handling**
+```javascript
+// CORRECT: Consistent error response format
+try {
+  // API logic
+} catch (error) {
+  console.error('API error:', error)
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: error.message 
+  })
+}
+```
+
+## **8. Performance and Optimization**
+
+### **Lazy Loading**
+- **ALWAYS** lazy load page components in `App.jsx`
+- Use `Suspense` with proper fallback components
+- Implement loading states for better UX
+
+### **Code Splitting**
+- Keep utility functions in separate files for better tree-shaking
+- Use dynamic imports for heavy dependencies
+- Implement proper bundle analysis and optimization
+
+## **9. Testing and Development**
+
+### **Test File Organization**
+- **`tests/`**: Main test directory
+- **`test-*.js`**: Individual test files in root
+- Use Vitest for unit testing and Supertest for API testing
+
+### **Development Scripts**
+- **`npm run dev`**: Combined frontend + Vercel dev server
+- **`npm run dev:full`**: All services running together
+- **`npm run debug:dev`**: Debug mode with verbose logging
+
+## **10. Deployment and Production**
+
+### **Vercel Configuration**
+- **NEVER** modify `vercel.json` without understanding the routing implications
+- Ensure all API routes go through the single handler
+- Maintain SPA fallthrough for client-side routing
+
+### **Environment Variables**
+- Use proper environment variable management
+- **NEVER** commit sensitive data
+- Follow the established patterns in `.env` files
+
+## **Common Mistakes to Avoid**
+
+### **❌ DON'T Create Individual API Files**
+```javascript
+// WRONG: Don't create api/models/[code].js
+// WRONG: Don't create api/admin/settings.js
+// WRONG: Don't create api/checkout/create-session.js
+```
+
+### **❌ DON'T Modify Core Architecture**
+```javascript
+// WRONG: Don't change the single handler pattern
+// WRONG: Don't modify vercel.json routing without testing
+// WRONG: Don't create new top-level directories without justification
+```
+
+### **❌ DON'T Ignore File Naming Conventions**
+```javascript
+// WRONG: component.jsx (should be PascalCase)
+// WRONG: utilityFunction.js (should be camelCase)
+// WRONG: CONSTANT_NAME.js (should be screaming snake case)
+```
+
+## **Validation Checklist**
+
+Before implementing any changes, verify:
+
+- [ ] Does this follow the single API handler pattern?
+- [ ] Are file names using the correct naming convention?
+- [ ] Are imports following the established directory structure?
+- [ ] Does this maintain the lazy loading pattern for pages?
+- [ ] Are database operations using the established connection pattern?
+- [ ] Does this follow the established error handling patterns?
+- [ ] Are components structured according to the established patterns?
+
+## **Related Files and References**
+
+- **`api/index.js`**: Main API handler (study this file thoroughly)
+- **`vercel.json`**: Deployment configuration
+- **`src/App.jsx`**: Main application routing and lazy loading
+- **`lib/`**: Server-side utilities and database functions
+- **`src/components/`**: Reusable UI components
+- **`src/pages/`**: Route components
+
+## **When in Doubt**
+
+1. **Study the existing code** in the referenced files
+2. **Follow the established patterns** exactly
+3. **Don't create new patterns** without thorough justification
+4. **Test thoroughly** before committing changes
+5. **Ask for clarification** if the pattern isn't clear
+
+Remember: **This architecture has been carefully designed to solve specific deployment and routing challenges. Deviating from it will cause problems.**
+description:
+globs:
+alwaysApply: true
+---

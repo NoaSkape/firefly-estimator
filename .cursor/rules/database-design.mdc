@@ -1,0 +1,1226 @@
+# Database Design Rules
+
+## **CRITICAL: Data Integrity is Non-Negotiable**
+
+The Firefly Estimator project manages **critical business data** including customer information, quotes, orders, and financial transactions. Database design errors can result in data corruption, business logic failures, and compliance violations. **ALWAYS** follow established database patterns.
+
+## **INTENT**
+
+Success means every database operation, schema design, and data migration follows established patterns that ensure data integrity, performance, and maintainability. AI assistants must understand the complete database architecture and implement operations correctly.
+
+## **WHEN THIS APPLIES**
+
+- Designing MongoDB collections and schemas
+- Implementing database operations and queries
+- Creating database migrations and seeding scripts
+- Managing database indexes and performance
+- Handling data validation and constraints
+- Implementing data relationships and references
+- Managing database connections and transactions
+- Implementing backup and recovery procedures
+
+## **1. MongoDB Schema Design**
+
+### **Collection Structure**
+```javascript
+// CORRECT: Well-structured collection schemas
+export const COLLECTION_SCHEMAS = {
+  // Users collection
+  users: {
+    _id: 'ObjectId',
+    clerkId: 'String (unique, indexed)',
+    email: 'String (unique, indexed)',
+    firstName: 'String (required)',
+    lastName: 'String (required)',
+    role: 'String (enum: customer, sales_agent, admin, super_admin)',
+    profile: {
+      phone: 'String (optional)',
+      company: 'String (optional)',
+      preferences: 'Object (optional)'
+    },
+    addresses: [{
+      type: 'String (enum: billing, shipping)',
+      street: 'String (required)',
+      city: 'String (required)',
+      state: 'String (required, 2 chars)',
+      zip: 'String (required, 5-10 chars)',
+      isPrimary: 'Boolean (default: false)'
+    }],
+    metadata: {
+      createdAt: 'Date (required)',
+      updatedAt: 'Date (required)',
+      lastLogin: 'Date (optional)',
+      isActive: 'Boolean (default: true)'
+    }
+  },
+  
+  // Models collection
+  models: {
+    _id: 'ObjectId',
+    modelCode: 'String (unique, indexed)',
+    slug: 'String (unique, indexed)',
+    name: 'String (required)',
+    description: 'String (required)',
+    basePrice: 'Number (required, positive)',
+    size: 'String (required, format: "20x8")',
+    features: [{
+      name: 'String (required)',
+      description: 'String (optional)',
+      included: 'Boolean (default: true)'
+    }],
+    images: [{
+      url: 'String (required)',
+      alt: 'String (required)',
+      order: 'Number (default: 0)',
+      isPrimary: 'Boolean (default: false)'
+    }],
+    specifications: {
+      length: 'Number (required, positive)',
+      width: 'Number (required, positive)',
+      height: 'Number (required, positive)',
+      weight: 'Number (required, positive)',
+      materials: '[String] (optional)'
+    },
+    metadata: {
+      createdAt: 'Date (required)',
+      updatedAt: 'Date (required)',
+      isActive: 'Boolean (default: true)',
+      category: 'String (optional)'
+    }
+  },
+  
+  // Options collection
+  options: {
+    _id: 'ObjectId',
+    optionCode: 'String (unique, indexed)',
+    name: 'String (required)',
+    description: 'String (required)',
+    category: 'String (required, indexed)',
+    price: 'Number (required, non-negative)',
+    priceDelta: 'Number (required, can be negative for discounts)',
+    image: 'String (optional)',
+    specifications: {
+      dimensions: 'String (optional)',
+      weight: 'Number (optional)',
+      materials: '[String] (optional)'
+    },
+    constraints: {
+      maxQuantity: 'Number (optional, positive)',
+      dependencies: '[String] (optional, option codes)',
+      conflicts: '[String] (optional, option codes)',
+      required: 'Boolean (default: false)'
+    },
+    metadata: {
+      createdAt: 'Date (required)',
+      updatedAt: 'Date (required)',
+      isActive: 'Boolean (default: true)',
+      inStock: 'Boolean (default: true)'
+    }
+  },
+  
+  // Quotes collection
+  quotes: {
+    _id: 'ObjectId',
+    quoteId: 'String (unique, indexed)',
+    userId: 'ObjectId (required, indexed, ref: users)',
+    modelId: 'ObjectId (required, indexed, ref: models)',
+    status: 'String (enum: draft, sent, accepted, rejected, expired)',
+    selections: [{
+      optionId: 'ObjectId (required, ref: options)',
+      quantity: 'Number (required, positive)',
+      price: 'Number (required, non-negative)'
+    }],
+    client: {
+      firstName: 'String (required)',
+      lastName: 'String (required)',
+      email: 'String (required)',
+      phone: 'String (optional)',
+      address: 'Object (required, same structure as user addresses)'
+    },
+    delivery: {
+      address: 'Object (required)',
+      distance: 'Number (optional, miles)',
+      fee: 'Number (required, non-negative)'
+    },
+    pricing: {
+      base: 'Number (required, non-negative)',
+      options: 'Number (required, non-negative)',
+      delivery: 'Number (required, non-negative)',
+      tax: 'Number (required, non-negative)',
+      total: 'Number (required, non-negative)'
+    },
+    metadata: {
+      createdAt: 'Date (required)',
+      updatedAt: 'Date (required)',
+      expiresAt: 'Date (optional)',
+      notes: 'String (optional)'
+    }
+  },
+  
+  // Orders collection
+  orders: {
+    _id: 'ObjectId',
+    orderId: 'String (unique, indexed)',
+    userId: 'ObjectId (required, indexed, ref: users)',
+    quoteId: 'ObjectId (optional, ref: quotes)',
+    status: 'String (enum: draft, confirmed, deposit_paid, in_production, ready_for_delivery, delivered, completed, cancelled)',
+    model: 'Object (required, snapshot of model data)',
+    selections: '[Object] (required, snapshot of option selections)',
+    buyer: 'Object (required, buyer information)',
+    delivery: 'Object (required, delivery information)',
+    pricing: 'Object (required, final pricing)',
+    pricingSnapshot: 'Object (required, pricing configuration at time of order)',
+    payment: {
+      depositAmount: 'Number (required, non-negative)',
+      depositPaid: 'Boolean (default: false)',
+      depositPaidAt: 'Date (optional)',
+      finalAmount: 'Number (required, non-negative)',
+      finalPaid: 'Boolean (default: false)',
+      finalPaidAt: 'Date (optional)',
+      stripePaymentIntentId: 'String (optional)'
+    },
+    statusHistory: [{
+      status: 'String (required)',
+      timestamp: 'Date (required)',
+      userId: 'ObjectId (optional, ref: users)',
+      notes: 'String (optional)'
+    }],
+    metadata: {
+      createdAt: 'Date (required)',
+      updatedAt: 'Date (required)',
+      estimatedDelivery: 'Date (optional)',
+      actualDelivery: 'Date (optional)',
+      notes: 'String (optional)'
+    }
+  }
+}
+```
+
+### **Schema Validation**
+```javascript
+// CORRECT: MongoDB schema validation
+export const SCHEMA_VALIDATORS = {
+  users: {
+    validator: {
+      $jsonSchema: {
+        bsonType: 'object',
+        required: ['clerkId', 'email', 'firstName', 'lastName', 'role', 'metadata'],
+        properties: {
+          clerkId: {
+            bsonType: 'string',
+            description: 'Clerk ID must be a string and is required'
+          },
+          email: {
+            bsonType: 'string',
+            pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$',
+            description: 'Email must be a valid email address'
+          },
+          firstName: {
+            bsonType: 'string',
+            minLength: 1,
+            maxLength: 50,
+            description: 'First name must be a string between 1 and 50 characters'
+          },
+          lastName: {
+            bsonType: 'string',
+            minLength: 1,
+            maxLength: 50,
+            description: 'Last name must be a string between 1 and 50 characters'
+          },
+          role: {
+            enum: ['customer', 'sales_agent', 'admin', 'super_admin'],
+            description: 'Role must be one of the allowed values'
+          },
+          'metadata.createdAt': {
+            bsonType: 'date',
+            description: 'Created date must be a date'
+          },
+          'metadata.updatedAt': {
+            bsonType: 'date',
+            description: 'Updated date must be a date'
+          }
+        }
+      }
+    }
+  },
+  
+  models: {
+    validator: {
+      $jsonSchema: {
+        bsonType: 'object',
+        required: ['modelCode', 'slug', 'name', 'description', 'basePrice', 'size', 'metadata'],
+        properties: {
+          modelCode: {
+            bsonType: 'string',
+            pattern: '^[A-Z0-9-]+$',
+            description: 'Model code must contain only uppercase letters, numbers, and hyphens'
+          },
+          slug: {
+            bsonType: 'string',
+            pattern: '^[a-z0-9-]+$',
+            description: 'Slug must contain only lowercase letters, numbers, and hyphens'
+          },
+          basePrice: {
+            bsonType: 'number',
+            minimum: 0,
+            description: 'Base price must be a non-negative number'
+          },
+          size: {
+            bsonType: 'string',
+            pattern: '^\\d+x\\d+$',
+            description: 'Size must be in format "20x8"'
+          }
+        }
+      }
+    }
+  }
+}
+
+// Apply schema validation
+export async function ensureSchemaValidation() {
+  const db = await getDb()
+  
+  for (const [collectionName, validator] of Object.entries(SCHEMA_VALIDATORS)) {
+    try {
+      await db.command({
+        collMod: collectionName,
+        validator: validator.validator,
+        validationLevel: 'strict',
+        validationAction: 'error'
+      })
+      console.log(`Applied schema validation to ${collectionName}`)
+    } catch (error) {
+      console.error(`Failed to apply schema validation to ${collectionName}:`, error)
+    }
+  }
+}
+```
+
+## **2. Database Operations**
+
+### **Connection Management**
+```javascript
+// CORRECT: Database connection management
+import { MongoClient } from 'mongodb'
+
+let client = null
+let db = null
+
+export async function getDb() {
+  if (db) return db
+  
+  if (!client) {
+    const uri = process.env.MONGODB_URI
+    if (!uri) {
+      throw new Error('MONGODB_URI environment variable is required')
+    }
+    
+    client = new MongoClient(uri, {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      bufferMaxEntries: 0,
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    })
+    
+    await client.connect()
+    console.log('Connected to MongoDB')
+  }
+  
+  const dbName = process.env.MONGODB_DB || 'firefly-estimator'
+  db = client.db(dbName)
+  
+  return db
+}
+
+export async function closeConnection() {
+  if (client) {
+    await client.close()
+    client = null
+    db = null
+    console.log('Disconnected from MongoDB')
+  }
+}
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('Shutting down gracefully...')
+  await closeConnection()
+  process.exit(0)
+})
+
+process.on('SIGTERM', async () => {
+  console.log('Shutting down gracefully...')
+  await closeConnection()
+  process.exit(0)
+})
+```
+
+### **CRUD Operations**
+```javascript
+// CORRECT: Standardized CRUD operations
+export class DatabaseService {
+  constructor(collectionName) {
+    this.collectionName = collectionName
+  }
+  
+  async getCollection() {
+    const db = await getDb()
+    return db.collection(this.collectionName)
+  }
+  
+  // Create operation
+  async create(data) {
+    try {
+      const collection = await this.getCollection()
+      
+      // Add metadata
+      const document = {
+        ...data,
+        metadata: {
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...data.metadata
+        }
+      }
+      
+      const result = await collection.insertOne(document)
+      return { success: true, id: result.insertedId, data: document }
+      
+    } catch (error) {
+      console.error(`Failed to create ${this.collectionName}:`, error)
+      throw new Error(`Failed to create ${this.collectionName}`)
+    }
+  }
+  
+  // Read operation
+  async findById(id) {
+    try {
+      const collection = await this.getCollection()
+      
+      if (!ObjectId.isValid(id)) {
+        throw new Error('Invalid ID format')
+      }
+      
+      const document = await collection.findOne({ _id: new ObjectId(id) })
+      return document
+      
+    } catch (error) {
+      console.error(`Failed to find ${this.collectionName} by ID:`, error)
+      throw new Error(`Failed to find ${this.collectionName}`)
+    }
+  }
+  
+  // Update operation
+  async updateById(id, updateData) {
+    try {
+      const collection = await this.getCollection()
+      
+      if (!ObjectId.isValid(id)) {
+        throw new Error('Invalid ID format')
+      }
+      
+      const update = {
+        $set: {
+          ...updateData,
+          'metadata.updatedAt': new Date()
+        }
+      }
+      
+      const result = await collection.updateOne(
+        { _id: new ObjectId(id) },
+        update
+      )
+      
+      if (result.matchedCount === 0) {
+        throw new Error(`${this.collectionName} not found`)
+      }
+      
+      return { success: true, modifiedCount: result.modifiedCount }
+      
+    } catch (error) {
+      console.error(`Failed to update ${this.collectionName}:`, error)
+      throw new Error(`Failed to update ${this.collectionName}`)
+    }
+  }
+  
+  // Delete operation
+  async deleteById(id) {
+    try {
+      const collection = await this.getCollection()
+      
+      if (!ObjectId.isValid(id)) {
+        throw new Error('Invalid ID format')
+      }
+      
+      const result = await collection.deleteOne({ _id: new ObjectId(id) })
+      
+      if (result.deletedCount === 0) {
+        throw new Error(`${this.collectionName} not found`)
+      }
+      
+      return { success: true, deletedCount: result.deletedCount }
+      
+    } catch (error) {
+      console.error(`Failed to delete ${this.collectionName}:`, error)
+      throw new Error(`Failed to delete ${this.collectionName}`)
+    }
+  }
+  
+  // Find with pagination
+  async find(query = {}, options = {}) {
+    try {
+      const collection = await this.getCollection()
+      
+      const {
+        sort = { 'metadata.createdAt': -1 },
+        limit = 50,
+        skip = 0,
+        projection = null
+      } = options
+      
+      const cursor = collection.find(query, { projection })
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+      
+      const documents = await cursor.toArray()
+      const total = await collection.countDocuments(query)
+      
+      return {
+        data: documents,
+        pagination: {
+          total,
+          limit,
+          skip,
+          hasMore: skip + limit < total
+        }
+      }
+      
+    } catch (error) {
+      console.error(`Failed to find ${this.collectionName}:`, error)
+      throw new Error(`Failed to find ${this.collectionName}`)
+    }
+  }
+}
+
+// Usage
+const userService = new DatabaseService('users')
+const modelService = new DatabaseService('models')
+```
+
+### **Aggregation Operations**
+```javascript
+// CORRECT: MongoDB aggregation patterns
+export async function getUserStats(userId, dateRange) {
+  try {
+    const db = await getDb()
+    const collection = db.collection('orders')
+    
+    // Validate parameters
+    if (!ObjectId.isValid(userId)) {
+      throw new Error('Invalid user ID format')
+    }
+    
+    if (!dateRange || !dateRange.start || !dateRange.end) {
+      throw new Error('Invalid date range')
+    }
+    
+    const startDate = new Date(dateRange.start)
+    const endDate = new Date(dateRange.end)
+    
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      throw new Error('Invalid date format')
+    }
+    
+    const pipeline = [
+      // Match stage
+      {
+        $match: {
+          userId: new ObjectId(userId),
+          createdAt: {
+            $gte: startDate,
+            $lte: endDate
+          },
+          status: { $in: ['confirmed', 'deposit_paid', 'in_production', 'ready_for_delivery', 'delivered', 'completed'] }
+        }
+      },
+      
+      // Group stage
+      {
+        $group: {
+          _id: null,
+          totalOrders: { $sum: 1 },
+          totalValue: { $sum: '$pricing.total' },
+          averageOrderValue: { $avg: '$pricing.total' },
+          orderStatuses: { $addToSet: '$status' }
+        }
+      },
+      
+      // Project stage
+      {
+        $project: {
+          _id: 0,
+          totalOrders: 1,
+          totalValue: { $round: ['$totalValue', 2] },
+          averageOrderValue: { $round: ['$averageOrderValue', 2] },
+          orderStatuses: 1
+        }
+      }
+    ]
+    
+    const results = await collection.aggregate(pipeline).toArray()
+    return results[0] || { totalOrders: 0, totalValue: 0, averageOrderValue: 0, orderStatuses: [] }
+    
+  } catch (error) {
+    console.error('Failed to get user stats:', error)
+    throw new Error('Failed to get user statistics')
+  }
+}
+
+// Complex aggregation for business analytics
+export async function getBusinessAnalytics(dateRange) {
+  try {
+    const db = await getDb()
+    const collection = db.collection('orders')
+    
+    const startDate = new Date(dateRange.start)
+    const endDate = new Date(dateRange.end)
+    
+    const pipeline = [
+      {
+        $match: {
+          createdAt: { $gte: startDate, $lte: endDate },
+          status: { $in: ['confirmed', 'deposit_paid', 'in_production', 'ready_for_delivery', 'delivered', 'completed'] }
+        }
+      },
+      
+      // Group by month
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' }
+          },
+          orderCount: { $sum: 1 },
+          totalRevenue: { $sum: '$pricing.total' },
+          averageOrderValue: { $avg: '$pricing.total' }
+        }
+      },
+      
+      // Sort by date
+      {
+        $sort: { '_id.year': 1, '_id.month': 1 }
+      },
+      
+      // Format output
+      {
+        $project: {
+          _id: 0,
+          period: {
+            $concat: [
+              { $toString: '$_id.year' },
+              '-',
+              { $toString: '$_id.month' }
+            ]
+          },
+          orderCount: 1,
+          totalRevenue: { $round: ['$totalRevenue', 2] },
+          averageOrderValue: { $round: ['$averageOrderValue', 2] }
+        }
+      }
+    ]
+    
+    return await collection.aggregate(pipeline).toArray()
+    
+  } catch (error) {
+    console.error('Failed to get business analytics:', error)
+    throw new Error('Failed to get business analytics')
+  }
+}
+```
+
+## **3. Index Management**
+
+### **Index Creation**
+```javascript
+// CORRECT: Comprehensive index management
+export async function ensureDatabaseIndexes() {
+  try {
+    const db = await getDb()
+    
+    // Users collection indexes
+    await db.collection('users').createIndexes([
+      { key: { clerkId: 1 }, unique: true, name: 'clerkId_unique' },
+      { key: { email: 1 }, unique: true, name: 'email_unique' },
+      { key: { role: 1 }, name: 'role_index' },
+      { key: { 'metadata.createdAt': -1 }, name: 'users_created_desc' },
+      { key: { 'metadata.updatedAt': -1 }, name: 'users_updated_desc' }
+    ])
+    
+    // Models collection indexes
+    await db.collection('models').createIndexes([
+      { key: { modelCode: 1 }, unique: true, name: 'modelCode_unique' },
+      { key: { slug: 1 }, unique: true, name: 'slug_unique' },
+      { key: { 'metadata.isActive': 1 }, name: 'models_active' },
+      { key: { 'metadata.category': 1 }, name: 'models_category' },
+      { key: { basePrice: 1 }, name: 'models_price_asc' },
+      { key: { 'metadata.createdAt': -1 }, name: 'models_created_desc' }
+    ])
+    
+    // Options collection indexes
+    await db.collection('options').createIndexes([
+      { key: { optionCode: 1 }, unique: true, name: 'optionCode_unique' },
+      { key: { category: 1 }, name: 'options_category' },
+      { key: { 'metadata.isActive': 1 }, name: 'options_active' },
+      { key: { price: 1 }, name: 'options_price_asc' },
+      { key: { 'metadata.inStock': 1 }, name: 'options_stock' }
+    ])
+    
+    // Quotes collection indexes
+    await db.collection('quotes').createIndexes([
+      { key: { quoteId: 1 }, unique: true, name: 'quoteId_unique' },
+      { key: { userId: 1 }, name: 'quotes_user' },
+      { key: { modelId: 1 }, name: 'quotes_model' },
+      { key: { status: 1 }, name: 'quotes_status' },
+      { key: { 'metadata.createdAt': -1 }, name: 'quotes_created_desc' },
+      { key: { 'metadata.expiresAt': 1 }, name: 'quotes_expires' },
+      { key: { userId: 1, status: 1 }, name: 'quotes_user_status' }
+    ])
+    
+    // Orders collection indexes
+    await db.collection('orders').createIndexes([
+      { key: { orderId: 1 }, unique: true, name: 'orderId_unique' },
+      { key: { userId: 1 }, name: 'orders_user' },
+      { key: { quoteId: 1 }, name: 'orders_quote' },
+      { key: { status: 1 }, name: 'orders_status' },
+      { key: { 'metadata.createdAt': -1 }, name: 'orders_created_desc' },
+      { key: { 'payment.depositPaid': 1 }, name: 'orders_deposit_paid' },
+      { key: { 'payment.finalPaid': 1 }, name: 'orders_final_paid' },
+      { key: { userId: 1, status: 1 }, name: 'orders_user_status' },
+      { key: { 'metadata.estimatedDelivery': 1 }, name: 'orders_estimated_delivery' }
+    ])
+    
+    console.log('Database indexes created successfully')
+    
+  } catch (error) {
+    console.error('Failed to create database indexes:', error)
+    throw error
+  }
+}
+
+// Index performance monitoring
+export async function getIndexStats() {
+  try {
+    const db = await getDb()
+    const collections = ['users', 'models', 'options', 'quotes', 'orders']
+    const stats = {}
+    
+    for (const collectionName of collections) {
+      const collection = db.collection(collectionName)
+      const indexStats = await collection.indexStats()
+      
+      stats[collectionName] = indexStats.map(index => ({
+        name: index.name,
+        size: index.size,
+        usage: index.usage
+      }))
+    }
+    
+    return stats
+    
+  } catch (error) {
+    console.error('Failed to get index stats:', error)
+    throw new Error('Failed to get index statistics')
+  }
+}
+```
+
+### **Query Optimization**
+```javascript
+// CORRECT: Query optimization patterns
+export async function findModelsWithOptions(filters = {}) {
+  try {
+    const db = await getDb()
+    const collection = db.collection('models')
+    
+    // Build query with proper indexing
+    const query = {
+      'metadata.isActive': true
+    }
+    
+    if (filters.category) {
+      query['metadata.category'] = filters.category
+    }
+    
+    if (filters.minPrice || filters.maxPrice) {
+      query.basePrice = {}
+      if (filters.minPrice) query.basePrice.$gte = filters.minPrice
+      if (filters.maxPrice) query.basePrice.$lte = filters.maxPrice
+    }
+    
+    if (filters.size) {
+      query.size = filters.size
+    }
+    
+    // Use projection to limit returned fields
+    const projection = {
+      _id: 1,
+      modelCode: 1,
+      slug: 1,
+      name: 1,
+      description: 1,
+      basePrice: 1,
+      size: 1,
+      'images.url': 1,
+      'images.alt': 1,
+      'images.isPrimary': 1
+    }
+    
+    // Execute query with proper sorting and limit
+    const models = await collection
+      .find(query, { projection })
+      .sort({ 'metadata.createdAt': -1 })
+      .limit(filters.limit || 50)
+      .toArray()
+    
+    return models
+    
+  } catch (error) {
+    console.error('Failed to find models:', error)
+    throw new Error('Failed to retrieve models')
+  }
+}
+
+// Efficient pagination
+export async function findOrdersWithPagination(userId, page = 1, limit = 20) {
+  try {
+    const db = await getDb()
+    const collection = db.collection('orders')
+    
+    const skip = (page - 1) * limit
+    
+    // Use aggregation for efficient pagination with counts
+    const pipeline = [
+      {
+        $match: { userId: new ObjectId(userId) }
+      },
+      {
+        $facet: {
+          data: [
+            { $sort: { 'metadata.createdAt': -1 } },
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $project: {
+                _id: 1,
+                orderId: 1,
+                status: 1,
+                'model.name': 1,
+                'pricing.total': 1,
+                'metadata.createdAt': 1,
+                'metadata.estimatedDelivery': 1
+              }
+            }
+          ],
+          total: [
+            { $count: 'count' }
+          ]
+        }
+      }
+    ]
+    
+    const results = await collection.aggregate(pipeline).toArray()
+    const data = results[0].data
+    const total = results[0].total[0]?.count || 0
+    
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+        hasPrev: page > 1
+      }
+    }
+    
+  } catch (error) {
+    console.error('Failed to find orders:', error)
+    throw new Error('Failed to retrieve orders')
+  }
+}
+```
+
+## **4. Data Migration & Seeding**
+
+### **Migration System**
+```javascript
+// CORRECT: Database migration system
+export class MigrationManager {
+  constructor() {
+    this.migrations = new Map()
+    this.db = null
+  }
+  
+  async initialize() {
+    this.db = await getDb()
+    await this.ensureMigrationsCollection()
+  }
+  
+  async ensureMigrationsCollection() {
+    const collections = await this.db.listCollections().toArray()
+    const collectionNames = collections.map(c => c.name)
+    
+    if (!collectionNames.includes('migrations')) {
+      await this.db.createCollection('migrations')
+      await this.db.collection('migrations').createIndex(
+        { name: 1 }, 
+        { unique: true }
+      )
+    }
+  }
+  
+  // Register a migration
+  register(name, up, down) {
+    this.migrations.set(name, { up, down })
+  }
+  
+  // Run migrations
+  async migrate(targetMigration = null) {
+    try {
+      const appliedMigrations = await this.getAppliedMigrations()
+      const pendingMigrations = this.getPendingMigrations(appliedMigrations)
+      
+      if (targetMigration) {
+        const targetIndex = pendingMigrations.findIndex(m => m.name === targetMigration)
+        if (targetIndex === -1) {
+          throw new Error(`Target migration '${targetMigration}' not found`)
+        }
+        pendingMigrations.splice(targetIndex + 1)
+      }
+      
+      for (const migration of pendingMigrations) {
+        console.log(`Running migration: ${migration.name}`)
+        
+        try {
+          await migration.up(this.db)
+          await this.recordMigration(migration.name, 'up')
+          console.log(`✓ Migration completed: ${migration.name}`)
+        } catch (error) {
+          console.error(`✗ Migration failed: ${migration.name}`, error)
+          throw error
+        }
+      }
+      
+      console.log('All migrations completed successfully')
+      
+    } catch (error) {
+      console.error('Migration failed:', error)
+      throw error
+    }
+  }
+  
+  // Rollback migrations
+  async rollback(steps = 1) {
+    try {
+      const appliedMigrations = await this.getAppliedMigrations()
+      const migrationsToRollback = appliedMigrations.slice(-steps)
+      
+      for (const migration of migrationsToRollback.reverse()) {
+        console.log(`Rolling back migration: ${migration.name}`)
+        
+        try {
+          const migrationFn = this.migrations.get(migration.name)
+          if (migrationFn && migrationFn.down) {
+            await migrationFn.down(this.db)
+          }
+          
+          await this.removeMigration(migration.name)
+          console.log(`✓ Rollback completed: ${migration.name}`)
+        } catch (error) {
+          console.error(`✗ Rollback failed: ${migration.name}`, error)
+          throw error
+        }
+      }
+      
+      console.log('Rollback completed successfully')
+      
+    } catch (error) {
+      console.error('Rollback failed:', error)
+      throw error
+    }
+  }
+  
+  async getAppliedMigrations() {
+    return await this.db.collection('migrations')
+      .find({}, { sort: { appliedAt: 1 } })
+      .toArray()
+  }
+  
+  getPendingMigrations(appliedMigrations) {
+    const appliedNames = new Set(appliedMigrations.map(m => m.name))
+    return Array.from(this.migrations.entries())
+      .filter(([name]) => !appliedNames.has(name))
+      .map(([name, migration]) => ({ name, ...migration }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }
+  
+  async recordMigration(name, direction) {
+    await this.db.collection('migrations').insertOne({
+      name,
+      direction,
+      appliedAt: new Date()
+    })
+  }
+  
+  async removeMigration(name) {
+    await this.db.collection('migrations').deleteOne({ name })
+  }
+}
+
+// Usage
+const migrationManager = new MigrationManager()
+
+// Register migrations
+migrationManager.register('001_create_users_collection', async (db) => {
+  await db.createCollection('users')
+  await db.collection('users').createIndexes([
+    { key: { clerkId: 1 }, unique: true },
+    { key: { email: 1 }, unique: true }
+  ])
+}, async (db) => {
+  await db.collection('users').drop()
+})
+
+migrationManager.register('002_add_user_roles', async (db) => {
+  await db.collection('users').updateMany(
+    { role: { $exists: false } },
+    { $set: { role: 'customer' } }
+  )
+}, async (db) => {
+  await db.collection('users').updateMany(
+    { role: 'customer' },
+    { $unset: { role: 1 } }
+  )
+})
+
+// Run migrations
+await migrationManager.initialize()
+await migrationManager.migrate()
+```
+
+### **Data Seeding**
+```javascript
+// CORRECT: Data seeding system
+export async function seedDatabase() {
+  try {
+    const db = await getDb()
+    
+    // Seed models
+    await seedModels(db)
+    
+    // Seed options
+    await seedOptions(db)
+    
+    // Seed admin user
+    await seedAdminUser(db)
+    
+    console.log('Database seeded successfully')
+    
+  } catch (error) {
+    console.error('Database seeding failed:', error)
+    throw error
+  }
+}
+
+async function seedModels(db) {
+  const modelsCollection = db.collection('models')
+  
+  // Check if models already exist
+  const existingModels = await modelsCollection.countDocuments()
+  if (existingModels > 0) {
+    console.log('Models already exist, skipping seeding')
+    return
+  }
+  
+  const models = [
+    {
+      modelCode: 'APS-630',
+      slug: 'magnolia',
+      name: 'Magnolia',
+      description: 'Our flagship 20x8 tiny home with premium finishes',
+      basePrice: 50000,
+      size: '20x8',
+      features: [
+        { name: 'Loft Bedroom', description: 'Spacious loft with queen bed', included: true },
+        { name: 'Full Kitchen', description: 'Complete kitchen with appliances', included: true },
+        { name: 'Bathroom', description: 'Full bathroom with shower', included: true }
+      ],
+      images: [
+        { url: '/models/magnolia-exterior.jpg', alt: 'Magnolia Exterior', order: 0, isPrimary: true },
+        { url: '/models/magnolia-interior.jpg', alt: 'Magnolia Interior', order: 1, isPrimary: false }
+      ],
+      specifications: {
+        length: 20,
+        width: 8,
+        height: 13.5,
+        weight: 12000,
+        materials: ['Cedar Siding', 'Metal Roof', 'Pine Interior']
+      },
+      metadata: {
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isActive: true,
+        category: 'premium'
+      }
+    }
+  ]
+  
+  const result = await modelsCollection.insertMany(models)
+  console.log(`Seeded ${result.insertedCount} models`)
+}
+
+async function seedOptions(db) {
+  const optionsCollection = db.collection('options')
+  
+  const existingOptions = await optionsCollection.countDocuments()
+  if (existingOptions > 0) {
+    console.log('Options already exist, skipping seeding')
+    return
+  }
+  
+  const options = [
+    {
+      optionCode: 'METAL-ROOF',
+      name: 'Metal Roof',
+      description: 'Premium metal roofing for durability and style',
+      category: 'Exterior',
+      price: 2500,
+      priceDelta: 2500,
+      image: '/options/metal-roof.jpg',
+      specifications: {
+        materials: ['Galvanized Steel']
+      },
+      constraints: {
+        maxQuantity: 1
+      },
+      metadata: {
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isActive: true,
+        inStock: true
+      }
+    }
+  ]
+  
+  const result = await optionsCollection.insertMany(options)
+  console.log(`Seeded ${result.insertedCount} options`)
+}
+```
+
+## **Common Database Mistakes**
+
+### **❌ DON'T Skip Indexes**
+```javascript
+// WRONG: No indexes on frequently queried fields
+const user = await db.collection('users').findOne({ email: userEmail })
+// This will perform a collection scan if email is not indexed
+
+// CORRECT: Proper indexing
+await db.collection('users').createIndex({ email: 1 }, { unique: true })
+const user = await db.collection('users').findOne({ email: userEmail })
+// This will use the index for fast lookup
+```
+
+### **❌ DON'T Use Unbounded Queries**
+```javascript
+// WRONG: No limit on query results
+const allUsers = await db.collection('users').find({}).toArray()
+// This could return thousands of documents and crash the application
+
+// CORRECT: Pagination and limits
+const users = await db.collection('users')
+  .find({})
+  .limit(50)
+  .skip(0)
+  .toArray()
+```
+
+### **❌ DON'T Ignore Data Validation**
+```javascript
+// WRONG: No validation of input data
+const createUser = async (userData) => {
+  const result = await db.collection('users').insertOne(userData)
+  return result
+}
+
+// CORRECT: Comprehensive validation
+const createUser = async (userData) => {
+  // Validate with schema
+  const validated = userSchema.parse(userData)
+  
+  // Check for duplicates
+  const existing = await db.collection('users').findOne({ 
+    email: validated.email 
+  })
+  if (existing) {
+    throw new Error('User with this email already exists')
+  }
+  
+  // Insert validated data
+  const result = await db.collection('users').insertOne(validated)
+  return result
+}
+```
+
+## **Validation Checklist**
+
+Before implementing any database operations, verify:
+
+- [ ] **Schema design** - Collections have proper structure and validation
+- [ ] **Indexes** - Frequently queried fields are properly indexed
+- [ ] **Data validation** - All input data is validated before storage
+- [ ] **Error handling** - Database errors are handled gracefully
+- [ ] **Connection management** - Database connections are managed properly
+- [ ] **Query optimization** - Queries use proper indexes and limits
+- [ ] **Data integrity** - Constraints and relationships are enforced
+- [ ] **Migration strategy** - Database changes are versioned and reversible
+- [ ] **Backup procedures** - Data backup and recovery procedures exist
+- [ ] **Performance monitoring** - Database performance is monitored
+
+## **Related Files**
+
+- **`lib/db.js`**: Database connection management
+- **`lib/model-utils.js`**: Model-related database operations
+- **`lib/orders.js`**: Order-related database operations
+- **`scripts/`**: Database migration and seeding scripts
+- **`src/utils/`**: Database utility functions
+
+## **When in Doubt**
+
+1. **Check existing schemas** - Study how similar data is structured
+2. **Review indexes** - Ensure queries use proper indexes
+3. **Validate data** - Always validate input before database operations
+4. **Test queries** - Verify query performance with real data
+5. **Use migrations** - Version all database changes
+6. **Monitor performance** - Watch for slow queries and optimize
+7. **Backup regularly** - Ensure data can be recovered if needed
+8. **Ask database experts** - When in doubt, consult database professionals
+
+## **Database Quality Metrics**
+
+- **Schema consistency**: 100% - All collections follow established patterns
+- **Index coverage**: 95% - All frequently queried fields are indexed
+- **Data validation**: 100% - All data is validated before storage
+- **Query performance**: 90% - Queries complete within acceptable time
+- **Migration safety**: 100% - All changes are versioned and reversible
+- **Data integrity**: 100% - Constraints and relationships are enforced
+
+Remember: **Database design decisions have long-term consequences. Poor design leads to performance problems, data corruption, and maintenance nightmares. Always prioritize data integrity and performance over development speed.**
+description:
+globs:
+alwaysApply: true
+---

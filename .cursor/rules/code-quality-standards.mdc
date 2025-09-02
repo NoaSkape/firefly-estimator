@@ -1,0 +1,981 @@
+---
+description: "Code quality standards, ESLint rules, error handling, performance, and accessibility requirements"
+globs: ["src/**/*", "api/**/*", "lib/**/*", "tests/**/*", "eslint.config.js"]
+alwaysApply: false
+---
+
+# Code Quality & Standards Rules
+
+## **CRITICAL: Code Quality is Non-Negotiable**
+
+The Firefly Estimator project maintains **strict code quality standards** that ensure maintainability, performance, and accessibility. Poor code quality leads to bugs, security vulnerabilities, and maintenance nightmares.
+
+## **1. ESLint Configuration and Rules**
+
+### **ESLint Setup**
+```javascript
+// CORRECT: Follow the established eslint.config.js pattern
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs['recommended-latest'],
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        ecmaFeatures: { jsx: true },
+        sourceType: 'module',
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+    },
+  },
+])
+```
+
+### **Required ESLint Rules**
+- **`no-unused-vars`**: Error for unused variables (except constants starting with A-Z_)
+- **React Hooks**: Follow latest recommended patterns
+- **React Refresh**: Enable fast refresh for development
+- **ES2020+**: Use modern JavaScript features
+
+### **Code Style Enforcement**
+```javascript
+// CORRECT: Consistent code style
+// Use 2-space indentation
+export default function Component() {
+  const [state, setState] = useState(null)
+  
+  const handleClick = useCallback(() => {
+    setState(prev => !prev)
+  }, [])
+  
+  return (
+    <div className="component">
+      <button onClick={handleClick}>
+        Click me
+      </button>
+    </div>
+  )
+}
+
+// CORRECT: Proper spacing and formatting
+const object = {
+  key1: 'value1',
+  key2: 'value2',
+  nested: {
+    deep: 'value'
+  }
+}
+
+// CORRECT: Consistent arrow function style
+const handler = () => {
+  // Function body
+}
+
+const simpleHandler = () => 'return value'
+```
+
+## **2. Import Organization and Structure**
+
+### **Import Order**
+```javascript
+// CORRECT: Organized import structure
+// 1. React and core libraries
+import React, { useState, useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+
+// 2. Third-party libraries
+import { useUser } from '@clerk/clerk-react'
+import { motion } from 'framer-motion'
+
+// 3. Local utilities and hooks
+import { useBuildData } from '../hooks/useBuildData'
+import { formatCurrency } from '../utils/formatCurrency'
+
+// 4. Local components
+import Header from '../components/Header'
+import Footer from '../components/Footer'
+
+// 5. Styles and assets
+import './Component.css'
+import logo from '../assets/logo.svg'
+```
+
+### **Import Best Practices**
+```javascript
+// CORRECT: Specific imports for better tree-shaking
+import { useState, useEffect } from 'react'  // Not: import React from 'react'
+import { useUser } from '@clerk/clerk-react'  // Not: import * as Clerk from '@clerk/clerk-react'
+
+// CORRECT: Use aliases for long import paths
+import { findModelById } from '../../../lib/model-utils.js'
+// Better: Create index files or use absolute imports
+
+// CORRECT: Dynamic imports for code splitting
+const LazyComponent = lazy(() => import('./LazyComponent'))
+```
+
+## **3. Error Handling and Validation**
+
+### **React Component Error Handling**
+```javascript
+// CORRECT: Comprehensive error handling in components
+export default function RobustComponent() {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await fetch('/api/data')
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const result = await response.json()
+      setData(result)
+    } catch (err) {
+      console.error('Failed to fetch data:', err)
+      setError(err.message || 'Failed to fetch data')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+  
+  // Handle loading state
+  if (loading) {
+    return <div className="loading-spinner">Loading...</div>
+  }
+  
+  // Handle error state
+  if (error) {
+    return (
+      <div className="error-message">
+        <p>Error: {error}</p>
+        <button onClick={fetchData}>Retry</button>
+      </div>
+    )
+  }
+  
+  // Handle empty state
+  if (!data) {
+    return <div className="empty-state">No data available</div>
+  }
+  
+  // Render data
+  return (
+    <div className="data-display">
+      {/* Render data */}
+    </div>
+  )
+}
+```
+
+### **API Error Handling**
+```javascript
+// CORRECT: Comprehensive API error handling
+export async function apiHandler(req, res) {
+  try {
+    // Input validation
+    const { body, query } = req
+    
+    if (!body.requiredField) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        message: 'Required field is missing',
+        field: 'requiredField'
+      })
+    }
+    
+    // Business logic
+    const result = await processRequest(body)
+    
+    // Success response
+    res.status(200).json({
+      success: true,
+      data: result
+    })
+    
+  } catch (error) {
+    // Log error for debugging
+    console.error('API error:', {
+      error: error.message,
+      stack: error.stack,
+      url: req.url,
+      method: req.method,
+      body: req.body,
+      user: req.user?.id
+    })
+    
+    // Determine error type and respond appropriately
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: error.details
+      })
+    }
+    
+    if (error.name === 'MongoError' && error.code === 11000) {
+      return res.status(409).json({
+        error: 'Duplicate entry',
+        message: 'This record already exists'
+      })
+    }
+    
+    // Default error response
+    res.status(500).json({
+      error: 'Internal server error',
+      message: process.env.NODE_ENV === 'development' 
+        ? error.message 
+        : 'Something went wrong. Please try again later.'
+    })
+  }
+}
+```
+
+### **Form Validation**
+```javascript
+// CORRECT: Comprehensive form validation with React Hook Form
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+
+const formSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  confirmPassword: z.string()
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"]
+})
+
+export default function ValidatedForm() {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setError
+  } = useForm({
+    resolver: zodResolver(formSchema)
+  })
+  
+  const onSubmit = async (data) => {
+    try {
+      const response = await fetch('/api/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        setError('root', { message: errorData.message })
+        return
+      }
+      
+      // Handle success
+    } catch (error) {
+      setError('root', { message: 'Network error. Please try again.' })
+    }
+  }
+  
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div>
+        <label htmlFor="email">Email</label>
+        <input
+          {...register('email')}
+          type="email"
+          id="email"
+          className={`input ${errors.email ? 'error' : ''}`}
+        />
+        {errors.email && (
+          <span className="error-message">{errors.email.message}</span>
+        )}
+      </div>
+      
+      <div>
+        <label htmlFor="password">Password</label>
+        <input
+          {...register('password')}
+          type="password"
+          id="password"
+          className={`input ${errors.password ? 'error' : ''}`}
+        />
+        {errors.password && (
+          <span className="error-message">{errors.password.message}</span>
+        )}
+      </div>
+      
+      {errors.root && (
+        <div className="error-message">{errors.root.message}</div>
+      )}
+      
+      <button 
+        type="submit" 
+        disabled={isSubmitting}
+        className="submit-button"
+      >
+        {isSubmitting ? 'Submitting...' : 'Submit'}
+      </button>
+    </form>
+  )
+}
+```
+
+## **4. Performance Optimization**
+
+### **React Performance Best Practices**
+```javascript
+// CORRECT: Optimized React component
+import React, { useState, useCallback, useMemo, memo } from 'react'
+
+// Memoize expensive components
+const ExpensiveComponent = memo(({ data, onAction }) => {
+  // Component logic
+  return <div>{/* Render data */}</div>
+})
+
+// Memoize expensive calculations
+const useExpensiveCalculation = (data) => {
+  return useMemo(() => {
+    return data.reduce((acc, item) => {
+      // Expensive calculation
+      return acc + processItem(item)
+    }, 0)
+  }, [data])
+}
+
+// Memoize event handlers
+const useStableHandlers = (data) => {
+  const handleClick = useCallback((id) => {
+    // Handle click with stable reference
+    processClick(id, data)
+  }, [data])
+  
+  const handleChange = useCallback((event) => {
+    // Handle change with stable reference
+    processChange(event.target.value)
+  }, [])
+  
+  return { handleClick, handleChange }
+}
+
+export default function OptimizedComponent({ items }) {
+  const [selectedId, setSelectedId] = useState(null)
+  
+  // Memoized calculations
+  const processedData = useExpensiveCalculation(items)
+  const { handleClick, handleChange } = useStableHandlers(items)
+  
+  return (
+    <div>
+      <input onChange={handleChange} />
+      <div className="items">
+        {items.map(item => (
+          <ExpensiveComponent
+            key={item.id}
+            data={item}
+            onAction={handleClick}
+            isSelected={item.id === selectedId}
+          />
+        ))}
+      </div>
+      <div>Total: {processedData}</div>
+    </div>
+  )
+}
+```
+
+### **Bundle Optimization**
+```javascript
+// CORRECT: Lazy loading for code splitting
+import { lazy, Suspense } from 'react'
+
+// Lazy load heavy components
+const HeavyChart = lazy(() => import('./HeavyChart'))
+const PDFGenerator = lazy(() => import('./PDFGenerator'))
+
+export default function Dashboard() {
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      
+      <Suspense fallback={<div>Loading chart...</div>}>
+        <HeavyChart />
+      </Suspense>
+      
+      <Suspense fallback={<div>Loading PDF tools...</div>}>
+        <PDFGenerator />
+      </Suspense>
+    </div>
+  )
+}
+
+// CORRECT: Dynamic imports for conditional loading
+const loadFeature = async (featureName) => {
+  switch (featureName) {
+    case 'chart':
+      return import('./ChartFeature')
+    case 'pdf':
+      return import('./PDFFeature')
+    default:
+      throw new Error(`Unknown feature: ${featureName}`)
+  }
+}
+```
+
+### **Image and Asset Optimization**
+```javascript
+// CORRECT: Optimized image handling
+import { useState, useEffect } from 'react'
+
+export default function OptimizedImage({ src, alt, ...props }) {
+  const [imageSrc, setImageSrc] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  
+  useEffect(() => {
+    const img = new Image()
+    
+    img.onload = () => {
+      setImageSrc(src)
+      setLoading(false)
+    }
+    
+    img.onerror = () => {
+      setError(true)
+      setLoading(false)
+    }
+    
+    img.src = src
+  }, [src])
+  
+  if (loading) {
+    return <div className="image-skeleton" />
+  }
+  
+  if (error) {
+    return <div className="image-error">Failed to load image</div>
+  }
+  
+  return (
+    <img
+      src={imageSrc}
+      alt={alt}
+      loading="lazy"
+      {...props}
+    />
+  )
+}
+
+// CORRECT: Responsive images with srcset
+export default function ResponsiveImage({ src, alt, sizes, ...props }) {
+  return (
+    <img
+      src={src}
+      alt={alt}
+      sizes={sizes || "(max-width: 768px) 100vw, 50vw"}
+      srcSet={`
+        ${src}?w=300 300w,
+        ${src}?w=600 600w,
+        ${src}?w=900 900w
+      `}
+      loading="lazy"
+      {...props}
+    />
+  )
+}
+```
+
+## **5. Accessibility Requirements**
+
+### **Semantic HTML and ARIA**
+```javascript
+// CORRECT: Accessible component structure
+export default function AccessibleComponent() {
+  const [expanded, setExpanded] = useState(false)
+  const [selectedOption, setSelectedOption] = useState('')
+  
+  return (
+    <div role="main" aria-label="Main content">
+      <h1 id="page-title">Page Title</h1>
+      
+      <nav role="navigation" aria-label="Main navigation">
+        <ul>
+          <li><a href="#section1">Section 1</a></li>
+          <li><a href="#section2">Section 2</a></li>
+        </ul>
+      </nav>
+      
+      <section id="section1" aria-labelledby="section1-title">
+        <h2 id="section1-title">Section 1</h2>
+        <p>Content for section 1</p>
+      </section>
+      
+      <section id="section2" aria-labelledby="section2-title">
+        <h2 id="section2-title">Section 2</h2>
+        
+        <div role="group" aria-labelledby="options-label">
+          <h3 id="options-label">Options</h3>
+          
+          <label htmlFor="option1">
+            <input
+              id="option1"
+              type="radio"
+              name="options"
+              value="option1"
+              checked={selectedOption === 'option1'}
+              onChange={(e) => setSelectedOption(e.target.value)}
+            />
+            Option 1
+          </label>
+          
+          <label htmlFor="option2">
+            <input
+              id="option2"
+              type="radio"
+              name="options"
+              value="option2"
+              checked={selectedOption === 'option2'}
+              onChange={(e) => setSelectedOption(e.target.value)}
+            />
+            Option 2
+          </label>
+        </div>
+        
+        <button
+          aria-expanded={expanded}
+          aria-controls="expandable-content"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? 'Hide' : 'Show'} Details
+        </button>
+        
+        <div
+          id="expandable-content"
+          aria-hidden={!expanded}
+          className={expanded ? 'expanded' : 'collapsed'}
+        >
+          <p>Additional details when expanded</p>
+        </div>
+      </section>
+    </div>
+  )
+}
+```
+
+### **Keyboard Navigation**
+```javascript
+// CORRECT: Keyboard-accessible interactive elements
+export default function KeyboardAccessibleComponent() {
+  const [focusedIndex, setFocusedIndex] = useState(0)
+  const items = ['Item 1', 'Item 2', 'Item 3']
+  
+  const handleKeyDown = useCallback((event) => {
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault()
+        setFocusedIndex(prev => (prev + 1) % items.length)
+        break
+      case 'ArrowUp':
+        event.preventDefault()
+        setFocusedIndex(prev => (prev - 1 + items.length) % items.length)
+        break
+      case 'Enter':
+      case ' ':
+        event.preventDefault()
+        handleSelect(items[focusedIndex])
+        break
+    }
+  }, [focusedIndex, items])
+  
+  return (
+    <div
+      role="listbox"
+      aria-label="Select an option"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+    >
+      {items.map((item, index) => (
+        <div
+          key={item}
+          role="option"
+          aria-selected={index === focusedIndex}
+          className={`option ${index === focusedIndex ? 'focused' : ''}`}
+          onClick={() => handleSelect(item)}
+        >
+          {item}
+        </div>
+      ))}
+    </div>
+  )
+}
+```
+
+### **Screen Reader Support**
+```javascript
+// CORRECT: Screen reader announcements
+import { useEffect, useRef } from 'react'
+
+export default function ScreenReaderComponent() {
+  const announcementRef = useRef(null)
+  
+  const announceToScreenReader = (message) => {
+    if (announcementRef.current) {
+      announcementRef.current.textContent = message
+    }
+  }
+  
+  const handleSuccess = () => {
+    // Perform action
+    const result = performAction()
+    
+    // Announce to screen reader
+    announceToScreenReader(`Action completed successfully. ${result}`)
+  }
+  
+  return (
+    <div>
+      {/* Hidden element for screen reader announcements */}
+      <div
+        ref={announcementRef}
+        className="sr-only"
+        aria-live="polite"
+        aria-atomic="true"
+      />
+      
+      <button onClick={handleSuccess}>
+        Perform Action
+      </button>
+    </div>
+  )
+}
+
+// CORRECT: Loading states for screen readers
+export default function LoadingComponent() {
+  const [loading, setLoading] = useState(true)
+  
+  return (
+    <div>
+      {loading && (
+        <div
+          className="loading-indicator"
+          aria-live="polite"
+          aria-label="Loading content"
+        >
+          <span className="sr-only">Loading...</span>
+          <div className="spinner" aria-hidden="true" />
+        </div>
+      )}
+      
+      {!loading && (
+        <div aria-live="polite">
+          Content loaded successfully
+        </div>
+      )}
+    </div>
+  )
+}
+```
+
+## **6. Testing Requirements**
+
+### **Component Testing**
+```javascript
+// CORRECT: Comprehensive component testing
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import Component from './Component'
+
+describe('Component', () => {
+  const mockProps = {
+    onAction: vi.fn(),
+    data: { id: 1, name: 'Test Item' }
+  }
+  
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+  
+  it('renders correctly with props', () => {
+    render(<Component {...mockProps} />)
+    
+    expect(screen.getByText('Test Item')).toBeInTheDocument()
+    expect(screen.getByRole('button')).toBeInTheDocument()
+  })
+  
+  it('handles user interactions correctly', async () => {
+    const user = userEvent.setup()
+    render(<Component {...mockProps} />)
+    
+    const button = screen.getByRole('button')
+    await user.click(button)
+    
+    expect(mockProps.onAction).toHaveBeenCalledWith(mockProps.data.id)
+  })
+  
+  it('shows loading state', () => {
+    render(<Component {...mockProps} loading={true} />)
+    
+    expect(screen.getByText('Loading...')).toBeInTheDocument()
+  })
+  
+  it('shows error state', () => {
+    render(<Component {...mockProps} error="Something went wrong" />)
+    
+    expect(screen.getByText('Error: Something went wrong')).toBeInTheDocument()
+  })
+  
+  it('handles empty data gracefully', () => {
+    render(<Component {...mockProps} data={null} />)
+    
+    expect(screen.getByText('No data available')).toBeInTheDocument()
+  })
+})
+```
+
+### **API Testing**
+```javascript
+// CORRECT: API endpoint testing
+import request from 'supertest'
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
+import { getDb } from '../lib/db.js'
+import app from '../api/index.js'
+
+describe('API Endpoints', () => {
+  let db
+  
+  beforeAll(async () => {
+    db = await getDb()
+  })
+  
+  afterAll(async () => {
+    // Cleanup
+  })
+  
+  beforeEach(async () => {
+    // Reset test data
+    await db.collection('test').deleteMany({})
+  })
+  
+  describe('GET /api/models', () => {
+    it('returns list of models', async () => {
+      // Setup test data
+      await db.collection('models').insertOne({
+        name: 'Test Model',
+        price: 50000
+      })
+      
+      const response = await request(app)
+        .get('/api/models')
+        .expect(200)
+      
+      expect(response.body).toHaveProperty('data')
+      expect(Array.isArray(response.body.data)).toBe(true)
+      expect(response.body.data).toHaveLength(1)
+    })
+    
+    it('handles database errors gracefully', async () => {
+      // Mock database error
+      vi.spyOn(db, 'collection').mockImplementation(() => {
+        throw new Error('Database connection failed')
+      })
+      
+      const response = await request(app)
+        .get('/api/models')
+        .expect(500)
+      
+      expect(response.body).toHaveProperty('error')
+      expect(response.body.error).toBe('Internal server error')
+    })
+  })
+  
+  describe('POST /api/models', () => {
+    it('creates new model with valid data', async () => {
+      const modelData = {
+        name: 'New Model',
+        price: 60000
+      }
+      
+      const response = await request(app)
+        .post('/api/models')
+        .send(modelData)
+        .expect(201)
+      
+      expect(response.body).toHaveProperty('data')
+      expect(response.body.data.name).toBe(modelData.name)
+    })
+    
+    it('validates required fields', async () => {
+      const response = await request(app)
+        .post('/api/models')
+        .send({})
+        .expect(400)
+      
+      expect(response.body).toHaveProperty('error')
+      expect(response.body.error).toBe('Validation failed')
+    })
+  })
+})
+```
+
+## **7. Code Review Checklist**
+
+### **Before Submitting Code**
+- [ ] Does the code follow ESLint rules?
+- [ ] Are all imports properly organized?
+- [ ] Is error handling comprehensive?
+- [ ] Are components accessible?
+- [ ] Is performance optimized?
+- [ ] Are tests written and passing?
+- [ ] Is the code documented?
+- [ ] Are there no console.log statements?
+- [ ] Is the code properly formatted?
+
+### **Common Issues to Check**
+- [ ] Unused variables or imports
+- [ ] Missing error boundaries
+- [ ] Inaccessible interactive elements
+- [ ] Performance anti-patterns
+- [ ] Missing loading states
+- [ ] Inconsistent error handling
+- [ ] Missing form validation
+- [ ] Hardcoded values
+
+## **8. Documentation Standards**
+
+### **Component Documentation**
+```javascript
+/**
+ * ComponentName - Brief description of what this component does
+ * 
+ * @param {Object} props - Component props
+ * @param {string} props.title - The title to display
+ * @param {Function} props.onClick - Click handler function
+ * @param {boolean} [props.disabled=false] - Whether the component is disabled
+ * 
+ * @example
+ * ```jsx
+ * <ComponentName
+ *   title="My Title"
+ *   onClick={() => console.log('clicked')}
+ *   disabled={false}
+ * />
+ * ```
+ * 
+ * @returns {JSX.Element} The rendered component
+ */
+export default function ComponentName({ title, onClick, disabled = false }) {
+  // Component implementation
+}
+```
+
+### **Function Documentation**
+```javascript
+/**
+ * Calculates the total price including tax and delivery
+ * 
+ * @param {number} basePrice - The base price of the item
+ * @param {number} taxRate - Tax rate as a decimal (e.g., 0.08 for 8%)
+ * @param {number} deliveryFee - Delivery fee amount
+ * @returns {number} The total price rounded to 2 decimal places
+ * 
+ * @example
+ * ```javascript
+ * const total = calculateTotalPrice(100, 0.08, 25)
+ * console.log(total) // 133.00
+ * ```
+ */
+export function calculateTotalPrice(basePrice, taxRate, deliveryFee) {
+  const subtotal = basePrice + deliveryFee
+  const tax = subtotal * taxRate
+  return Math.round((subtotal + tax) * 100) / 100
+}
+```
+
+## **Common Code Quality Mistakes**
+
+### **❌ DON'T Ignore ESLint Errors**
+```javascript
+// WRONG: Don't disable ESLint rules without justification
+// eslint-disable-next-line no-unused-vars
+const unusedVariable = 'value'
+
+// WRONG: Don't use console.log in production code
+console.log('Debug info:', data)
+```
+
+### **❌ DON'T Skip Error Handling**
+```javascript
+// WRONG: Don't ignore potential errors
+const data = await fetch('/api/data').then(res => res.json())
+
+// WRONG: Don't use generic error messages
+catch (error) {
+  res.status(500).json({ error: 'Error occurred' })
+}
+```
+
+### **❌ DON'T Create Inaccessible Components**
+```javascript
+// WRONG: Don't use div for interactive elements
+<div onClick={handleClick}>Click me</div>
+
+// WRONG: Don't skip ARIA labels
+<button>Submit</button>  // Missing aria-label
+```
+
+## **Quality Validation Checklist**
+
+Before implementing any changes, verify:
+
+- [ ] Does this follow ESLint configuration?
+- [ ] Are imports properly organized?
+- [ ] Is error handling comprehensive?
+- [ ] Are components accessible?
+- [ ] Is performance optimized?
+- [ ] Are tests written?
+- [ ] Is code documented?
+- [ ] Are there no console statements?
+- [ ] Is code properly formatted?
+
+## **Related Files and References**
+
+- **`eslint.config.js`**: ESLint configuration and rules
+- **`src/components/ErrorBoundary.jsx`**: Error boundary implementation
+- **`src/utils/`**: Utility functions and helpers
+- **`tests/`**: Test files and test utilities
+- **`src/hooks/`**: Custom React hooks
+
+## **When in Doubt About Code Quality**
+
+1. **Run ESLint** to check for rule violations
+2. **Review existing code** for established patterns
+3. **Test thoroughly** before submitting
+4. **Document your code** clearly
+5. **Ask for review** if unsure about quality standards
+
+Remember: **Code quality is not optional. Poor quality code creates technical debt and maintenance nightmares. Always strive for excellence.**
+description:
+globs:
+alwaysApply: true
+---

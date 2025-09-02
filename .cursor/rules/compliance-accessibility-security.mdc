@@ -1,0 +1,935 @@
+# Compliance, Accessibility & Security Rules
+
+## **CRITICAL: Legal Compliance is Non-Negotiable**
+
+The Firefly Estimator project must achieve **100% compliance** with accessibility standards (WCAG 2.2 AA), security requirements (PCI DSS v4.0), and privacy regulations (GDPR/CPRA). Non-compliance results in legal liability, accessibility lawsuits, security breaches, and business shutdown. **ALWAYS** follow established compliance patterns.
+
+## **INTENT**
+
+Success means every component, page, and interaction meets WCAG 2.2 AA standards, implements security best practices, and complies with all applicable laws. AI assistants must understand and implement comprehensive compliance strategies.
+
+## **WHEN THIS APPLIES**
+
+- Creating or modifying web components and pages
+- Building forms and interactive elements
+- Implementing authentication and payment flows
+- Adding media content (images, videos, audio)
+- Creating navigation and user flows
+- Implementing security measures
+- Handling user data and privacy
+
+## **1. Accessibility Standards (WCAG 2.2 AA)**
+
+### **Semantic HTML & Structure**
+```javascript
+// CORRECT: Proper semantic structure
+export default function AccessiblePage() {
+  return (
+    <>
+      {/* Skip to main content link - first focusable element */}
+      <a 
+        href="#main-content" 
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-blue-600 text-white px-4 py-2 rounded z-50"
+      >
+        Skip to main content
+      </a>
+      
+      {/* Proper landmark structure */}
+      <header role="banner">
+        <nav role="navigation" aria-label="Main navigation">
+          <ul>
+            <li><a href="/models">Models</a></li>
+            <li><a href="/quote-builder">Get Quote</a></li>
+            <li><a href="/contact">Contact</a></li>
+          </ul>
+        </nav>
+      </header>
+      
+      <main id="main-content" role="main">
+        <h1>Welcome to Firefly Tiny Homes</h1>
+        <section aria-labelledby="models-heading">
+          <h2 id="models-heading">Our Tiny Home Models</h2>
+          {/* Content */}
+        </section>
+      </main>
+      
+      <footer role="contentinfo">
+        <nav aria-label="Footer navigation">
+          <ul>
+            <li><a href="/legal/privacy">Privacy Policy</a></li>
+            <li><a href="/legal/accessibility">Accessibility</a></li>
+          </ul>
+        </nav>
+      </footer>
+    </>
+  )
+}
+
+// Accessible form implementation
+export function AccessibleForm() {
+  const [errors, setErrors] = useState({})
+  
+  return (
+    <form onSubmit={handleSubmit} noValidate>
+      <fieldset>
+        <legend className="text-lg font-semibold mb-4">Contact Information</legend>
+        
+        <div className="mb-4">
+          <label htmlFor="name" className="block mb-2 font-medium">
+            Full Name <span aria-label="required" className="text-red-600">*</span>
+          </label>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            required
+            aria-describedby="name-error"
+            aria-invalid={!!errors.name}
+            className={`w-full px-3 py-2 border rounded-md ${
+              errors.name ? 'border-red-500' : 'border-gray-300'
+            }`}
+          />
+          {errors.name && (
+            <div 
+              id="name-error" 
+              className="text-red-600 text-sm mt-1"
+              role="alert"
+              aria-live="polite"
+            >
+              {errors.name}
+            </div>
+          )}
+        </div>
+        
+        <div className="mb-4">
+          <label htmlFor="email" className="block mb-2 font-medium">
+            Email Address <span aria-label="required" className="text-red-600">*</span>
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            aria-describedby="email-error"
+            aria-invalid={!!errors.email}
+            className={`w-full px-3 py-2 border rounded-md ${
+              errors.email ? 'border-red-500' : 'border-gray-300'
+            }`}
+          />
+          {errors.email && (
+            <div 
+              id="email-error" 
+              className="text-red-600 text-sm mt-1"
+              role="alert"
+              aria-live="polite"
+            >
+              {errors.email}
+            </div>
+          )}
+        </div>
+      </fieldset>
+      
+      <button 
+        type="submit"
+        className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+      >
+        Submit
+      </button>
+    </form>
+  )
+}
+```
+
+### **Keyboard Navigation & Focus Management**
+```javascript
+// CORRECT: Keyboard accessibility
+export function AccessibleModal({ isOpen, onClose, children, title }) {
+  const modalRef = useRef(null)
+  const previousFocusRef = useRef(null)
+  
+  useEffect(() => {
+    if (isOpen) {
+      // Store previous focus
+      previousFocusRef.current = document.activeElement
+      
+      // Focus modal
+      modalRef.current?.focus()
+      
+      // Trap focus within modal
+      const handleTabKey = (e) => {
+        const focusableElements = modalRef.current?.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+        
+        if (!focusableElements?.length) return
+        
+        const firstElement = focusableElements[0]
+        const lastElement = focusableElements[focusableElements.length - 1]
+        
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault()
+            lastElement.focus()
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault()
+            firstElement.focus()
+          }
+        }
+      }
+      
+      const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+          onClose()
+        }
+      }
+      
+      document.addEventListener('keydown', handleTabKey)
+      document.addEventListener('keydown', handleEscape)
+      
+      return () => {
+        document.removeEventListener('keydown', handleTabKey)
+        document.removeEventListener('keydown', handleEscape)
+        // Restore previous focus
+        previousFocusRef.current?.focus()
+      }
+    }
+  }, [isOpen, onClose])
+  
+  if (!isOpen) return null
+  
+  return (
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black bg-opacity-50"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      
+      {/* Modal */}
+      <div
+        ref={modalRef}
+        className="relative bg-white rounded-lg p-6 max-w-md w-full mx-4"
+        tabIndex={-1}
+        role="document"
+      >
+        <h2 id="modal-title" className="text-xl font-semibold mb-4">
+          {title}
+        </h2>
+        
+        {children}
+        
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+          aria-label="Close modal"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Accessible button with proper sizing
+export function AccessibleButton({ 
+  children, 
+  onClick, 
+  disabled = false,
+  className = '',
+  ...props 
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`
+        min-h-[44px] min-w-[44px] px-4 py-2
+        bg-blue-600 text-white rounded-md
+        hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+        disabled:opacity-50 disabled:cursor-not-allowed
+        ${className}
+      `}
+      {...props}
+    >
+      {children}
+    </button>
+  )
+}
+```
+
+### **Color & Contrast Requirements**
+```javascript
+// CORRECT: Color contrast compliance
+export const ACCESSIBLE_COLORS = {
+  // Text colors with sufficient contrast
+  text: {
+    primary: 'text-gray-900', // 15:1 contrast on white
+    secondary: 'text-gray-700', // 7:1 contrast on white
+    muted: 'text-gray-500', // 4.5:1 contrast on white
+    inverse: 'text-white', // 15:1 contrast on blue-600
+  },
+  
+  // Background colors
+  background: {
+    primary: 'bg-white',
+    secondary: 'bg-gray-50',
+    accent: 'bg-blue-600',
+    error: 'bg-red-50',
+    success: 'bg-green-50',
+  },
+  
+  // Border colors
+  border: {
+    primary: 'border-gray-300',
+    error: 'border-red-500',
+    success: 'border-green-500',
+    focus: 'border-blue-500',
+  }
+}
+
+// Focus indicator component
+export function FocusIndicator({ children, className = '' }) {
+  return (
+    <div className={`focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 ${className}`}>
+      {children}
+    </div>
+  )
+}
+
+// High contrast mode support
+export function HighContrastSupport() {
+  const [isHighContrast, setIsHighContrast] = useState(false)
+  
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-contrast: high)')
+    setIsHighContrast(mediaQuery.matches)
+    
+    const handler = (e) => setIsHighContrast(e.matches)
+    mediaQuery.addEventListener('change', handler)
+    
+    return () => mediaQuery.removeEventListener('change', handler)
+  }, [])
+  
+  return (
+    <div className={isHighContrast ? 'high-contrast' : ''}>
+      {/* Apply high contrast styles when needed */}
+    </div>
+  )
+}
+```
+
+## **2. Security Implementation**
+
+### **Content Security Policy**
+```javascript
+// CORRECT: Security headers implementation
+// api/index.js
+import helmet from 'helmet'
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'", // Required for React
+        "'unsafe-eval'", // Required for Vite dev
+        "https://js.stripe.com",
+        "https://checkout.stripe.com"
+      ],
+      styleSrc: [
+        "'self'",
+        "'unsafe-inline'", // Required for TailwindCSS
+        "https://fonts.googleapis.com"
+      ],
+      imgSrc: [
+        "'self'",
+        "data:",
+        "blob:",
+        "https:",
+        "https://images.unsplash.com",
+        "https://res.cloudinary.com"
+      ],
+      connectSrc: [
+        "'self'",
+        "https://api.stripe.com",
+        "https://hooks.stripe.com",
+        "https://api.openai.com"
+      ],
+      frameSrc: [
+        "https://js.stripe.com",
+        "https://hooks.stripe.com",
+        "https://checkout.stripe.com"
+      ],
+      baseUri: ["'self'"],
+      frameAncestors: ["'none'"],
+      formAction: ["'self'", "https://checkout.stripe.com"],
+      upgradeInsecureRequests: []
+    }
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  permissionsPolicy: {
+    features: {
+      camera: [],
+      microphone: [],
+      geolocation: [],
+      payment: ['self']
+    }
+  }
+}))
+
+// Rate limiting
+import rateLimit from 'express-rate-limit'
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+app.use('/api/', limiter)
+
+// Stricter limits for sensitive endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: 'Too many authentication attempts, please try again later.',
+})
+
+app.use('/api/auth/', authLimiter)
+```
+
+### **Input Validation & Sanitization**
+```javascript
+// CORRECT: Input validation with Zod
+import { z } from 'zod'
+
+// User input schemas
+export const userSchemas = {
+  contact: z.object({
+    name: z.string()
+      .min(2, 'Name must be at least 2 characters')
+      .max(100, 'Name must be less than 100 characters')
+      .regex(/^[a-zA-Z\s'-]+$/, 'Name contains invalid characters'),
+    email: z.string()
+      .email('Invalid email address')
+      .max(254, 'Email too long'),
+    phone: z.string()
+      .regex(/^\+?[\d\s\-\(\)]+$/, 'Invalid phone number format')
+      .optional(),
+    message: z.string()
+      .min(10, 'Message must be at least 10 characters')
+      .max(1000, 'Message too long')
+  }),
+  
+  quote: z.object({
+    modelId: z.string().min(1, 'Model selection required'),
+    options: z.array(z.string()).default([]),
+    delivery: z.object({
+      zipCode: z.string().regex(/^\d{5}(-\d{4})?$/, 'Invalid ZIP code'),
+      address: z.string().min(10, 'Address too short').max(200, 'Address too long')
+    }),
+    contact: z.object({
+      name: z.string().min(2, 'Name required'),
+      email: z.string().email('Valid email required'),
+      phone: z.string().regex(/^\+?[\d\s\-\(\)]+$/, 'Valid phone required')
+    })
+  })
+}
+
+// Validation middleware
+export function validateInput(schema) {
+  return (req, res, next) => {
+    try {
+      const validated = schema.parse(req.body)
+      req.validatedData = validated
+      next()
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: error.errors.map(err => ({
+            field: err.path.join('.'),
+            message: err.message
+          }))
+        })
+      }
+      next(error)
+    }
+  }
+}
+
+// Usage in API routes
+app.post('/api/contact', 
+  validateInput(userSchemas.contact),
+  async (req, res) => {
+    const { name, email, phone, message } = req.validatedData
+    
+    // Process validated data
+    try {
+      await sendContactEmail({ name, email, phone, message })
+      res.json({ success: true, message: 'Message sent successfully' })
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to send message' })
+    }
+  }
+)
+```
+
+### **Payment Security (PCI DSS v4.0)**
+```javascript
+// CORRECT: Secure payment implementation
+export function SecurePaymentForm() {
+  const [paymentMethod, setPaymentMethod] = useState(null)
+  const [loading, setLoading] = useState(false)
+  
+  const handlePayment = async (paymentData) => {
+    setLoading(true)
+    
+    try {
+      // NEVER store card details on our server
+      const response = await fetch('/api/payments/create-intent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getAuthToken()}`
+        },
+        body: JSON.stringify({
+          amount: paymentData.amount,
+          currency: 'usd',
+          paymentMethodType: 'card'
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Payment failed')
+      }
+      
+      const { clientSecret } = await response.json()
+      
+      // Use Stripe Elements for secure payment
+      const { error } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: paymentMethod,
+          billing_details: {
+            name: paymentData.name,
+            email: paymentData.email
+          }
+        }
+      })
+      
+      if (error) {
+        throw new Error(error.message)
+      }
+      
+      // Payment successful
+      setPaymentMethod(null)
+      // Redirect to success page
+      
+    } catch (error) {
+      console.error('Payment error:', error)
+      // Handle error appropriately
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  return (
+    <div className="payment-form">
+      <h2>Payment Information</h2>
+      
+      {/* Use Stripe Elements - never handle raw card data */}
+      <div className="mb-4">
+        <label className="block mb-2 font-medium">Card Information</label>
+        <div className="border rounded-md p-3">
+          <CardElement
+            options={{
+              style: {
+                base: {
+                  fontSize: '16px',
+                  color: '#424770',
+                  '::placeholder': {
+                    color: '#aab7c4',
+                  },
+                },
+              },
+            }}
+            onChange={(event) => {
+              setPaymentMethod(event.complete ? event : null)
+            }}
+          />
+        </div>
+      </div>
+      
+      <button
+        onClick={() => handlePayment(paymentData)}
+        disabled={!paymentMethod || loading}
+        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md disabled:opacity-50"
+      >
+        {loading ? 'Processing...' : 'Pay Securely'}
+      </button>
+      
+      <p className="text-sm text-gray-600 mt-2">
+        Your payment information is secured by Stripe and never stored on our servers.
+      </p>
+    </div>
+  )
+}
+```
+
+## **3. Privacy & Data Protection**
+
+### **GDPR/CPRA Compliance**
+```javascript
+// CORRECT: Privacy compliance implementation
+export function PrivacyCompliance() {
+  const [consent, setConsent] = useState({
+    necessary: true, // Always true
+    analytics: false,
+    marketing: false,
+    preferences: false
+  })
+  
+  const [showConsentBanner, setShowConsentBanner] = useState(true)
+  
+  const handleConsentChange = (type, value) => {
+    setConsent(prev => ({
+      ...prev,
+      [type]: value
+    }))
+  }
+  
+  const saveConsent = async () => {
+    try {
+      await fetch('/api/privacy/consent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          consent,
+          timestamp: new Date().toISOString(),
+          userAgent: navigator.userAgent,
+          ipAddress: await getClientIP()
+        })
+      })
+      
+      setShowConsentBanner(false)
+      localStorage.setItem('privacy-consent', JSON.stringify(consent))
+      
+      // Apply consent-based features
+      if (consent.analytics) {
+        initializeAnalytics()
+      }
+      
+    } catch (error) {
+      console.error('Failed to save consent:', error)
+    }
+  }
+  
+  const withdrawConsent = async () => {
+    try {
+      await fetch('/api/privacy/withdraw-consent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      
+      // Clear all non-necessary cookies
+      clearNonEssentialCookies()
+      
+      // Disable analytics
+      disableAnalytics()
+      
+      setConsent({
+        necessary: true,
+        analytics: false,
+        marketing: false,
+        preferences: false
+      })
+      
+    } catch (error) {
+      console.error('Failed to withdraw consent:', error)
+    }
+  }
+  
+  if (!showConsentBanner) return null
+  
+  return (
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50">
+      <div className="max-w-4xl mx-auto">
+        <h3 className="text-lg font-semibold mb-2">Privacy Preferences</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          We use cookies and similar technologies to provide, protect, and improve our services. 
+          You can choose which types of cookies to allow.
+        </p>
+        
+        <div className="space-y-2 mb-4">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={consent.necessary}
+              disabled
+              className="mr-2"
+            />
+            <span className="text-sm">
+              Necessary cookies (required for website functionality)
+            </span>
+          </label>
+          
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={consent.analytics}
+              onChange={(e) => handleConsentChange('analytics', e.target.checked)}
+              className="mr-2"
+            />
+            <span className="text-sm">
+              Analytics cookies (help us improve our website)
+            </span>
+          </label>
+          
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={consent.marketing}
+              onChange={(e) => handleConsentChange('marketing', e.target.checked)}
+              className="mr-2"
+            />
+            <span className="text-sm">
+              Marketing cookies (personalized content and ads)
+            </span>
+          </label>
+        </div>
+        
+        <div className="flex space-x-2">
+          <button
+            onClick={saveConsent}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm"
+          >
+            Accept Selected
+          </button>
+          
+          <button
+            onClick={() => setShowConsentBanner(false)}
+            className="text-gray-600 px-4 py-2 text-sm"
+          >
+            Decline All
+          </button>
+        </div>
+        
+        <div className="mt-2 text-xs text-gray-500">
+          <a href="/legal/privacy" className="underline">Privacy Policy</a> • 
+          <a href="/legal/cookies" className="underline ml-1">Cookie Policy</a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Data subject rights implementation
+export function DataSubjectRights() {
+  const [requestType, setRequestType] = useState('')
+  const [email, setEmail] = useState('')
+  const [reason, setReason] = useState('')
+  
+  const submitRequest = async (e) => {
+    e.preventDefault()
+    
+    try {
+      const response = await fetch('/api/privacy/data-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestType, // 'access', 'deletion', 'correction', 'portability'
+          email,
+          reason,
+          timestamp: new Date().toISOString()
+        })
+      })
+      
+      if (response.ok) {
+        alert('Your request has been submitted. We will respond within 30 days.')
+        // Reset form
+        setRequestType('')
+        setEmail('')
+        setReason('')
+      } else {
+        throw new Error('Request failed')
+      }
+      
+    } catch (error) {
+      console.error('Data request failed:', error)
+      alert('Failed to submit request. Please try again.')
+    }
+  }
+  
+  return (
+    <form onSubmit={submitRequest} className="max-w-md mx-auto">
+      <h2 className="text-xl font-semibold mb-4">Data Subject Rights</h2>
+      
+      <div className="mb-4">
+        <label className="block mb-2 font-medium">Request Type</label>
+        <select
+          value={requestType}
+          onChange={(e) => setRequestType(e.target.value)}
+          required
+          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+        >
+          <option value="">Select request type</option>
+          <option value="access">Access my data</option>
+          <option value="deletion">Delete my data</option>
+          <option value="correction">Correct my data</option>
+          <option value="portability">Export my data</option>
+        </select>
+      </div>
+      
+      <div className="mb-4">
+        <label className="block mb-2 font-medium">Email Address</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+        />
+      </div>
+      
+      <div className="mb-4">
+        <label className="block mb-2 font-medium">Reason (Optional)</label>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={3}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          placeholder="Please explain why you're making this request..."
+        />
+      </div>
+      
+      <button
+        type="submit"
+        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+      >
+        Submit Request
+      </button>
+    </form>
+  )
+}
+```
+
+## **Common Compliance Mistakes**
+
+### **❌ DON'T Ignore Accessibility Requirements**
+```javascript
+// WRONG: Non-accessible implementation
+<div onClick={handleClick} className="clickable">
+  Click me
+</div>
+
+// CORRECT: Accessible implementation
+<button onClick={handleClick} className="clickable">
+  Click me
+</button>
+```
+
+### **❌ DON'T Skip Input Validation**
+```javascript
+// WRONG: No validation
+app.post('/api/contact', async (req, res) => {
+  const { name, email, message } = req.body
+  // Process without validation
+})
+
+// CORRECT: With validation
+app.post('/api/contact', 
+  validateInput(userSchemas.contact),
+  async (req, res) => {
+    const { name, email, message } = req.validatedData
+    // Process validated data
+  }
+)
+```
+
+### **❌ DON'T Store Sensitive Data**
+```javascript
+// WRONG: Storing card details
+const paymentData = {
+  cardNumber: '4111111111111111',
+  expiry: '12/25',
+  cvv: '123'
+}
+// Save to database
+
+// CORRECT: Use Stripe Elements
+<CardElement
+  onChange={handleCardChange}
+  options={cardElementOptions}
+/>
+```
+
+## **Validation Checklist**
+
+Before publishing any content, verify:
+
+- [ ] **Accessibility compliance** - WCAG 2.2 AA standards met
+- [ ] **Semantic HTML** - Proper landmarks and structure
+- [ ] **Keyboard navigation** - All interactions keyboard accessible
+- [ ] **Color contrast** - Meets AA standards (4.5:1 normal, 3:1 large)
+- [ ] **Focus management** - Visible focus indicators, no focus traps
+- [ ] **Form accessibility** - Labels, error messages, ARIA attributes
+- [ ] **Security headers** - CSP, HSTS, X-Frame-Options implemented
+- [ ] **Input validation** - All inputs validated with Zod schemas
+- [ ] **Payment security** - PCI DSS v4.0 compliance, no card storage
+- [ ] **Privacy compliance** - GDPR/CPRA requirements met
+- [ ] **Data protection** - Encryption, secure transmission, minimal PII
+- [ ] **Cookie consent** - Proper consent management and withdrawal
+- [ ] **Testing** - Accessibility and security tests passing
+
+## **Related Files**
+
+- **`eslint.config.js`**: ESLint with accessibility and security plugins
+- **`package.json`**: Required dependencies and scripts
+- **`api/index.js`**: Security headers and validation middleware
+- **`src/components/`**: Accessible component implementations
+- **`public/`**: Legal pages and accessibility statement
+- **`.lighthouserc.json`**: Performance and accessibility thresholds
+
+## **When in Doubt**
+
+1. **Test accessibility** - Use axe-core and Lighthouse
+2. **Validate security** - Run security audits and penetration tests
+3. **Check compliance** - Verify against WCAG 2.2 AA and legal requirements
+4. **Use established patterns** - Follow provided code examples exactly
+5. **Consult experts** - When in doubt, ask accessibility or security professionals
+6. **Test thoroughly** - Verify with multiple tools and user testing
+7. **Document decisions** - Keep records of compliance choices
+8. **Stay updated** - Monitor for new requirements and best practices
+
+## **Compliance Quality Metrics**
+
+- **Accessibility**: 100% - WCAG 2.2 AA compliance
+- **Security**: 100% - PCI DSS v4.0 and security best practices
+- **Privacy**: 100% - GDPR/CPRA compliance
+- **Testing**: 100% - Automated accessibility and security testing
+- **Documentation**: 100% - Legal pages and accessibility statements
+- **Monitoring**: 100% - Continuous compliance monitoring
+
+Remember: **Compliance is not optional - it's a legal requirement that protects your business and users. Regular audits, testing, and updates are essential for maintaining compliance and avoiding legal issues.**
+description:
+globs:
+alwaysApply: true
+---

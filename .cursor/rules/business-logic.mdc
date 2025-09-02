@@ -1,0 +1,661 @@
+# Business Logic Rules
+
+## **CRITICAL: Business Logic Must Be Accurate**
+
+The Firefly Estimator project handles **real money and customer quotes**. Business logic errors can result in incorrect pricing, lost sales, and legal issues. **ALWAYS** follow established patterns and validate calculations.
+
+## **INTENT**
+
+Success means every quote, price calculation, and business workflow follows established patterns that ensure accuracy, consistency, and compliance with business rules. AI assistants must understand the complete business logic flow.
+
+## **WHEN THIS APPLIES**
+
+- Creating or modifying quote building components
+- Implementing pricing calculations and tax logic
+- Building checkout and payment workflows
+- Handling delivery fee calculations
+- Managing option pricing and discounts
+- Processing orders and confirmations
+
+## **1. Quote Building Workflow**
+
+### **Core Quote Structure**
+```javascript
+// CORRECT: Quote data structure
+const quoteData = {
+  // Base model information
+  model: {
+    id: 'aps-630',
+    name: 'Magnolia',
+    basePrice: 50000,
+    size: '20x8',
+    slug: 'magnolia'
+  },
+  
+  // Selected options with pricing
+  options: [
+    {
+      id: 'metal-roof',
+      name: 'Metal Roof',
+      category: 'Exterior',
+      price: 2500,
+      priceDelta: 2500, // Price increase from base
+      quantity: 1
+    }
+  ],
+  
+  // Client information
+  client: {
+    firstName: 'John',
+    lastName: 'Doe',
+    email: 'john@example.com',
+    phone: '555-1234',
+    address: '123 Main St',
+    city: 'Austin',
+    state: 'TX',
+    zip: '78701'
+  },
+  
+  // Delivery information
+  delivery: {
+    address: '123 Main St',
+    city: 'Austin',
+    state: 'TX',
+    zip: '78701',
+    distance: 25, // miles from factory
+    fee: 1250 // calculated delivery fee
+  }
+}
+```
+
+### **Quote Building Flow**
+```javascript
+// CORRECT: Quote building workflow
+export default function QuoteBuilder() {
+  const [quoteData, setQuoteData] = useState({
+    model: null,
+    options: [],
+    client: {},
+    delivery: {}
+  })
+  
+  const [currentStep, setCurrentStep] = useState('model-selection')
+  
+  // Step 1: Model Selection
+  const handleModelSelect = (model) => {
+    setQuoteData(prev => ({
+      ...prev,
+      model,
+      options: [] // Reset options when model changes
+    }))
+    setCurrentStep('options')
+  }
+  
+  // Step 2: Options Selection
+  const handleOptionToggle = (option, selected) => {
+    setQuoteData(prev => ({
+      ...prev,
+      options: selected 
+        ? [...prev.options, option]
+        : prev.options.filter(o => o.id !== option.id)
+    }))
+  }
+  
+  // Step 3: Client Information
+  const handleClientUpdate = (clientData) => {
+    setQuoteData(prev => ({
+      ...prev,
+      client: { ...prev.client, ...clientData }
+    }))
+  }
+  
+  // Step 4: Delivery Calculation
+  const handleDeliveryUpdate = async (deliveryData) => {
+    const deliveryFee = await calculateDeliveryFee(deliveryData.zip)
+    setQuoteData(prev => ({
+      ...prev,
+      delivery: { ...deliveryData, fee: deliveryFee }
+    }))
+  }
+  
+  // Step 5: Quote Generation
+  const handleGenerateQuote = async () => {
+    const quote = await generateQuotePDF(quoteData)
+    // Handle quote download or email
+  }
+  
+  return (
+    <div className="quote-builder">
+      {currentStep === 'model-selection' && (
+        <ModelSelector onSelect={handleModelSelect} />
+      )}
+      
+      {currentStep === 'options' && (
+        <OptionSelector 
+          options={availableOptions}
+          selected={quoteData.options}
+          onToggle={handleOptionToggle}
+          onNext={() => setCurrentStep('client')}
+        />
+      )}
+      
+      {currentStep === 'client' && (
+        <ClientInfoForm 
+          data={quoteData.client}
+          onUpdate={handleClientUpdate}
+          onNext={() => setCurrentStep('delivery')}
+        />
+      )}
+      
+      {currentStep === 'delivery' && (
+        <DeliveryCalculator 
+          data={quoteData.delivery}
+          onUpdate={handleDeliveryUpdate}
+          onNext={() => setCurrentStep('review')}
+        />
+      )}
+      
+      {currentStep === 'review' && (
+        <QuoteReview 
+          data={quoteData}
+          onGenerate={handleGenerateQuote}
+        />
+      )}
+    </div>
+  )
+}
+```
+
+## **2. Pricing Calculation Logic**
+
+### **Base Price Calculation**
+```javascript
+// CORRECT: Base price calculation
+export function calculateBasePrice(model, options = []) {
+  // Start with model base price
+  let total = model.basePrice || 0
+  
+  // Add option prices
+  const optionsTotal = options.reduce((sum, option) => {
+    const optionPrice = option.priceDelta || option.price || 0
+    const quantity = option.quantity || 1
+    return sum + (optionPrice * quantity)
+  }, 0)
+  
+  total += optionsTotal
+  
+  return Math.round(total * 100) / 100 // Round to 2 decimal places
+}
+```
+
+### **Tax Calculation**
+```javascript
+// CORRECT: Tax calculation with proper rounding
+export function calculateTax(subtotal, taxRate, deliveryFee = 0, titleFee = 0, setupFee = 0) {
+  // Taxable amount includes base price, options, delivery, title, and setup
+  const taxableAmount = subtotal + deliveryFee + titleFee + setupFee
+  
+  // Calculate tax
+  const taxAmount = taxableAmount * (taxRate / 100)
+  
+  // Round to nearest cent (2 decimal places)
+  return Math.round(taxAmount * 100) / 100
+}
+```
+
+### **Delivery Fee Calculation**
+```javascript
+// CORRECT: Delivery fee calculation
+export async function calculateDeliveryFee(zipCode, settings) {
+  try {
+    // Get delivery rates from settings or API
+    const deliveryRate = settings?.pricing?.delivery_rate_per_mile || 12.50
+    const minimumFee = settings?.pricing?.delivery_minimum || 2000
+    
+    // Calculate distance from factory (this would come from a mapping service)
+    const distance = await getDistanceFromFactory(zipCode)
+    
+    // Calculate fee
+    let fee = distance * deliveryRate
+    
+    // Apply minimum fee
+    if (fee < minimumFee) {
+      fee = minimumFee
+    }
+    
+    // Round to nearest cent
+    return Math.round(fee * 100) / 100
+    
+  } catch (error) {
+    console.error('Delivery calculation error:', error)
+    // Return minimum fee as fallback
+    return settings?.pricing?.delivery_minimum || 2000
+  }
+}
+```
+
+### **Total Price Calculation**
+```javascript
+// CORRECT: Complete price calculation
+export function calculateTotalPrice(quoteData, settings) {
+  const {
+    model,
+    options,
+    delivery
+  } = quoteData
+  
+  // Get base price and options
+  const basePrice = model.basePrice || 0
+  const optionsTotal = options.reduce((sum, opt) => {
+    return sum + ((opt.priceDelta || opt.price || 0) * (opt.quantity || 1))
+  }, 0)
+  
+  // Get fees from settings
+  const titleFee = settings?.pricing?.title_fee_default || 150
+  const setupFee = settings?.pricing?.setup_fee_default || 500
+  const taxRate = settings?.pricing?.tax_rate_percent || 8.25
+  
+  // Calculate subtotal
+  const subtotal = basePrice + optionsTotal
+  
+  // Calculate delivery fee
+  const deliveryFee = delivery?.fee || 0
+  
+  // Calculate taxable amount
+  const taxableAmount = subtotal + deliveryFee + titleFee + setupFee
+  
+  // Calculate tax
+  const taxAmount = calculateTax(taxableAmount, taxRate, deliveryFee, titleFee, setupFee)
+  
+  // Calculate total
+  const total = taxableAmount + taxAmount
+  
+  // Calculate deposit (typically 10-20%)
+  const depositPercent = settings?.pricing?.deposit_percent || 10
+  const depositAmount = Math.round((total * depositPercent / 100) * 100) / 100
+  
+  return {
+    basePrice,
+    optionsTotal,
+    subtotal,
+    deliveryFee,
+    titleFee,
+    setupFee,
+    taxableAmount,
+    taxAmount,
+    total,
+    depositAmount,
+    finalPayment: total - depositAmount
+  }
+}
+```
+
+## **3. Option Management**
+
+### **Option Structure**
+```javascript
+// CORRECT: Option data structure
+const optionExample = {
+  id: 'metal-roof',
+  name: 'Metal Roof',
+  category: 'Exterior',
+  description: 'Premium metal roofing material',
+  price: 2500, // Absolute price
+  priceDelta: 2500, // Price increase from base
+  quantity: 1,
+  maxQuantity: 1, // Some options can't have multiple
+  required: false, // Some options are mandatory
+  dependencies: [], // Other options this depends on
+  conflicts: [], // Options this conflicts with
+  image: 'metal-roof.jpg',
+  inStock: true
+}
+```
+
+### **Option Selection Logic**
+```javascript
+// CORRECT: Option selection with validation
+export function validateOptionSelection(selectedOptions, newOption, model) {
+  const errors = []
+  
+  // Check quantity limits
+  if (newOption.maxQuantity && newOption.quantity > newOption.maxQuantity) {
+    errors.push(`${newOption.name} cannot exceed quantity of ${newOption.maxQuantity}`)
+  }
+  
+  // Check dependencies
+  if (newOption.dependencies && newOption.dependencies.length > 0) {
+    const missingDeps = newOption.dependencies.filter(depId => 
+      !selectedOptions.find(opt => opt.id === depId)
+    )
+    if (missingDeps.length > 0) {
+      errors.push(`${newOption.name} requires: ${missingDeps.join(', ')}`)
+    }
+  }
+  
+  // Check conflicts
+  if (newOption.conflicts && newOption.conflicts.length > 0) {
+    const conflicts = selectedOptions.filter(opt => 
+      newOption.conflicts.includes(opt.id)
+    )
+    if (conflicts.length > 0) {
+      errors.push(`${newOption.name} conflicts with: ${conflicts.map(c => c.name).join(', ')}`)
+    }
+  }
+  
+  return errors
+}
+```
+
+## **4. Order Processing**
+
+### **Order Creation**
+```javascript
+// CORRECT: Order creation workflow
+export async function createOrder(quoteData, user) {
+  try {
+    // Validate quote data
+    const validationErrors = validateQuoteData(quoteData)
+    if (validationErrors.length > 0) {
+      throw new Error(`Quote validation failed: ${validationErrors.join(', ')}`)
+    }
+    
+    // Calculate final pricing
+    const settings = await getOrgSettings()
+    const pricing = calculateTotalPrice(quoteData, settings)
+    
+    // Create order object
+    const order = {
+      orderId: generateOrderId(),
+      userId: user.id,
+      status: 'draft',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      
+      // Quote data
+      model: quoteData.model,
+      selections: quoteData.options,
+      buyer: quoteData.client,
+      delivery: quoteData.delivery,
+      
+      // Pricing snapshot
+      pricingSnapshot: {
+        base: pricing.basePrice,
+        options: pricing.optionsTotal,
+        delivery_rate_per_mile: settings?.pricing?.delivery_rate_per_mile,
+        delivery_minimum: settings?.pricing?.delivery_minimum,
+        title_fee: pricing.titleFee,
+        setup_fee: pricing.setupFee,
+        tax_rate_percent: settings?.pricing?.tax_rate_percent,
+        deposit_percent: settings?.pricing?.deposit_percent
+      },
+      
+      // Calculated amounts
+      pricing: {
+        base: pricing.basePrice,
+        options: pricing.optionsTotal,
+        delivery: pricing.deliveryFee,
+        title: pricing.titleFee,
+        setup: pricing.setupFee,
+        tax: pricing.taxAmount,
+        total: pricing.total,
+        deposit: pricing.depositAmount,
+        final: pricing.finalPayment
+      }
+    }
+    
+    // Save to database
+    const db = await getDb()
+    const result = await db.collection('orders').insertOne(order)
+    
+    return {
+      success: true,
+      orderId: order.orderId,
+      order: { ...order, _id: result.insertedId }
+    }
+    
+  } catch (error) {
+    console.error('Order creation error:', error)
+    throw new Error(`Failed to create order: ${error.message}`)
+  }
+}
+```
+
+### **Order Status Management**
+```javascript
+// CORRECT: Order status workflow
+export const ORDER_STATUSES = {
+  DRAFT: 'draft',
+  CONFIRMED: 'confirmed',
+  DEPOSIT_PAID: 'deposit_paid',
+  IN_PRODUCTION: 'in_production',
+  READY_FOR_DELIVERY: 'ready_for_delivery',
+  DELIVERED: 'delivered',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled'
+}
+
+export async function updateOrderStatus(orderId, newStatus, userId, notes = '') {
+  try {
+    // Validate status transition
+    const validTransitions = getValidStatusTransitions(currentStatus)
+    if (!validTransitions.includes(newStatus)) {
+      throw new Error(`Invalid status transition from ${currentStatus} to ${newStatus}`)
+    }
+    
+    // Update order
+    const db = await getDb()
+    const result = await db.collection('orders').updateOne(
+      { orderId },
+      {
+        $set: {
+          status: newStatus,
+          updatedAt: new Date()
+        },
+        $push: {
+          statusHistory: {
+            status: newStatus,
+            timestamp: new Date(),
+            userId,
+            notes
+          }
+        }
+      }
+    )
+    
+    if (result.matchedCount === 0) {
+      throw new Error('Order not found')
+    }
+    
+    return { success: true, newStatus }
+    
+  } catch (error) {
+    console.error('Status update error:', error)
+    throw error
+  }
+}
+```
+
+## **5. Business Validation Rules**
+
+### **Quote Validation**
+```javascript
+// CORRECT: Comprehensive quote validation
+export function validateQuoteData(quoteData) {
+  const errors = []
+  
+  // Required fields
+  if (!quoteData.model?.id) {
+    errors.push('Model selection is required')
+  }
+  
+  if (!quoteData.client?.firstName || !quoteData.client?.lastName) {
+    errors.push('Client name is required')
+  }
+  
+  if (!quoteData.client?.email) {
+    errors.push('Client email is required')
+  }
+  
+  if (!quoteData.delivery?.zip) {
+    errors.push('Delivery ZIP code is required')
+  }
+  
+  // Business rule validations
+  if (quoteData.model?.basePrice && quoteData.model.basePrice < 10000) {
+    errors.push('Base price cannot be less than $10,000')
+  }
+  
+  if (quoteData.options && quoteData.options.length > 50) {
+    errors.push('Cannot select more than 50 options')
+  }
+  
+  // Validate option dependencies
+  if (quoteData.options && quoteData.options.length > 0) {
+    const optionErrors = validateOptionSelection(quoteData.options, {}, quoteData.model)
+    errors.push(...optionErrors)
+  }
+  
+  return errors
+}
+```
+
+### **Pricing Validation**
+```javascript
+// CORRECT: Pricing validation
+export function validatePricing(pricing) {
+  const errors = []
+  
+  // Check for negative values
+  if (pricing.base < 0) errors.push('Base price cannot be negative')
+  if (pricing.options < 0) errors.push('Options total cannot be negative')
+  if (pricing.delivery < 0) errors.push('Delivery fee cannot be negative')
+  if (pricing.tax < 0) errors.push('Tax amount cannot be negative')
+  
+  // Check for reasonable limits
+  if (pricing.total > 1000000) errors.push('Total price exceeds maximum limit')
+  if (pricing.deposit > pricing.total) errors.push('Deposit cannot exceed total price')
+  
+  // Validate calculations
+  const calculatedTotal = pricing.base + pricing.options + pricing.delivery + pricing.tax
+  if (Math.abs(calculatedTotal - pricing.total) > 0.01) {
+    errors.push('Total price calculation mismatch')
+  }
+  
+  return errors
+}
+```
+
+## **Common Business Logic Mistakes**
+
+### **❌ DON'T Skip Validation**
+```javascript
+// WRONG: No validation of business rules
+const createQuote = (data) => {
+  return {
+    price: data.price,
+    total: data.price * 1.08 // Hardcoded tax rate
+  }
+}
+
+// CORRECT: Comprehensive validation
+const createQuote = async (data) => {
+  // Validate input data
+  const errors = validateQuoteData(data)
+  if (errors.length > 0) {
+    throw new Error(`Validation failed: ${errors.join(', ')}`)
+  }
+  
+  // Get current settings
+  const settings = await getOrgSettings()
+  
+  // Calculate with proper business logic
+  const pricing = calculateTotalPrice(data, settings)
+  
+  // Validate results
+  const pricingErrors = validatePricing(pricing)
+  if (pricingErrors.length > 0) {
+    throw new Error(`Pricing validation failed: ${pricingErrors.join(', ')}`)
+  }
+  
+  return pricing
+}
+```
+
+### **❌ DON'T Use Hardcoded Values**
+```javascript
+// WRONG: Hardcoded business values
+const TAX_RATE = 0.0825
+const DELIVERY_RATE = 12.50
+const MINIMUM_DELIVERY = 2000
+
+// CORRECT: Dynamic from settings
+const getTaxRate = async () => {
+  const settings = await getOrgSettings()
+  return settings?.pricing?.tax_rate_percent / 100 || 0.0825
+}
+
+const getDeliveryRate = async () => {
+  const settings = await getOrgSettings()
+  return settings?.pricing?.delivery_rate_per_mile || 2.50
+}
+```
+
+### **❌ DON'T Ignore Rounding**
+```javascript
+// WRONG: No proper rounding
+const calculateTax = (amount, rate) => {
+  return amount * rate // Could result in floating point errors
+}
+
+// CORRECT: Proper rounding to cents
+const calculateTax = (amount, rate) => {
+  const tax = amount * rate
+  return Math.round(tax * 100) / 100 // Round to 2 decimal places
+}
+```
+
+## **Validation Checklist**
+
+Before implementing any business logic, verify:
+
+- [ ] **Input validation** - All required fields are checked
+- [ ] **Business rules** - Logic follows established business requirements
+- [ ] **Calculation accuracy** - Math is correct and properly rounded
+- [ ] **Error handling** - Failures are handled gracefully
+- [ ] **Data consistency** - Related data is validated together
+- [ ] **Edge cases** - Boundary conditions are handled
+- [ ] **Performance** - Calculations are efficient
+- [ ] **Audit trail** - Changes are logged for compliance
+
+## **Related Files**
+
+- **`src/pages/QuoteBuilder.jsx`**: Main quote building interface
+- **`src/pages/checkout/`**: Checkout and payment workflows
+- **`src/utils/`**: Utility functions for calculations
+- **`lib/delivery.js`**: Delivery fee calculations
+- **`lib/quote.js`**: Quote generation and management
+- **`lib/orders.js`**: Order processing and management
+
+## **When in Doubt**
+
+1. **Check existing implementations** - Study how similar logic is implemented
+2. **Validate with business rules** - Ensure logic matches business requirements
+3. **Test edge cases** - Verify behavior with unusual inputs
+4. **Round properly** - Always round monetary amounts to 2 decimal places
+5. **Log calculations** - Include logging for debugging and audit purposes
+6. **Ask for clarification** - When business rules aren't clear, ask rather than guess
+
+## **Business Logic Quality Metrics**
+
+- **Accuracy**: 100% - All calculations must be mathematically correct
+- **Validation**: 100% - All inputs must be validated
+- **Error Handling**: 100% - All failures must be handled gracefully
+- **Performance**: 95% - Calculations should complete within reasonable time
+- **Maintainability**: 90% - Logic should be easy to understand and modify
+
+Remember: **Business logic errors can cost money and damage customer relationships. Always prioritize accuracy and validation over speed of implementation.**
+description:
+globs:
+alwaysApply: true
+---

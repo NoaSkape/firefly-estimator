@@ -26,3 +26,16 @@ backend/dev-server.js
 backend/server.cjs
 backend/test-db.cjs
 scripts/
+
+# Cursor rules and documentation
+.cursor/
+*.md
+*.mdc
+
+# Logs and temporary files
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+
