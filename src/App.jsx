@@ -29,6 +29,8 @@ const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'))
 const AdminOverview = lazy(() => import('./pages/admin/AdminOverview'))
 const AdvancedReporting = lazy(() => import('./components/AdvancedReporting'))
 const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard'))
+const AdminCustomers = lazy(() => import('./pages/admin/Customers'))
+const AdminAnalytics = lazy(() => import('./pages/admin/Analytics'))
 const PublicModelDetail = lazy(() => import('./public/PublicModelDetail'))
 const PackageDetail = lazy(() => import('./public/PackageDetail'))
 const BuildsDashboard = lazy(() => import('./pages/builds/Builds'))
@@ -394,6 +396,16 @@ function App() {
               <Route path="/admin/models" element={
                 <ProtectedRoute requireAdmin={true}>
                   <AdminModels />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/customers" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminCustomers />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/analytics" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminAnalytics />
                 </ProtectedRoute>
               } />
               <Route path="/admin/dashboard" element={

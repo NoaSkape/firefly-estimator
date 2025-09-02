@@ -4,12 +4,13 @@
 import express from 'express'
 import { z } from 'zod'
 import { adminAuth, hasPermission, PERMISSIONS } from '../../lib/adminAuth.js'
-import { 
-  getCollection, 
-  COLLECTIONS, 
-  initializeAdminDatabase 
+import {
+  getCollection,
+  COLLECTIONS,
+  initializeAdminDatabase
 } from '../../lib/adminSchema.js'
 import { validateRequest } from '../../lib/requestValidation.js'
+import analyticsRouter from './analytics.js'
 
 const router = express.Router()
 
@@ -926,14 +927,21 @@ router.post('/export', hasPermission(PERMISSIONS.FINANCIAL_REPORTS), async (req,
   }
 })
 
-// ============================================================================
-// ERROR HANDLING
-// ============================================================================
+            // ============================================================================
+            // ANALYTICS ROUTES
+            // ============================================================================
 
-// 404 handler for admin routes
-router.use('*', (req, res) => {
-  res.status(404).json({ error: 'Admin endpoint not found' })
-})
+            // Mount analytics router
+            router.use('/analytics', analyticsRouter)
+
+            // ============================================================================
+            // ERROR HANDLING
+            // ============================================================================
+
+            // 404 handler for admin routes
+            router.use('*', (req, res) => {
+              res.status(404).json({ error: 'Admin endpoint not found' })
+            })
 
 // Error handler
 router.use((error, req, res, next) => {
