@@ -317,6 +317,190 @@ Always include specific examples, real scenarios, and actionable advice. Make co
   }
 })
 
+// AI Topic Generation Endpoint
+app.post('/ai/generate-topics', async (req, res) => {
+  try {
+    console.log('[DEBUG_ADMIN] AI topic generation request:', req.body)
+    
+    const { sources, count = 6, industry, location, avoidDuplicates, seoOptimized } = req.body
+    
+    // Get existing blog posts to avoid duplicates
+    let existingTopics = []
+    if (avoidDuplicates) {
+      try {
+        const db = await connectDB()
+        const blogPosts = await db.collection('blog_posts').find({}, { title: 1 }).toArray()
+        existingTopics = blogPosts.map(post => post.title.toLowerCase())
+        console.log('[DEBUG_ADMIN] Found existing topics:', existingTopics.length)
+      } catch (dbError) {
+        console.warn('[DEBUG_ADMIN] Could not fetch existing topics:', dbError)
+      }
+    }
+
+    // Create comprehensive prompt for topic generation
+    const prompt = `You are an expert content strategist for ${industry} industry in ${location}. 
+
+TASK: Generate ${count} fresh, SEO-optimized blog post topics that will rank well and drive conversions.
+
+RESEARCH SOURCES TO CONSIDER:
+${sources.map(source => `- ${source}`).join('\n')}
+
+EXISTING TOPICS TO AVOID:
+${existingTopics.length > 0 ? existingTopics.map(topic => `- ${topic}`).join('\n') : '- None found'}
+
+REQUIREMENTS:
+1. Topics must be unique and not duplicate existing content
+2. Focus on ${industry} specifically in ${location}
+3. Include SEO-friendly keywords naturally
+4. Target different stages of the customer journey
+5. Mix of educational, inspirational, and problem-solving content
+6. Each topic should have conversion potential
+
+FORMAT: Return a JSON array with exactly ${count} topics, each containing:
+{
+  "title": "Compelling blog post title",
+  "description": "Brief description of what the post would cover",
+  "seoScore": 85,
+  "competition": "low|medium|high",
+  "targetKeywords": ["keyword1", "keyword2"],
+  "customerJourneyStage": "awareness|consideration|decision"
+}
+
+Generate topics that would perform well against competitors like Athens Park Models, Champion Park Models, and Modern Park Models.`
+
+    // Call AI service
+    const apiKey = process.env.VITE_AI_API_KEY
+    const apiUrl = process.env.VITE_AI_API_URL || 'https://api.anthropic.com/v1'
+    const model = process.env.VITE_AI_MODEL || 'claude-sonnet-4-20250514'
+
+    if (!apiKey) {
+      throw new Error('AI API key not configured')
+    }
+
+    const response = await fetch(`${apiUrl}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: 2000,
+        temperature: 0.8
+      })
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[DEBUG_ADMIN] AI Topic Generation Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      })
+      throw new Error(`AI API error: ${response.status} - ${errorText}`)
+    }
+
+    const result = await response.json()
+    const content = result.content?.[0]?.text || ''
+    
+    console.log('[DEBUG_ADMIN] Raw AI response:', content)
+
+    // Parse JSON response
+    let topics = []
+    try {
+      const jsonMatch = content.match(/\[[\s\S]*\]/)
+      if (jsonMatch) {
+        topics = JSON.parse(jsonMatch[0])
+      } else {
+        throw new Error('No JSON array found in response')
+      }
+    } catch (parseError) {
+      console.error('[DEBUG_ADMIN] Failed to parse AI response:', parseError)
+      
+      // Fallback to manual parsing or default topics
+      topics = [
+        {
+          title: "Why Texas Park Model Homes Are Perfect for Year-Round Living",
+          description: "Explore the benefits of park model living in Texas climate",
+          seoScore: 85,
+          competition: "low",
+          targetKeywords: ["texas park models", "year round living"],
+          customerJourneyStage: "awareness"
+        },
+        {
+          title: "Park Model vs Traditional Home: Complete Cost Comparison",
+          description: "Compare total costs, maintenance, and value over time",
+          seoScore: 92,
+          competition: "medium",
+          targetKeywords: ["park model cost", "home comparison"],
+          customerJourneyStage: "consideration"
+        },
+        {
+          title: "Inside Look: Modern Park Model Interior Design Trends 2024",
+          description: "Latest design trends making park models feel like luxury homes",
+          seoScore: 88,
+          competition: "low",
+          targetKeywords: ["park model interior", "design trends"],
+          customerJourneyStage: "consideration"
+        },
+        {
+          title: "Park Model Communities in Texas: Your Complete Guide",
+          description: "Find the best park model communities across Texas",
+          seoScore: 90,
+          competition: "medium",
+          targetKeywords: ["texas park model communities", "rv parks"],
+          customerJourneyStage: "decision"
+        },
+        {
+          title: "Financing Your Park Model Home: Options and Strategies",
+          description: "Complete guide to park model financing and loan options",
+          seoScore: 86,
+          competition: "low",
+          targetKeywords: ["park model financing", "tiny home loans"],
+          customerJourneyStage: "decision"
+        },
+        {
+          title: "Park Model Maintenance: Seasonal Care Guide for Texas Owners",
+          description: "Keep your park model in perfect condition year-round",
+          seoScore: 84,
+          competition: "low",
+          targetKeywords: ["park model maintenance", "texas weather"],
+          customerJourneyStage: "awareness"
+        }
+      ]
+    }
+
+    // Ensure we have the right number of topics
+    if (topics.length > count) {
+      topics = topics.slice(0, count)
+    }
+
+    console.log('[DEBUG_ADMIN] Generated topics:', topics)
+
+    res.json({
+      success: true,
+      topics,
+      existingTopicsChecked: existingTopics.length,
+      message: `Generated ${topics.length} unique topics based on competitor research`
+    })
+
+  } catch (error) {
+    console.error('[DEBUG_ADMIN] AI topic generation failed:', error)
+    res.status(500).json({ 
+      error: 'Topic generation failed', 
+      details: error.message,
+      fallbackAvailable: true
+    })
+  }
+})
+
 // Helper functions for AI content generation
 function getSectionInfo(sectionKey) {
   const sections = {

@@ -18,7 +18,9 @@ import DragDropSectionManager from './blog-templates/DragDropSectionManager'
 import { TEMPLATE_REGISTRY, getDefaultSections } from './blog-templates/TemplateRegistry'
 import InteractivePreview from './blog-templates/InteractivePreview'
 import EngagementTracker from './blog-templates/EngagementTracker'
-import QuickContentCreator from './blog-templates/QuickContentCreator'
+import AITopicGenerator from './blog-templates/AITopicGenerator'
+import EnhancedAIGenerator from './blog-templates/EnhancedAIGenerator'
+import DynamicTemplateSections from './blog-templates/DynamicTemplateSections'
 import ConversionCTAManager from './blog-templates/ConversionCTAManager'
 import SEOOptimizer from './blog-templates/SEOOptimizer'
 
@@ -28,6 +30,8 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [activeTab, setActiveTab] = useState('content')
+  const [templateSections, setTemplateSections] = useState({})
+  const [selectedTopic, setSelectedTopic] = useState(null)
   const fileInputRef = useRef(null)
   const debug = (import.meta.env?.VITE_DEBUG_ADMIN === 'true')
   const isAdmin = canEditModelsClient(user)
@@ -473,16 +477,22 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                 </div>
               </div>
 
-              {/* Quick Content Creator */}
+              {/* AI Topic Generator */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                  <BoltIcon className="w-5 h-5 inline mr-2 text-yellow-600" />
-                  Quick Content Creator
-                </h3>
-                <QuickContentCreator 
-                  onContentGenerated={handleContentGenerated}
+                <AITopicGenerator 
+                  onTopicSelected={setSelectedTopic}
+                  currentTitle={postData.title}
+                  setPostData={setPostData}
+                />
+              </div>
+
+              {/* Enhanced AI Content Generator */}
+              <div>
+                <EnhancedAIGenerator 
                   postData={postData}
                   setPostData={setPostData}
+                  onContentGenerated={handleContentGenerated}
+                  selectedTemplate={postData.template}
                 />
               </div>
 
@@ -549,14 +559,13 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                 </div>
               </div>
 
-              {/* Section Manager */}
+              {/* Dynamic Template Sections */}
               <div>
-                <label className="block text-sm font-medium mb-2">Template Sections</label>
-                                 <DragDropSectionManager
-                   templateId={postData.template}
-                   activeSections={activeSections}
-                   onSectionsChange={handleSectionsChange}
-                 />
+                <DynamicTemplateSections 
+                  template={postData.template}
+                  sections={templateSections}
+                  onSectionsChange={setTemplateSections}
+                />
               </div>
               
               {/* Content */}

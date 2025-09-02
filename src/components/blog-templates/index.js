@@ -10,6 +10,9 @@ export { default as BaseTemplate } from './BaseTemplate'
 export { default as InteractivePreview } from './InteractivePreview'
 export { default as EngagementTracker } from './EngagementTracker'
 export { default as BlogEngagement } from './BlogEngagement'
+export { default as AITopicGenerator } from './AITopicGenerator'
+export { default as EnhancedAIGenerator } from './EnhancedAIGenerator'
+export { default as DynamicTemplateSections } from './DynamicTemplateSections'
 export { default as MicroInteractions } from './MicroInteractions'
 
 // Export drag-and-drop components
