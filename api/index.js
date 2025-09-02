@@ -4650,9 +4650,6 @@ initializeAdminDatabase().catch(err => {
   console.error('Failed to initialize admin database:', err)
 })
 
-// Vercel Node.js functions expect (req, res). Call Express directly.
-export default (req, res) => app(req, res)
-
 // AI Content Generation Endpoint
 app.post('/api/ai/generate-content', async (req, res) => {
   try {
@@ -4911,3 +4908,6 @@ function generateSlug(text) {
     .replace(/-+/g, '-')
     .trim('-')
 }
+
+// Vercel Node.js functions expect (req, res). Call Express directly.
+export default (req, res) => app(req, res)
