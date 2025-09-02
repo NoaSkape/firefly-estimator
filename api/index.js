@@ -143,7 +143,7 @@ app.post('/ai/generate-content', async (req, res) => {
     // Check if API key is configured
     const apiKey = process.env.VITE_AI_API_KEY
     const apiUrl = process.env.VITE_AI_API_URL || 'https://api.anthropic.com/v1'
-    const model = process.env.VITE_AI_MODEL || 'claude-3-5-sonnet-20241022'
+    const model = process.env.VITE_AI_MODEL || 'claude-sonnet-4-20250514'
 
     if (!apiKey) {
       return res.status(500).json({ error: 'AI API key not configured' })
@@ -277,7 +277,20 @@ Always include specific examples, real scenarios, and actionable advice. Make co
     }
 
     if (!response.ok) {
-      throw new Error(`AI API error: ${response.status}`)
+      const errorText = await response.text()
+      console.error('[DEBUG_ADMIN] AI API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: errorText,
+        requestHeaders: {
+          'x-api-key': apiKey ? `${apiKey.slice(0, 10)}...` : 'MISSING',
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json'
+        }
+      })
+      throw new Error(`AI API error: ${response.status} - ${errorText}`)
     }
 
     const data = await response.json()
