@@ -23,9 +23,37 @@ initializeAdminDatabase().catch(console.error)
 // MIDDLEWARE & VALIDATION
 // ============================================================================
 
+// Lightweight health check (unauthenticated) to diagnose router/middleware shape
+router.get('/health', (req, res) => {
+  try {
+    const layers = Array.isArray(router.stack)
+      ? router.stack.map((l, i) => ({
+          i,
+          name: l?.name,
+          type: typeof l?.handle,
+          route: l?.route?.path,
+          keys: Array.isArray(l?.keys) ? l.keys.map(k => k?.name) : undefined
+        }))
+      : []
+
+    res.json({
+      ok: true,
+      env: {
+        adminAuthDisabled: process.env.ADMIN_AUTH_DISABLED === 'true'
+      },
+      layers
+    })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) })
+  }
+})
+
 // Admin authentication middleware for all routes
 router.use((req, res, next) => {
-  adminAuth.validateAdminAccess(req, res, next);
+  if (process.env.ADMIN_AUTH_DISABLED === 'true') {
+    return next()
+  }
+  adminAuth.validateAdminAccess(req, res, next)
 })
 
 // Request validation schemas
