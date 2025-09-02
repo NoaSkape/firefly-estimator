@@ -272,6 +272,28 @@ router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async 
   }
 })
 
+// Get current admin user information
+router.get('/me', adminAuth.validatePermission(PERMISSIONS.USERS_VIEW), async (req, res) => {
+  try {
+    const userId = req.adminUser?.userId
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' })
+    }
+
+    // Get user summary from adminAuth
+    const userSummary = await adminAuth.getAdminUserSummary(userId)
+    
+    res.json({
+      success: true,
+      data: userSummary
+    })
+  } catch (error) {
+    console.error('Admin user info API error:', error)
+    res.status(500).json({ error: 'Failed to fetch user information' })
+  }
+})
+
 // Get detailed user information (Clerk + MongoDB)
 router.get('/users/detailed', adminAuth.validatePermission(PERMISSIONS.USERS_VIEW), async (req, res) => {
   try {
@@ -413,7 +435,7 @@ router.get('/orders/paid', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIEW)
 })
 
 // Get detailed user information
-router.get('/users/detailed', hasPermission(PERMISSIONS.USERS_VIEW), async (req, res) => {
+router.get('/users/detailed', adminAuth.validatePermission(PERMISSIONS.USERS_VIEW), async (req, res) => {
   try {
     const usersCollection = await getCollection(COLLECTIONS.USERS)
     

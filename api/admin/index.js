@@ -174,7 +174,7 @@ const adminSchemas = {
 // ============================================================================
 
 // Get admin dashboard overview
-router.get('/dashboard', hasPermission(PERMISSIONS.FINANCIAL_VIEW), async (req, res) => {
+router.get('/dashboard', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query
     
