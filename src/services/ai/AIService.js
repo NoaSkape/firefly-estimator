@@ -6,14 +6,12 @@ class AIService {
     this.maxTokens = 2000
   }
 
-  // Initialize AI service with authentication
-  async initialize(getToken) {
+  // Initialize AI service (no authentication required for this service)
+  async initialize() {
     try {
-      if (getToken) {
-        const token = await getToken()
-        if (!token) {
-          throw new Error('Authentication required')
-        }
+      // Check if API key is configured
+      if (!this.apiKey) {
+        throw new Error('AI API key not configured')
       }
       return true
     } catch (error) {
@@ -315,6 +313,22 @@ Always include specific examples, real scenarios, and actionable advice. Make co
     }
   }
 
+  // Parse section response into structured content
+  parseSectionResponse(data, sectionKey) {
+    try {
+      const content = data.content?.[0]?.text || ''
+      return {
+        sectionKey: sectionKey,
+        content: content,
+        aiGenerated: true,
+        generatedAt: new Date().toISOString()
+      }
+    } catch (error) {
+      console.error('Failed to parse section response:', error)
+      throw new Error('Failed to parse section-generated content')
+    }
+  }
+
   // Parse content from either AI provider
   parseContent(content, topic, template) {
     try {
@@ -341,22 +355,6 @@ Always include specific examples, real scenarios, and actionable advice. Make co
     } catch (error) {
       console.error('Failed to parse AI content:', error)
       throw new Error('Failed to parse AI-generated content')
-    }
-  }
-
-  // Parse section response into structured content
-  parseSectionResponse(data, sectionKey) {
-    try {
-      const content = data.content?.[0]?.text || ''
-      return {
-        sectionKey: sectionKey,
-        content: content,
-        aiGenerated: true,
-        generatedAt: new Date().toISOString()
-      }
-    } catch (error) {
-      console.error('Failed to parse section response:', error)
-      throw new Error('Failed to parse section-generated content')
     }
   }
 
@@ -397,4 +395,4 @@ Always include specific examples, real scenarios, and actionable advice. Make co
   }
 }
 
-export default new AIService()
+export default AIService
