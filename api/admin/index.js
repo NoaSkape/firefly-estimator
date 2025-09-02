@@ -175,74 +175,7 @@ const adminSchemas = {
 // DASHBOARD & OVERVIEW ENDPOINTS
 // ============================================================================
 
-// Get admin dashboard overview
-router.get('/dashboard', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async (req, res) => {
-  try {
-    const { page = 1, limit = 20 } = req.query
-    
-    // Get key metrics
-    const [orders, customers, models, financial] = await Promise.all([
-      getCollection(COLLECTIONS.ORDERS),
-      getCollection(COLLECTIONS.CUSTOMERS),
-      getCollection(COLLECTIONS.MODELS),
-      getCollection(COLLECTIONS.FINANCIAL)
-    ])
-
-    // Calculate metrics
-    const totalOrders = await orders.countDocuments()
-    const pendingOrders = await orders.countDocuments({ status: { $in: ['pending', 'confirmed', 'production'] } })
-    const totalCustomers = await customers.countDocuments()
-    const activeModels = await models.countDocuments({ isActive: true })
-    
-    // Financial metrics
-    const revenuePipeline = await orders.aggregate([
-      { $match: { status: { $in: ['confirmed', 'production', 'ready'] } } },
-      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-    ]).toArray()
-    
-    const monthlyRevenue = await financial.aggregate([
-      { 
-        $match: { 
-          type: 'payment',
-          date: { $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) }
-        }
-      },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]).toArray()
-
-    // Recent activity
-    const recentOrders = await orders.find({})
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .toArray()
-
-    const recentCustomers = await customers.find({})
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .toArray()
-
-    res.json({
-      success: true,
-      data: {
-        metrics: {
-          totalOrders,
-          pendingOrders,
-          totalCustomers,
-          activeModels,
-          revenuePipeline: revenuePipeline[0]?.total || 0,
-          monthlyRevenue: monthlyRevenue[0]?.total || 0
-        },
-        recentActivity: {
-          orders: recentOrders,
-          customers: recentCustomers
-        }
-      }
-    })
-  } catch (error) {
-    console.error('Dashboard error:', error)
-    res.status(500).json({ error: 'Failed to load dashboard data' })
-  }
-})
+// Dashboard routes are handled by mounted dashboardRouter below
 
 // Get system statistics
 router.get('/stats', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async (req, res) => {
