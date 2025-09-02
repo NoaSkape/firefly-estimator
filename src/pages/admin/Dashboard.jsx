@@ -47,6 +47,7 @@ ChartJS.register(
 )
 
 const AdminDashboard = () => {
+  const { getToken } = useAuth()
   const [dashboardData, setDashboardData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -67,12 +68,15 @@ const AdminDashboard = () => {
         clearInterval(refreshInterval.current)
       }
     }
-  }, [timeRange])
+  }, [timeRange, getToken])
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/admin/dashboard?range=${timeRange}`)
+      const token = await getToken()
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
+      
+      const response = await fetch(`/api/admin/dashboard?range=${timeRange}`, { headers })
       if (response.ok) {
         const data = await response.json()
         setDashboardData(data.data)
