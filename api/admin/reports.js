@@ -4,7 +4,12 @@
 import express from 'express'
 import { adminAuth, hasPermission, PERMISSIONS } from '../../lib/adminAuth.js'
 import { getCollection, COLLECTIONS } from '../../lib/adminSchema.js'
-import { clerkClient } from '@clerk/backend'
+import { createClerkClient } from '@clerk/backend'
+
+// Initialize Clerk client
+const clerkClient = createClerkClient({ 
+  secretKey: process.env.CLERK_SECRET_KEY 
+})
 
 const router = express.Router()
 

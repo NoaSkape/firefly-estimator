@@ -4,7 +4,12 @@
 import express from 'express'
 import { adminAuth, hasPermission, PERMISSIONS } from '../../lib/adminAuth.js'
 import { getCollection, COLLECTIONS } from '../../lib/adminSchema.js'
-import { clerkClient } from '@clerk/backend'
+import { createClerkClient } from '@clerk/backend'
+
+// Initialize Clerk client
+const clerkClient = createClerkClient({ 
+  secretKey: process.env.CLERK_SECRET_KEY 
+})
 
 const router = express.Router()
 
@@ -404,6 +409,101 @@ router.get('/orders/paid', hasPermission(PERMISSIONS.ORDERS_VIEW), async (req, r
   } catch (error) {
     console.error('Paid orders API error:', error)
     res.status(500).json({ error: 'Failed to fetch paid orders data' })
+  }
+})
+
+// Get detailed user information
+router.get('/users/detailed', hasPermission(PERMISSIONS.USERS_VIEW), async (req, res) => {
+  try {
+    const usersCollection = await getCollection(COLLECTIONS.USERS)
+    
+    // Get Clerk users
+    let clerkUsers = []
+    try {
+      const clerkResponse = await clerkClient.users.getUserList({
+        limit: 1000
+      })
+      clerkUsers = clerkResponse.data || []
+    } catch (clerkError) {
+      console.warn('Could not fetch Clerk users:', clerkError.message)
+    }
+
+    // Get local MongoDB users
+    const localUsers = await usersCollection.find({}).toArray()
+
+    // Combine and format user data
+    const allUsers = [
+      ...clerkUsers.map(user => ({
+        firstName: user.firstName || 'Unknown',
+        lastName: user.lastName || 'Unknown',
+        email: user.emailAddresses?.[0]?.emailAddress || 'No email',
+        role: user.publicMetadata?.role || 'user',
+        status: user.status || 'active',
+        createdAt: user.createdAt,
+        source: 'clerk'
+      })),
+      ...localUsers.map(user => ({
+        firstName: user.firstName || 'Unknown',
+        lastName: user.lastName || 'Unknown',
+        email: user.email || 'No email',
+        role: user.role || 'user',
+        status: user.status || 'active',
+        createdAt: user.createdAt,
+        source: 'local'
+      }))
+    ]
+
+    res.json({
+      success: true,
+      data: allUsers
+    })
+
+  } catch (error) {
+    console.error('Users detailed API error:', error)
+    res.status(500).json({ error: 'Failed to fetch user data' })
+  }
+})
+
+// Get active builds information
+router.get('/builds/active', hasPermission(PERMISSIONS.ORDERS_VIEW), async (req, res) => {
+  try {
+    const ordersCollection = await getCollection(COLLECTIONS.ORDERS)
+    const modelsCollection = await getCollection(COLLECTIONS.MODELS)
+    
+    // Get active builds (orders in production stages)
+    const activeBuilds = await ordersCollection.find({
+      status: { $in: ['confirmed', 'production', 'ready'] },
+      stage: { $in: ['design', 'production', 'quality'] }
+    }).sort({ createdAt: -1 }).limit(50).toArray()
+
+    // Get model details for each build
+    const modelIds = activeBuilds.map(build => build.modelId)
+    const models = await modelsCollection.find({ _id: { $in: modelIds } }).toArray()
+    const modelMap = models.reduce((acc, model) => {
+      acc[model._id] = model
+      return acc
+    }, {})
+
+    // Format build data
+    const formattedBuilds = activeBuilds.map(build => ({
+      id: build._id,
+      modelName: modelMap[build.modelId]?.name || 'Unknown Model',
+      customerName: build.customerInfo?.name || 'Unknown Customer',
+      stage: build.stage || 'unknown',
+      status: build.status || 'unknown',
+      startDate: build.createdAt,
+      estimatedCompletion: build.deliveryDate,
+      progress: build.progress || 0
+    }))
+
+    res.json({
+      success: true,
+      data: formattedBuilds
+    })
+
+  } catch (error) {
+    console.error('Active builds API error:', error)
+    res.status(500).json({ error: 'Failed to fetch active builds data' })
   }
 })
 
