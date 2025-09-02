@@ -2,7 +2,7 @@
 // Integrates with Clerk and MongoDB to provide real-time business metrics
 
 import express from 'express'
-import { adminAuth, PERMISSIONS } from '../../lib/adminAuth.js'
+import { validateAdminAccess, validatePermission } from '../../lib/simpleAdminAuth.js'
 import { getDb } from '../../lib/db.js'
 import { ORDERS_COLLECTION } from '../../lib/orders.js'
 import { BUILDS_COLLECTION } from '../../lib/builds.js'
@@ -22,12 +22,10 @@ try {
 const router = express.Router()
 
 // Admin authentication middleware for all routes
-router.use((req, res, next) => {
-  adminAuth.validateAdminAccess(req, res, next);
-})
+router.use(validateAdminAccess)
 
 // Get comprehensive dashboard data
-router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async (req, res) => {
+router.get('/', validatePermission('FINANCIAL_VIEW'), async (req, res) => {
   try {
     const { range = '30d' } = req.query
     
