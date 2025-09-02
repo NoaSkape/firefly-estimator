@@ -4652,3 +4652,262 @@ initializeAdminDatabase().catch(err => {
 
 // Vercel Node.js functions expect (req, res). Call Express directly.
 export default (req, res) => app(req, res)
+
+// AI Content Generation Endpoint
+app.post('/api/ai/generate-content', async (req, res) => {
+  try {
+    const { topic, template, sections, type = 'full' } = req.body
+    
+    if (!topic) {
+      return res.status(400).json({ error: 'Topic is required' })
+    }
+
+    // Check if API key is configured
+    const apiKey = process.env.VITE_AI_API_KEY
+    const apiUrl = process.env.VITE_AI_API_URL || 'https://api.anthropic.com/v1'
+    const model = process.env.VITE_AI_MODEL || 'claude-3-5-sonnet-20241022'
+    
+    if (!apiKey) {
+      return res.status(500).json({ error: 'AI API key not configured' })
+    }
+
+    let prompt, maxTokens
+    
+    if (type === 'section') {
+      // Generate section-specific content
+      const sectionInfo = getSectionInfo(sections[0])
+      const templateInfo = getTemplateInfo(template)
+      
+      prompt = `
+Write a ${sectionInfo.label} section for a blog post about: "${topic}"
+
+Template Style: ${templateInfo.name}
+Section Purpose: ${sectionInfo.description}
+
+Requirements:
+- Write in a conversational, expert tone
+- Include specific examples and actionable tips
+- Optimize for SEO with relevant keywords
+- Include local Texas references when relevant
+- Make it engaging for tiny home enthusiasts
+- Word count: 150-300 words for this section
+- Use proper HTML formatting (paragraphs, lists, etc.)
+
+Please provide just the section content in HTML format, no additional formatting needed.
+      `.trim()
+      
+      maxTokens = 1000
+    } else {
+      // Generate full blog post
+      const templateInfo = getTemplateInfo(template)
+      
+      prompt = `
+Create a high-quality blog post about: "${topic}"
+
+Template: ${templateInfo.name}
+Style: ${templateInfo.description}
+
+Required sections: ${sections.join(', ')}
+
+Requirements:
+- Write in a conversational, expert tone
+- Include specific examples and actionable tips
+- Optimize for SEO with relevant keywords
+- Include local Texas references when relevant
+- Make it engaging for tiny home enthusiasts
+- Word count: 800-1200 words
+- Include a compelling call-to-action
+
+Please provide the content in this format:
+TITLE: [Engaging title]
+META_DESCRIPTION: [SEO-optimized description]
+CONTENT: [Full blog post content with HTML formatting]
+TAGS: [Relevant tags separated by commas]
+CATEGORY: [Appropriate category]
+SLUG: [URL-friendly slug]
+      `.trim()
+      
+      maxTokens = 2000
+    }
+
+    const systemPrompt = `You are an expert content writer specializing in tiny homes, park model homes, and sustainable living. 
+
+Your expertise includes:
+- Tiny home design and construction
+- Park model home regulations and benefits
+- Sustainable living practices
+- Texas-specific housing information
+- Real estate and investment insights
+
+Write content that is:
+- Informative and educational
+- Engaging and conversational
+- SEO-optimized
+- Actionable with practical tips
+- Authentic and trustworthy
+
+Always include specific examples, real scenarios, and actionable advice. Make content that helps readers make informed decisions about tiny home living.`
+
+    // Check if using Claude or OpenAI
+    const isClaude = apiUrl.includes('anthropic.com')
+    
+    let response
+    if (isClaude) {
+      // Claude API format
+      response = await fetch(`${apiUrl}/messages`, {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: model,
+          max_tokens: maxTokens,
+          messages: [
+            {
+              role: 'user',
+              content: `${systemPrompt}\n\n${prompt}`
+            }
+          ]
+        })
+      })
+    } else {
+      // OpenAI API format
+      response = await fetch(`${apiUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          max_tokens: maxTokens,
+          temperature: 0.7
+        })
+      })
+    }
+
+    if (!response.ok) {
+      throw new Error(`AI API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    
+    if (type === 'section') {
+      // Parse section response
+      const content = data.content?.[0]?.text || ''
+      res.json({
+        sectionKey: sections[0],
+        content: content,
+        aiGenerated: true,
+        generatedAt: new Date().toISOString()
+      })
+    } else {
+      // Parse full blog post response
+      const content = data.content?.[0]?.text || data.choices?.[0]?.message?.content || ''
+      const parsedContent = parseContent(content, topic, template)
+      res.json(parsedContent)
+    }
+
+  } catch (error) {
+    console.error('AI content generation failed:', error)
+    res.status(500).json({ error: 'AI content generation failed', details: error.message })
+  }
+})
+
+// Helper functions
+function getSectionInfo(sectionKey) {
+  const sections = {
+    'introduction': {
+      label: 'Introduction',
+      description: 'Hook readers with an engaging opening that sets the stage for the topic'
+    },
+    'keyBenefits': {
+      label: 'Key Benefits',
+      description: 'List and explain the main advantages and positive aspects'
+    },
+    'personalStory': {
+      label: 'Personal Story',
+      description: 'Share a relevant personal experience or customer story'
+    },
+    'proTips': {
+      label: 'Pro Tips',
+      description: 'Provide expert advice and actionable tips'
+    },
+    'comparison': {
+      label: 'Comparison',
+      description: 'Compare different options, approaches, or perspectives'
+    },
+    'conclusion': {
+      label: 'Conclusion',
+      description: 'Wrap up with a compelling call-to-action and summary'
+    }
+  }
+  return sections[sectionKey] || sections['introduction']
+}
+
+function getTemplateInfo(template) {
+  const templates = {
+    'story': {
+      name: 'Story-Driven Template',
+      description: 'Narrative-focused with personal experiences and customer stories'
+    },
+    'educational': {
+      name: 'Educational Template',
+      description: 'Informative and instructional content with clear explanations'
+    },
+    'inspiration': {
+      name: 'Inspirational Template',
+      description: 'Motivational content that inspires action and dreams'
+    }
+  }
+  return templates[template] || templates['story']
+}
+
+function parseContent(content, topic, template) {
+  try {
+    // Extract structured content from AI response
+    const titleMatch = content.match(/TITLE:\s*(.+)/i)
+    const metaMatch = content.match(/META_DESCRIPTION:\s*(.+)/i)
+    const contentMatch = content.match(/CONTENT:\s*([\s\S]*?)(?=TAGS:|CATEGORY:|SLUG:|$)/i)
+    const tagsMatch = content.match(/TAGS:\s*(.+)/i)
+    const categoryMatch = content.match(/CATEGORY:\s*(.+)/i)
+    const slugMatch = content.match(/SLUG:\s*(.+)/i)
+
+    return {
+      title: titleMatch?.[1]?.trim() || topic,
+      metaDescription: metaMatch?.[1]?.trim() || `Discover everything about ${topic.toLowerCase()}`,
+      content: contentMatch?.[1]?.trim() || content,
+      tags: tagsMatch?.[1]?.split(',').map(tag => tag.trim()) || ['tiny homes', 'park model homes'],
+      category: categoryMatch?.[1]?.trim() || 'tiny home living',
+      slug: slugMatch?.[1]?.trim() || generateSlug(topic),
+      template: template,
+      status: 'draft',
+      aiGenerated: true,
+      generatedAt: new Date().toISOString()
+    }
+  } catch (error) {
+    console.error('Failed to parse AI content:', error)
+    throw new Error('Failed to parse AI-generated content')
+  }
+}
+
+function generateSlug(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim('-')
+}
