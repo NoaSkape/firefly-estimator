@@ -367,11 +367,11 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
               {/* Section Manager */}
               <div>
                 <label className="block text-sm font-medium mb-2">Template Sections</label>
-                <SectionManager
-                  templateId={postData.template}
-                  activeSections={activeSections}
-                  onSectionsChange={handleSectionsChange}
-                />
+                                 <DragDropSectionManager
+                   templateId={postData.template}
+                   activeSections={activeSections}
+                   onSectionsChange={handleSectionsChange}
+                 />
               </div>
               
               {/* Content */}
