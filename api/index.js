@@ -4651,3 +4651,4 @@ initializeAdminDatabase().catch(err => {
 })
 
 // Vercel Node.js functions expect (req, res). Call Express directly.
+export default (req, res) => app(req, res)
