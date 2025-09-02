@@ -5,8 +5,8 @@ import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { 
   ChartBarIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
   CurrencyDollarIcon,
   ShoppingCartIcon,
   UsersIcon,

@@ -26,8 +26,8 @@ import {
   ArrowDownIcon,
   EyeIcon,
   ClockIcon,
-  TrendingUpIcon,
-  TrendingDownIcon
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon
 } from '@heroicons/react/24/outline'
 import AdminLayout from '../../components/AdminLayout'
 
@@ -488,12 +488,12 @@ const AdminDashboard = () => {
                 }}
               />
             ) : (
-              <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-                <div className="text-center">
-                  <TrendingUpIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">No revenue data available</p>
+                              <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
+                  <div className="text-center">
+                    <ArrowTrendingUpIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-500">No revenue data available</p>
+                  </div>
                 </div>
-              </div>
             )}
           </div>
         </div>
