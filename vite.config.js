@@ -11,5 +11,24 @@ export default defineConfig({
         changeOrigin: true,
       },
     }
+  },
+  build: {
+    target: 'es2015',
+    minify: 'esbuild',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+          ui: ['@heroicons/react', 'tailwindcss'],
+          forms: ['react-hook-form', 'zod'],
+          stripe: ['@stripe/stripe-js', '@stripe/react-stripe-js']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom']
   }
 })

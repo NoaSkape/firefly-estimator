@@ -1,0 +1,24 @@
+User-agent: *
+Allow: /
+
+# Disallow admin and private areas
+Disallow: /admin/
+Disallow: /api/
+Disallow: /_debug/
+Disallow: /checkout/
+Disallow: /portal/
+Disallow: /backend/
+
+# Allow important pages
+Allow: /models/
+Allow: /blog/
+Allow: /about/
+Allow: /contact/
+Allow: /how/
+Allow: /financing/
+
+# Sitemap location
+Sitemap: https://fireflyestimator.com/sitemap.xml
+
+# Crawl delay for respectful crawling
+Crawl-delay: 1

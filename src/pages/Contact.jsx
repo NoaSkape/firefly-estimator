@@ -12,7 +12,62 @@ export default function Contact() {
   }
   return (
     <>
-      <Seo title="Contact Firefly Tiny Homes" description="Call (830) 241-2410 or email office@fireflytinyhomes.com. Get pre‑approved to secure your Champion Park Model." />
+      <Seo 
+        title="Contact Firefly Tiny Homes | Get Your Free Quote Today" 
+        description="Call (830) 241-2410 or email office@fireflytinyhomes.com. Get pre‑approved to secure your Champion Park Model. Located in Pipe Creek, Texas." 
+        keywords={[
+          'contact firefly tiny homes',
+          'tiny homes Texas contact',
+          'park model homes contact',
+          'firefly tiny homes phone',
+          'tiny homes quote Texas',
+          'manufactured homes contact Texas'
+        ]}
+        canonicalUrl="https://fireflyestimator.com/contact"
+        localBusinessJsonLd={{
+          "@context": "https://schema.org",
+          "@type": "LocalBusiness",
+          "name": "Firefly Tiny Homes",
+          "description": "Premium tiny home manufacturer in Pipe Creek, Texas",
+          "url": "https://fireflyestimator.com",
+          "telephone": "+1-830-241-2410",
+          "email": "office@fireflytinyhomes.com",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "6150 TX-16",
+            "addressLocality": "Pipe Creek",
+            "addressRegion": "TX",
+            "postalCode": "78063",
+            "addressCountry": "US"
+          },
+          "geo": {
+            "@type": "GeoCoordinates",
+            "latitude": 29.7283,
+            "longitude": -98.9400
+          },
+          "openingHours": "Mo-Fr 09:00-17:00",
+          "priceRange": "$$$",
+          "paymentAccepted": ["Cash", "Credit Card", "Financing"],
+          "areaServed": [
+            {
+              "@type": "City",
+              "name": "Austin"
+            },
+            {
+              "@type": "City",
+              "name": "Houston"
+            },
+            {
+              "@type": "City",
+              "name": "Dallas"
+            },
+            {
+              "@type": "City",
+              "name": "San Antonio"
+            }
+          ]
+        }}
+      />
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <header className="mb-8">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-100">Contact Us</h1>

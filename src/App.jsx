@@ -69,6 +69,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import { useGlobalAuthErrorInterceptor } from './components/AuthErrorHandler'
 import { useScrollToTop } from './hooks/useScrollToTop'
 import CustomizationMigration from './components/CustomizationMigration'
+import PerformanceMonitor from './components/PerformanceMonitor'
 
 import './utils/performance' // Initialize performance monitoring
 import './utils/accessibility' // Initialize accessibility features
@@ -235,6 +236,7 @@ function App() {
       <NetworkErrorHandler>
         <Router>
           <ScrollToTop />
+          <PerformanceMonitor />
           <div className="min-h-screen flex flex-col transition-colors duration-300" data-app-container>
             {/* Skip links for accessibility */}
             <a href="#main-content" className="skip-link sr-only-focusable">

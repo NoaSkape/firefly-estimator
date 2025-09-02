@@ -117,6 +117,52 @@ export default function ModelsPage() {
       <Seo
         title="Park Model Homes for Sale in Texas | Firefly Tiny Homes"
         description="Browse all Champion Park Model Homes. Filter by price, size, loft, and porches. Buy online with Firefly Tiny Homes."
+        keywords={[
+          'park model homes Texas',
+          'Champion park model homes',
+          'tiny homes for sale Texas',
+          'manufactured homes Texas',
+          'mobile homes Texas',
+          'firefly tiny homes models',
+          'custom tiny homes Texas'
+        ]}
+        canonicalUrl="https://fireflyestimator.com/models"
+        productJsonLd={{
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          "name": "Champion Park Model Homes Collection",
+          "description": "Complete collection of Champion Park Model Homes available for purchase in Texas",
+          "numberOfItems": models.length,
+          "itemListElement": models.map((model, index) => ({
+            "@type": "ListItem",
+            "position": index + 1,
+            "item": {
+              "@type": "Product",
+              "name": model.name,
+              "description": model.description,
+              "brand": {
+                "@type": "Brand",
+                "name": "Champion"
+              },
+              "manufacturer": {
+                "@type": "Organization",
+                "name": "Firefly Tiny Homes"
+              },
+              "model": model.subtitle,
+              "category": "Park Model Homes",
+              "offers": {
+                "@type": "Offer",
+                "price": model.basePrice,
+                "priceCurrency": "USD",
+                "availability": "https://schema.org/InStock",
+                "seller": {
+                  "@type": "Organization",
+                  "name": "Firefly Tiny Homes"
+                }
+              }
+            }
+          }))
+        }}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <header className="mb-6">
