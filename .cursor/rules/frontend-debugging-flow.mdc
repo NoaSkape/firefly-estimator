@@ -1,0 +1,126 @@
+# Frontend Debugging Flow Rules
+
+## Problem: UI Component Confusion
+**What Happened**: We spent hours debugging the Dashboard component when the user was actually looking at AdminOverview component with hardcoded "Loading..." text.
+
+## Rule 1: Always Verify What Component is Actually Rendering
+
+### Before ANY debugging, ALWAYS:
+
+1. **Ask for URL confirmation**: "What exact URL are you looking at?"
+2. **Check route mapping**: Verify which component that URL actually loads
+3. **Search for hardcoded text**: If seeing static text like "Loading...", search codebase for that exact string first
+4. **Component tree verification**: Use browser dev tools to confirm component hierarchy
+
+### Implementation:
+```javascript
+// Always start with:
+1. Ask: "What URL shows this issue?"
+2. grep -r "Loading..." src/ --include="*.jsx" 
+3. Check App.jsx routes for that exact path
+4. Verify component match before diving into API/data issues
+```
+
+## Rule 2: Progressive Debugging Strategy
+
+### Debug Order (MANDATORY):
+1. **UI Layer**: Confirm correct component, check for hardcoded content
+2. **Data Layer**: Verify API calls are reaching correct endpoints  
+3. **Backend Layer**: Check API logic and database queries
+4. **Infrastructure**: Check environment variables, database connections
+
+### Never Skip Layers:
+- ❌ Don't assume API issues if UI might be wrong component
+- ❌ Don't debug database if API endpoint isn't being called
+- ❌ Don't debug backend logic if frontend isn't calling correct route
+
+## Rule 3: Early Smoke Tests
+
+### Before deep debugging, run these:
+```bash
+# 1. Verify URL → Component mapping
+grep -A5 -B5 "path.*${URL_PATH}" src/App.jsx
+
+# 2. Find hardcoded content
+grep -r "${DISPLAYED_TEXT}" src/ --include="*.jsx"
+
+# 3. Check API calls in component
+grep -A10 -B5 "fetch.*api" src/pages/path/to/Component.jsx
+
+# 4. Verify API endpoint exists
+grep -r "${API_ENDPOINT}" api/ --include="*.js"
+```
+
+## Rule 4: Documentation Requirements
+
+### When debugging UI issues, ALWAYS document:
+1. **Exact URL being viewed**
+2. **Component that URL loads** 
+3. **Expected vs actual data source**
+4. **Route mapping verification**
+
+### Example Debug Log:
+```
+URL: /admin
+Route: /admin → AdminOverview component
+Issue: Shows "Loading..." instead of real data
+Root Cause: AdminOverview has hardcoded text, doesn't call API
+Fix: Replace hardcoded text with API call
+```
+
+## Rule 5: Tools and Verification
+
+### Required Tools for Frontend Debugging:
+1. **React DevTools**: Verify component tree
+2. **Network Tab**: Confirm API calls being made
+3. **Console**: Check for errors/failed requests
+4. **File Search**: Find exact text matches
+
+### Verification Checklist:
+- [ ] Confirmed URL and component match
+- [ ] Verified no hardcoded content
+- [ ] Checked API calls are being made
+- [ ] Confirmed API endpoints exist
+- [ ] Verified data flow end-to-end
+
+## Rule 6: Common Pitfalls to Avoid
+
+### Red Flags:
+- User says "the dashboard" but could be multiple dashboard-like pages
+- Assuming dynamic content when seeing static text
+- Debugging API when component might not call it
+- Not checking route mappings first
+
+### Green Flags:
+- URL exactly matches component being debugged
+- Component actually makes the API call you're fixing
+- Text content is definitely dynamic (uses variables)
+- Route mapping confirmed in App.jsx
+
+## Rule 7: Time Boxing
+
+### Maximum time spent before verification:
+- **5 minutes**: Basic UI component verification
+- **10 minutes**: API endpoint confirmation  
+- **15 minutes**: Before diving into complex database queries
+
+### If stuck longer than 15 minutes without identifying root cause:
+1. Step back and re-verify component mapping
+2. Ask user for browser dev tools screenshots
+3. Add debug logging to suspected API endpoints
+4. Test in isolated environment
+
+## Example Implementation
+
+```javascript
+// Start every debugging session with:
+const debugChecklist = {
+  step1: "Confirm URL: user seeing /admin or /admin/dashboard?",
+  step2: "Check route mapping: App.jsx shows /admin loads what component?", 
+  step3: "Search hardcoded text: grep 'Loading...' in that component",
+  step4: "Verify API calls: component actually calls dashboard API?",
+  step5: "If all above confirmed, then debug API/database"
+}
+```
+
+This systematic approach will prevent wasting hours on the wrong layer of the application.

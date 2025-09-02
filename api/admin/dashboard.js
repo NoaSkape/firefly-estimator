@@ -9,10 +9,15 @@ import { BUILDS_COLLECTION } from '../../lib/builds.js'
 import { COLLECTION as MODELS_COLLECTION } from '../../lib/model-utils.js'
 import { createClerkClient } from '@clerk/backend'
 
-// Initialize Clerk client
-const clerkClient = createClerkClient({ 
-  secretKey: process.env.CLERK_SECRET_KEY 
-})
+// Initialize Clerk client with error handling
+let clerkClient
+try {
+  clerkClient = createClerkClient({ 
+    secretKey: process.env.CLERK_SECRET_KEY 
+  })
+} catch (error) {
+  console.error('Failed to initialize Clerk client:', error.message)
+}
 
 const router = express.Router()
 
@@ -54,11 +59,14 @@ router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async 
     let ordersCollection, buildsCollection, modelsCollection, db
     try {
       db = await getDb()
+      if (!db) {
+        throw new Error('Database connection failed')
+      }
       ordersCollection = db.collection(ORDERS_COLLECTION)
       buildsCollection = db.collection(BUILDS_COLLECTION) 
       modelsCollection = db.collection(MODELS_COLLECTION)
     } catch (dbError) {
-      console.error('Database connection error:', dbError)
+      console.error('Database connection error:', dbError.message || dbError)
       // Return basic response if database fails
       return res.json({
         success: true,
@@ -71,19 +79,13 @@ router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async 
           },
           trends: {
             dailyRevenue: [],
-            orderStatus: { confirmed: 0, production: 0, ready: 0, delivered: 0 },
-            customerSources: { website: 0, referral: 0, advertising: 0 },
-            topModels: []
+            orderStatus: []
           },
-          recentActivity: [],
-          summary: {
-            previousPeriod: {
-              totalUsers: 0,
-              activeBuilds: 0,
-              totalOrders: 0,
-              totalRevenue: 0
-            }
-          }
+          recentActivity: {
+            orders: [],
+            builds: []
+          },
+          topModels: []
         }
       })
     }
@@ -92,16 +94,19 @@ router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async 
     let clerkUsers = []
     let totalClerkUsers = 0
     try {
-      const debug = true // Enable debugging temporarily
+      if (!clerkClient) {
+        throw new Error('Clerk client not initialized')
+      }
       const clerkResponse = await clerkClient.users.getUserList({
         limit: 1000 // Get up to 1000 users
       })
       clerkUsers = clerkResponse.data || []
       totalClerkUsers = clerkResponse.totalCount || clerkResponse.total_count || 0
-      
-      if (debug) console.log('[DEBUG_ADMIN] Clerk users found:', totalClerkUsers)
+      console.log('[DEBUG] Clerk users found:', totalClerkUsers)
     } catch (clerkError) {
-      console.warn('Could not fetch Clerk users:', clerkError.message)
+      console.error('Clerk API error:', clerkError.message || clerkError)
+      // Continue with 0 users if Clerk fails
+      totalClerkUsers = 0
     }
 
     // Calculate total users (just Clerk for now)
@@ -110,23 +115,13 @@ router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async 
     // Get active builds from the Builds collection with error handling
     let activeBuilds = 0
     try {
-      const debug = true // Enable debugging temporarily
-      
-      // Debug: Check total documents in collection
-      const totalBuilds = await buildsCollection.countDocuments({})
-      if (debug) console.log('[DEBUG_ADMIN] Total builds in collection:', totalBuilds)
-      
-      // Debug: Check what statuses exist
-      const statusTypes = await buildsCollection.distinct('status')
-      if (debug) console.log('[DEBUG_ADMIN] Status types found:', statusTypes)
-      
       activeBuilds = await buildsCollection.countDocuments({
         status: { $in: ['DRAFT', 'REVIEW', 'CONFIRMED'] }
       })
-      
-      if (debug) console.log('[DEBUG_ADMIN] Active builds count:', activeBuilds)
+      console.log('[DEBUG] Active builds found:', activeBuilds)
     } catch (buildsError) {
-      console.warn('Could not fetch active builds:', buildsError.message)
+      console.error('Builds query error:', buildsError.message || buildsError)
+      activeBuilds = 0
     }
 
     // Get total orders (confirmed and delivered orders) with error handling
@@ -265,21 +260,21 @@ router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async 
       success: true,
       data: {
         metrics: {
-          totalUsers,
-          activeBuilds,
-          totalOrders,
-          totalRevenue,
-          revenueChange
+          totalUsers: totalUsers || 0,
+          activeBuilds: activeBuilds || 0,
+          totalOrders: totalOrders || 0,
+          totalRevenue: totalRevenue || 0,
+          revenueChange: revenueChange || 0
         },
         trends: {
-          dailyRevenue,
-          orderStatus: orderStatusDistribution
+          dailyRevenue: dailyRevenue || [],
+          orderStatus: orderStatusDistribution || []
         },
         recentActivity: {
-          orders: recentOrders,
-          builds: recentBuilds
+          orders: recentOrders || [],
+          builds: recentBuilds || []
         },
-        topModels: formattedTopModels
+        topModels: formattedTopModels || []
       }
     })
   } catch (error) {
