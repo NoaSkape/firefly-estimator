@@ -137,7 +137,7 @@ export default function QuickContentCreator({
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
         {/* Header */}
         <div className="text-center mb-8">
-          <LightningBoltIcon className="w-12 h-12 mx-auto mb-4 text-blue-600" />
+                          <BoltIcon className="w-12 h-12 mx-auto mb-4 text-blue-600" />
           <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             Quick Content Creator
           </h3>
