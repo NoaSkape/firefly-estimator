@@ -36,27 +36,7 @@ const app = express()
 
 // Security headers and middleware
 app.disable('x-powered-by')
-
-// Enhanced body parsing with error handling
-app.use(express.json({ 
-  limit: '2mb',
-  verify: (req, res, buf) => {
-    try {
-      req.rawBody = buf
-    } catch (error) {
-      console.error('[DEBUG_ADMIN] Body parsing error:', error)
-    }
-  }
-}))
-
-// Error handling for body parsing
-app.use((error, req, res, next) => {
-  if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
-    console.error('[DEBUG_ADMIN] JSON parsing error:', error)
-    return res.status(400).json({ error: 'Invalid JSON in request body' })
-  }
-  next()
-})
+app.use(express.json({ limit: '2mb' }))
 
 // Security headers middleware
 app.use((req, res, next) => {
@@ -111,6 +91,306 @@ const authRateLimiter = createRateLimiter({
 // Apply rate limiting to all routes
 app.use('/api/', apiRateLimiter)
 app.use('/api/auth/', authRateLimiter)
+
+// ===== AI Content Generation Routes =====
+
+// Diagnostic endpoint for AI route debugging
+app.all('/ai/test', (req, res) => {
+  res.json({
+    method: req.method,
+    path: req.path,
+    url: req.url,
+    headers: req.headers,
+    timestamp: new Date().toISOString(),
+    message: 'AI route test endpoint working'
+  })
+})
+
+// AI Content Generation Endpoint with comprehensive error handling
+app.options('/ai/generate-content', (req, res) => {
+  applyCors(req, res, 'POST, OPTIONS')
+  res.status(200).end()
+})
+
+app.post('/ai/generate-content', async (req, res) => {
+  try {
+    // Apply CORS headers for this endpoint
+    applyCors(req, res, 'POST, OPTIONS')
+
+    const debug = process.env.DEBUG_ADMIN === 'true'
+    console.log('[DEBUG_ADMIN] AI endpoint hit:', {
+      method: req.method,
+      url: req.url,
+      originalUrl: req.originalUrl,
+      path: req.path,
+      headers: req.headers,
+      body: req.body,
+      query: req.query
+    })
+
+    // Validate request body
+    if (!req.body || typeof req.body !== 'object') {
+      console.error('[DEBUG_ADMIN] Invalid request body:', req.body)
+      return res.status(400).json({ error: 'Invalid request body' })
+    }
+
+    const { topic, template, sections, type = 'full' } = req.body
+
+    if (!topic) {
+      return res.status(400).json({ error: 'Topic is required' })
+    }
+
+    // Check if API key is configured
+    const apiKey = process.env.VITE_AI_API_KEY
+    const apiUrl = process.env.VITE_AI_API_URL || 'https://api.anthropic.com/v1'
+    const model = process.env.VITE_AI_MODEL || 'claude-3-5-sonnet-20241022'
+
+    if (!apiKey) {
+      return res.status(500).json({ error: 'AI API key not configured' })
+    }
+
+    let prompt, maxTokens
+
+    if (type === 'section') {
+      // Generate section-specific content
+      const sectionInfo = getSectionInfo(sections[0])
+      const templateInfo = getTemplateInfo(template)
+
+      prompt = `
+Write a ${sectionInfo.label} section for a blog post about: "${topic}"
+
+Template Style: ${templateInfo.name}
+Section Purpose: ${sectionInfo.description}
+
+Requirements:
+- Write in a conversational, expert tone
+- Include specific examples and actionable tips
+- Optimize for SEO with relevant keywords
+- Include local Texas references when relevant
+- Make it engaging for tiny home enthusiasts
+- Word count: 150-300 words for this section
+- Use proper HTML formatting (paragraphs, lists, etc.)
+
+Please provide just the section content in HTML format, no additional formatting needed.
+      `.trim()
+
+      maxTokens = 1000
+    } else {
+      // Generate full blog post
+      const templateInfo = getTemplateInfo(template)
+
+      prompt = `
+Create a high-quality blog post about: "${topic}"
+
+Template: ${templateInfo.name}
+Style: ${templateInfo.description}
+
+Required sections: ${sections.join(', ')}
+
+Requirements:
+- Write in a conversational, expert tone
+- Include specific examples and actionable tips
+- Optimize for SEO with relevant keywords
+- Include local Texas references when relevant
+- Make it engaging for tiny home enthusiasts
+- Word count: 800-1200 words
+- Include a compelling call-to-action
+
+Please provide the content in this format:
+TITLE: [Engaging title]
+META_DESCRIPTION: [SEO-optimized description]
+CONTENT: [Full blog post content with HTML formatting]
+TAGS: [Relevant tags separated by commas]
+CATEGORY: [Appropriate category]
+SLUG: [URL-friendly slug]
+      `.trim()
+
+      maxTokens = 2000
+    }
+
+    const systemPrompt = `You are an expert content writer specializing in tiny homes, park model homes, and sustainable living.
+
+Your expertise includes:
+- Tiny home design and construction
+- Park model home regulations and benefits
+- Sustainable living practices
+- Texas-specific housing information
+- Real estate and investment insights
+
+Write content that is:
+- Informative and educational
+- Engaging and conversational
+- SEO-optimized
+- Actionable with practical tips
+- Authentic and trustworthy
+
+Always include specific examples, real scenarios, and actionable advice. Make content that helps readers make informed decisions about tiny home living.`
+
+    // Check if using Claude or OpenAI
+    const isClaude = apiUrl.includes('anthropic.com')
+
+    let response
+    if (isClaude) {
+      // Claude API format
+      response = await fetch(`${apiUrl}/messages`, {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: model,
+          max_tokens: maxTokens,
+          messages: [
+            {
+              role: 'user',
+              content: `${systemPrompt}\n\n${prompt}`
+            }
+          ]
+        })
+      })
+    } else {
+      // OpenAI API format
+      response = await fetch(`${apiUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          max_tokens: maxTokens,
+          temperature: 0.7
+        })
+      })
+    }
+
+    if (!response.ok) {
+      throw new Error(`AI API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+
+    if (type === 'section') {
+      // Parse section response
+      const content = data.content?.[0]?.text || ''
+      res.json({
+        sectionKey: sections[0],
+        content: content,
+        aiGenerated: true,
+        generatedAt: new Date().toISOString()
+      })
+    } else {
+      // Parse full blog post response
+      const content = data.content?.[0]?.text || data.choices?.[0]?.message?.content || ''
+      const parsedContent = parseContent(content, topic, template)
+      res.json(parsedContent)
+    }
+
+  } catch (error) {
+    console.error('AI content generation failed:', error)
+    res.status(500).json({ error: 'AI content generation failed', details: error.message })
+  }
+})
+
+// Helper functions for AI content generation
+function getSectionInfo(sectionKey) {
+  const sections = {
+    'introduction': {
+      label: 'Introduction',
+      description: 'Hook readers with an engaging opening that sets the stage for the topic'
+    },
+    'keyBenefits': {
+      label: 'Key Benefits',
+      description: 'List and explain the main advantages and positive aspects'
+    },
+    'personalStory': {
+      label: 'Personal Story',
+      description: 'Share a relevant personal experience or customer story'
+    },
+    'proTips': {
+      label: 'Pro Tips',
+      description: 'Provide expert advice and actionable tips'
+    },
+    'comparison': {
+      label: 'Comparison',
+      description: 'Compare different options, approaches, or perspectives'
+    },
+    'conclusion': {
+      label: 'Conclusion',
+      description: 'Wrap up with a compelling call-to-action and summary'
+    }
+  }
+  return sections[sectionKey] || sections['introduction']
+}
+
+function getTemplateInfo(template) {
+  const templates = {
+    'story': {
+      name: 'Story-Driven Template',
+      description: 'Narrative-focused with personal experiences and customer stories'
+    },
+    'educational': {
+      name: 'Educational Template',
+      description: 'Informative and instructional content with clear explanations'
+    },
+    'inspiration': {
+      name: 'Inspirational Template',
+      description: 'Motivational content that inspires action and dreams'
+    }
+  }
+  return templates[template] || templates['story']
+}
+
+function parseContent(content, topic, template) {
+  try {
+    // Extract structured content from AI response
+    const titleMatch = content.match(/TITLE:\s*(.+)/i)
+    const metaMatch = content.match(/META_DESCRIPTION:\s*(.+)/i)
+    const contentMatch = content.match(/CONTENT:\s*([\s\S]*?)(?=TAGS:|CATEGORY:|SLUG:|$)/i)
+    const tagsMatch = content.match(/TAGS:\s*(.+)/i)
+    const categoryMatch = content.match(/CATEGORY:\s*(.+)/i)
+    const slugMatch = content.match(/SLUG:\s*(.+)/i)
+
+    return {
+      title: titleMatch?.[1]?.trim() || topic,
+      metaDescription: metaMatch?.[1]?.trim() || `Discover everything about ${topic.toLowerCase()}`,
+      content: contentMatch?.[1]?.trim() || content,
+      tags: tagsMatch?.[1]?.split(',').map(tag => tag.trim()) || ['tiny homes', 'park model homes'],
+      category: categoryMatch?.[1]?.trim() || 'tiny home living',
+      slug: slugMatch?.[1]?.trim() || generateSlug(topic),
+      template: template,
+      status: 'draft',
+      aiGenerated: true,
+      generatedAt: new Date().toISOString()
+    }
+  } catch (error) {
+    console.error('Failed to parse AI content:', error)
+    throw new Error('Failed to parse AI-generated content')
+  }
+}
+
+function generateSlug(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim('-')
+}
+
+// ===== End AI Routes =====
 
 // Stripe
 const stripeSecret = process.env.STRIPE_SECRET_KEY
@@ -229,13 +509,10 @@ app.use((req, _res, next) => {
   try {
     const host = req.headers.host || 'localhost'
     const url = new URL(req.url, `http://${host}`)
-    const pathname = url.pathname || ''
     const forwarded = req.headers['x-forwarded-uri'] || req.headers['x-original-uri']
-
-    // Only honor rewrites that target /api/index; never strip the /api prefix for other routes
-    if (typeof forwarded === 'string' && forwarded.startsWith('/api/index')) {
+    if (typeof forwarded === 'string' && forwarded.startsWith('/')) {
       req.url = forwarded
-    } else if ((pathname === '/api/index' || pathname === '/api/index/') && url.searchParams.has('path')) {
+    } else if (url.searchParams.has('path')) {
       const p = url.searchParams.get('path')
       if (p) req.url = p.startsWith('/') ? p : `/${p}`
     }
@@ -251,328 +528,11 @@ app.use((req, res, next) => {
   next()
 })
 
-// ===== AI Content Generation Routes (defined BEFORE path normalization) =====
-
-// Diagnostic endpoint for AI route debugging
-app.all('/ai/test', (req, res) => {
-  res.json({
-    method: req.method,
-    path: req.path,
-    url: req.url,
-    headers: req.headers,
-    timestamp: new Date().toISOString(),
-    message: 'AI route test endpoint working'
-  })
-})
-
-// AI Content Generation Endpoint with comprehensive error handling
-app.options('/ai/generate-content', (req, res) => {
-  applyCors(req, res, 'POST, OPTIONS')
-  res.status(200).end()
-})
-
-app.post('/ai/generate-content', async (req, res) => {
-  try {
-    // Apply CORS headers for this endpoint
-    applyCors(req, res, 'POST, OPTIONS')
-    
-    const debug = process.env.DEBUG_ADMIN === 'true'
-    console.log('[DEBUG_ADMIN] AI endpoint hit:', {
-      method: req.method,
-      url: req.url,
-      originalUrl: req.originalUrl,
-      path: req.path,
-      headers: req.headers,
-      body: req.body,
-      query: req.query
-    })
-    
-    // Validate request body
-    if (!req.body || typeof req.body !== 'object') {
-      console.error('[DEBUG_ADMIN] Invalid request body:', req.body)
-      return res.status(400).json({ error: 'Invalid request body' })
-    }
-    
-    const { topic, template, sections, type = 'full' } = req.body
-    
-    if (!topic) {
-      return res.status(400).json({ error: 'Topic is required' })
-    }
-
-    // Check if API key is configured
-    const apiKey = process.env.VITE_AI_API_KEY
-    const apiUrl = process.env.VITE_AI_API_URL || 'https://api.anthropic.com/v1'
-    const model = process.env.VITE_AI_MODEL || 'claude-3-5-sonnet-20241022'
-    
-    if (!apiKey) {
-      return res.status(500).json({ error: 'AI API key not configured' })
-    }
-
-    let prompt, maxTokens
-    
-    if (type === 'section') {
-      // Generate section-specific content
-      const sectionInfo = getSectionInfo(sections[0])
-      const templateInfo = getTemplateInfo(template)
-      
-      prompt = `
-Write a ${sectionInfo.label} section for a blog post about: "${topic}"
-
-Template Style: ${templateInfo.name}
-Section Purpose: ${sectionInfo.description}
-
-Requirements:
-- Write in a conversational, expert tone
-- Include specific examples and actionable tips
-- Optimize for SEO with relevant keywords
-- Include local Texas references when relevant
-- Make it engaging for tiny home enthusiasts
-- Word count: 150-300 words for this section
-- Use proper HTML formatting (paragraphs, lists, etc.)
-
-Please provide just the section content in HTML format, no additional formatting needed.
-      `.trim()
-      
-      maxTokens = 1000
-    } else {
-      // Generate full blog post
-      const templateInfo = getTemplateInfo(template)
-      
-      prompt = `
-Create a high-quality blog post about: "${topic}"
-
-Template: ${templateInfo.name}
-Style: ${templateInfo.description}
-
-Required sections: ${sections.join(', ')}
-
-Requirements:
-- Write in a conversational, expert tone
-- Include specific examples and actionable tips
-- Optimize for SEO with relevant keywords
-- Include local Texas references when relevant
-- Make it engaging for tiny home enthusiasts
-- Word count: 800-1200 words
-- Include a compelling call-to-action
-
-Please provide the content in this format:
-TITLE: [Engaging title]
-META_DESCRIPTION: [SEO-optimized description]
-CONTENT: [Full blog post content with HTML formatting]
-TAGS: [Relevant tags separated by commas]
-CATEGORY: [Appropriate category]
-SLUG: [URL-friendly slug]
-      `.trim()
-      
-      maxTokens = 2000
-    }
-
-    const systemPrompt = `You are an expert content writer specializing in tiny homes, park model homes, and sustainable living. 
-
-Your expertise includes:
-- Tiny home design and construction
-- Park model home regulations and benefits
-- Sustainable living practices
-- Texas-specific housing information
-- Real estate and investment insights
-
-Write content that is:
-- Informative and educational
-- Engaging and conversational
-- SEO-optimized
-- Actionable with practical tips
-- Authentic and trustworthy
-
-Always include specific examples, real scenarios, and actionable advice. Make content that helps readers make informed decisions about tiny home living.`
-
-    // Check if using Claude or OpenAI
-    const isClaude = apiUrl.includes('anthropic.com')
-    
-    let response
-    if (isClaude) {
-      // Claude API format
-      response = await fetch(`${apiUrl}/messages`, {
-        method: 'POST',
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: model,
-          max_tokens: maxTokens,
-          messages: [
-            {
-              role: 'user',
-              content: `${systemPrompt}\n\n${prompt}`
-            }
-          ]
-        })
-      })
-    } else {
-      // OpenAI API format
-      response = await fetch(`${apiUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: [
-            {
-              role: 'system',
-              content: systemPrompt
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          max_tokens: maxTokens,
-          temperature: 0.7
-        })
-      })
-    }
-
-    if (!response.ok) {
-      throw new Error(`AI API error: ${response.status}`)
-    }
-
-    const data = await response.json()
-    
-    if (type === 'section') {
-      // Parse section response
-      const content = data.content?.[0]?.text || ''
-      res.json({
-        sectionKey: sections[0],
-        content: content,
-        aiGenerated: true,
-        generatedAt: new Date().toISOString()
-      })
-    } else {
-      // Parse full blog post response
-      const content = data.content?.[0]?.text || data.choices?.[0]?.message?.content || ''
-      const parsedContent = parseContent(content, topic, template)
-      res.json(parsedContent)
-    }
-
-  } catch (error) {
-    console.error('AI content generation failed:', error)
-    res.status(500).json({ error: 'AI content generation failed', details: error.message })
-  }
-})
-
-// Helper functions for AI content generation
-function getSectionInfo(sectionKey) {
-  const sections = {
-    'introduction': {
-      label: 'Introduction',
-      description: 'Hook readers with an engaging opening that sets the stage for the topic'
-    },
-    'keyBenefits': {
-      label: 'Key Benefits',
-      description: 'List and explain the main advantages and positive aspects'
-    },
-    'personalStory': {
-      label: 'Personal Story',
-      description: 'Share a relevant personal experience or customer story'
-    },
-    'proTips': {
-      label: 'Pro Tips',
-      description: 'Provide expert advice and actionable tips'
-    },
-    'comparison': {
-      label: 'Comparison',
-      description: 'Compare different options, approaches, or perspectives'
-    },
-    'conclusion': {
-      label: 'Conclusion',
-      description: 'Wrap up with a compelling call-to-action and summary'
-    }
-  }
-  return sections[sectionKey] || sections['introduction']
-}
-
-function getTemplateInfo(template) {
-  const templates = {
-    'story': {
-      name: 'Story-Driven Template',
-      description: 'Narrative-focused with personal experiences and customer stories'
-    },
-    'educational': {
-      name: 'Educational Template',
-      description: 'Informative and instructional content with clear explanations'
-    },
-    'inspiration': {
-      name: 'Inspirational Template',
-      description: 'Motivational content that inspires action and dreams'
-    }
-  }
-  return templates[template] || templates['story']
-}
-
-function parseContent(content, topic, template) {
-  try {
-    // Extract structured content from AI response
-    const titleMatch = content.match(/TITLE:\s*(.+)/i)
-    const metaMatch = content.match(/META_DESCRIPTION:\s*(.+)/i)
-    const contentMatch = content.match(/CONTENT:\s*([\s\S]*?)(?=TAGS:|CATEGORY:|SLUG:|$)/i)
-    const tagsMatch = content.match(/TAGS:\s*(.+)/i)
-    const categoryMatch = content.match(/CATEGORY:\s*(.+)/i)
-    const slugMatch = content.match(/SLUG:\s*(.+)/i)
-
-    return {
-      title: titleMatch?.[1]?.trim() || topic,
-      metaDescription: metaMatch?.[1]?.trim() || `Discover everything about ${topic.toLowerCase()}`,
-      content: contentMatch?.[1]?.trim() || content,
-      tags: tagsMatch?.[1]?.split(',').map(tag => tag.trim()) || ['tiny homes', 'park model homes'],
-      category: categoryMatch?.[1]?.trim() || 'tiny home living',
-      slug: slugMatch?.[1]?.trim() || generateSlug(topic),
-      template: template,
-      status: 'draft',
-      aiGenerated: true,
-      generatedAt: new Date().toISOString()
-    }
-  } catch (error) {
-    console.error('Failed to parse AI content:', error)
-    throw new Error('Failed to parse AI-generated content')
-  }
-}
-
-function generateSlug(text) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .trim('-')
-}
-
-// ===== End AI Routes =====
-
 // Handle explicit rewrite target /api/index?path=/...
 app.use('/api/index', (req, _res, next) => {
   const p = (req.query && (req.query.path || req.query.p)) || null
   if (p) {
-    const normalized = String(p).startsWith('/') ? String(p) : `/${String(p)}`
-    
-    console.log('[DEBUG_ADMIN] Path normalization:', {
-      originalUrl: req.originalUrl,
-      query: req.query,
-      normalized,
-      beforeUrl: req.url
-    })
-    
-    // Special handling for AI routes - keep them as /ai/* not /api/ai/*
-    if (normalized.startsWith('/ai/')) {
-      req.url = normalized
-      console.log('[DEBUG_ADMIN] AI route detected, setting url to:', req.url)
-    } else {
-      // Always preserve /api prefix so downstream mounts (e.g., /api/admin) match
-      req.url = `/api${normalized}`
-      console.log('[DEBUG_ADMIN] API route detected, setting url to:', req.url)
-    }
+    req.url = String(p).startsWith('/') ? String(p) : `/${String(p)}`
   }
   next()
 })
@@ -3104,5397 +3064,1912 @@ app.get(['/api/admin/blog/:id', '/admin/blog/:id'], async (req, res) => {
   }
 })
 
-// ===== END AI Routes =====
-
-// ===== Builds (new) =====
-// Create build (from model or migrated guest draft)
-app.post(['/api/builds', '/builds'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  await ensureBuildIndexes()
-  try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const doc = await createBuild({
-      userId: auth.userId,
-      modelSlug: String(body.modelSlug || ''),
-      modelName: String(body.modelName || ''),
-      basePrice: Number(body.basePrice || 0),
-      selections: body.selections || {},
-      financing: body.financing || {},
-      buyerInfo: body.buyerInfo || {},
-    })
-    return res.status(200).json({ ok: true, buildId: String(doc._id) })
-  } catch (err) {
-    return res.status(400).json({ error: 'invalid_build', message: String(err?.message || err) })
-  }
-})
-
-// List builds for current user
-app.get(['/api/builds', '/builds'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  await ensureBuildIndexes()
-  const list = await listBuildsForUser(auth.userId)
-  return res.status(200).json(list)
-})
-
-// Get single build
-app.get(['/api/builds/:id', '/builds/:id'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  const b = await getBuildById(req.params.id)
-  if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
-  return res.status(200).json(b)
-})
-
-// Update build
-app.patch(['/api/builds/:id', '/builds/:id'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  const b = await getBuildById(req.params.id)
-  if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
-  const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-  const updated = await updateBuild(req.params.id, body)
-  return res.status(200).json(updated)
-})
-
-// Duplicate build
-app.post(['/api/builds/:id/duplicate', '/builds/:id/duplicate'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  const copy = await duplicateBuild(req.params.id, auth.userId)
-  if (!copy) return res.status(404).json({ error: 'not_found' })
-  return res.status(200).json({ ok: true, buildId: String(copy._id) })
-})
-
-// Rename build
-app.post(['/api/builds/:id/rename', '/builds/:id/rename'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  try {
-    const { id } = req.params
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { name } = body
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return res.status(400).json({ error: 'invalid_name', message: 'Build name is required' })
-    }
-    const doc = await renameBuild(id, auth.userId, name.trim())
-    if (!doc) return res.status(404).json({ error: 'build_not_found' })
-    return res.status(200).json({ ok: true, build: doc })
-  } catch (err) {
-    return res.status(400).json({ error: 'rename_failed', message: String(err?.message || err) })
-  }
-})
-
-// Delete build
-app.delete(['/api/builds/:id', '/builds/:id'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  const result = await deleteBuild(req.params.id, auth.userId)
-  return res.status(200).json({ ok: true, deleted: result?.deletedCount || 0 })
-})
-
-// Advance/retreat checkout step with minimal validation
-app.post(['/api/builds/:id/checkout-step', '/builds/:id/checkout-step'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  const b = await getBuildById(req.params.id)
-  if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
-  const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-  const target = Number(body?.step || b.step)
-  if (target < 1 || target > 8) return res.status(400).json({ error: 'invalid_step' })
-  
-  // Validation logic - only check requirements for steps that actually need them
-  // Step 4 is where users enter buyer info, so don't require it to advance TO step 4
-  if (target >= 5) {
-    const bi = b?.buyerInfo || {}
-    const ok = bi.firstName && bi.lastName && bi.email && bi.address
-    if (!ok) return res.status(400).json({ error: 'incomplete_buyer' })
-  }
-  
-  // Only check financing for steps after payment method step (step 7+)
-  if (target >= 7 && !(b?.financing?.method)) {
-    return res.status(400).json({ error: 'missing_payment_method' })
-  }
-  
-  // Only check contract for confirmation step (step 8) - users need to reach step 7 to sign
-  if (target >= 8) {
-    const c = b?.contract || {}
-    if (c?.status !== 'signed') return res.status(400).json({ error: 'contract_not_signed' })
-  }
-  
-  const updated = await updateBuild(req.params.id, { step: target })
-  return res.status(200).json(updated)
-})
-
-// ===== NEW CONTRACT API ENDPOINTS =====
-
-// Create contract submission (for new contract page)
-app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
-  try {
-    const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) return
-
-    console.log('[CONTRACT_CREATE] Request received:', { 
-      method: req.method, 
-      hasBody: !!req.body, 
-      bodyKeys: req.body ? Object.keys(req.body) : [],
-      body: req.body 
-    })
-
-    const { buildId } = req.body
-    if (!buildId) {
-          console.log('[CONTRACT_CREATE] Missing buildId in request body')
-    return res.status(400).json({ error: 'Build ID is required' })
-  }
-
-  console.log('[CONTRACT_CREATE] Looking up build:', buildId)
-  const build = await getBuildById(buildId)
-  console.log('[CONTRACT_CREATE] Build lookup result:', { 
-    found: !!build, 
-    buildId: build?._id, 
-    userId: build?.userId, 
-    authUserId: auth.userId,
-    match: build?.userId === auth.userId 
-  })
-  
-  if (!build || build.userId !== auth.userId) {
-    console.log('[CONTRACT_CREATE] Build not found or access denied')
-    return res.status(404).json({ error: 'Build not found' })
-  }
-
-    const settings = await getOrgSettings()
-    
-    // Define all required templates
-    const templates = [
-      {
-        name: 'purchase_agreement',
-        envKey: 'DOCUSEAL_PURCHASE_TEMPLATE_ID',
-        title: 'Purchase Agreement',
-        description: 'Primary purchase contract with all terms and conditions'
-      }
-    ]
-
-    // For now, only require the purchase agreement template
-    // TODO: Add other templates once they're configured in DocuSeal
-    if (!process.env.DOCUSEAL_PURCHASE_TEMPLATE_ID) {
-      console.log('[CONTRACT_CREATE] Missing purchase agreement template configuration')
-      return res.status(500).json({ 
-        error: 'DocuSeal purchase agreement template not configured',
-        missing: ['DOCUSEAL_PURCHASE_TEMPLATE_ID']
-      })
-    }
-
-    // Optional: Add other templates if they're configured
-    const optionalTemplates = [
-      {
-        name: 'payment_terms',
-        envKey: 'DOCUSEAL_PAYMENT_TERMS_TEMPLATE_ID',
-        title: 'Payment Terms Agreement',
-        description: 'Payment method, deposit, and balance terms'
+// Helper function to get default content for pages
+function getDefaultPageContent(pageId) {
+  const defaults = {
+    'about': {
+      hero: {
+        title: 'About Firefly Tiny Homes',
+        subtitle: 'Texas\'s online dealership for Champion Park Model Homes—built for transparency, speed, and savings.'
       },
-      {
-        name: 'delivery_agreement',
-        envKey: 'DOCUSEAL_DELIVERY_TEMPLATE_ID',
-        title: 'Delivery Agreement',
-        description: 'Delivery schedule, site requirements, and setup'
+      story: {
+        title: 'Our Story',
+        content: 'Firefly Tiny Homes was founded to make park model home buying simple and modern. Instead of a large sales lot with high overhead, we built a streamlined online experience that connects you directly with the factory. The result: faster timelines, transparent pricing, and real savings.'
       },
-      {
-        name: 'warranty_information',
-        envKey: 'DOCUSEAL_WARRANTY_TEMPLATE_ID',
-        title: 'Warranty Information',
-        description: 'Warranty terms, coverage, and service information'
+      benefits: {
+        title: 'Why Online Saves You Money',
+        content: 'Lower overhead vs traditional dealerships, no hidden lot fees or surprise markups, factory-direct scheduling and communication, digital contracts and payments for a faster close.'
       },
-      {
-        name: 'legal_disclosures',
-        envKey: 'DOCUSEAL_LEGAL_DISCLOSURES_TEMPLATE_ID',
-        title: 'Legal Disclosures',
-        description: 'Required consumer rights and legal disclosures'
+      comparison: {
+        title: 'Traditional Dealer vs Firefly',
+        content: 'Traditional: high lot overhead, slow quotes, salesperson pressure. Firefly: transparent pricing, online design, expert help when you want it. Traditional: paper contracts and weeks of back‑and‑forth. Firefly: digital e‑sign + payment—secure and convenient.'
+      },
+      location: {
+        title: 'Proudly Serving the Texas Hill Country',
+        content: 'Based in Pipe Creek, our team supports customers across Texas—from design through delivery and setup. Visit our FAQ, explore models, or contact us for help.'
       }
-    ]
-
-    // Add optional templates if they're configured
-    for (const template of optionalTemplates) {
-      if (process.env[template.envKey]) {
-        templates.push(template)
+    },
+    'about-manufacturer': {
+      hero: {
+        title: 'About the Manufacturer: Champion Homes — Athens Park Model Homes',
+        subtitle: 'Park model tiny homes built with precision in modern, climate-controlled factories—certified, comfortable, and made to last.'
+      },
+      overview: {
+        title: 'Who Builds Our Park Model Tiny Homes?',
+        content: 'Champion Homes is one of America\'s most established factory-home builders, and their Athens Park Model Homes division focuses specifically on park model RVs (often called "park model tiny homes"). Athens Park blends residential-grade materials, tight factory quality controls, and modern design to deliver small homes that live big—year after year.'
+      },
+      quality: {
+        title: 'Inside the Factory: How Athens Park Models Are Built',
+        content: 'Athens Park models are assembled on steel chassis in a controlled production line. Walls, floors, and roofs are framed square with jigs, fastened to spec, insulated, sheathed, and finished to residential standards. Building indoors keeps materials dry and allows stringent quality checks at each station. Plumbing and electrical are tested before the home leaves the plant.'
+      },
+      certifications: {
+        title: 'Certified for Safety, Placement, and Peace of Mind',
+        content: 'Park models from Athens Park are built to the ANSI A119.5 park model RV standard—a nationally recognized safety and construction code for this category. Translation: electrical, plumbing, fire safety, egress, and structure are held to a clear benchmark.'
+      },
+      benefits: {
+        title: 'Real-World Benefits You\'ll Feel',
+        content: 'Certifications + labeling make it easier to place your unit in compliant locations and arrange financing/insurance. Full-size appliances, real bathrooms, and smart storage mean no daily compromises. Factory checks at every stage + a manufacturer warranty give long-term peace of mind.'
+      },
+      partnership: {
+        title: 'Why We Partner with Champion',
+        content: 'We chose Champion\'s Athens Park division because their process quality, materials, and design options consistently deliver the best value to our customers. Firefly\'s role is to guide your selection, lock your build spec, and coordinate documents, payment, and delivery.'
       }
-    }
-
-    // Build prefill data from build
-    const prefill = buildContractPrefill(build, settings)
-
-    // Create DocuSeal submissions for all templates
-    const buyerInfo = build.buyerInfo || {}
-    const submitters = [{
-      name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
-      email: buyerInfo.email || '',
-      role: 'buyer1'
-    }]
-    
-    const submissions = []
-    
-    for (const template of templates) {
-      const templateId = Number(process.env[template.envKey])
-      console.log(`[CONTRACT_CREATE] Creating submission for ${template.name}:`, {
-        templateId,
-        templateName: template.title
-      })
-      
-      try {
-        const submission = await createSubmission({
-          templateId,
-          prefill,
-          submitters,
-          sendEmail: false, // Don't send email until user is ready
-          completedRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/confirm`,
-          cancelRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/agreement`
-        })
-        
-        submissions.push({
-          name: template.name,
-          title: template.title,
-          description: template.description,
-          templateId,
-          submissionId: submission.submissionId,
-          signerUrl: submission.signerUrl,
-          status: 'ready'
-        })
-        
-        console.log(`[CONTRACT_CREATE] Successfully created submission for ${template.name}:`, submission.submissionId)
-      } catch (error) {
-        console.error(`[CONTRACT_CREATE] Failed to create submission for ${template.name}:`, error)
-        throw new Error(`Failed to create ${template.title}: ${error.message}`)
+    },
+    'how-it-works': {
+      hero: {
+        title: 'How It Works',
+        subtitle: 'Order your dream tiny home in under an hour from the comfort of your phone or computer.'
+      },
+      introduction: {
+        title: 'Becoming a tiny homeowner has never been easier',
+        content: 'At Firefly, you can shop, customize, and secure your new home in under an hour—all from the comfort of your phone or computer. Follow our simple 8-step process, then sit back while your home is built at the factory and delivered to your property.'
+      },
+      process: {
+        title: 'The Firefly 8-Step Process',
+        content: 'We designed our online experience to be clear, fast, and stress-free. Each step is visual, interactive, and only takes a few minutes. Within about an hour, you\'ll have a tiny home officially on order.'
+      },
+      timeline: {
+        title: 'After Your Order',
+        content: 'Once you\'ve completed the 8 steps, here\'s what happens next: Factory Build (4-8 weeks), Delivery & Site Prep (1-2 weeks), Setup & Leveling (1-2 days), Move-In Ready (same day).'
+      },
+      benefits: {
+        title: 'Why Firefly Is Different',
+        content: 'Fast & Simple: Order a home in under an hour. Transparent Pricing: No hidden fees, no surprises. Human Support: Always a live team member just a call away. Fully Digital: Modern, streamlined, and secure from start to finish.'
+      },
+      cta: {
+        title: 'Ready to Begin?',
+        content: 'Your dream tiny home is just a few clicks away. Start customizing today and be on your way to ownership within an hour.'
       }
-    }
-
-    // Store contract in database with all submissions
-    const db = await getDb()
-    const { ObjectId } = await import('mongodb')
-    
-    const contractData = {
-      _id: new ObjectId(),
-      buildId: buildId,
-      userId: auth.userId,
-      version: 1,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      submissions: submissions,
-      status: 'ready',
-      pricingSnapshot: build.pricing || {},
-      buyerInfo: build.buyerInfo || {},
-      delivery: build.delivery || {},
-      payment: build.payment || {},
-      audit: [{
-        at: new Date(),
-        who: auth.userId,
-        action: 'contract_created',
-        meta: { 
-          submissionCount: submissions.length,
-          submissionIds: submissions.map(s => s.submissionId)
-        }
-      }]
-    }
-
-    await db.collection('contracts').insertOne(contractData)
-
-    // Update build to reference contract
-    await updateBuild(buildId, { 
-      'contract.submissionIds': submissions.map(s => s.submissionId),
-      'contract.status': 'ready',
-      'contract.createdAt': new Date()
-    })
-
-    // Return primary submission URL (Purchase Agreement)
-    const primarySubmission = submissions.find(s => s.name === 'purchase_agreement')
-    
-    res.status(200).json({
-      success: true,
-      submissions: submissions,
-      submissionId: primarySubmission?.submissionId,
-      signerUrl: primarySubmission?.signerUrl,
-      status: 'ready',
-      version: 1
-    })
-
-  } catch (error) {
-    console.error('Contract creation error:', error)
-    res.status(500).json({ 
-      error: 'Failed to create contract',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    })
-  }
-})
-
-// Get contract status (for real-time polling)
-app.get(['/api/contracts/status', '/contracts/status'], async (req, res) => {
-  try {
-    const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) return
-
-    const { buildId } = req.query
-    if (!buildId) {
-      return res.status(400).json({ error: 'Build ID is required' })
-    }
-
-    const build = await getBuildById(buildId)
-    if (!build || build.userId !== auth.userId) {
-      return res.status(404).json({ error: 'Build not found' })
-    }
-
-    const db = await getDb()
-    const contract = await db.collection('contracts').findOne({ 
-      buildId: buildId, 
-      userId: auth.userId 
-    }, { sort: { version: -1 } }) // Get latest version
-
-    if (!contract) {
-      return res.status(404).json({ error: 'Contract not found' })
-    }
-
-    // Get latest status from DocuSeal for all submissions
-    let overallStatus = contract.status
-    let updatedSubmissions = contract.submissions || []
-    let hasStatusChanges = false
-    
-    if (updatedSubmissions.length > 0) {
-      for (let i = 0; i < updatedSubmissions.length; i++) {
-        const submission = updatedSubmissions[i]
-        if (submission.submissionId) {
-          try {
-            const docusealSubmission = await getSubmission(submission.submissionId)
-            const docusealStatus = mapDocuSealStatus(docusealSubmission.status || docusealSubmission.state)
-            
-            // Update submission status if it changed
-            if (docusealStatus !== submission.status) {
-              updatedSubmissions[i] = {
-                ...submission,
-                status: docusealStatus
-              }
-              hasStatusChanges = true
-            }
-          } catch (error) {
-            console.error(`Failed to get DocuSeal status for ${submission.name}:`, error)
-            // Continue with local status
-          }
-        }
-      }
-      
-      // Determine overall status based on all submissions
-      const allCompleted = updatedSubmissions.every(s => s.status === 'completed')
-      const anySigning = updatedSubmissions.some(s => s.status === 'signing')
-      const anyVoided = updatedSubmissions.some(s => s.status === 'voided')
-      
-      if (allCompleted) {
-        overallStatus = 'completed'
-      } else if (anyVoided) {
-        overallStatus = 'voided'
-      } else if (anySigning) {
-        overallStatus = 'signing'
-      } else {
-        overallStatus = 'ready'
-      }
-      
-      // Update our local status if it changed
-      if (hasStatusChanges || overallStatus !== contract.status) {
-        await db.collection('contracts').updateOne(
-          { _id: contract._id },
-          { 
-            $set: { 
-              status: overallStatus, 
-              submissions: updatedSubmissions,
-              updatedAt: new Date() 
+    },
+    'faq': {
+      title: 'Park Model Homes FAQ | Firefly Tiny Homes',
+      description: 'Find answers to everything about park model homes—and why Firefly Tiny Homes is your ideal online dealership for Champion Park Models.',
+      headerDescription: 'Welcome to our FAQ section! Here\'s everything you need to know about park model homes, Champion Park Model Homes, and the advantages of working with Firefly Tiny Homes—your online dealership for better pricing, personalized service, and the future of park model home buying.',
+      faqSections: [
+        {
+          title: 'Park Model Basics',
+          items: [
+            {
+              question: 'What is a park model home?',
+              answer: 'A park model home is a small, factory-built home on a wheeled chassis that is limited to 400 square feet of living space (not counting porches or lofts). Park models are perfect for downsizing, vacation properties, AirBNBs. or full-time living in areas where permitted.'
             },
-            $push: { 
-              audit: {
-                at: new Date(),
-                who: 'system',
-                action: 'status_updated',
-                meta: { 
-                  from: contract.status, 
-                  to: overallStatus,
-                  submissionUpdates: updatedSubmissions.map(s => ({ name: s.name, status: s.status }))
-                }
-              }
+            {
+              question: 'Where can I place a park model home?',
+              answer: 'Park models can be placed in RV resorts, tiny home communities, mobile home parks, or on private land, depending on local zoning rules. Always check your city or county requirements before setting up your home. <a className="text-yellow-500 hover:underline" href="mailto:office@fireflytinyhomes.com">Contact us</a> if you need help.'
+            },
+            {
+              question: 'Can I live in a park model full-time?',
+              answer: 'Yes, in many areas park models can be lived in full-time. Some places allow them only as seasonal or vacation residences. Firefly Tiny Homes can help you check local zoning to make sure your home is set up legally.'
+            },
+            {
+              question: 'How big are park model homes?',
+              answer: 'By definition, park models are 399 sq. ft. or less, but many include lofts or porches that add usable space without counting toward that limit. Most are around 11–12 feet wide and 34–39 feet long.'
+            },
+            {
+              question: 'How much do park model homes cost?',
+              answer: 'Prices vary widely by size, features, and finishes. Entry-level homes may start around $50,000–$70,000, while more upgraded or luxury models can exceed $100,000. Firefly Tiny Homes provides clear, upfront pricing with no hidden overhead costs. See our <a className="text-yellow-500 hover:underline" href="#models">Models &amp; Options</a>.'
+            },
+            {
+              question: 'Can I finance a park model home?',
+              answer: 'Yes. Park models can qualify for RV loans, personal loans, or financing through specialty lenders. While they don\'t always qualify for traditional mortgages, our team can connect you with financing options to make ownership simple.'
+            },
+            {
+              question: 'Are park model homes good investments?',
+              answer: 'Park models are affordable, durable, and can generate rental income as vacation properties or short-term rentals. With proper maintenance, they hold their value well, especially in high-demand vacation or retirement destinations.'
+            },
+            {
+              question: 'What about maintenance and energy efficiency?',
+              answer: 'Park models are built with modern materials, insulation, and energy-efficient appliances. They are low-maintenance compared to traditional houses, and their smaller size keeps utility bills affordable.'
+            },
+            {
+              question: 'What are common pitfalls when buying a park model?',
+              answer: 'Some buyers overlook zoning rules, don\'t budget for delivery and setup, or choose layouts that don\'t fit their lifestyle. Working with Firefly ensures you avoid these mistakes by getting expert guidance from day one.'
             }
-          }
-        )
-      }
-    }
-
-    // Get primary submission for backward compatibility
-    const primarySubmission = updatedSubmissions.find(s => s.name === 'purchase_agreement') || updatedSubmissions[0]
-
-    res.status(200).json({
-      success: true,
-      status: overallStatus,
-      submissions: updatedSubmissions,
-      submissionId: primarySubmission?.submissionId,
-      signerUrl: primarySubmission?.signerUrl,
-      version: contract.version,
-      createdAt: contract.createdAt,
-      updatedAt: contract.updatedAt
-    })
-
-  } catch (error) {
-    console.error('Contract status error:', error)
-    res.status(500).json({ 
-      error: 'Failed to get contract status',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    })
-  }
-})
-
-// DocuSeal webhook handler (for real-time status updates)
-app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
-  try {
-    // Verify webhook signature
-    const secret = process.env.DOCUSEAL_WEBHOOK_SECRET || ''
-    const signature = req.headers['x-docuseal-signature'] || req.headers['X-DocuSeal-Signature']
-    
-    if (!secret || signature !== secret) {
-      console.error('DocuSeal webhook: Invalid signature')
-      return res.status(401).json({ error: 'Unauthorized' })
-    }
-
-    const { event_type, data } = req.body
-    console.log('DocuSeal webhook received:', event_type, data?.id)
-
-    if (!data?.id) {
-      return res.status(400).json({ error: 'Missing submission ID' })
-    }
-
-    const db = await getDb()
-    const contract = await db.collection('contracts').findOne({ 
-      'submissions.submissionId': data.id 
-    })
-
-    if (!contract) {
-      console.log('DocuSeal webhook: Contract not found for submission:', data.id)
-      return res.status(404).json({ error: 'Contract not found' })
-    }
-
-    // Find the specific submission that was updated
-    const submissionIndex = contract.submissions?.findIndex(s => s.submissionId === data.id)
-    if (submissionIndex === -1 || submissionIndex === undefined) {
-      console.log('DocuSeal webhook: Submission not found in contract:', data.id)
-      return res.status(404).json({ error: 'Submission not found' })
-    }
-
-    const submission = contract.submissions[submissionIndex]
-    let newSubmissionStatus = submission.status
-    let shouldDownloadPdf = false
-
-    // Handle different event types for the specific submission
-    switch (event_type) {
-      case 'submission.created':
-        newSubmissionStatus = 'ready'
-        break
-      case 'submission.started':
-        newSubmissionStatus = 'signing'
-        break
-      case 'submission.completed':
-        newSubmissionStatus = 'completed'
-        shouldDownloadPdf = true
-        break
-      case 'submission.declined':
-        newSubmissionStatus = 'voided'
-        break
-      default:
-        console.log('DocuSeal webhook: Unhandled event type:', event_type)
-    }
-
-    // Update the specific submission status
-    const updatedSubmissions = [...contract.submissions]
-    updatedSubmissions[submissionIndex] = {
-      ...submission,
-      status: newSubmissionStatus
-    }
-
-    // Determine overall contract status based on all submissions
-    const allCompleted = updatedSubmissions.every(s => s.status === 'completed')
-    const anySigning = updatedSubmissions.some(s => s.status === 'signing')
-    const anyVoided = updatedSubmissions.some(s => s.status === 'voided')
-    
-    let newOverallStatus = contract.status
-    if (allCompleted) {
-      newOverallStatus = 'completed'
-    } else if (anyVoided) {
-      newOverallStatus = 'voided'
-    } else if (anySigning) {
-      newOverallStatus = 'signing'
-    } else {
-      newOverallStatus = 'ready'
-    }
-
-    // Update contract with new submission statuses and overall status
-    await db.collection('contracts').updateOne(
-      { _id: contract._id },
-      { 
-        $set: { 
-          status: newOverallStatus,
-          submissions: updatedSubmissions,
-          updatedAt: new Date(),
-          ...(data.completed_at && { completedAt: new Date(data.completed_at) })
-        },
-        $push: { 
-          audit: {
-            at: new Date(),
-            who: 'docuseal_webhook',
-            action: event_type,
-            meta: { 
-              from: contract.status, 
-              to: newOverallStatus, 
-              submissionName: submission.name,
-              submissionStatus: newSubmissionStatus,
-              eventData: data 
-            }
-          }
-        }
-      }
-    )
-
-    // Download and store signed PDF if completed
-    if (shouldDownloadPdf && data.audit_trail_url) {
-      try {
-        const pdfBuffer = await downloadFile(data.audit_trail_url)
-        const publicId = `contracts/${contract.buildId}/v${contract.version}/signed_contract`
-        
-        const cloudinaryResult = await uploadPdfToCloudinary({
-          buffer: pdfBuffer,
-          folder: 'firefly-estimator/contracts',
-          publicId
-        })
-
-        await db.collection('contracts').updateOne(
-          { _id: contract._id },
-          { 
-            $set: { 
-              signedPdfCloudinaryId: cloudinaryResult.public_id,
-              signedPdfUrl: data.audit_trail_url
-            }
-          }
-        )
-
-        console.log('DocuSeal webhook: PDF stored to Cloudinary:', cloudinaryResult.public_id)
-      } catch (error) {
-        console.error('DocuSeal webhook: Failed to store PDF:', error)
-      }
-    }
-
-    // Update build status if contract completed
-    if (newStatus === 'completed') {
-      await updateBuild(contract.buildId, { 
-        'contract.status': 'completed',
-        'contract.completedAt': new Date(),
-        step: 8 // Advance to confirmation step
-      })
-    }
-
-    res.status(200).json({ success: true })
-
-  } catch (error) {
-    console.error('DocuSeal webhook error:', error)
-    res.status(500).json({ 
-      error: 'Webhook processing failed',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    })
-  }
-})
-
-// Helper function to map DocuSeal status to our status
-function mapDocuSealStatus(docusealStatus) {
-  switch (docusealStatus) {
-    case 'pending':
-    case 'awaiting_signature':
-      return 'ready'
-    case 'opened':
-    case 'in_progress':
-      return 'signing'
-    case 'completed':
-      return 'completed'
-    case 'declined':
-    case 'expired':
-      return 'voided'
-    default:
-      return 'draft'
-  }
-}
-
-// Helper function to build prefill data for DocuSeal
-function buildContractPrefill(build, settings) {
-  console.log('[CONTRACT_CREATE] Building prefill data for build:', build._id)
-  
-  const pricing = build.pricing || {}
-  const buyerInfo = build.buyerInfo || {}
-  const delivery = build.delivery || {}
-  const payment = build.payment || {}
-  
-  console.log('[CONTRACT_CREATE] Build data sections:', {
-    hasPricing: !!pricing,
-    hasBuyerInfo: !!buyerInfo,
-    hasDelivery: !!delivery,
-    hasPayment: !!payment,
-    pricingKeys: Object.keys(pricing),
-    buyerInfoKeys: Object.keys(buyerInfo),
-    deliveryKeys: Object.keys(delivery),
-    paymentKeys: Object.keys(payment)
-  })
-  
-  // Calculate key amounts
-  const totalPurchasePrice = pricing.total || 0
-  const depositPercent = payment.plan?.percent || 25
-  const depositAmount = Math.round(totalPurchasePrice * depositPercent / 100)
-  const balanceAmount = totalPurchasePrice - depositAmount
-
-  const prefill = {
-    // Order Information
-    order_id: build._id || '',
-    order_date: new Date().toLocaleDateString(),
-    
-    // Dealer Information
-    dealer_name: "Firefly Tiny Homes LLC",
-    dealer_address: "6150 TX-16, Pipe Creek, TX 78063", 
-    dealer_phone: "830-328-6109",
-    dealer_rep: "Firefly Representative",
-    
-    // Buyer Information
-    buyer_name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
-    buyer_first_name: buyerInfo.firstName || '',
-    buyer_last_name: buyerInfo.lastName || '',
-    buyer_email: buyerInfo.email || '',
-    buyer_phone: buyerInfo.phone || '',
-    buyer_address: buyerInfo.address || '',
-    buyer_city: buyerInfo.city || '',
-    buyer_state: buyerInfo.state || '',
-    buyer_zip: buyerInfo.zip || '',
-    
-    // Unit Information  
-    unit_brand: "Athens Park Select",
-    unit_model: build.modelName || build.modelCode || '',
-    unit_year: new Date().getFullYear().toString(),
-    unit_dimensions: build.model?.dimensions || '',
-    unit_serial: '', // Will be assigned later
-    
-    // Pricing
-    base_price: formatCurrency(pricing.basePrice || 0),
-    options_total: formatCurrency(pricing.optionsTotal || 0),
-    delivery_estimate: formatCurrency(pricing.deliveryEstimate || 0),
-    title_fee: formatCurrency(pricing.titleFee || 0),
-    setup_fee: formatCurrency(pricing.setupFee || 0),
-    taxes: formatCurrency(pricing.taxes || 0),
-    total_price: formatCurrency(totalPurchasePrice),
-    
-    // Payment Terms
-    deposit_percent: `${depositPercent}%`,
-    deposit_amount: formatCurrency(depositAmount),
-    balance_amount: formatCurrency(balanceAmount),
-    payment_method: payment.method === 'ach_debit' ? 'ACH/Bank Transfer' : 'Cash',
-    
-    // Delivery Information
-    delivery_address: delivery.address || buyerInfo.address || '',
-    delivery_city: delivery.city || buyerInfo.city || '',
-    delivery_state: delivery.state || buyerInfo.state || '',
-    delivery_zip: delivery.zip || buyerInfo.zip || '',
-    delivery_notes: delivery.notes || '',
-    
-    // Legal/Compliance
-    state_classification: "Travel Trailer (park model RV)",
-    completion_estimate: "8-12 weeks from contract signing",
-    storage_policy: "Delivery within 12 days after factory completion; storage charges may apply"
-  }
-
-  console.log('[CONTRACT_CREATE] Generated prefill data:', {
-    prefillKeys: Object.keys(prefill),
-    sampleValues: {
-      order_id: prefill.order_id,
-      buyer_name: prefill.buyer_name,
-      total_price: prefill.total_price,
-      payment_method: prefill.payment_method
-    }
-  })
-
-  return prefill
-}
-
-// Helper function to format currency for DocuSeal
-function formatCurrency(cents) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
-  }).format((cents || 0) / 100)
-}
-
-// Download contract packet (ZIP of all signed PDFs)
-app.get(['/api/contracts/download/packet', '/contracts/download/packet'], async (req, res) => {
-  try {
-    const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) return
-
-    const { buildId, version } = req.query
-    if (!buildId) {
-      return res.status(400).json({ error: 'Build ID is required' })
-    }
-
-    const build = await getBuildById(buildId)
-    if (!build || build.userId !== auth.userId) {
-      return res.status(404).json({ error: 'Build not found' })
-    }
-
-    const db = await getDb()
-    let query = { buildId: buildId, userId: auth.userId }
-    if (version) {
-      query.version = parseInt(version)
-    }
-    
-    const contract = await db.collection('contracts').findOne(query, { 
-      sort: { version: -1 } 
-    })
-
-    if (!contract) {
-      return res.status(404).json({ error: 'Contract not found' })
-    }
-
-    if (contract.status !== 'completed') {
-      return res.status(400).json({ error: 'Contract not completed yet' })
-    }
-
-    if (!contract.signedPdfCloudinaryId) {
-      return res.status(404).json({ error: 'Signed documents not available' })
-    }
-
-    // Generate signed download URL from Cloudinary
-    const signedUrl = signedCloudinaryUrl(contract.signedPdfCloudinaryId)
-    
-    // For now, redirect to the single PDF. In the future, this could create a ZIP
-    res.redirect(signedUrl)
-
-  } catch (error) {
-    console.error('Contract download error:', error)
-    res.status(500).json({ 
-      error: 'Failed to download contract packet',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    })
-  }
-})
-
-// Download pre-signing summary PDF
-app.get(['/api/contracts/download/summary', '/contracts/download/summary'], async (req, res) => {
-  try {
-    const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) return
-
-    const { buildId } = req.query
-    if (!buildId) {
-      return res.status(400).json({ error: 'Build ID is required' })
-    }
-
-    const build = await getBuildById(buildId)
-    if (!build || build.userId !== auth.userId) {
-      return res.status(404).json({ error: 'Build not found' })
-    }
-
-    // For now, return a placeholder response. In production, this would generate
-    // a summary PDF with order details, pricing breakdown, etc.
-    res.status(501).json({ 
-      error: 'Summary PDF generation not yet implemented',
-      message: 'This feature will generate a pre-signing order summary PDF'
-    })
-
-  } catch (error) {
-    console.error('Contract summary download error:', error)
-    res.status(500).json({ 
-      error: 'Failed to download summary',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    })
-  }
-})
-
-// Bridge: create order from build and start DocuSeal; returns signer url
-app.post(['/api/builds/:id/contract', '/builds/:id/contract'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    const b = await getBuildById(req.params.id)
-    if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
-
-    const db = await getDb()
-    const orders = db.collection(ORDERS_COLLECTION)
-
-    // Find existing order linked to build
-    let order = await orders.findOne({ userId: auth.userId, buildId: String(b._id) })
-    if (!order) {
-      // Create minimal order document from build
-      const now = new Date()
-      const doc = {
-        userId: auth.userId,
-        buildId: String(b._id),
-        status: 'draft',
-        model: { name: b.modelName, slug: b.modelSlug },
-        selections: Array.isArray(b?.selections?.options) ? b.selections.options.map(o=>({ key: o.id||o.key, label: o.name||o.label, priceDelta: Number(o.price||o.priceDelta||0), quantity: Number(o.quantity||1) })) : [],
-        pricing: b.pricing || {},
-        buyer: b.buyerInfo || {},
-        delivery: { address: b?.buyerInfo?.deliveryAddress || b?.buyerInfo?.address || '' },
-        timeline: [{ event: 'created_from_build', at: now }],
-        createdAt: now,
-        updatedAt: now,
-      }
-      const r = await orders.insertOne(doc)
-      order = { ...doc, _id: r.insertedId }
-    }
-
-    // Call unified contracts/create endpoint
-    req.body = JSON.stringify({ orderId: String(order._id) })
-    return app._router.handle(req, res, () => {})
-  } catch (error) {
-    console.error('Build→contract error:', error)
-    return res.status(500).json({ error: 'contract_bridge_failed', message: error.message || 'Failed to start contract' })
-  }
-})
-
-// Analytics endpoint
-app.post(['/api/analytics/event', '/analytics/event'], async (req, res) => {
-  try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { event, sessionId, timestamp, url, properties } = body
-    
-    // Store analytics event in database
-    const db = await getDb()
-    const analyticsCol = db.collection('Analytics')
-    
-    const analyticsEvent = {
-      event,
-      sessionId,
-      timestamp: new Date(timestamp || Date.now()),
-      url,
-      properties,
-      userAgent: req.headers['user-agent'],
-      ip: req.headers['x-forwarded-for'] || req.connection.remoteAddress,
-      createdAt: new Date()
-    }
-    
-    await analyticsCol.insertOne(analyticsEvent)
-    
-    return res.status(200).json({ ok: true })
-  } catch (error) {
-    console.error('Analytics event error:', error)
-    return res.status(500).json({ error: 'analytics_failed' })
-  }
-})
-
-// ----- User Profile Management -----
-
-// Get user profile
-app.get(['/api/profile', '/profile'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    await ensureUserProfileIndexes()
-    const profile = await getUserProfile(auth.userId)
-    return res.status(200).json(profile || {})
-  } catch (error) {
-    console.error('Get profile error:', error)
-    return res.status(500).json({ error: 'profile_fetch_failed' })
-  }
-})
-
-// Update user profile basic info
-app.patch(['/api/profile/basic', '/profile/basic'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    console.log('DEBUG: Starting profile/basic update for user:', auth.userId)
-    
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { firstName, lastName, email, phone, address, city, state, zip } = body
-    
-    console.log('DEBUG: Request body:', { firstName, lastName, email, phone, address, city, state, zip })
-    
-    // Validate required fields
-    if (!firstName || !lastName || !email) {
-      console.log('DEBUG: Missing required fields')
-      return res.status(400).json({ error: 'missing_required_fields', message: 'First name, last name, and email are required' })
-    }
-    
-    console.log('DEBUG: Ensuring user profile indexes...')
-    await ensureUserProfileIndexes()
-    console.log('DEBUG: Indexes ensured successfully')
-    
-    console.log('DEBUG: Updating user basic info...')
-    const profile = await updateUserBasicInfo(auth.userId, { firstName, lastName, email, phone, address, city, state, zip })
-    
-    console.log('DEBUG: Basic info updated successfully:', profile)
-    return res.status(200).json(profile)
-  } catch (error) {
-    console.error('Update profile error:', error)
-    console.error('Error stack:', error.stack)
-    
-    // Check for specific error types
-    if (error.message.includes('MONGODB_URI is not configured')) {
-      return res.status(503).json({ error: 'database_config_missing', message: 'Database configuration is missing' })
-    }
-    
-    if (error.message.includes('userId is required')) {
-      return res.status(400).json({ error: 'invalid_user', message: 'User ID is required' })
-    }
-    
-    if (error.message.includes('database') || error.message.includes('MongoDB')) {
-      return res.status(503).json({ error: 'database_unavailable', message: 'Database temporarily unavailable' })
-    }
-    
-    return res.status(500).json({ error: 'profile_update_failed', message: error.message })
-  }
-})
-
-// Get user addresses
-app.get(['/api/profile/addresses', '/profile/addresses'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    await ensureUserProfileIndexes()
-    const profile = await getUserProfile(auth.userId)
-    const addresses = profile?.addresses || []
-    return res.status(200).json(addresses)
-  } catch (error) {
-    console.error('Get addresses error:', error)
-    return res.status(500).json({ error: 'addresses_fetch_failed' })
-  }
-})
-
-// Add new address
-app.post(['/api/profile/addresses', '/profile/addresses'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    console.log('DEBUG: Starting addUserAddress for user:', auth.userId)
-    
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { address, city, state, zip, label } = body
-    
-    console.log('DEBUG: Request body:', { address, city, state, zip, label })
-    
-    if (!address || !city || !state || !zip) {
-      console.log('DEBUG: Missing address fields')
-      return res.status(400).json({ error: 'address_fields_required', message: 'Address, city, state, and zip are required' })
-    }
-    
-    console.log('DEBUG: Ensuring user profile indexes...')
-    await ensureUserProfileIndexes()
-    console.log('DEBUG: Indexes ensured successfully')
-    
-    console.log('DEBUG: Adding user address...')
-    const profile = await addUserAddress(auth.userId, { address, city, state, zip, label })
-    
-    console.log('DEBUG: Address added successfully:', profile)
-    return res.status(200).json(profile)
-  } catch (error) {
-    console.error('Add address error:', error)
-    console.error('Error stack:', error.stack)
-    
-    // Check for specific error types
-    if (error.message.includes('MONGODB_URI is not configured')) {
-      return res.status(503).json({ error: 'database_config_missing', message: 'Database configuration is missing' })
-    }
-    
-    if (error.message.includes('userId and address are required')) {
-      return res.status(400).json({ error: 'invalid_request', message: 'User ID and address are required' })
-    }
-    
-    if (error.message.includes('database') || error.message.includes('MongoDB')) {
-      return res.status(503).json({ error: 'database_unavailable', message: 'Database temporarily unavailable' })
-    }
-    
-    return res.status(500).json({ error: 'address_add_failed', message: error.message })
-  }
-})
-
-// Set primary address
-app.patch(['/api/profile/addresses/:addressId/primary', '/profile/addresses/:addressId/primary'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    const { addressId } = req.params
-    if (!addressId) {
-      return res.status(400).json({ error: 'address_id_required' })
-    }
-    
-    await ensureUserProfileIndexes()
-    const profile = await setPrimaryAddress(auth.userId, addressId)
-    
-    return res.status(200).json(profile)
-  } catch (error) {
-    console.error('Set primary address error:', error)
-    return res.status(500).json({ error: 'set_primary_failed' })
-  }
-})
-
-// Remove address
-app.delete(['/api/profile/addresses/:addressId', '/profile/addresses/:addressId'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    const { addressId } = req.params
-    if (!addressId) {
-      return res.status(400).json({ error: 'address_id_required' })
-    }
-    
-    await ensureUserProfileIndexes()
-    const profile = await removeUserAddress(auth.userId, addressId)
-    
-    return res.status(200).json(profile)
-  } catch (error) {
-    console.error('Remove address error:', error)
-    return res.status(500).json({ error: 'address_remove_failed' })
-  }
-})
-
-// Get auto-fill data
-app.get(['/api/profile/autofill', '/profile/autofill'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    console.log('DEBUG: Getting autofill data for user:', auth.userId)
-    await ensureUserProfileIndexes()
-    const autoFillData = await getAutoFillData(auth.userId)
-    console.log('DEBUG: Autofill data:', autoFillData)
-    return res.status(200).json(autoFillData)
-  } catch (error) {
-    console.error('Get autofill error:', error)
-    return res.status(500).json({ error: 'autofill_fetch_failed', message: error.message })
-  }
-})
-
-// Debug endpoint to test profile system
-app.get(['/api/profile/debug', '/profile/debug'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    console.log('DEBUG: Testing profile system for user:', auth.userId)
-    
-    // Test database connection
-    console.log('DEBUG: Testing database connection...')
-    const db = await getDb()
-    console.log('DEBUG: Database connection successful')
-    
-    // Test profile indexes
-    console.log('DEBUG: Testing profile indexes...')
-    await ensureUserProfileIndexes()
-    console.log('DEBUG: Profile indexes ensured')
-    
-    // Test getting profile
-    console.log('DEBUG: Testing get profile...')
-    const profile = await getUserProfile(auth.userId)
-    console.log('DEBUG: Profile retrieved:', !!profile)
-    
-    // Test getting auto-fill data
-    console.log('DEBUG: Testing auto-fill data...')
-    const autoFillData = await getAutoFillData(auth.userId)
-    console.log('DEBUG: Auto-fill data retrieved:', !!autoFillData)
-    
-    // Test getting primary address
-    console.log('DEBUG: Testing primary address...')
-    const primaryAddress = await getPrimaryAddress(auth.userId)
-    console.log('DEBUG: Primary address retrieved:', !!primaryAddress)
-    
-    return res.status(200).json({
-      userId: auth.userId,
-      databaseConnected: true,
-      profileExists: !!profile,
-      autoFillDataExists: !!autoFillData,
-      primaryAddressExists: !!primaryAddress,
-      profile: profile || null,
-      autoFillData: autoFillData || {},
-      primaryAddress: primaryAddress || null,
-      timestamp: new Date().toISOString()
-    })
-  } catch (error) {
-    console.error('Profile debug error:', error)
-    console.error('Error stack:', error.stack)
-    
-    return res.status(500).json({ 
-      error: 'debug_failed', 
-      message: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
-    })
-  }
-})
-
-// Check contract status
-app.get(['/api/builds/:id/contract/status', '/builds/:id/contract/status'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
-  if (!auth?.userId) return
-  
-  try {
-    const b = await getBuildById(req.params.id)
-    if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
-    
-    if (!b.contract?.agreementId) {
-      return res.status(404).json({ error: 'no_contract', message: 'No contract found for this build' })
-    }
-
-    // Import Adobe Sign integration
-    const { default: adobeSign } = await import('../src/utils/adobeSign.js')
-    
-    // Get agreement status
-    const status = await adobeSign.getAgreementStatus(b.contract.agreementId)
-    
-    // Update build if status changed
-    if (status.status !== b.contract.status) {
-      await updateBuild(req.params.id, { 
-        contract: { 
-          ...b.contract,
-          status: status.status,
-          updatedAt: new Date()
-        }
-      })
-    }
-    
-    return res.status(200).json(status)
-    
-  } catch (error) {
-    console.error('Contract status check error:', error)
-    return res.status(500).json({ 
-      error: 'status_check_failed', 
-      message: error.message || 'Failed to check contract status'
-    })
-  }
-})
-
-// ===== ADMIN ENDPOINTS =====
-
-// Admin middleware to check admin status
-async function requireAdmin(req, res) {
-  const auth = await requireAuth(req, res, true)
-  if (!auth?.userId) return null
-  return auth
-}
-
-// Get admin statistics
-app.get(['/api/admin/stats', '/admin/stats'], async (req, res) => {
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
-  
-  try {
-    const db = await getDb()
-    
-    // Get user count
-    const totalUsers = await db.collection('users').countDocuments()
-    
-    // Get build count
-    const totalBuilds = await db.collection('builds').countDocuments()
-    
-    // Get order count and revenue
-    const orders = await db.collection('orders').find({}).toArray()
-    const totalOrders = orders.length
-    const revenue = orders.reduce((sum, order) => sum + (order.total || 0), 0)
-    
-    // Calculate conversion rate (orders / builds)
-    const conversionRate = totalBuilds > 0 ? (totalOrders / totalBuilds) * 100 : 0
-    
-    // Get active users (users with activity in last 30 days)
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    const activeUsers = await db.collection('users').countDocuments({
-      lastActivity: { $gte: thirtyDaysAgo }
-    })
-    
-    return res.status(200).json({
-      totalUsers,
-      totalBuilds,
-      totalOrders,
-      revenue,
-      conversionRate,
-      activeUsers
-    })
-    
-  } catch (error) {
-    console.error('Admin stats error:', error)
-    return res.status(500).json({ 
-      error: 'stats_failed', 
-      message: error.message || 'Failed to load admin statistics'
-    })
-  }
-})
-
-// Get recent admin activity
-app.get(['/api/admin/activity', '/admin/activity'], async (req, res) => {
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
-  
-  try {
-    const db = await getDb()
-    
-    // Get recent activity from analytics collection
-    const activity = await db.collection('analytics')
-      .find({})
-      .sort({ timestamp: -1 })
-      .limit(20)
-      .toArray()
-    
-    const formattedActivity = activity.map(item => ({
-      action: item.eventName,
-      description: item.properties?.message || item.eventName,
-      timestamp: item.timestamp,
-      userId: item.userId,
-      sessionId: item.sessionId
-    }))
-    
-    return res.status(200).json(formattedActivity)
-    
-  } catch (error) {
-    console.error('Admin activity error:', error)
-    return res.status(500).json({ 
-      error: 'activity_failed', 
-      message: error.message || 'Failed to load recent activity'
-    })
-  }
-})
-
-// Get all users for admin
-app.get(['/api/admin/users', '/admin/users'], async (req, res) => {
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
-  
-  try {
-    const db = await getDb()
-    
-    const users = await db.collection('users')
-      .find({})
-      .sort({ createdAt: -1 })
-      .toArray()
-    
-    return res.status(200).json(users)
-    
-  } catch (error) {
-    console.error('Admin users error:', error)
-    return res.status(500).json({ 
-      error: 'users_failed', 
-      message: error.message || 'Failed to load users'
-    })
-  }
-})
-
-// Bulk user operations
-app.post(['/api/admin/users/bulk', '/admin/users/bulk'], async (req, res) => {
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
-  
-  try {
-    const { action, userIds } = req.body
-    
-    if (!action || !userIds || !Array.isArray(userIds)) {
-      return res.status(400).json({ 
-        error: 'invalid_request', 
-        message: 'Action and userIds array are required' 
-      })
-    }
-    
-    const db = await getDb()
-    let result
-    
-    switch (action) {
-      case 'activate':
-        result = await db.collection('users').updateMany(
-          { _id: { $in: userIds.map(id => new ObjectId(id)) } },
-          { $set: { status: 'active', updatedAt: new Date() } }
-        )
-        break
-        
-      case 'deactivate':
-        result = await db.collection('users').updateMany(
-          { _id: { $in: userIds.map(id => new ObjectId(id)) } },
-          { $set: { status: 'inactive', updatedAt: new Date() } }
-        )
-        break
-        
-      case 'delete':
-        result = await db.collection('users').deleteMany({
-          _id: { $in: userIds.map(id => new ObjectId(id)) }
-        })
-        break
-        
-      default:
-        return res.status(400).json({ 
-          error: 'invalid_action', 
-          message: 'Invalid action specified' 
-        })
-    }
-    
-    // Log admin action
-    await db.collection('analytics').insertOne({
-      eventName: 'admin_bulk_action',
-      userId: auth.userId,
-      sessionId: req.headers['x-session-id'] || 'unknown',
-      timestamp: new Date(),
-      properties: {
-        action,
-        userCount: userIds.length,
-        affectedUsers: userIds
-      }
-    })
-    
-    return res.status(200).json({
-      success: true,
-      action,
-      affectedCount: result.modifiedCount || result.deletedCount,
-      message: `${action} completed for ${result.modifiedCount || result.deletedCount} users`
-    })
-    
-  } catch (error) {
-    console.error('Bulk user operation error:', error)
-    return res.status(500).json({ 
-      error: 'bulk_operation_failed', 
-      message: error.message || 'Failed to perform bulk operation'
-    })
-  }
-})
-
-// Data export endpoints
-app.get(['/api/admin/export/:type', '/admin/export/:type'], async (req, res) => {
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
-  
-  try {
-    const { type } = req.params
-    const db = await getDb()
-    
-    let data = []
-    let filename = ''
-    
-    switch (type) {
-      case 'users':
-        data = await db.collection('users').find({}).toArray()
-        filename = 'users_export'
-        break
-        
-      case 'builds':
-        data = await db.collection('builds').find({}).toArray()
-        filename = 'builds_export'
-        break
-        
-      case 'orders':
-        data = await db.collection('orders').find({}).toArray()
-        filename = 'orders_export'
-        break
-        
-      case 'analytics':
-        data = await db.collection('analytics').find({}).toArray()
-        filename = 'analytics_export'
-        break
-        
-      default:
-        return res.status(400).json({ 
-          error: 'invalid_export_type', 
-          message: 'Invalid export type' 
-        })
-    }
-    
-    // Convert to CSV
-    const csv = convertToCSV(data)
-    
-    // Set headers for file download
-    res.setHeader('Content-Type', 'text/csv')
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}_${new Date().toISOString().split('T')[0]}.csv"`)
-    
-    return res.status(200).send(csv)
-    
-  } catch (error) {
-    console.error('Data export error:', error)
-    return res.status(500).json({ 
-      error: 'export_failed', 
-      message: error.message || 'Failed to export data'
-    })
-  }
-})
-
-// ===== POLICY MANAGEMENT =====
-
-// Get all policies
-app.get(['/api/admin/policies', '/admin/policies'], async (req, res) => {
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
-  
-  try {
-    const db = await getDb()
-    const policies = await db.collection('policies').find({}).toArray()
-    
-    // Return default policies if none exist
-    if (policies.length === 0) {
-      const defaultPolicies = [
-        {
-          id: 'privacy-policy',
-          title: 'Privacy Policy',
-          content: getDefaultPrivacyPolicy(),
-          lastUpdated: new Date(),
-          updatedBy: auth.userId
+          ]
         },
         {
-          id: 'terms-conditions',
-          title: 'Terms & Conditions',
-          content: getDefaultTermsConditions(),
-          lastUpdated: new Date(),
-          updatedBy: auth.userId
+          title: 'Champion Park Models',
+          items: [
+            {
+              question: 'Why choose Champion Park Models?',
+              answer: 'Champion is one of the most trusted names in the industry, with over 60 years of experience and multiple manufacturing facilities across the U.S. Champion Park Models are known for their quality, durability, and innovative designs that feel like a full-size home in a compact space.'
+            },
+            {
+              question: 'What makes Champion\'s park models unique?',
+              answer: 'Champion builds with full-size appliances, high ceilings, stylish finishes, and smart layouts. Their models balance efficiency with comfort, and they offer customizable options so you can create a home that matches your exact style and needs.'
+            }
+          ]
         },
         {
-          id: 'other-policies',
-          title: 'Other Policies',
-          content: getDefaultOtherPolicies(),
-          lastUpdated: new Date(),
-          updatedBy: auth.userId
+          title: 'Why Firefly Tiny Homes',
+          items: [
+            {
+              question: 'Why partner with Firefly instead of a traditional dealership?',
+              answer: 'Because our dealership is primarily online, we don\'t have the overhead costs of a brick-and-mortar dealership who have large lots with expensive models onsite. We pass those savings directly to you, giving us a competitive edge, and offering you better prices and more streamlined service.'
+            },
+            {
+              question: 'How is the online dealership experience better?',
+              answer: 'You can browse models, customize your home, and complete the buying process from anywhere—no long drives to a sales lot required, and no hard-ball salesperson to contend with. Though our team of experts are always available for in-person or virtual consultations, that\'s entirely optional, as our online purchase flow is simple and intuitive.'
+            },
+            {
+              question: 'How are we paving the future of park model home buying?',
+              answer: 'The people have spoken, and just like the car industry shifted to online dealerships for customer convenience, we\'re doing the same with park model homes. Firefly is at the forefront of this change, giving buyers a faster, smarter, and more affordable way to purchase their dream home.'
+            }
+          ]
+        },
+        {
+          title: 'Ordering, Delivery & Support',
+          items: [
+            {
+              question: 'How do I order a park model from Firefly?',
+              answer: 'Simply choose your model, pick any options or add-ons you\'d like, and place your order with cash payment or financing. We immediately process your order, and get your home\'s construction scheduled with the manufacturing team. Once they give us an ETA for completion, we schedule the delivery with one of our professional haulers, and update you with the final estimated delivery date.'
+            },
+            {
+              question: 'How does delivery and setup work?',
+              answer: 'Your park model will be delivered on its chassis. You\'ll need a prepared site and utility hookups. Firefly Tiny Homes works with trusted local contractors to handle delivery, leveling, tie-downs, and connections so you can move in with confidence.'
+            },
+            {
+              question: 'Do your homes include inspections or warranties?',
+              answer: 'Yes. Every home undergoes factory inspections, and Champion provides warranties on workmanship and materials. Firefly also supports you through the delivery and setup stages to ensure your experience is stress-free and you are 100% satisfied with your new home.'
+            }
+          ]
         }
       ]
-      
-      // Insert default policies
-      await db.collection('policies').insertMany(defaultPolicies)
-      return res.status(200).json(defaultPolicies)
     }
-    
-    return res.status(200).json(policies)
-  } catch (error) {
-    console.error('Get policies error:', error)
-    return res.status(500).json({ 
-      error: 'policies_failed', 
-      message: error.message || 'Failed to load policies'
-    })
   }
-})
+  
+  return defaults[pageId] || {}
+}
 
-// Get single policy
-app.get(['/api/policies/:id', '/policies/:id'], async (req, res) => {
-  try {
-    const { id } = req.params
-    const db = await getDb()
-    const policy = await db.collection('policies').findOne({ id })
-    
-    if (!policy) {
-      // Return default policy content if not found
-      let defaultContent = ''
-      switch (id) {
-        case 'privacy-policy':
-          defaultContent = getDefaultPrivacyPolicy()
-          break
-        case 'terms-conditions':
-          defaultContent = getDefaultTermsConditions()
-          break
-        case 'other-policies':
-          defaultContent = getDefaultOtherPolicies()
-          break
-        default:
-          return res.status(404).json({ error: 'Policy not found' })
+// Default policy content functions
+function getDefaultPrivacyPolicy() {
+  return `Firefly Tiny Homes respects your privacy. This policy explains how we collect, use, and protect your information.
+
+## Information We Collect
+
+- Contact details (name, email, phone, mailing address) when you request a quote or place an order.
+- Payment information processed securely through third-party providers (e.g., Stripe).
+- Website usage data (cookies, analytics) to improve our services.
+
+## How We Use Your Information
+
+- To process orders and provide customer service.
+- To send order confirmations, delivery updates, and warranty reminders.
+- To share updates, promotions, or newsletters if you opt in.
+
+## Sharing of Information
+We only share your information with trusted partners (manufacturers, shipping providers, financing partners) as necessary to complete your transaction. We never sell your data.
+
+## Data Security
+We use industry-standard safeguards to protect your information.
+
+## Your Rights
+You may request access, correction, or deletion of your personal data at any time by contacting us at [insert email].
+
+## Updates
+This Privacy Policy may change from time to time. Updates will be posted here.`
+}
+
+function getDefaultTermsConditions() {
+  return `By using this website, you agree to the following terms:
+
+## Website Purpose
+This site provides information about Firefly Tiny Homes, allows customization of models, and facilitates purchases.
+
+## Intellectual Property
+All photos, logos, text, and design belong to Firefly Tiny Homes and may not be copied without permission.
+
+## Accuracy of Information
+We strive for accuracy but do not guarantee that all pricing, options, or availability are error-free. Final contracts govern.
+
+## User Conduct
+You agree not to misuse the site (e.g., hacking, scraping, reverse-engineering).
+
+## Links to Other Sites
+We are not responsible for content or policies of external sites linked here.
+
+## Limitation of Liability
+Firefly Tiny Homes is not liable for damages from use of this website, including errors, downtime, or reliance on posted content.
+
+## Governing Law
+These terms are governed by the laws of Texas.`
+}
+
+function getDefaultOtherPolicies() {
+  return `Additional policies and terms governing your purchase and delivery experience with Firefly Tiny Homes.
+
+## Purchase Terms & Conditions
+
+- Deposits are non-refundable.
+- Final payment is due before the home leaves the factory.
+- Prices may change if the manufacturer updates pricing.
+- Freight and setup charges are estimates and may vary.
+- Buyer is responsible for site readiness, permits, and insurance coverage once the home is complete.
+- Storage fees of $50/day apply if delivery is delayed more than 12 days after completion.
+- All modifications require a signed change order. No verbal promises are binding.
+- Manufacturer warranties apply; dealer provides no additional warranty.
+- Disputes are resolved by binding arbitration in Texas.
+
+## Refund & Cancellation Policy
+
+**Order Cancellations:**
+- Orders may be canceled within 24 hours of placement for a full refund
+- After 24 hours, a 25% cancellation fee applies
+- Orders cannot be canceled once production has begun (typically 7-14 business days)
+
+**Deposit Refunds:**
+- Deposits are generally non-refundable once paid
+- Exceptions may be made for extraordinary circumstances at our discretion
+- Processing fees are non-refundable in all cases
+
+**Change Orders:**
+- Changes to specifications must be approved in writing
+- Additional charges may apply for changes made after production begins
+- Some changes may not be possible once manufacturing has commenced
+
+## Delivery & Installation Policy
+
+**Delivery Scheduling:**
+- Delivery dates are estimates and may vary due to weather, manufacturing delays, or other factors
+- Customer will receive 48-72 hours advance notice of delivery
+- Delivery window is typically 8AM-5PM on scheduled day
+- Customer or representative must be present for delivery
+
+**Site Requirements:**
+- Level, stable surface capable of supporting the home's weight
+- Clear access path for delivery truck (minimum 12 feet wide, 14 feet high)
+- All necessary permits obtained prior to delivery
+- Utilities stubbed to delivery location (if applicable)
+
+**Installation Services:**
+- Professional setup available for additional fee
+- Customer responsible for local permits and inspections
+- Warranty begins upon delivery, not installation completion
+
+## Consumer Rights & Disputes
+
+**Right to Inspection:**
+- Customer has 48 hours from delivery to report any damage or defects
+- Inspection must be documented with photos and written notice
+- Concealed defects covered under manufacturer warranty
+
+**Dispute Resolution:**
+- Good faith attempt to resolve disputes directly with company
+- Binding arbitration required for unresolved disputes
+- Arbitration conducted under Texas Arbitration Act
+- Customer responsible for arbitration fees if claim deemed frivolous
+
+**Limitation of Liability:**
+- Company liability limited to original purchase price
+- No liability for consequential or punitive damages
+- Customer assumes all risks of use and operation
+
+## Warranty Information
+
+**Manufacturer Warranty:**
+- Structural: 10 years from delivery date
+- Electrical/Plumbing: 1 year from delivery date
+- Appliances: Per manufacturer specifications
+- Cosmetic items: 90 days from delivery date
+
+**Warranty Exclusions:**
+- Normal wear and tear
+- Damage from misuse, neglect, or accidents
+- Modifications not approved by manufacturer
+- Damage from acts of nature or extreme weather
+
+**Warranty Service:**
+- Contact manufacturer directly for warranty claims
+- Dealer facilitates communication but does not perform warranty work
+- Customer responsible for service call fees if no defect found`
+}
+
+// Helper function to convert data to CSV
+function convertToCSV(data) {
+  if (data.length === 0) return ''
+  
+  const headers = Object.keys(data[0])
+  const csvRows = []
+  
+  // Add headers
+  csvRows.push(headers.join(','))
+  
+  // Add data rows
+  for (const row of data) {
+    const values = headers.map(header => {
+      const value = row[header]
+      // Handle special characters and wrap in quotes if needed
+      if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+        return `"${value.replace(/"/g, '""')}"`
       }
-      
-      const defaultPolicy = {
-        id,
-        title: id.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        content: defaultContent,
-        lastUpdated: new Date(),
-        updatedBy: 'system'
-      }
-      
-      return res.status(200).json(defaultPolicy)
-    }
-    
-    return res.status(200).json(policy)
-  } catch (error) {
-    console.error('Get policy error:', error)
-    return res.status(500).json({ 
-      error: 'policy_failed', 
-      message: error.message || 'Failed to load policy'
+      return value || ''
     })
+    csvRows.push(values.join(','))
   }
-})
+  
+  return csvRows.join('\n')
+}
 
-// Update policy
-app.put(['/api/admin/policies/:id', '/admin/policies/:id'], async (req, res) => {
+// Advanced reporting endpoints
+app.post(['/api/admin/reports', '/admin/reports'], async (req, res) => {
   const auth = await requireAdmin(req, res)
   if (!auth) return
   
   try {
-    const { id } = req.params
-    const { title, content } = req.body
-    
-    if (!title || !content) {
-      return res.status(400).json({ 
-        error: 'missing_fields', 
-        message: 'Title and content are required' 
-      })
-    }
-    
-    const db = await getDb()
-    const updateData = {
-      id,
-      title: String(title).slice(0, 200),
-      content: String(content),
-      lastUpdated: new Date(),
-      updatedBy: auth.userId
-    }
-    
-    const result = await db.collection('policies').updateOne(
-      { id },
-      { $set: updateData },
-      { upsert: true }
-    )
-    
-    return res.status(200).json({
-      success: true,
-      policy: updateData,
-      modified: result.modifiedCount > 0,
-      created: result.upsertedCount > 0
-    })
-  } catch (error) {
-    console.error('Update policy error:', error)
-    return res.status(500).json({ 
-      error: 'policy_update_failed', 
-      message: error.message || 'Failed to update policy'
-    })
-  }
-})
-
-// Pages routes
-app.get(['/api/pages/:pageId', '/pages/:pageId'], async (req, res) => {
-  try {
-    const { pageId } = req.params
+    const { dateRange, modelFilter, userType } = req.body
     const db = await getDb()
     
-    // Get page content from database
-    const page = await db.collection('pages').findOne({ pageId })
-    
-    if (!page) {
-      // Return default content structure if page doesn't exist
-      const defaultContent = getDefaultPageContent(pageId)
-          return res.status(200).json({
-      pageId,
-      content: defaultContent,
-      images: {},
-      lastUpdated: new Date(),
-      updatedBy: 'system'
-    })
-    }
-    
-    return res.status(200).json(page)
-  } catch (error) {
-    console.error('Get page error:', error)
-    return res.status(500).json({ 
-      error: 'page_fetch_failed', 
-      message: error.message || 'Failed to fetch page content'
-    })
-  }
-})
-
-// Update page content
-app.patch(['/api/pages/:pageId', '/pages/:pageId'], async (req, res) => {
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
-  
-  try {
-    const { pageId } = req.params
-    const { content, images } = req.body
-    const db = await getDb()
-    
-    const updateData = {
-      pageId,
-      content: content || {},
-      images: typeof images === 'object' && images !== null ? images : {},
-      lastUpdated: new Date(),
-      updatedBy: auth.userId
-    }
-    
-    const result = await db.collection('pages').updateOne(
-      { pageId },
-      { $set: updateData },
-      { upsert: true }
-    )
-    
-    return res.status(200).json({
-      success: true,
-      pageId,
-      content: updateData.content,
-      images: updateData.images,
-      lastUpdated: updateData.lastUpdated,
-      updatedBy: updateData.updatedBy,
-      modified: result.modifiedCount > 0,
-      created: result.upsertedCount > 0
-    })
-  } catch (error) {
-    console.error('Update page error:', error)
-    return res.status(500).json({ 
-      error: 'page_update_failed', 
-      message: error.message || 'Failed to update page content'
-    })
-  }
-})
-
-// Blog routes
-app.get(['/api/blog', '/blog'], async (req, res) => {
-  applyCors(req, res, 'GET, OPTIONS')
-  const debug = process.env.DEBUG_ADMIN === 'true'
-  if (debug) {
-    console.log('[DEBUG_ADMIN] Blog GET route hit', { 
-      url: req.url, 
-      method: req.method, 
-      path: req.query?.path,
-      originalUrl: req.originalUrl 
-    })
-  }
-  
-  try {
-    const db = await getDb()
-    const { category, limit = 10, offset = 0 } = req.query
-    
-    let query = { status: 'published' }
-    if (category) {
-      query.category = category
-    }
-    
-    const posts = await db.collection('blog_posts')
-      .find(query)
-      .sort({ publishDate: -1 })
-      .skip(parseInt(offset))
-      .limit(parseInt(limit))
-      .toArray()
-    
-    const total = await db.collection('blog_posts').countDocuments(query)
-    
-    if (debug) {
-      console.log('[DEBUG_ADMIN] Blog GET response', { 
-        postsCount: posts.length, 
-        total, 
-        hasMore: total > parseInt(offset) + posts.length 
-      })
-    }
-    
-    return res.status(200).json({
-      posts,
-      total,
-      hasMore: total > parseInt(offset) + posts.length
-    })
-  } catch (error) {
-    console.error('Get blog posts error:', error)
-    return res.status(500).json({ 
-      error: 'blog_fetch_failed', 
-      message: error.message || 'Failed to fetch blog posts'
-    })
-  }
-})
-
-app.get(['/api/blog/:slug', '/blog/:slug'], async (req, res) => {
-  applyCors(req, res, 'GET, OPTIONS')
-  try {
-    const { slug } = req.params
-    const db = await getDb()
-    
-    const post = await db.collection('blog_posts').findOne({ 
-      slug,
-      status: 'published'
-    })
-    
-    if (!post) {
-      return res.status(404).json({ 
-        error: 'post_not_found', 
-        message: 'Blog post not found'
-      })
-    }
-    
-    // Increment view count
-    await db.collection('blog_posts').updateOne(
-      { _id: post._id },
-      { $inc: { views: 1 } }
-    )
-    
-    return res.status(200).json(post)
-  } catch (error) {
-    console.error('Get blog post error:', error)
-    return res.status(500).json({ 
-      error: 'blog_post_fetch_failed', 
-      message: error.message || 'Failed to fetch blog post'
-    })
-  }
-})
-
-app.post(['/api/blog', '/blog'], async (req, res) => {
-  applyCors(req, res, 'POST, OPTIONS')
-  
-  // Handle preflight OPTIONS request
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
-  }
-  
-  const debug = process.env.DEBUG_ADMIN === 'true'
-  console.log('[BLOG_POST] Route hit', { 
-    url: req.url, 
-    method: req.method, 
-    path: req.query?.path,
-    originalUrl: req.originalUrl,
-    bodyKeys: Object.keys(req.body || {}),
-    hasBody: !!req.body,
-    bodyType: typeof req.body
-  })
-  
-  // Temporarily allow blog creation without strict admin checks for testing
-  const auth = await requireAuth(req, res, false) // Changed from requireAdmin to requireAuth with adminOnly=false
-  if (!auth) {
-    console.log('[BLOG_POST] Auth failed')
-    return
-  }
-  console.log('[BLOG_POST] Auth successful', { userId: auth.userId })
-  
-  try {
-    const db = await getDb()
-    
-    // Ensure blog_posts collection exists
-    try {
-      const collections = await db.listCollections().toArray()
-      const blogCollectionExists = collections.some(col => col.name === 'blog_posts')
-      if (!blogCollectionExists) {
-        console.log('[BLOG_POST] Creating blog_posts collection')
-        await db.createCollection('blog_posts')
-      }
-      console.log('[BLOG_POST] Blog collection ready')
-    } catch (error) {
-      console.error('[BLOG_POST] Error ensuring blog collection exists:', error)
-      // Continue anyway, the collection might already exist
-    }
-    
-    console.log('[BLOG_POST] Database connection successful')
-    const postData = req.body
-    console.log('[BLOG_POST] Post data received', { 
-      hasTitle: !!postData.title, 
-      hasContent: !!postData.content,
-      titleLength: postData.title?.length,
-      contentLength: postData.content?.length,
-      keys: Object.keys(postData || {}),
-      title: postData.title?.substring(0, 50) + '...',
-      content: postData.content?.substring(0, 100) + '...'
-    })
-    
-    // Validate required fields
-    if (!postData.title || !postData.content) {
-      console.log('[BLOG_POST] Validation failed', { 
-        hasTitle: !!postData.title, 
-        hasContent: !!postData.content 
-      })
-      return res.status(400).json({
-        error: 'validation_failed',
-        message: 'Title and content are required'
-      })
-    }
-    
-    // Generate slug if not provided
-    if (!postData.slug) {
-      postData.slug = postData.title
-        .toLowerCase()
-        .replace(/[^a-z0-9 -]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
-        .substring(0, 100) // Limit length to 100 characters
-    }
-    
-    console.log('[BLOG_POST] Generated slug:', postData.slug)
-    
-    // Check if slug already exists
-    const existingPost = await db.collection('blog_posts').findOne({ slug: postData.slug })
-    console.log('[BLOG_POST] Slug check:', { slug: postData.slug, exists: !!existingPost })
-    if (existingPost) {
-      console.log('[BLOG_POST] Slug already exists, returning error')
-      return res.status(400).json({
-        error: 'slug_exists',
-        message: 'A post with this URL already exists'
-      })
-    }
-    
-    const newPost = {
-      ...postData,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      views: 0,
-      author: auth.userId
-    }
-    
-    const result = await db.collection('blog_posts').insertOne(newPost)
-    console.log('[BLOG_POST] Successfully created post', { 
-      insertedId: result.insertedId,
-      title: newPost.title 
-    })
-    
-    return res.status(201).json({
-      success: true,
-      id: result.insertedId,
-      ...newPost
-    })
-  } catch (error) {
-    console.error('[BLOG_POST] Create blog post error:', error)
-    console.error('[BLOG_POST] Error stack:', error.stack)
-    return res.status(500).json({ 
-      error: 'blog_post_create_failed', 
-      message: error.message || 'Failed to create blog post'
-    })
-  }
-})
-
-app.put(['/api/blog/:id', '/blog/:id'], async (req, res) => {
-  applyCors(req, res, 'PUT, OPTIONS')
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
-  
-  try {
-    const { id } = req.params
-    const db = await getDb()
-    const postData = req.body
-    
-    // Validate ObjectId format
-    let objectId
-    try {
-      objectId = new ObjectId(id)
-    } catch (error) {
-      return res.status(400).json({
-        error: 'invalid_id',
-        message: 'Invalid blog post ID format'
-      })
-    }
-    
-    // Validate required fields
-    if (!postData.title || !postData.content) {
-      return res.status(400).json({
-        error: 'validation_failed',
-        message: 'Title and content are required'
-      })
-    }
-    
-    // Check if slug already exists for different post
-    if (postData.slug) {
-      const existingPost = await db.collection('blog_posts').findOne({ 
-        slug: postData.slug,
-        _id: { $ne: objectId }
-      })
-      if (existingPost) {
-        return res.status(400).json({
-          error: 'slug_exists',
-          message: 'A post with this URL already exists'
-        })
-      }
-    }
-    
-    // SANITIZE DATA: Remove immutable and system fields
-    const {
-      _id,           // MongoDB immutable field
-      __v,           // Mongoose version field (if using Mongoose)
-      createdAt,     // System field - should not be updated
-      views,         // System field - managed by API
-      ...sanitizedData
-    } = postData
-    
-    // Add system fields
-    const updateData = {
-      ...sanitizedData,
-      updatedAt: new Date()
-    }
-    
-    const result = await db.collection('blog_posts').updateOne(
-      { _id: objectId },
-      { $set: updateData }
-    )
-    
-    if (result.matchedCount === 0) {
-      return res.status(404).json({
-        error: 'post_not_found',
-        message: 'Blog post not found'
-      })
-    }
-    
-    if (result.modifiedCount === 0) {
-      return res.status(200).json({
-        success: true,
-        message: 'No changes were made to the blog post',
-        id
-      })
-    }
-    
-    // Fetch updated post to return
-    const updatedPost = await db.collection('blog_posts').findOne({ _id: objectId })
-    
-    return res.status(200).json({
-      success: true,
-      message: 'Blog post updated successfully',
-      id,
-      post: updatedPost
-    })
-  } catch (error) {
-    console.error('Update blog post error:', error)
-    
-    // Handle specific MongoDB errors
-    if (error.code === 66) {
-      return res.status(400).json({
-        error: 'immutable_field_error',
-        message: 'Cannot update immutable fields like _id'
-      })
-    }
-    
-    if (error.name === 'MongoServerError' && error.code === 11000) {
-      return res.status(400).json({
-        error: 'duplicate_key_error',
-        message: 'A post with this slug already exists'
-      })
-    }
-    
-    return res.status(500).json({ 
-      error: 'blog_post_update_failed', 
-      message: error.message || 'Failed to update blog post'
-    })
-  }
-})
-
-// Admin-specific blog editing endpoint with enhanced security
-app.put(['/api/admin/blog/:id', '/admin/blog/:id'], async (req, res) => {
-  applyCors(req, res, 'PUT, OPTIONS')
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
-  
-  try {
-    const { id } = req.params
-    const db = await getDb()
-    const postData = req.body
-    
-    // Enhanced validation for admin editing
-    if (!postData.title || !postData.content) {
-      return res.status(400).json({
-        error: 'validation_failed',
-        message: 'Title and content are required'
-      })
-    }
-    
-    // Validate ObjectId format
-    let objectId
-    try {
-      objectId = new ObjectId(id)
-    } catch (error) {
-      return res.status(400).json({
-        error: 'invalid_id',
-        message: 'Invalid blog post ID format'
-      })
-    }
-    
-    // Check if post exists and user has permission
-    const existingPost = await db.collection('blog_posts').findOne({ _id: objectId })
-    if (!existingPost) {
-      return res.status(404).json({
-        error: 'post_not_found',
-        message: 'Blog post not found'
-      })
-    }
-    
-    // Check if slug already exists for different post
-    if (postData.slug && postData.slug !== existingPost.slug) {
-      const slugConflict = await db.collection('blog_posts').findOne({ 
-        slug: postData.slug,
-        _id: { $ne: objectId }
-      })
-      if (slugConflict) {
-        return res.status(400).json({
-          error: 'slug_exists',
-          message: 'A post with this URL already exists'
-        })
-      }
-    }
-    
-    // COMPREHENSIVE DATA SANITIZATION
-    const {
-      _id,           // MongoDB immutable field
-      __v,           // Mongoose version field
-      createdAt,     // System field - creation timestamp
-      views,         // System field - view count
-      updatedAt,     // System field - will be set by API
-      ...sanitizedData
-    } = postData
-    
-    // Add system fields and admin metadata
-    const updateData = {
-      ...sanitizedData,
-      updatedAt: new Date(),
-      lastEditedBy: auth.userId,
-      lastEditedAt: new Date()
-    }
-    
-    // Perform the update
-    const result = await db.collection('blog_posts').updateOne(
-      { _id: objectId },
-      { $set: updateData }
-    )
-    
-    if (result.matchedCount === 0) {
-      return res.status(404).json({
-        error: 'post_not_found',
-        message: 'Blog post not found during update'
-      })
-    }
-    
-    // Fetch updated post to return
-    const updatedPost = await db.collection('blog_posts').findOne({ _id: objectId })
-    
-    // Log admin action for audit trail
-    await db.collection('admin_actions').insertOne({
-      action: 'blog_post_updated',
-      adminId: auth.userId,
-      postId: objectId,
-      postTitle: postData.title,
-      timestamp: new Date(),
-      changes: Object.keys(updateData)
-    })
-    
-    return res.status(200).json({
-      success: true,
-      message: 'Blog post updated successfully',
-      id,
-      post: updatedPost,
-      changes: result.modifiedCount > 0 ? 'Modified' : 'No changes'
-    })
-  } catch (error) {
-    console.error('Admin blog update error:', error)
-    
-    // Handle specific MongoDB errors with detailed messages
-    if (error.code === 66) {
-      return res.status(400).json({
-        error: 'immutable_field_error',
-        message: 'Cannot update immutable fields like _id',
-        details: 'The system automatically excludes immutable fields from updates'
-      })
-    }
-    
-    if (error.name === 'MongoServerError' && error.code === 11000) {
-      return res.status(400).json({
-        error: 'duplicate_key_error',
-        message: 'A post with this slug already exists',
-        details: 'Please choose a different URL slug for this post'
-      })
-    }
-    
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({
-        error: 'validation_error',
-        message: 'Data validation failed',
-        details: error.message
-      })
-    }
-    
-    return res.status(500).json({ 
-      error: 'admin_blog_update_failed', 
-      message: 'Failed to update blog post',
-      details: error.message || 'Internal server error'
-    })
-  }
-})
-
-// Admin endpoint for fetching blog posts for editing (includes unpublished posts)
-app.get(['/api/admin/blog/:id', '/admin/blog/:id'], async (req, res) => {
-  applyCors(req, res, 'GET, OPTIONS')
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
-  
-  try {
-    const { id } = req.params
-    const db = await getDb()
-    
-    // Validate ObjectId format
-    let objectId
-    try {
-      objectId = new ObjectId(id)
-    } catch (error) {
-      return res.status(400).json({
-        error: 'invalid_id',
-        message: 'Invalid blog post ID format'
-      })
-    }
-    
-    // Fetch post for editing (admin can see all posts regardless of status)
-    const post = await db.collection('blog_posts').findOne({ _id: objectId })
-    
-    if (!post) {
-      return res.status(404).json({ 
-        error: 'post_not_found', 
-        message: 'Blog post not found'
-      })
-    }
-    
-    // Log admin access for audit trail
-    await db.collection('admin_actions').insertOne({
-      action: 'blog_post_accessed_for_editing',
-      adminId: auth.userId,
-      postId: objectId,
-      postTitle: post.title,
-      timestamp: new Date()
-    })
-    
-    return res.status(200).json(post)
-  } catch (error) {
-    console.error('Admin blog fetch error:', error)
-    return res.status(500).json({ 
-      error: 'admin_blog_fetch_failed', 
-      message: error.message || 'Failed to fetch blog post for editing'
-    })
-  }
-})
-
-// ===== END AI Routes =====
-
-// ===== Builds (new) =====
-// Create build (from model or migrated guest draft)
-app.post(['/api/builds', '/builds'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  await ensureBuildIndexes()
-  try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const doc = await createBuild({
-      userId: auth.userId,
-      modelSlug: String(body.modelSlug || ''),
-      modelName: String(body.modelName || ''),
-      basePrice: Number(body.basePrice || 0),
-      selections: body.selections || {},
-      financing: body.financing || {},
-      buyerInfo: body.buyerInfo || {},
-    })
-    return res.status(200).json({ ok: true, buildId: String(doc._id) })
-  } catch (err) {
-    return res.status(400).json({ error: 'invalid_build', message: String(err?.message || err) })
-  }
-})
-
-// List builds for current user
-app.get(['/api/builds', '/builds'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  await ensureBuildIndexes()
-  const list = await listBuildsForUser(auth.userId)
-  return res.status(200).json(list)
-})
-
-// Get single build
-app.get(['/api/builds/:id', '/builds/:id'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  const b = await getBuildById(req.params.id)
-  if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
-  return res.status(200).json(b)
-})
-
-// Update build
-app.patch(['/api/builds/:id', '/builds/:id'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  const b = await getBuildById(req.params.id)
-  if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
-  const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-  const updated = await updateBuild(req.params.id, body)
-  return res.status(200).json(updated)
-})
-
-// Duplicate build
-app.post(['/api/builds/:id/duplicate', '/builds/:id/duplicate'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  const copy = await duplicateBuild(req.params.id, auth.userId)
-  if (!copy) return res.status(404).json({ error: 'not_found' })
-  return res.status(200).json({ ok: true, buildId: String(copy._id) })
-})
-
-// Rename build
-app.post(['/api/builds/:id/rename', '/builds/:id/rename'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  try {
-    const { id } = req.params
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { name } = body
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return res.status(400).json({ error: 'invalid_name', message: 'Build name is required' })
-    }
-    const doc = await renameBuild(id, auth.userId, name.trim())
-    if (!doc) return res.status(404).json({ error: 'build_not_found' })
-    return res.status(200).json({ ok: true, build: doc })
-  } catch (err) {
-    return res.status(400).json({ error: 'rename_failed', message: String(err?.message || err) })
-  }
-})
-
-// Delete build
-app.delete(['/api/builds/:id', '/builds/:id'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  const result = await deleteBuild(req.params.id, auth.userId)
-  return res.status(200).json({ ok: true, deleted: result?.deletedCount || 0 })
-})
-
-// Advance/retreat checkout step with minimal validation
-app.post(['/api/builds/:id/checkout-step', '/builds/:id/checkout-step'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  const b = await getBuildById(req.params.id)
-  if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
-  const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-  const target = Number(body?.step || b.step)
-  if (target < 1 || target > 8) return res.status(400).json({ error: 'invalid_step' })
-  
-  // Validation logic - only check requirements for steps that actually need them
-  // Step 4 is where users enter buyer info, so don't require it to advance TO step 4
-  if (target >= 5) {
-    const bi = b?.buyerInfo || {}
-    const ok = bi.firstName && bi.lastName && bi.email && bi.address
-    if (!ok) return res.status(400).json({ error: 'incomplete_buyer' })
-  }
-  
-  // Only check financing for steps after payment method step (step 7+)
-  if (target >= 7 && !(b?.financing?.method)) {
-    return res.status(400).json({ error: 'missing_payment_method' })
-  }
-  
-  // Only check contract for confirmation step (step 8) - users need to reach step 7 to sign
-  if (target >= 8) {
-    const c = b?.contract || {}
-    if (c?.status !== 'signed') return res.status(400).json({ error: 'contract_not_signed' })
-  }
-  
-  const updated = await updateBuild(req.params.id, { step: target })
-  return res.status(200).json(updated)
-})
-
-// ===== NEW CONTRACT API ENDPOINTS =====
-
-// Create contract submission (for new contract page)
-app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
-  try {
-    const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) return
-
-    console.log('[CONTRACT_CREATE] Request received:', { 
-      method: req.method, 
-      hasBody: !!req.body, 
-      bodyKeys: req.body ? Object.keys(req.body) : [],
-      body: req.body 
-    })
-
-    const { buildId } = req.body
-    if (!buildId) {
-          console.log('[CONTRACT_CREATE] Missing buildId in request body')
-    return res.status(400).json({ error: 'Build ID is required' })
-  }
-
-  console.log('[CONTRACT_CREATE] Looking up build:', buildId)
-  const build = await getBuildById(buildId)
-  console.log('[CONTRACT_CREATE] Build lookup result:', { 
-    found: !!build, 
-    buildId: build?._id, 
-    userId: build?.userId, 
-    authUserId: auth.userId,
-    match: build?.userId === auth.userId 
-  })
-  
-  if (!build || build.userId !== auth.userId) {
-    console.log('[CONTRACT_CREATE] Build not found or access denied')
-    return res.status(404).json({ error: 'Build not found' })
-  }
-
-    const settings = await getOrgSettings()
-    
-    // Define all required templates
-    const templates = [
-      {
-        name: 'purchase_agreement',
-        envKey: 'DOCUSEAL_PURCHASE_TEMPLATE_ID',
-        title: 'Purchase Agreement',
-        description: 'Primary purchase contract with all terms and conditions'
-      }
-    ]
-
-    // For now, only require the purchase agreement template
-    // TODO: Add other templates once they're configured in DocuSeal
-    if (!process.env.DOCUSEAL_PURCHASE_TEMPLATE_ID) {
-      console.log('[CONTRACT_CREATE] Missing purchase agreement template configuration')
-      return res.status(500).json({ 
-        error: 'DocuSeal purchase agreement template not configured',
-        missing: ['DOCUSEAL_PURCHASE_TEMPLATE_ID']
-      })
-    }
-
-    // Optional: Add other templates if they're configured
-    const optionalTemplates = [
-      {
-        name: 'payment_terms',
-        envKey: 'DOCUSEAL_PAYMENT_TERMS_TEMPLATE_ID',
-        title: 'Payment Terms Agreement',
-        description: 'Payment method, deposit, and balance terms'
-      },
-      {
-        name: 'delivery_agreement',
-        envKey: 'DOCUSEAL_DELIVERY_TEMPLATE_ID',
-        title: 'Delivery Agreement',
-        description: 'Delivery schedule, site requirements, and setup'
-      },
-      {
-        name: 'warranty_information',
-        envKey: 'DOCUSEAL_WARRANTY_TEMPLATE_ID',
-        title: 'Warranty Information',
-        description: 'Warranty terms, coverage, and service information'
-      },
-      {
-        name: 'legal_disclosures',
-        envKey: 'DOCUSEAL_LEGAL_DISCLOSURES_TEMPLATE_ID',
-        title: 'Legal Disclosures',
-        description: 'Required consumer rights and legal disclosures'
-      }
-    ]
-
-    // Add optional templates if they're configured
-    for (const template of optionalTemplates) {
-      if (process.env[template.envKey]) {
-        templates.push(template)
-      }
-    }
-
-    // Build prefill data from build
-    const prefill = buildContractPrefill(build, settings)
-
-    // Create DocuSeal submissions for all templates
-    const buyerInfo = build.buyerInfo || {}
-    const submitters = [{
-      name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
-      email: buyerInfo.email || '',
-      role: 'buyer1'
-    }]
-    
-    const submissions = []
-    
-    for (const template of templates) {
-      const templateId = Number(process.env[template.envKey])
-      console.log(`[CONTRACT_CREATE] Creating submission for ${template.name}:`, {
-        templateId,
-        templateName: template.title
-      })
-      
-      try {
-        const submission = await createSubmission({
-          templateId,
-          prefill,
-          submitters,
-          sendEmail: false, // Don't send email until user is ready
-          completedRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/confirm`,
-          cancelRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/agreement`
-        })
-        
-        submissions.push({
-          name: template.name,
-          title: template.title,
-          description: template.description,
-          templateId,
-          submissionId: submission.submissionId,
-          signerUrl: submission.signerUrl,
-          status: 'ready'
-        })
-        
-        console.log(`[CONTRACT_CREATE] Successfully created submission for ${template.name}:`, submission.submissionId)
-      } catch (error) {
-        console.error(`[CONTRACT_CREATE] Failed to create submission for ${template.name}:`, error)
-        throw new Error(`Failed to create ${template.title}: ${error.message}`)
-      }
-    }
-
-    // Store contract in database with all submissions
-    const db = await getDb()
-    const { ObjectId } = await import('mongodb')
-    
-    const contractData = {
-      _id: new ObjectId(),
-      buildId: buildId,
-      userId: auth.userId,
-      version: 1,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      submissions: submissions,
-      status: 'ready',
-      pricingSnapshot: build.pricing || {},
-      buyerInfo: build.buyerInfo || {},
-      delivery: build.delivery || {},
-      payment: build.payment || {},
-      audit: [{
-        at: new Date(),
-        who: auth.userId,
-        action: 'contract_created',
-        meta: { 
-          submissionCount: submissions.length,
-          submissionIds: submissions.map(s => s.submissionId)
-        }
-      }]
-    }
-
-    await db.collection('contracts').insertOne(contractData)
-
-    // Update build to reference contract
-    await updateBuild(buildId, { 
-      'contract.submissionIds': submissions.map(s => s.submissionId),
-      'contract.status': 'ready',
-      'contract.createdAt': new Date()
-    })
-
-    // Return primary submission URL (Purchase Agreement)
-    const primarySubmission = submissions.find(s => s.name === 'purchase_agreement')
-    
-    res.status(200).json({
-      success: true,
-      submissions: submissions,
-      submissionId: primarySubmission?.submissionId,
-      signerUrl: primarySubmission?.signerUrl,
-      status: 'ready',
-      version: 1
-    })
-
-  } catch (error) {
-    console.error('Contract creation error:', error)
-    res.status(500).json({ 
-      error: 'Failed to create contract',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    })
-  }
-})
-
-// Get contract status (for real-time polling)
-app.get(['/api/contracts/status', '/contracts/status'], async (req, res) => {
-  try {
-    const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) return
-
-    const { buildId } = req.query
-    if (!buildId) {
-      return res.status(400).json({ error: 'Build ID is required' })
-    }
-
-    const build = await getBuildById(buildId)
-    if (!build || build.userId !== auth.userId) {
-      return res.status(404).json({ error: 'Build not found' })
-    }
-
-    const db = await getDb()
-    const contract = await db.collection('contracts').findOne({ 
-      buildId: buildId, 
-      userId: auth.userId 
-    }, { sort: { version: -1 } }) // Get latest version
-
-    if (!contract) {
-      return res.status(404).json({ error: 'Contract not found' })
-    }
-
-    // Get latest status from DocuSeal for all submissions
-    let overallStatus = contract.status
-    let updatedSubmissions = contract.submissions || []
-    let hasStatusChanges = false
-    
-    if (updatedSubmissions.length > 0) {
-      for (let i = 0; i < updatedSubmissions.length; i++) {
-        const submission = updatedSubmissions[i]
-        if (submission.submissionId) {
-          try {
-            const docusealSubmission = await getSubmission(submission.submissionId)
-            const docusealStatus = mapDocuSealStatus(docusealSubmission.status || docusealSubmission.state)
-            
-            // Update submission status if it changed
-            if (docusealStatus !== submission.status) {
-              updatedSubmissions[i] = {
-                ...submission,
-                status: docusealStatus
-              }
-              hasStatusChanges = true
-            }
-          } catch (error) {
-            console.error(`Failed to get DocuSeal status for ${submission.name}:`, error)
-            // Continue with local status
-          }
-        }
-      }
-      
-      // Determine overall status based on all submissions
-      const allCompleted = updatedSubmissions.every(s => s.status === 'completed')
-      const anySigning = updatedSubmissions.some(s => s.status === 'signing')
-      const anyVoided = updatedSubmissions.some(s => s.status === 'voided')
-      
-      if (allCompleted) {
-        overallStatus = 'completed'
-      } else if (anyVoided) {
-        overallStatus = 'voided'
-      } else if (anySigning) {
-        overallStatus = 'signing'
-      } else {
-        overallStatus = 'ready'
-      }
-      
-      // Update our local status if it changed
-      if (hasStatusChanges || overallStatus !== contract.status) {
-        await db.collection('contracts').updateOne(
-          { _id: contract._id },
-          { 
-            $set: { 
-              status: overallStatus, 
-              submissions: updatedSubmissions,
-              updatedAt: new Date() 
-            },
-            $push: { 
-              audit: {
-                at: new Date(),
-                who: 'system',
-                action: 'status_updated',
-                meta: { 
-                  from: contract.status, 
-                  to: overallStatus,
-                  submissionUpdates: updatedSubmissions.map(s => ({ name: s.name, status: s.status }))
-                }
-              }
-            }
-          }
-        )
-      }
-    }
-
-    // Get primary submission for backward compatibility
-    const primarySubmission = updatedSubmissions.find(s => s.name === 'purchase_agreement') || updatedSubmissions[0]
-
-    res.status(200).json({
-      success: true,
-      status: overallStatus,
-      submissions: updatedSubmissions,
-      submissionId: primarySubmission?.submissionId,
-      signerUrl: primarySubmission?.signerUrl,
-      version: contract.version,
-      createdAt: contract.createdAt,
-      updatedAt: contract.updatedAt
-    })
-
-  } catch (error) {
-    console.error('Contract status error:', error)
-    res.status(500).json({ 
-      error: 'Failed to get contract status',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    })
-  }
-})
-
-// DocuSeal webhook handler (for real-time status updates)
-app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
-  try {
-    // Verify webhook signature
-    const secret = process.env.DOCUSEAL_WEBHOOK_SECRET || ''
-    const signature = req.headers['x-docuseal-signature'] || req.headers['X-DocuSeal-Signature']
-    
-    if (!secret || signature !== secret) {
-      console.error('DocuSeal webhook: Invalid signature')
-      return res.status(401).json({ error: 'Unauthorized' })
-    }
-
-    const { event_type, data } = req.body
-    console.log('DocuSeal webhook received:', event_type, data?.id)
-
-    if (!data?.id) {
-      return res.status(400).json({ error: 'Missing submission ID' })
-    }
-
-    const db = await getDb()
-    const contract = await db.collection('contracts').findOne({ 
-      'submissions.submissionId': data.id 
-    })
-
-    if (!contract) {
-      console.log('DocuSeal webhook: Contract not found for submission:', data.id)
-      return res.status(404).json({ error: 'Contract not found' })
-    }
-
-    // Find the specific submission that was updated
-    const submissionIndex = contract.submissions?.findIndex(s => s.submissionId === data.id)
-    if (submissionIndex === -1 || submissionIndex === undefined) {
-      console.log('DocuSeal webhook: Submission not found in contract:', data.id)
-      return res.status(404).json({ error: 'Submission not found' })
-    }
-
-    const submission = contract.submissions[submissionIndex]
-    let newSubmissionStatus = submission.status
-    let shouldDownloadPdf = false
-
-    // Handle different event types for the specific submission
-    switch (event_type) {
-      case 'submission.created':
-        newSubmissionStatus = 'ready'
+    // Calculate date range
+    const now = new Date()
+    let startDate
+    switch (dateRange) {
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
         break
-      case 'submission.started':
-        newSubmissionStatus = 'signing'
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
         break
-      case 'submission.completed':
-        newSubmissionStatus = 'completed'
-        shouldDownloadPdf = true
+      case '90d':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
         break
-      case 'submission.declined':
-        newSubmissionStatus = 'voided'
+      case '1y':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
         break
       default:
-        console.log('DocuSeal webhook: Unhandled event type:', event_type)
-    }
-
-    // Update the specific submission status
-    const updatedSubmissions = [...contract.submissions]
-    updatedSubmissions[submissionIndex] = {
-      ...submission,
-      status: newSubmissionStatus
-    }
-
-    // Determine overall contract status based on all submissions
-    const allCompleted = updatedSubmissions.every(s => s.status === 'completed')
-    const anySigning = updatedSubmissions.some(s => s.status === 'signing')
-    const anyVoided = updatedSubmissions.some(s => s.status === 'voided')
-    
-    let newOverallStatus = contract.status
-    if (allCompleted) {
-      newOverallStatus = 'completed'
-    } else if (anyVoided) {
-      newOverallStatus = 'voided'
-    } else if (anySigning) {
-      newOverallStatus = 'signing'
-    } else {
-      newOverallStatus = 'ready'
-    }
-
-    // Update contract with new submission statuses and overall status
-    await db.collection('contracts').updateOne(
-      { _id: contract._id },
-      { 
-        $set: { 
-          status: newOverallStatus,
-          submissions: updatedSubmissions,
-          updatedAt: new Date(),
-          ...(data.completed_at && { completedAt: new Date(data.completed_at) })
-        },
-        $push: { 
-          audit: {
-            at: new Date(),
-            who: 'docuseal_webhook',
-            action: event_type,
-            meta: { 
-              from: contract.status, 
-              to: newOverallStatus, 
-              submissionName: submission.name,
-              submissionStatus: newSubmissionStatus,
-              eventData: data 
-            }
-          }
-        }
-      }
-    )
-
-    // Download and store signed PDF if completed
-    if (shouldDownloadPdf && data.audit_trail_url) {
-      try {
-        const pdfBuffer = await downloadFile(data.audit_trail_url)
-        const publicId = `contracts/${contract.buildId}/v${contract.version}/signed_contract`
-        
-        const cloudinaryResult = await uploadPdfToCloudinary({
-          buffer: pdfBuffer,
-          folder: 'firefly-estimator/contracts',
-          publicId
-        })
-
-        await db.collection('contracts').updateOne(
-          { _id: contract._id },
-          { 
-            $set: { 
-              signedPdfCloudinaryId: cloudinaryResult.public_id,
-              signedPdfUrl: data.audit_trail_url
-            }
-          }
-        )
-
-        console.log('DocuSeal webhook: PDF stored to Cloudinary:', cloudinaryResult.public_id)
-      } catch (error) {
-        console.error('DocuSeal webhook: Failed to store PDF:', error)
-      }
-    }
-
-    // Update build status if contract completed
-    if (newStatus === 'completed') {
-      await updateBuild(contract.buildId, { 
-        'contract.status': 'completed',
-        'contract.completedAt': new Date(),
-        step: 8 // Advance to confirmation step
-      })
-    }
-
-    res.status(200).json({ success: true })
-
-  } catch (error) {
-    console.error('DocuSeal webhook error:', error)
-    res.status(500).json({ 
-      error: 'Webhook processing failed',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    })
-  }
-})
-
-// Helper function to map DocuSeal status to our status
-function mapDocuSealStatus(docusealStatus) {
-  switch (docusealStatus) {
-    case 'pending':
-    case 'awaiting_signature':
-      return 'ready'
-    case 'opened':
-    case 'in_progress':
-      return 'signing'
-    case 'completed':
-      return 'completed'
-    case 'declined':
-    case 'expired':
-      return 'voided'
-    default:
-      return 'draft'
-  }
-}
-
-// Helper function to build prefill data for DocuSeal
-function buildContractPrefill(build, settings) {
-  console.log('[CONTRACT_CREATE] Building prefill data for build:', build._id)
-  
-  const pricing = build.pricing || {}
-  const buyerInfo = build.buyerInfo || {}
-  const delivery = build.delivery || {}
-  const payment = build.payment || {}
-  
-  console.log('[CONTRACT_CREATE] Build data sections:', {
-    hasPricing: !!pricing,
-    hasBuyerInfo: !!buyerInfo,
-    hasDelivery: !!delivery,
-    hasPayment: !!payment,
-    pricingKeys: Object.keys(pricing),
-    buyerInfoKeys: Object.keys(buyerInfo),
-    deliveryKeys: Object.keys(delivery),
-    paymentKeys: Object.keys(payment)
-  })
-  
-  // Calculate key amounts
-  const totalPurchasePrice = pricing.total || 0
-  const depositPercent = payment.plan?.percent || 25
-  const depositAmount = Math.round(totalPurchasePrice * depositPercent / 100)
-  const balanceAmount = totalPurchasePrice - depositAmount
-
-  const prefill = {
-    // Order Information
-    order_id: build._id || '',
-    order_date: new Date().toLocaleDateString(),
-    
-    // Dealer Information
-    dealer_name: "Firefly Tiny Homes LLC",
-    dealer_address: "6150 TX-16, Pipe Creek, TX 78063", 
-    dealer_phone: "830-328-6109",
-    dealer_rep: "Firefly Representative",
-    
-    // Buyer Information
-    buyer_name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
-    buyer_first_name: buyerInfo.firstName || '',
-    buyer_last_name: buyerInfo.lastName || '',
-    buyer_email: buyerInfo.email || '',
-    buyer_phone: buyerInfo.phone || '',
-    buyer_address: buyerInfo.address || '',
-    buyer_city: buyerInfo.city || '',
-    buyer_state: buyerInfo.state || '',
-    buyer_zip: buyerInfo.zip || '',
-    
-    // Unit Information  
-    unit_brand: "Athens Park Select",
-    unit_model: build.modelName || build.modelCode || '',
-    unit_year: new Date().getFullYear().toString(),
-    unit_dimensions: build.model?.dimensions || '',
-    unit_serial: '', // Will be assigned later
-    
-    // Pricing
-    base_price: formatCurrency(pricing.basePrice || 0),
-    options_total: formatCurrency(pricing.optionsTotal || 0),
-    delivery_estimate: formatCurrency(pricing.deliveryEstimate || 0),
-    title_fee: formatCurrency(pricing.titleFee || 0),
-    setup_fee: formatCurrency(pricing.setupFee || 0),
-    taxes: formatCurrency(pricing.taxes || 0),
-    total_price: formatCurrency(totalPurchasePrice),
-    
-    // Payment Terms
-    deposit_percent: `${depositPercent}%`,
-    deposit_amount: formatCurrency(depositAmount),
-    balance_amount: formatCurrency(balanceAmount),
-    payment_method: payment.method === 'ach_debit' ? 'ACH/Bank Transfer' : 'Cash',
-    
-    // Delivery Information
-    delivery_address: delivery.address || buyerInfo.address || '',
-    delivery_city: delivery.city || buyerInfo.city || '',
-    delivery_state: delivery.state || buyerInfo.state || '',
-    delivery_zip: delivery.zip || buyerInfo.zip || '',
-    delivery_notes: delivery.notes || '',
-    
-    // Legal/Compliance
-    state_classification: "Travel Trailer (park model RV)",
-    completion_estimate: "8-12 weeks from contract signing",
-    storage_policy: "Delivery within 12 days after factory completion; storage charges may apply"
-  }
-
-  console.log('[CONTRACT_CREATE] Generated prefill data:', {
-    prefillKeys: Object.keys(prefill),
-    sampleValues: {
-      order_id: prefill.order_id,
-      buyer_name: prefill.buyer_name,
-      total_price: prefill.total_price,
-      payment_method: prefill.payment_method
-    }
-  })
-
-  return prefill
-}
-
-// Helper function to format currency for DocuSeal
-function formatCurrency(cents) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
-  }).format((cents || 0) / 100)
-}
-
-// Download contract packet (ZIP of all signed PDFs)
-app.get(['/api/contracts/download/packet', '/contracts/download/packet'], async (req, res) => {
-  try {
-    const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) return
-
-    const { buildId, version } = req.query
-    if (!buildId) {
-      return res.status(400).json({ error: 'Build ID is required' })
-    }
-
-    const build = await getBuildById(buildId)
-    if (!build || build.userId !== auth.userId) {
-      return res.status(404).json({ error: 'Build not found' })
-    }
-
-    const db = await getDb()
-    let query = { buildId: buildId, userId: auth.userId }
-    if (version) {
-      query.version = parseInt(version)
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
     }
     
-    const contract = await db.collection('contracts').findOne(query, { 
-      sort: { version: -1 } 
-    })
-
-    if (!contract) {
-      return res.status(404).json({ error: 'Contract not found' })
-    }
-
-    if (contract.status !== 'completed') {
-      return res.status(400).json({ error: 'Contract not completed yet' })
-    }
-
-    if (!contract.signedPdfCloudinaryId) {
-      return res.status(404).json({ error: 'Signed documents not available' })
-    }
-
-    // Generate signed download URL from Cloudinary
-    const signedUrl = signedCloudinaryUrl(contract.signedPdfCloudinaryId)
+    // Generate funnel data
+    const funnelData = await generateFunnelData(db, startDate, now)
     
-    // For now, redirect to the single PDF. In the future, this could create a ZIP
-    res.redirect(signedUrl)
-
-  } catch (error) {
-    console.error('Contract download error:', error)
-    res.status(500).json({ 
-      error: 'Failed to download contract packet',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    })
-  }
-})
-
-// Download pre-signing summary PDF
-app.get(['/api/contracts/download/summary', '/contracts/download/summary'], async (req, res) => {
-  try {
-    const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) return
-
-    const { buildId } = req.query
-    if (!buildId) {
-      return res.status(400).json({ error: 'Build ID is required' })
-    }
-
-    const build = await getBuildById(buildId)
-    if (!build || build.userId !== auth.userId) {
-      return res.status(404).json({ error: 'Build not found' })
-    }
-
-    // For now, return a placeholder response. In production, this would generate
-    // a summary PDF with order details, pricing breakdown, etc.
-    res.status(501).json({ 
-      error: 'Summary PDF generation not yet implemented',
-      message: 'This feature will generate a pre-signing order summary PDF'
-    })
-
-  } catch (error) {
-    console.error('Contract summary download error:', error)
-    res.status(500).json({ 
-      error: 'Failed to download summary',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    })
-  }
-})
-
-// Bridge: create order from build and start DocuSeal; returns signer url
-app.post(['/api/builds/:id/contract', '/builds/:id/contract'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    const b = await getBuildById(req.params.id)
-    if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
-
-    const db = await getDb()
-    const orders = db.collection(ORDERS_COLLECTION)
-
-    // Find existing order linked to build
-    let order = await orders.findOne({ userId: auth.userId, buildId: String(b._id) })
-    if (!order) {
-      // Create minimal order document from build
-      const now = new Date()
-      const doc = {
-        userId: auth.userId,
-        buildId: String(b._id),
-        status: 'draft',
-        model: { name: b.modelName, slug: b.modelSlug },
-        selections: Array.isArray(b?.selections?.options) ? b.selections.options.map(o=>({ key: o.id||o.key, label: o.name||o.label, priceDelta: Number(o.price||o.priceDelta||0), quantity: Number(o.quantity||1) })) : [],
-        pricing: b.pricing || {},
-        buyer: b.buyerInfo || {},
-        delivery: { address: b?.buyerInfo?.deliveryAddress || b?.buyerInfo?.address || '' },
-        timeline: [{ event: 'created_from_build', at: now }],
-        createdAt: now,
-        updatedAt: now,
-      }
-      const r = await orders.insertOne(doc)
-      order = { ...doc, _id: r.insertedId }
-    }
-
-    // Call unified contracts/create endpoint
-    req.body = JSON.stringify({ orderId: String(order._id) })
-    return app._router.handle(req, res, () => {})
-  } catch (error) {
-    console.error('Build→contract error:', error)
-    return res.status(500).json({ error: 'contract_bridge_failed', message: error.message || 'Failed to start contract' })
-  }
-})
-
-// Analytics endpoint
-app.post(['/api/analytics/event', '/analytics/event'], async (req, res) => {
-  try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { event, sessionId, timestamp, url, properties } = body
+    // Generate revenue data
+    const revenueData = await generateRevenueData(db, startDate, now)
     
-    // Store analytics event in database
-    const db = await getDb()
-    const analyticsCol = db.collection('Analytics')
+    // Generate user activity data
+    const userActivity = await generateUserActivityData(db, startDate, now)
     
-    const analyticsEvent = {
-      event,
-      sessionId,
-      timestamp: new Date(timestamp || Date.now()),
-      url,
-      properties,
-      userAgent: req.headers['user-agent'],
-      ip: req.headers['x-forwarded-for'] || req.connection.remoteAddress,
-      createdAt: new Date()
-    }
-    
-    await analyticsCol.insertOne(analyticsEvent)
-    
-    return res.status(200).json({ ok: true })
-  } catch (error) {
-    console.error('Analytics event error:', error)
-    return res.status(500).json({ error: 'analytics_failed' })
-  }
-})
-
-// ----- User Profile Management -----
-
-// Get user profile
-app.get(['/api/profile', '/profile'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    await ensureUserProfileIndexes()
-    const profile = await getUserProfile(auth.userId)
-    return res.status(200).json(profile || {})
-  } catch (error) {
-    console.error('Get profile error:', error)
-    return res.status(500).json({ error: 'profile_fetch_failed' })
-  }
-})
-
-// Update user profile basic info
-app.patch(['/api/profile/basic', '/profile/basic'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    console.log('DEBUG: Starting profile/basic update for user:', auth.userId)
-    
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { firstName, lastName, email, phone, address, city, state, zip } = body
-    
-    console.log('DEBUG: Request body:', { firstName, lastName, email, phone, address, city, state, zip })
-    
-    // Validate required fields
-    if (!firstName || !lastName || !email) {
-      console.log('DEBUG: Missing required fields')
-      return res.status(400).json({ error: 'missing_required_fields', message: 'First name, last name, and email are required' })
-    }
-    
-    console.log('DEBUG: Ensuring user profile indexes...')
-    await ensureUserProfileIndexes()
-    console.log('DEBUG: Indexes ensured successfully')
-    
-    console.log('DEBUG: Updating user basic info...')
-    const profile = await updateUserBasicInfo(auth.userId, { firstName, lastName, email, phone, address, city, state, zip })
-    
-    console.log('DEBUG: Basic info updated successfully:', profile)
-    return res.status(200).json(profile)
-  } catch (error) {
-    console.error('Update profile error:', error)
-    console.error('Error stack:', error.stack)
-    
-    // Check for specific error types
-    if (error.message.includes('MONGODB_URI is not configured')) {
-      return res.status(503).json({ error: 'database_config_missing', message: 'Database configuration is missing' })
-    }
-    
-    if (error.message.includes('userId is required')) {
-      return res.status(400).json({ error: 'invalid_user', message: 'User ID is required' })
-    }
-    
-    if (error.message.includes('database') || error.message.includes('MongoDB')) {
-      return res.status(503).json({ error: 'database_unavailable', message: 'Database temporarily unavailable' })
-    }
-    
-    return res.status(500).json({ error: 'profile_update_failed', message: error.message })
-  }
-})
-
-// Get user addresses
-app.get(['/api/profile/addresses', '/profile/addresses'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    await ensureUserProfileIndexes()
-    const profile = await getUserProfile(auth.userId)
-    const addresses = profile?.addresses || []
-    return res.status(200).json(addresses)
-  } catch (error) {
-    console.error('Get addresses error:', error)
-    return res.status(500).json({ error: 'addresses_fetch_failed' })
-  }
-})
-
-// Add new address
-app.post(['/api/profile/addresses', '/profile/addresses'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    console.log('DEBUG: Starting addUserAddress for user:', auth.userId)
-    
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { address, city, state, zip, label } = body
-    
-    console.log('DEBUG: Request body:', { address, city, state, zip, label })
-    
-    if (!address || !city || !state || !zip) {
-      console.log('DEBUG: Missing address fields')
-      return res.status(400).json({ error: 'address_fields_required', message: 'Address, city, state, and zip are required' })
-    }
-    
-    console.log('DEBUG: Ensuring user profile indexes...')
-    await ensureUserProfileIndexes()
-    console.log('DEBUG: Indexes ensured successfully')
-    
-    console.log('DEBUG: Adding user address...')
-    const profile = await addUserAddress(auth.userId, { address, city, state, zip, label })
-    
-    console.log('DEBUG: Address added successfully:', profile)
-    return res.status(200).json(profile)
-  } catch (error) {
-    console.error('Add address error:', error)
-    console.error('Error stack:', error.stack)
-    
-    // Check for specific error types
-    if (error.message.includes('MONGODB_URI is not configured')) {
-      return res.status(503).json({ error: 'database_config_missing', message: 'Database configuration is missing' })
-    }
-    
-    if (error.message.includes('userId and address are required')) {
-      return res.status(400).json({ error: 'invalid_request', message: 'User ID and address are required' })
-    }
-    
-    if (error.message.includes('database') || error.message.includes('MongoDB')) {
-      return res.status(503).json({ error: 'database_unavailable', message: 'Database temporarily unavailable' })
-    }
-    
-    return res.status(500).json({ error: 'address_add_failed', message: error.message })
-  }
-})
-
-// Set primary address
-app.patch(['/api/profile/addresses/:addressId/primary', '/profile/addresses/:addressId/primary'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    const { addressId } = req.params
-    if (!addressId) {
-      return res.status(400).json({ error: 'address_id_required' })
-    }
-    
-    await ensureUserProfileIndexes()
-    const profile = await setPrimaryAddress(auth.userId, addressId)
-    
-    return res.status(200).json(profile)
-  } catch (error) {
-    console.error('Set primary address error:', error)
-    return res.status(500).json({ error: 'set_primary_failed' })
-  }
-})
-
-// Remove address
-app.delete(['/api/profile/addresses/:addressId', '/profile/addresses/:addressId'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    const { addressId } = req.params
-    if (!addressId) {
-      return res.status(400).json({ error: 'address_id_required' })
-    }
-    
-    await ensureUserProfileIndexes()
-    const profile = await removeUserAddress(auth.userId, addressId)
-    
-    return res.status(200).json(profile)
-  } catch (error) {
-    console.error('Remove address error:', error)
-    return res.status(500).json({ error: 'address_remove_failed' })
-  }
-})
-
-// Get auto-fill data
-app.get(['/api/profile/autofill', '/profile/autofill'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    console.log('DEBUG: Getting autofill data for user:', auth.userId)
-    await ensureUserProfileIndexes()
-    const autoFillData = await getAutoFillData(auth.userId)
-    console.log('DEBUG: Autofill data:', autoFillData)
-    return res.status(200).json(autoFillData)
-  } catch (error) {
-    console.error('Get autofill error:', error)
-    return res.status(500).json({ error: 'autofill_fetch_failed', message: error.message })
-  }
-})
-
-// Debug endpoint to test profile system
-app.get(['/api/profile/debug', '/profile/debug'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    console.log('DEBUG: Testing profile system for user:', auth.userId)
-    
-    // Test database connection
-    console.log('DEBUG: Testing database connection...')
-    const db = await getDb()
-    console.log('DEBUG: Database connection successful')
-    
-    // Test profile indexes
-    console.log('DEBUG: Testing profile indexes...')
-    await ensureUserProfileIndexes()
-    console.log('DEBUG: Profile indexes ensured')
-    
-    // Test getting profile
-    console.log('DEBUG: Testing get profile...')
-    const profile = await getUserProfile(auth.userId)
-    console.log('DEBUG: Profile retrieved:', !!profile)
-    
-    // Test getting auto-fill data
-    console.log('DEBUG: Testing auto-fill data...')
-    const autoFillData = await getAutoFillData(auth.userId)
-    console.log('DEBUG: Auto-fill data retrieved:', !!autoFillData)
-    
-    // Test getting primary address
-    console.log('DEBUG: Testing primary address...')
-    const primaryAddress = await getPrimaryAddress(auth.userId)
-    console.log('DEBUG: Primary address retrieved:', !!primaryAddress)
+    // Generate model performance data
+    const modelPerformance = await generateModelPerformanceData(db, startDate, now)
     
     return res.status(200).json({
-      userId: auth.userId,
-      databaseConnected: true,
-      profileExists: !!profile,
-      autoFillDataExists: !!autoFillData,
-      primaryAddressExists: !!primaryAddress,
-      profile: profile || null,
-      autoFillData: autoFillData || {},
-      primaryAddress: primaryAddress || null,
-      timestamp: new Date().toISOString()
+      funnelData,
+      revenueData,
+      userActivity,
+      modelPerformance
     })
-  } catch (error) {
-    console.error('Profile debug error:', error)
-    console.error('Error stack:', error.stack)
     
+  } catch (error) {
+    console.error('Advanced reporting error:', error)
     return res.status(500).json({ 
-      error: 'debug_failed', 
-      message: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
+      error: 'reporting_failed', 
+      message: error.message || 'Failed to generate report'
     })
   }
 })
 
-// Check contract status
-app.get(['/api/builds/:id/contract/status', '/builds/:id/contract/status'], async (req, res) => {
-  const auth = await requireAuth(req, res, true)
-  if (!auth?.userId) return
-  
-  try {
-    const b = await getBuildById(req.params.id)
-    if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
-    
-    if (!b.contract?.agreementId) {
-      return res.status(404).json({ error: 'no_contract', message: 'No contract found for this build' })
-    }
-
-    // Import Adobe Sign integration
-    const { default: adobeSign } = await import('../src/utils/adobeSign.js')
-    
-    // Get agreement status
-    const status = await adobeSign.getAgreementStatus(b.contract.agreementId)
-    
-    // Update build if status changed
-    if (status.status !== b.contract.status) {
-      await updateBuild(req.params.id, { 
-        contract: { 
-          ...b.contract,
-          status: status.status,
-          updatedAt: new Date()
-        }
-      })
-    }
-    
-    return res.status(200).json(status)
-    
-  } catch (error) {
-    console.error('Contract status check error:', error)
-    return res.status(500).json({ 
-      error: 'status_check_failed', 
-      message: error.message || 'Failed to check contract status'
-    })
-  }
-})
-
-// ===== ADMIN ENDPOINTS =====
-
-// Admin middleware to check admin status
-async function requireAdmin(req, res) {
-  const auth = await requireAuth(req, res, true)
-  if (!auth?.userId) return null
-  return auth
-}
-
-// Get admin statistics
-app.get(['/api/admin/stats', '/admin/stats'], async (req, res) => {
+// Export advanced reports
+app.post(['/api/admin/reports/export', '/admin/reports/export'], async (req, res) => {
   const auth = await requireAdmin(req, res)
   if (!auth) return
   
   try {
+    const { filters, chartType, format } = req.body
     const db = await getDb()
     
-    // Get user count
-    const totalUsers = await db.collection('users').countDocuments()
-    
-    // Get build count
-    const totalBuilds = await db.collection('builds').countDocuments()
-    
-    // Get order count and revenue
-    const orders = await db.collection('orders').find({}).toArray()
-    const totalOrders = orders.length
-    const revenue = orders.reduce((sum, order) => sum + (order.total || 0), 0)
-    
-    // Calculate conversion rate (orders / builds)
-    const conversionRate = totalBuilds > 0 ? (totalOrders / totalBuilds) * 100 : 0
-    
-    // Get active users (users with activity in last 30 days)
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    const activeUsers = await db.collection('users').countDocuments({
-      lastActivity: { $gte: thirtyDaysAgo }
-    })
-    
-    return res.status(200).json({
-      totalUsers,
-      totalBuilds,
-      totalOrders,
-      revenue,
-      conversionRate,
-      activeUsers
-    })
-    
-  } catch (error) {
-    console.error('Admin stats error:', error)
-    return res.status(500).json({ 
-      error: 'stats_failed', 
-      message: error.message || 'Failed to load admin statistics'
-    })
-  }
-})
-
-// Get recent admin activity
-app.get(['/api/admin/activity', '/admin/activity'], async (req, res) => {
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
-  
-  try {
-    const db = await getDb()
-    
-    // Get recent activity from analytics collection
-    const activity = await db.collection('analytics')
-      .find({})
-      .sort({ timestamp: -1 })
-      .limit(20)
-      .toArray()
-    
-    const formattedActivity = activity.map(item => ({
-      action: item.eventName,
-      description: item.properties?.message || item.eventName,
-      timestamp: item.timestamp,
-      userId: item.userId,
-      sessionId: item.sessionId
-    }))
-    
-    return res.status(200).json(formattedActivity)
-    
-  } catch (error) {
-    console.error('Admin activity error:', error)
-    return res.status(500).json({ 
-      error: 'activity_failed', 
-      message: error.message || 'Failed to load recent activity'
-    })
-  }
-})
-
-// Get all users for admin
-app.get(['/api/admin/users', '/admin/users'], async (req, res) => {
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
-  
-  try {
-    const db = await getDb()
-    
-    const users = await db.collection('users')
-      .find({})
-      .sort({ createdAt: -1 })
-      .toArray()
-    
-    return res.status(200).json(users)
-    
-  } catch (error) {
-    console.error('Admin users error:', error)
-    return res.status(500).json({ 
-      error: 'users_failed', 
-      message: error.message || 'Failed to load users'
-    })
-  }
-})
-
-// Bulk user operations
-app.post(['/api/admin/users/bulk', '/admin/users/bulk'], async (req, res) => {
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
-  
-  try {
-    const { action, userIds } = req.body
-    
-    if (!action || !userIds || !Array.isArray(userIds)) {
-      return res.status(400).json({ 
-        error: 'invalid_request', 
-        message: 'Action and userIds array are required' 
-      })
-    }
-    
-    const db = await getDb()
-    let result
-    
-    switch (action) {
-      case 'activate':
-        result = await db.collection('users').updateMany(
-          { _id: { $in: userIds.map(id => new ObjectId(id)) } },
-          { $set: { status: 'active', updatedAt: new Date() } }
-        )
-        break
-        
-      case 'deactivate':
-        result = await db.collection('users').updateMany(
-          { _id: { $in: userIds.map(id => new ObjectId(id)) } },
-          { $set: { status: 'inactive', updatedAt: new Date() } }
-        )
-        break
-        
-      case 'delete':
-        result = await db.collection('users').deleteMany({
-          _id: { $in: userIds.map(id => new ObjectId(id)) }
-        })
-        break
-        
-      default:
-        return res.status(400).json({ 
-          error: 'invalid_action', 
-          message: 'Invalid action specified' 
-        })
-    }
-    
-    // Log admin action
-    await db.collection('analytics').insertOne({
-      eventName: 'admin_bulk_action',
-      userId: auth.userId,
-      sessionId: req.headers['x-session-id'] || 'unknown',
-      timestamp: new Date(),
-      properties: {
-        action,
-        userCount: userIds.length,
-        affectedUsers: userIds
-      }
-    })
-    
-    return res.status(200).json({
-      success: true,
-      action,
-      affectedCount: result.modifiedCount || result.deletedCount,
-      message: `${action} completed for ${result.modifiedCount || result.deletedCount} users`
-    })
-    
-  } catch (error) {
-    console.error('Bulk user operation error:', error)
-    return res.status(500).json({ 
-      error: 'bulk_operation_failed', 
-      message: error.message || 'Failed to perform bulk operation'
-    })
-  }
-})
-
-// Data export endpoints
-app.get(['/api/admin/export/:type', '/admin/export/:type'], async (req, res) => {
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
-  
-  try {
-    const { type } = req.params
-    const db = await getDb()
-    
-    let data = []
+    // Generate report data based on chart type
+    let reportData = []
     let filename = ''
     
-    switch (type) {
-      case 'users':
-        data = await db.collection('users').find({}).toArray()
-        filename = 'users_export'
+    switch (chartType) {
+      case 'funnel':
+        reportData = await generateFunnelData(db, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), new Date())
+        filename = 'funnel_report'
         break
-        
-      case 'builds':
-        data = await db.collection('builds').find({}).toArray()
-        filename = 'builds_export'
+      case 'revenue':
+        reportData = await generateRevenueData(db, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), new Date())
+        filename = 'revenue_report'
         break
-        
-      case 'orders':
-        data = await db.collection('orders').find({}).toArray()
-        filename = 'orders_export'
+      case 'activity':
+        reportData = await generateUserActivityData(db, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), new Date())
+        filename = 'activity_report'
         break
-        
-      case 'analytics':
-        data = await db.collection('analytics').find({}).toArray()
-        filename = 'analytics_export'
+      case 'models':
+        reportData = await generateModelPerformanceData(db, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), new Date())
+        filename = 'models_report'
         break
-        
       default:
         return res.status(400).json({ 
-          error: 'invalid_export_type', 
-          message: 'Invalid export type' 
+          error: 'invalid_chart_type', 
+          message: 'Invalid chart type' 
         })
     }
     
-    // Convert to CSV
-    const csv = convertToCSV(data)
-    
-    // Set headers for file download
-    res.setHeader('Content-Type', 'text/csv')
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}_${new Date().toISOString().split('T')[0]}.csv"`)
-    
-    return res.status(200).send(csv)
+    if (format === 'pdf') {
+      // For PDF export, return JSON data (frontend can handle PDF generation)
+      return res.status(200).json({
+        data: reportData,
+        filename: `${filename}_${new Date().toISOString().split('T')[0]}.json`
+      })
+    } else {
+      // CSV export
+      const csv = convertToCSV(reportData)
+      res.setHeader('Content-Type', 'text/csv')
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}_${new Date().toISOString().split('T')[0]}.csv"`)
+      return res.status(200).send(csv)
+    }
     
   } catch (error) {
-    console.error('Data export error:', error)
+    console.error('Report export error:', error)
     return res.status(500).json({ 
       error: 'export_failed', 
-      message: error.message || 'Failed to export data'
+      message: error.message || 'Failed to export report'
     })
   }
 })
 
-// ===== POLICY MANAGEMENT =====
-
-// Get all policies
-app.get(['/api/admin/policies', '/admin/policies'], async (req, res) => {
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
+// Helper functions for report generation
+async function generateFunnelData(db, startDate, endDate) {
+  const analytics = await db.collection('analytics')
+    .find({
+      timestamp: { $gte: startDate, $lte: endDate }
+    })
+    .toArray()
   
-  try {
-    const db = await getDb()
-    const policies = await db.collection('policies').find({}).toArray()
-    
-    // Return default policies if none exist
-    if (policies.length === 0) {
-      const defaultPolicies = [
-        {
-          id: 'privacy-policy',
-          title: 'Privacy Policy',
-          content: getDefaultPrivacyPolicy(),
-          lastUpdated: new Date(),
-          updatedBy: auth.userId
-        },
-        {
-          id: 'terms-conditions',
-          title: 'Terms & Conditions',
-          content: getDefaultTermsConditions(),
-          lastUpdated: new Date(),
-          updatedBy: auth.userId
-        },
-        {
-          id: 'other-policies',
-          title: 'Other Policies',
-          content: getDefaultOtherPolicies(),
-          lastUpdated: new Date(),
-          updatedBy: auth.userId
-        }
-      ]
-      
-      // Insert default policies
-      await db.collection('policies').insertMany(defaultPolicies)
-      return res.status(200).json(defaultPolicies)
-    }
-    
-    return res.status(200).json(policies)
-  } catch (error) {
-    console.error('Get policies error:', error)
-    return res.status(500).json({ 
-      error: 'policies_failed', 
-      message: error.message || 'Failed to load policies'
-    })
-  }
-})
-
-// Get single policy
-app.get(['/api/policies/:id', '/policies/:id'], async (req, res) => {
-  try {
-    const { id } = req.params
-    const db = await getDb()
-    const policy = await db.collection('policies').findOne({ id })
-    
-    if (!policy) {
-      // Return default policy content if not found
-      let defaultContent = ''
-      switch (id) {
-        case 'privacy-policy':
-          defaultContent = getDefaultPrivacyPolicy()
-          break
-        case 'terms-conditions':
-          defaultContent = getDefaultTermsConditions()
-          break
-        case 'other-policies':
-          defaultContent = getDefaultOtherPolicies()
-          break
-        default:
-          return res.status(404).json({ error: 'Policy not found' })
-      }
-      
-      const defaultPolicy = {
-        id,
-        title: id.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        content: defaultContent,
-        lastUpdated: new Date(),
-        updatedBy: 'system'
-      }
-      
-      return res.status(200).json(defaultPolicy)
-    }
-    
-    return res.status(200).json(policy)
-  } catch (error) {
-    console.error('Get policy error:', error)
-    return res.status(500).json({ 
-      error: 'policy_failed', 
-      message: error.message || 'Failed to load policy'
-    })
-  }
-})
-
-// Update policy
-app.put(['/api/admin/policies/:id', '/admin/policies/:id'], async (req, res) => {
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
+  // Calculate funnel steps
+  const pageViews = analytics.filter(a => a.eventName === 'page_view').length
+  const modelViews = analytics.filter(a => a.eventName === 'model_view').length
+  const buildsStarted = analytics.filter(a => a.eventName === 'build_started').length
+  const buildsCompleted = analytics.filter(a => a.eventName === 'build_completed').length
+  const ordersStarted = analytics.filter(a => a.eventName === 'order_started').length
+  const ordersCompleted = analytics.filter(a => a.eventName === 'order_completed').length
   
-  try {
-    const { id } = req.params
-    const { title, content } = req.body
-    
-    if (!title || !content) {
-      return res.status(400).json({ 
-        error: 'missing_fields', 
-        message: 'Title and content are required' 
-      })
-    }
-    
-    const db = await getDb()
-    const updateData = {
-      id,
-      title: String(title).slice(0, 200),
-      content: String(content),
-      lastUpdated: new Date(),
-      updatedBy: auth.userId
-    }
-    
-    const result = await db.collection('policies').updateOne(
-      { id },
-      { $set: updateData },
-      { upsert: true }
-    )
-    
-    return res.status(200).json({
-      success: true,
-      policy: updateData,
-      modified: result.modifiedCount > 0,
-      created: result.upsertedCount > 0
-    })
-  } catch (error) {
-    console.error('Update policy error:', error)
-    return res.status(500).json({ 
-      error: 'policy_update_failed', 
-      message: error.message || 'Failed to update policy'
-    })
-  }
-})
+  return [
+    { name: 'Page Views', count: pageViews, percentage: 100 },
+    { name: 'Model Views', count: modelViews, percentage: pageViews > 0 ? (modelViews / pageViews) * 100 : 0 },
+    { name: 'Builds Started', count: buildsStarted, percentage: pageViews > 0 ? (buildsStarted / pageViews) * 100 : 0 },
+    { name: 'Builds Completed', count: buildsCompleted, percentage: pageViews > 0 ? (buildsCompleted / pageViews) * 100 : 0 },
+    { name: 'Orders Started', count: ordersStarted, percentage: pageViews > 0 ? (ordersStarted / pageViews) * 100 : 0 },
+    { name: 'Orders Completed', count: ordersCompleted, percentage: pageViews > 0 ? (ordersCompleted / pageViews) * 100 : 0 }
+  ]
+}
 
-// Pages routes
-app.get(['/api/pages/:pageId', '/pages/:pageId'], async (req, res) => {
-  try {
-    const { pageId } = req.params
-    const db = await getDb()
-    
-    // Get page content from database
-    const page = await db.collection('pages').findOne({ pageId })
-    
-    if (!page) {
-      // Return default content structure if page doesn't exist
-      const defaultContent = getDefaultPageContent(pageId)
-          return res.status(200).json({
-      pageId,
-      content: defaultContent,
-      images: {},
-      lastUpdated: new Date(),
-      updatedBy: 'system'
+async function generateRevenueData(db, startDate, endDate) {
+  const orders = await db.collection('orders')
+    .find({
+      createdAt: { $gte: startDate, $lte: endDate }
     })
-    }
-    
-    return res.status(200).json(page)
-  } catch (error) {
-    console.error('Get page error:', error)
-    return res.status(500).json({ 
-      error: 'page_fetch_failed', 
-      message: error.message || 'Failed to fetch page content'
-    })
-  }
-})
-
-// Update page content
-app.patch(['/api/pages/:pageId', '/pages/:pageId'], async (req, res) => {
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
+    .toArray()
   
-  try {
-    const { pageId } = req.params
-    const { content, images } = req.body
-    const db = await getDb()
+  // Group by week
+  const weeklyData = {}
+  orders.forEach(order => {
+    const weekStart = new Date(order.createdAt)
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+    weekStart.setHours(0, 0, 0, 0)
     
-    const updateData = {
-      pageId,
-      content: content || {},
-      images: typeof images === 'object' && images !== null ? images : {},
-      lastUpdated: new Date(),
-      updatedBy: auth.userId
+    const weekKey = weekStart.toISOString().split('T')[0]
+    if (!weeklyData[weekKey]) {
+      weeklyData[weekKey] = { revenue: 0, orders: 0 }
     }
-    
-    const result = await db.collection('pages').updateOne(
-      { pageId },
-      { $set: updateData },
-      { upsert: true }
-    )
-    
-    return res.status(200).json({
-      success: true,
-      pageId,
-      content: updateData.content,
-      images: updateData.images,
-      lastUpdated: updateData.lastUpdated,
-      updatedBy: updateData.updatedBy,
-      modified: result.modifiedCount > 0,
-      created: result.upsertedCount > 0
-    })
-  } catch (error) {
-    console.error('Update page error:', error)
-    return res.status(500).json({ 
-      error: 'page_update_failed', 
-      message: error.message || 'Failed to update page content'
-    })
-  }
-})
-
-// Blog routes
-app.get(['/api/blog', '/blog'], async (req, res) => {
-  applyCors(req, res, 'GET, OPTIONS')
-  const debug = process.env.DEBUG_ADMIN === 'true'
-  if (debug) {
-    console.log('[DEBUG_ADMIN] Blog GET route hit', { 
-      url: req.url, 
-      method: req.method, 
-      path: req.query?.path,
-      originalUrl: req.originalUrl 
-    })
-  }
-  
-  try {
-    const db = await getDb()
-    const { category, limit = 10, offset = 0 } = req.query
-    
-    let query = { status: 'published' }
-    if (category) {
-      query.category = category
-    }
-    
-    const posts = await db.collection('blog_posts')
-      .find(query)
-      .sort({ publishDate: -1 })
-      .skip(parseInt(offset))
-      .limit(parseInt(limit))
-      .toArray()
-    
-    const total = await db.collection('blog_posts').countDocuments(query)
-    
-    if (debug) {
-      console.log('[DEBUG_ADMIN] Blog GET response', { 
-        postsCount: posts.length, 
-        total, 
-        hasMore: total > parseInt(offset) + posts.length 
-      })
-    }
-    
-    return res.status(200).json({
-      posts,
-      total,
-      hasMore: total > parseInt(offset) + posts.length
-    })
-  } catch (error) {
-    console.error('Get blog posts error:', error)
-    return res.status(500).json({ 
-      error: 'blog_fetch_failed', 
-      message: error.message || 'Failed to fetch blog posts'
-    })
-  }
-})
-
-app.get(['/api/blog/:slug', '/blog/:slug'], async (req, res) => {
-  applyCors(req, res, 'GET, OPTIONS')
-  try {
-    const { slug } = req.params
-    const db = await getDb()
-    
-    const post = await db.collection('blog_posts').findOne({ 
-      slug,
-      status: 'published'
-    })
-    
-    if (!post) {
-      return res.status(404).json({ 
-        error: 'post_not_found', 
-        message: 'Blog post not found'
-      })
-    }
-    
-    // Increment view count
-    await db.collection('blog_posts').updateOne(
-      { _id: post._id },
-      { $inc: { views: 1 } }
-    )
-    
-    return res.status(200).json(post)
-  } catch (error) {
-    console.error('Get blog post error:', error)
-    return res.status(500).json({ 
-      error: 'blog_post_fetch_failed', 
-      message: error.message || 'Failed to fetch blog post'
-    })
-  }
-})
-
-app.post(['/api/blog', '/blog'], async (req, res) => {
-  applyCors(req, res, 'POST, OPTIONS')
-  
-  // Handle preflight OPTIONS request
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
-  }
-  
-  const debug = process.env.DEBUG_ADMIN === 'true'
-  console.log('[BLOG_POST] Route hit', { 
-    url: req.url, 
-    method: req.method, 
-    path: req.query?.path,
-    originalUrl: req.originalUrl,
-    bodyKeys: Object.keys(req.body || {}),
-    hasBody: !!req.body,
-    bodyType: typeof req.body
+    weeklyData[weekKey].revenue += order.total || 0
+    weeklyData[weekKey].orders += 1
   })
   
-  // Temporarily allow blog creation without strict admin checks for testing
-  const auth = await requireAuth(req, res, false) // Changed from requireAdmin to requireAuth with adminOnly=false
-  if (!auth) {
-    console.log('[BLOG_POST] Auth failed')
-    return
-  }
-  console.log('[BLOG_POST] Auth successful', { userId: auth.userId })
+  return Object.entries(weeklyData).map(([week, data]) => ({
+    period: `Week of ${week}`,
+    revenue: data.revenue,
+    orders: data.orders,
+    growth: 0 // Calculate growth in frontend
+  }))
+}
+
+async function generateUserActivityData(db, startDate, endDate) {
+  const users = await db.collection('users').countDocuments({
+    createdAt: { $gte: startDate, $lte: endDate }
+  })
   
-  try {
-    const db = await getDb()
-    
-    // Ensure blog_posts collection exists
-    try {
-      const collections = await db.listCollections().toArray()
-      const blogCollectionExists = collections.some(col => col.name === 'blog_posts')
-      if (!blogCollectionExists) {
-        console.log('[BLOG_POST] Creating blog_posts collection')
-        await db.createCollection('blog_posts')
-      }
-      console.log('[BLOG_POST] Blog collection ready')
-    } catch (error) {
-      console.error('[BLOG_POST] Error ensuring blog collection exists:', error)
-      // Continue anyway, the collection might already exist
-    }
-    
-    console.log('[BLOG_POST] Database connection successful')
-    const postData = req.body
-    console.log('[BLOG_POST] Post data received', { 
-      hasTitle: !!postData.title, 
-      hasContent: !!postData.content,
-      titleLength: postData.title?.length,
-      contentLength: postData.content?.length,
-      keys: Object.keys(postData || {}),
-      title: postData.title?.substring(0, 50) + '...',
-      content: postData.content?.substring(0, 100) + '...'
-    })
-    
-    // Validate required fields
-    if (!postData.title || !postData.content) {
-      console.log('[BLOG_POST] Validation failed', { 
-        hasTitle: !!postData.title, 
-        hasContent: !!postData.content 
-      })
-      return res.status(400).json({
-        error: 'validation_failed',
-        message: 'Title and content are required'
-      })
-    }
-    
-    // Generate slug if not provided
-    if (!postData.slug) {
-      postData.slug = postData.title
-        .toLowerCase()
-        .replace(/[^a-z0-9 -]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
-        .substring(0, 100) // Limit length to 100 characters
-    }
-    
-    console.log('[BLOG_POST] Generated slug:', postData.slug)
-    
-    // Check if slug already exists
-    const existingPost = await db.collection('blog_posts').findOne({ slug: postData.slug })
-    console.log('[BLOG_POST] Slug check:', { slug: postData.slug, exists: !!existingPost })
-    if (existingPost) {
-      console.log('[BLOG_POST] Slug already exists, returning error')
-      return res.status(400).json({
-        error: 'slug_exists',
-        message: 'A post with this URL already exists'
-      })
-    }
-    
-    const newPost = {
-      ...postData,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      views: 0,
-      author: auth.userId
-    }
-    
-    const result = await db.collection('blog_posts').insertOne(newPost)
-    console.log('[BLOG_POST] Successfully created post', { 
-      insertedId: result.insertedId,
-      title: newPost.title 
-    })
-    
-    return res.status(201).json({
-      success: true,
-      id: result.insertedId,
-      ...newPost
-    })
-  } catch (error) {
-    console.error('[BLOG_POST] Create blog post error:', error)
-    console.error('[BLOG_POST] Error stack:', error.stack)
-    return res.status(500).json({ 
-      error: 'blog_post_create_failed', 
-      message: error.message || 'Failed to create blog post'
-    })
-  }
-})
-
-app.put(['/api/blog/:id', '/blog/:id'], async (req, res) => {
-  applyCors(req, res, 'PUT, OPTIONS')
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
+  const activeUsers = await db.collection('users').countDocuments({
+    lastActivity: { $gte: startDate, $lte: endDate }
+  })
   
-  try {
-    const { id } = req.params
-    const db = await getDb()
-    const postData = req.body
-    
-    // Validate ObjectId format
-    let objectId
-    try {
-      objectId = new ObjectId(id)
-    } catch (error) {
-      return res.status(400).json({
-        error: 'invalid_id',
-        message: 'Invalid blog post ID format'
-      })
-    }
-    
-    // Validate required fields
-    if (!postData.title || !postData.content) {
-      return res.status(400).json({
-        error: 'validation_failed',
-        message: 'Title and content are required'
-      })
-    }
-    
-    // Check if slug already exists for different post
-    if (postData.slug) {
-      const existingPost = await db.collection('blog_posts').findOne({ 
-        slug: postData.slug,
-        _id: { $ne: objectId }
-      })
-      if (existingPost) {
-        return res.status(400).json({
-          error: 'slug_exists',
-          message: 'A post with this URL already exists'
-        })
-      }
-    }
-    
-    // SANITIZE DATA: Remove immutable and system fields
-    const {
-      _id,           // MongoDB immutable field
-      __v,           // Mongoose version field (if using Mongoose)
-      createdAt,     // System field - should not be updated
-      views,         // System field - managed by API
-      ...sanitizedData
-    } = postData
-    
-    // Add system fields
-    const updateData = {
-      ...sanitizedData,
-      updatedAt: new Date()
-    }
-    
-    const result = await db.collection('blog_posts').updateOne(
-      { _id: objectId },
-      { $set: updateData }
-    )
-    
-    if (result.matchedCount === 0) {
-      return res.status(404).json({
-        error: 'post_not_found',
-        message: 'Blog post not found'
-      })
-    }
-    
-    if (result.modifiedCount === 0) {
-      return res.status(200).json({
-        success: true,
-        message: 'No changes were made to the blog post',
-        id
-      })
-    }
-    
-    // Fetch updated post to return
-    const updatedPost = await db.collection('blog_posts').findOne({ _id: objectId })
-    
-    return res.status(200).json({
-      success: true,
-      message: 'Blog post updated successfully',
-      id,
-      post: updatedPost
-    })
-  } catch (error) {
-    console.error('Update blog post error:', error)
-    
-    // Handle specific MongoDB errors
-    if (error.code === 66) {
-      return res.status(400).json({
-        error: 'immutable_field_error',
-        message: 'Cannot update immutable fields like _id'
-      })
-    }
-    
-    if (error.name === 'MongoServerError' && error.code === 11000) {
-      return res.status(400).json({
-        error: 'duplicate_key_error',
-        message: 'A post with this slug already exists'
-      })
-    }
-    
-    return res.status(500).json({ 
-      error: 'blog_post_update_failed', 
-      message: error.message || 'Failed to update blog post'
-    })
-  }
-})
-
-// Admin-specific blog editing endpoint with enhanced security
-app.put(['/api/admin/blog/:id', '/admin/blog/:id'], async (req, res) => {
-  applyCors(req, res, 'PUT, OPTIONS')
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
+  const returningUsers = await db.collection('users').countDocuments({
+    lastActivity: { $gte: startDate, $lte: endDate },
+    visitCount: { $gt: 1 }
+  })
   
-  try {
-    const { id } = req.params
-    const db = await getDb()
-    const postData = req.body
-    
-    // Enhanced validation for admin editing
-    if (!postData.title || !postData.content) {
-      return res.status(400).json({
-        error: 'validation_failed',
-        message: 'Title and content are required'
-      })
-    }
-    
-    // Validate ObjectId format
-    let objectId
-    try {
-      objectId = new ObjectId(id)
-    } catch (error) {
-      return res.status(400).json({
-        error: 'invalid_id',
-        message: 'Invalid blog post ID format'
-      })
-    }
-    
-    // Check if post exists and user has permission
-    const existingPost = await db.collection('blog_posts').findOne({ _id: objectId })
-    if (!existingPost) {
-      return res.status(404).json({
-        error: 'post_not_found',
-        message: 'Blog post not found'
-      })
-    }
-    
-    // Check if slug already exists for different post
-    if (postData.slug && postData.slug !== existingPost.slug) {
-      const slugConflict = await db.collection('blog_posts').findOne({ 
-        slug: postData.slug,
-        _id: { $ne: objectId }
-      })
-      if (slugConflict) {
-        return res.status(400).json({
-          error: 'slug_exists',
-          message: 'A post with this URL already exists'
-        })
-      }
-    }
-    
-    // COMPREHENSIVE DATA SANITIZATION
-    const {
-      _id,           // MongoDB immutable field
-      __v,           // Mongoose version field
-      createdAt,     // System field - creation timestamp
-      views,         // System field - view count
-      updatedAt,     // System field - will be set by API
-      ...sanitizedData
-    } = postData
-    
-    // Add system fields and admin metadata
-    const updateData = {
-      ...sanitizedData,
-      updatedAt: new Date(),
-      lastEditedBy: auth.userId,
-      lastEditedAt: new Date()
-    }
-    
-    // Perform the update
-    const result = await db.collection('blog_posts').updateOne(
-      { _id: objectId },
-      { $set: updateData }
-    )
-    
-    if (result.matchedCount === 0) {
-      return res.status(404).json({
-        error: 'post_not_found',
-        message: 'Blog post not found during update'
-      })
-    }
-    
-    // Fetch updated post to return
-    const updatedPost = await db.collection('blog_posts').findOne({ _id: objectId })
-    
-    // Log admin action for audit trail
-    await db.collection('admin_actions').insertOne({
-      action: 'blog_post_updated',
-      adminId: auth.userId,
-      postId: objectId,
-      postTitle: postData.title,
-      timestamp: new Date(),
-      changes: Object.keys(updateData)
-    })
-    
-    return res.status(200).json({
-      success: true,
-      message: 'Blog post updated successfully',
-      id,
-      post: updatedPost,
-      changes: result.modifiedCount > 0 ? 'Modified' : 'No changes'
-    })
-  } catch (error) {
-    console.error('Admin blog update error:', error)
-    
-    // Handle specific MongoDB errors with detailed messages
-    if (error.code === 66) {
-      return res.status(400).json({
-        error: 'immutable_field_error',
-        message: 'Cannot update immutable fields like _id',
-        details: 'The system automatically excludes immutable fields from updates'
-      })
-    }
-    
-    if (error.name === 'MongoServerError' && error.code === 11000) {
-      return res.status(400).json({
-        error: 'duplicate_key_error',
-        message: 'A post with this slug already exists',
-        details: 'Please choose a different URL slug for this post'
-      })
-    }
-    
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({
-        error: 'validation_error',
-        message: 'Data validation failed',
-        details: error.message
-      })
-    }
-    
-    return res.status(500).json({ 
-      error: 'admin_blog_update_failed', 
-      message: 'Failed to update blog post',
-      details: error.message || 'Internal server error'
-    })
-  }
-})
+  return [
+    { name: 'New Users', value: users, change: 5.2 },
+    { name: 'Active Users', value: activeUsers, change: 12.8 },
+    { name: 'Returning Users', value: returningUsers, change: 8.4 }
+  ]
+}
 
-// Admin endpoint for fetching blog posts for editing (includes unpublished posts)
-app.get(['/api/admin/blog/:id', '/admin/blog/:id'], async (req, res) => {
-  applyCors(req, res, 'GET, OPTIONS')
-  const auth = await requireAdmin(req, res)
-  if (!auth) return
+async function generateModelPerformanceData(db, startDate, endDate) {
+  const analytics = await db.collection('analytics')
+    .find({
+      timestamp: { $gte: startDate, $lte: endDate },
+      eventName: { $in: ['model_view', 'build_started', 'order_completed'] }
+    })
+    .toArray()
   
-  try {
-    const { id } = req.params
-    const db = await getDb()
-    
-    // Validate ObjectId format
-    let objectId
-    try {
-      objectId = new ObjectId(id)
-    } catch (error) {
-      return res.status(400).json({
-        error: 'invalid_id',
-        message: 'Invalid blog post ID format'
-      })
+  // Group by model
+  const modelData = {}
+  analytics.forEach(event => {
+    const modelName = event.properties?.modelName || 'Unknown'
+    if (!modelData[modelName]) {
+      modelData[modelName] = { views: 0, builds: 0, orders: 0, revenue: 0 }
     }
     
-    // Fetch post for editing (admin can see all posts regardless of status)
-    const post = await db.collection('blog_posts').findOne({ _id: objectId })
-    
-    if (!post) {
-      return res.status(404).json({ 
-        error: 'post_not_found', 
-        message: 'Blog post not found'
-      })
+    switch (event.eventName) {
+      case 'model_view':
+        modelData[modelName].views++
+        break
+      case 'build_started':
+        modelData[modelName].builds++
+        break
+      case 'order_completed':
+        modelData[modelName].orders++
+        modelData[modelName].revenue += event.properties?.total || 0
+        break
     }
-    
-    // Log admin access for audit trail
-    await db.collection('admin_actions').insertOne({
-      action: 'blog_post_accessed_for_editing',
-      adminId: auth.userId,
-      postId: objectId,
-      postTitle: post.title,
-      timestamp: new Date()
-    })
-    
-    return res.status(200).json(post)
-  } catch (error) {
-    console.error('Admin blog fetch error:', error)
-    return res.status(500).json({ 
-      error: 'admin_blog_fetch_failed', 
-      message: error.message || 'Failed to fetch blog post for editing'
-    })
-  }
-})
+  })
+  
+  return Object.entries(modelData).map(([name, data]) => ({
+    name,
+    views: data.views,
+    builds: data.builds,
+    orders: data.orders,
+    conversionRate: data.views > 0 ? (data.orders / data.views) * 100 : 0,
+    revenue: data.revenue
+  }))
+}
 
-// ===== END AI Routes =====
-
-// ===== Builds (new) =====
-// Create build (from model or migrated guest draft)
-app.post(['/api/builds', '/builds'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  await ensureBuildIndexes()
-  try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const doc = await createBuild({
-      userId: auth.userId,
-      modelSlug: String(body.modelSlug || ''),
-      modelName: String(body.modelName || ''),
-      basePrice: Number(body.basePrice || 0),
-      selections: body.selections || {},
-      financing: body.financing || {},
-      buyerInfo: body.buyerInfo || {},
-    })
-    return res.status(200).json({ ok: true, buildId: String(doc._id) })
-  } catch (err) {
-    return res.status(400).json({ error: 'invalid_build', message: String(err?.message || err) })
-  }
-})
-
-// List builds for current user
-app.get(['/api/builds', '/builds'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  await ensureBuildIndexes()
-  const list = await listBuildsForUser(auth.userId)
-  return res.status(200).json(list)
-})
-
-// Get single build
-app.get(['/api/builds/:id', '/builds/:id'], async (req, res) => {
+// Finalize order (stub)
+app.post(['/api/builds/:id/confirm', '/builds/:id/confirm'], async (req, res) => {
   const auth = await requireAuth(req, res, false)
   if (!auth?.userId) return
   const b = await getBuildById(req.params.id)
   if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
-  return res.status(200).json(b)
-})
-
-// Update build
-app.patch(['/api/builds/:id', '/builds/:id'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  const b = await getBuildById(req.params.id)
-  if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
-  const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-  const updated = await updateBuild(req.params.id, body)
+  const now = new Date()
+  const updated = await updateBuild(req.params.id, { step: 5, status: 'ORDER_PLACED', contract: { ...(b.contract||{}), status: 'signed', signedAt: now } })
   return res.status(200).json(updated)
 })
 
-// Duplicate build
-app.post(['/api/builds/:id/duplicate', '/builds/:id/duplicate'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  const copy = await duplicateBuild(req.params.id, auth.userId)
-  if (!copy) return res.status(404).json({ error: 'not_found' })
-  return res.status(200).json({ ok: true, buildId: String(copy._id) })
-})
-
-// Rename build
-app.post(['/api/builds/:id/rename', '/builds/:id/rename'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  try {
-    const { id } = req.params
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { name } = body
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return res.status(400).json({ error: 'invalid_name', message: 'Build name is required' })
-    }
-    const doc = await renameBuild(id, auth.userId, name.trim())
-    if (!doc) return res.status(404).json({ error: 'build_not_found' })
-    return res.status(200).json({ ok: true, build: doc })
-  } catch (err) {
-    return res.status(400).json({ error: 'rename_failed', message: String(err?.message || err) })
-  }
-})
-
-// Delete build
-app.delete(['/api/builds/:id', '/builds/:id'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-  const result = await deleteBuild(req.params.id, auth.userId)
-  return res.status(200).json({ ok: true, deleted: result?.deletedCount || 0 })
-})
-
-// Advance/retreat checkout step with minimal validation
-app.post(['/api/builds/:id/checkout-step', '/builds/:id/checkout-step'], async (req, res) => {
+// Optional parity endpoint for setting financing method explicitly
+app.post(['/api/builds/:id/payment-method', '/builds/:id/payment-method'], async (req, res) => {
   const auth = await requireAuth(req, res, false)
   if (!auth?.userId) return
   const b = await getBuildById(req.params.id)
   if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
-  const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-  const target = Number(body?.step || b.step)
-  if (target < 1 || target > 8) return res.status(400).json({ error: 'invalid_step' })
-  
-  // Validation logic - only check requirements for steps that actually need them
-  // Step 4 is where users enter buyer info, so don't require it to advance TO step 4
-  if (target >= 5) {
-    const bi = b?.buyerInfo || {}
-    const ok = bi.firstName && bi.lastName && bi.email && bi.address
-    if (!ok) return res.status(400).json({ error: 'incomplete_buyer' })
-  }
-  
-  // Only check financing for steps after payment method step (step 7+)
-  if (target >= 7 && !(b?.financing?.method)) {
-    return res.status(400).json({ error: 'missing_payment_method' })
-  }
-  
-  // Only check contract for confirmation step (step 8) - users need to reach step 7 to sign
-  if (target >= 8) {
-    const c = b?.contract || {}
-    if (c?.status !== 'signed') return res.status(400).json({ error: 'contract_not_signed' })
-  }
-  
-  const updated = await updateBuild(req.params.id, { step: target })
+  const { method } = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+  if (!method) return res.status(400).json({ error: 'missing_method' })
+  const updated = await updateBuild(req.params.id, { financing: { ...(b.financing||{}), method } })
   return res.status(200).json(updated)
 })
 
-// ===== NEW CONTRACT API ENDPOINTS =====
-
-// Create contract submission (for new contract page)
-app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
+// PDF Generation for Order Summary
+app.get(['/api/builds/:id/pdf', '/builds/:id/pdf'], async (req, res) => {
   try {
+    const { id } = req.params
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
-
-    console.log('[CONTRACT_CREATE] Request received:', { 
-      method: req.method, 
-      hasBody: !!req.body, 
-      bodyKeys: req.body ? Object.keys(req.body) : [],
-      body: req.body 
-    })
-
-    const { buildId } = req.body
-    if (!buildId) {
-          console.log('[CONTRACT_CREATE] Missing buildId in request body')
-    return res.status(400).json({ error: 'Build ID is required' })
-  }
-
-  console.log('[CONTRACT_CREATE] Looking up build:', buildId)
-  const build = await getBuildById(buildId)
-  console.log('[CONTRACT_CREATE] Build lookup result:', { 
-    found: !!build, 
-    buildId: build?._id, 
-    userId: build?.userId, 
-    authUserId: auth.userId,
-    match: build?.userId === auth.userId 
-  })
-  
-  if (!build || build.userId !== auth.userId) {
-    console.log('[CONTRACT_CREATE] Build not found or access denied')
-    return res.status(404).json({ error: 'Build not found' })
-  }
+    
+    const build = await getBuildById(id)
+    if (!build || build.userId !== auth.userId) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
 
     const settings = await getOrgSettings()
     
-    // Define all required templates
-    const templates = [
-      {
-        name: 'purchase_agreement',
-        envKey: 'DOCUSEAL_PURCHASE_TEMPLATE_ID',
-        title: 'Purchase Agreement',
-        description: 'Primary purchase contract with all terms and conditions'
-      }
-    ]
+    // Calculate comprehensive pricing
+    const basePrice = Number(build.selections?.basePrice || 0)
+    const options = build.selections?.options || []
+    const optionsSubtotal = options.reduce((sum, opt) => sum + Number(opt.price || 0) * (opt.quantity || 1), 0)
+    const subtotalBeforeFees = basePrice + optionsSubtotal
+    
+    const deliveryFee = Number(build.pricing?.delivery || 0)
+    const titleFee = Number(settings.pricing?.title_fee_default || 500)
+    const setupFee = Number(settings.pricing?.setup_fee_default || 3000)
+    const taxRate = Number(settings.pricing?.tax_rate_percent || 6.25) / 100
+    
+    const feesSubtotal = deliveryFee + titleFee + setupFee
+    const subtotalBeforeTax = subtotalBeforeFees + feesSubtotal
+    const salesTax = subtotalBeforeTax * taxRate
+    const total = subtotalBeforeTax + salesTax
 
-    // For now, only require the purchase agreement template
-    // TODO: Add other templates once they're configured in DocuSeal
-    if (!process.env.DOCUSEAL_PURCHASE_TEMPLATE_ID) {
-      console.log('[CONTRACT_CREATE] Missing purchase agreement template configuration')
-      return res.status(500).json({ 
-        error: 'DocuSeal purchase agreement template not configured',
-        missing: ['DOCUSEAL_PURCHASE_TEMPLATE_ID']
-      })
-    }
+    // Group options by category
+    const optionsByCategory = options.reduce((acc, option) => {
+      const category = option.category || 'Other'
+      if (!acc[category]) acc[category] = []
+      acc[category].push(option)
+      return acc
+    }, {})
 
-    // Optional: Add other templates if they're configured
-    const optionalTemplates = [
-      {
-        name: 'payment_terms',
-        envKey: 'DOCUSEAL_PAYMENT_TERMS_TEMPLATE_ID',
-        title: 'Payment Terms Agreement',
-        description: 'Payment method, deposit, and balance terms'
+    // Generate HTML content for PDF
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Firefly Tiny Homes - Order Summary</title>
+        <style>
+          body { 
+            font-family: Arial, sans-serif; 
+            margin: 40px; 
+            color: #333; 
+            line-height: 1.4;
+          }
+          .header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+            border-bottom: 2px solid #f59e0b; 
+            padding-bottom: 20px; 
+          }
+          .logo { 
+            font-size: 24px; 
+            font-weight: bold; 
+            color: #f59e0b; 
+          }
+          .order-info { 
+            margin-bottom: 30px; 
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+          }
+          .section { 
+            margin-bottom: 25px; 
+          }
+          .section-title { 
+            font-size: 18px; 
+            font-weight: bold; 
+            margin-bottom: 15px; 
+            color: #f59e0b; 
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+          }
+          .model-info { 
+            font-size: 16px; 
+            margin-bottom: 20px; 
+          }
+          .price-row { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 8px; 
+            padding: 4px 0;
+          }
+          .price-total { 
+            font-weight: bold; 
+            font-size: 16px; 
+            border-top: 2px solid #ccc; 
+            padding-top: 10px; 
+            margin-top: 10px; 
+          }
+          .option-item { 
+            margin-bottom: 10px; 
+            padding: 8px; 
+            background: #f9f9f9; 
+            border-radius: 4px; 
+          }
+          .option-category { 
+            font-weight: bold; 
+            margin-bottom: 8px; 
+            color: #666; 
+          }
+          .buyer-info { 
+            background: #f9f9f9; 
+            padding: 15px; 
+            border-radius: 4px; 
+          }
+          .footer { 
+            margin-top: 40px; 
+            text-align: center; 
+            font-size: 12px; 
+            color: #666; 
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+          }
+          .total-row {
+            font-size: 18px;
+            font-weight: bold;
+            color: #f59e0b;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo">FIREFLY TINY HOMES</div>
+          <div>Order Summary</div>
+        </div>
+
+        <div class="order-info">
+          <div class="price-row">
+            <strong>Order ID:</strong> ${id}
+          </div>
+          <div class="price-row">
+            <strong>Date:</strong> ${new Date().toLocaleDateString()}
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Model Configuration</div>
+          <div class="model-info">
+            <strong>${build.modelName}</strong> (${build.modelSlug})
+          </div>
+          
+          <div class="price-row">
+            <span>Base Price</span>
+            <span>$${formatCurrency(basePrice)}</span>
+          </div>
+        </div>
+
+        ${Object.keys(optionsByCategory).length > 0 ? `
+        <div class="section">
+          <div class="section-title">Selected Options</div>
+          ${Object.entries(optionsByCategory).map(([category, categoryOptions]) => `
+            <div class="option-category">${category}</div>
+            ${categoryOptions.map(option => `
+              <div class="option-item">
+                <div class="price-row">
+                  <span>${option.name || option.code}${option.quantity > 1 ? ` (×${option.quantity})` : ''}</span>
+                  <span>$${formatCurrency(Number(option.price || 0) * (option.quantity || 1))}</span>
+                </div>
+                ${option.description ? `<div style="font-size: 12px; color: #666; margin-top: 4px;">${option.description}</div>` : ''}
+              </div>
+            `).join('')}
+          `).join('')}
+          <div class="price-row">
+            <strong>Options Subtotal</strong>
+            <strong>$${formatCurrency(optionsSubtotal)}</strong>
+          </div>
+        </div>
+        ` : ''}
+
+        <div class="section">
+          <div class="section-title">Fees & Services</div>
+          <div class="price-row">
+            <span>Delivery${build.pricing?.deliveryMiles ? ` (Approx. ${Math.round(build.pricing.deliveryMiles)} miles to factory)` : ''}</span>
+            <span>$${formatCurrency(deliveryFee)}</span>
+          </div>
+          <div class="price-row">
+            <span>Title & Registration</span>
+            <span>$${formatCurrency(titleFee)}</span>
+          </div>
+          <div class="price-row">
+            <span>Setup & Installation</span>
+            <span>$${formatCurrency(setupFee)}</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Tax Calculation</div>
+          <div class="price-row">
+            <span>Sales Tax (${(taxRate * 100).toFixed(2)}%)</span>
+            <span>$${formatCurrency(salesTax)}</span>
+          </div>
+        </div>
+
+        <div class="price-total">
+          <div class="price-row total-row">
+            <span>TOTAL PURCHASE PRICE</span>
+            <span>$${formatCurrency(total)}</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Buyer & Delivery Information</div>
+          <div class="buyer-info">
+            <div><strong>Name:</strong> ${build.buyerInfo?.firstName || ''} ${build.buyerInfo?.lastName || ''}</div>
+            <div><strong>Email:</strong> ${build.buyerInfo?.email || ''}</div>
+            <div><strong>Phone:</strong> ${build.buyerInfo?.phone || 'Not provided'}</div>
+            <div><strong>Delivery Address:</strong> ${build.buyerInfo?.deliveryAddress || [build.buyerInfo?.address, build.buyerInfo?.city, build.buyerInfo?.state, build.buyerInfo?.zip].filter(Boolean).join(', ') || 'Not specified'}</div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>This is a detailed summary of your Firefly Tiny Home order.</p>
+          <p>Generated on ${new Date().toLocaleString()}</p>
+        </div>
+      </body>
+      </html>
+    `
+
+    // Return JSON data for frontend PDF generation
+    // This allows the frontend to use html2canvas + jsPDF for reliable PDF generation
+    res.setHeader('Content-Type', 'application/json')
+    res.json({
+      build,
+      settings,
+      pricing: {
+        basePrice,
+        optionsSubtotal,
+        deliveryFee,
+        titleFee,
+        setupFee,
+        taxRate,
+        salesTax,
+        total
       },
-      {
-        name: 'delivery_agreement',
-        envKey: 'DOCUSEAL_DELIVERY_TEMPLATE_ID',
-        title: 'Delivery Agreement',
-        description: 'Delivery schedule, site requirements, and setup'
-      },
-      {
-        name: 'warranty_information',
-        envKey: 'DOCUSEAL_WARRANTY_TEMPLATE_ID',
-        title: 'Warranty Information',
-        description: 'Warranty terms, coverage, and service information'
-      },
-      {
-        name: 'legal_disclosures',
-        envKey: 'DOCUSEAL_LEGAL_DISCLOSURES_TEMPLATE_ID',
-        title: 'Legal Disclosures',
-        description: 'Required consumer rights and legal disclosures'
-      }
-    ]
-
-    // Add optional templates if they're configured
-    for (const template of optionalTemplates) {
-      if (process.env[template.envKey]) {
-        templates.push(template)
-      }
-    }
-
-    // Build prefill data from build
-    const prefill = buildContractPrefill(build, settings)
-
-    // Create DocuSeal submissions for all templates
-    const buyerInfo = build.buyerInfo || {}
-    const submitters = [{
-      name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
-      email: buyerInfo.email || '',
-      role: 'buyer1'
-    }]
-    
-    const submissions = []
-    
-    for (const template of templates) {
-      const templateId = Number(process.env[template.envKey])
-      console.log(`[CONTRACT_CREATE] Creating submission for ${template.name}:`, {
-        templateId,
-        templateName: template.title
-      })
-      
-      try {
-        const submission = await createSubmission({
-          templateId,
-          prefill,
-          submitters,
-          sendEmail: false, // Don't send email until user is ready
-          completedRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/confirm`,
-          cancelRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/agreement`
-        })
-        
-        submissions.push({
-          name: template.name,
-          title: template.title,
-          description: template.description,
-          templateId,
-          submissionId: submission.submissionId,
-          signerUrl: submission.signerUrl,
-          status: 'ready'
-        })
-        
-        console.log(`[CONTRACT_CREATE] Successfully created submission for ${template.name}:`, submission.submissionId)
-      } catch (error) {
-        console.error(`[CONTRACT_CREATE] Failed to create submission for ${template.name}:`, error)
-        throw new Error(`Failed to create ${template.title}: ${error.message}`)
-      }
-    }
-
-    // Store contract in database with all submissions
-    const db = await getDb()
-    const { ObjectId } = await import('mongodb')
-    
-    const contractData = {
-      _id: new ObjectId(),
-      buildId: buildId,
-      userId: auth.userId,
-      version: 1,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      submissions: submissions,
-      status: 'ready',
-      pricingSnapshot: build.pricing || {},
-      buyerInfo: build.buyerInfo || {},
-      delivery: build.delivery || {},
-      payment: build.payment || {},
-      audit: [{
-        at: new Date(),
-        who: auth.userId,
-        action: 'contract_created',
-        meta: { 
-          submissionCount: submissions.length,
-          submissionIds: submissions.map(s => s.submissionId)
-        }
-      }]
-    }
-
-    await db.collection('contracts').insertOne(contractData)
-
-    // Update build to reference contract
-    await updateBuild(buildId, { 
-      'contract.submissionIds': submissions.map(s => s.submissionId),
-      'contract.status': 'ready',
-      'contract.createdAt': new Date()
-    })
-
-    // Return primary submission URL (Purchase Agreement)
-    const primarySubmission = submissions.find(s => s.name === 'purchase_agreement')
-    
-    res.status(200).json({
-      success: true,
-      submissions: submissions,
-      submissionId: primarySubmission?.submissionId,
-      signerUrl: primarySubmission?.signerUrl,
-      status: 'ready',
-      version: 1
+      optionsByCategory
     })
 
   } catch (error) {
-    console.error('Contract creation error:', error)
-    res.status(500).json({ 
-      error: 'Failed to create contract',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    })
+    console.error('PDF generation error:', error)
+    res.status(500).json({ error: 'Failed to generate PDF' })
   }
 })
 
-// Get contract status (for real-time polling)
-app.get(['/api/contracts/status', '/contracts/status'], async (req, res) => {
+// ----- PATCH/PUT model -----
+async function handleModelWrite(req, res) {
+  const debug = process.env.DEBUG_ADMIN === 'true'
+  const { code } = req.params
+  const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+  const { name, price, description, specs, features, packages, addOns } = body
+
+  const $set = { updatedAt: new Date() }
+  if (typeof name === 'string') $set.name = String(name).slice(0, 200)
+  if (typeof price === 'number') $set.basePrice = price
+  if (typeof description === 'string') $set.description = String(description).slice(0, 5000)
+
+  if (specs && typeof specs === 'object') {
+    const { width, length, height, squareFeet, weight, bedrooms, bathrooms } = specs
+    if (typeof width === 'string') $set.width = width
+    if (typeof length === 'string') $set.length = length
+    if (typeof height === 'string') $set.height = height
+    if (typeof weight === 'string') $set.weight = weight
+    if (typeof squareFeet === 'number') $set.squareFeet = squareFeet
+    if (typeof bedrooms === 'number') $set.bedrooms = bedrooms
+    if (typeof bathrooms === 'number') $set.bathrooms = bathrooms
+  }
+
+  if (Array.isArray(features)) {
+    $set.features = features.map(f => String(f).slice(0, 300)).slice(0, 100)
+  }
+
+  // Public site add-on packages (up to 4) and single add-ons
+  if (Array.isArray(packages)) {
+    $set.packages = packages.slice(0, 4).map((p, idx) => ({
+      key: String(p?.key || `pkg${idx+1}`).slice(0, 40),
+      name: String(p?.name || '').slice(0, 120),
+      priceDelta: typeof p?.priceDelta === 'number' ? p.priceDelta : 0,
+      description: typeof p?.description === 'string' ? String(p.description).slice(0, 5000) : '',
+      items: Array.isArray(p?.items) ? p.items.map(i => String(i).slice(0, 200)).slice(0, 40) : [],
+      images: Array.isArray(p?.images) ? p.images.map(u => String(u).slice(0, 1000)).slice(0, 12) : [],
+    }))
+  }
+  if (Array.isArray(addOns)) {
+    $set.addOns = addOns.slice(0, 40).map((a, idx) => ({
+      id: String(a?.id || `addon${idx+1}`).slice(0, 40),
+      name: String(a?.name || '').slice(0, 120),
+      priceDelta: typeof a?.priceDelta === 'number' ? a.priceDelta : 0,
+      description: typeof a?.description === 'string' ? String(a.description).slice(0, 2000) : '',
+      image: a?.image ? String(a.image).slice(0, 1000) : '',
+    }))
+  }
+
+  const db = await getDb()
+  try {
+    await ensureModelIndexes()
+  } catch (e) {
+    if (debug) console.warn('[DEBUG_ADMIN] ensureModelIndexes error (continuing):', e?.message || e)
+  }
+  const model = await findOrCreateModel({ modelCode: code })
+  if (!model) return res.status(404).json({ error: 'Not found' })
+  if (debug) console.log('[DEBUG_ADMIN] Found model', { _id: model?._id, modelCode: model?.modelCode, slug: model?.slug })
+
+  await db.collection(COLLECTION).updateOne({ _id: model._id }, { $set })
+  const updated = await db.collection(COLLECTION).findOne({ _id: model._id })
+  return res.status(200).json(updated)
+}
+
+app.patch(['/api/models/:code', '/models/:code'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  return handleModelWrite(req, res)
+})
+
+app.put(['/api/models/:code', '/models/:code'], async (req, res) => {
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+  return handleModelWrite(req, res)
+})
+
+// ----- Images route handlers -----
+async function handleImagesPatch(req, res, model, db) {
+  const debug = process.env.DEBUG_ADMIN === 'true'
+  if (debug) console.log('[DEBUG_ADMIN] Handling PATCH request images')
+  const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+  const { add, setPrimary, order, images, tag } = body
+  const toStringSafe = (v) => (v == null ? '' : String(v)).slice(0, 500)
+
+  const current = Array.isArray(model.images) ? model.images.slice() : []
+  let nextImages = current
+
+  if (Array.isArray(images)) {
+    const now = new Date()
+    nextImages = images
+      .map((img, idx) => ({
+        publicId: toStringSafe(img.public_id || img.publicId),
+        url: toStringSafe(img.secure_url || img.url),
+        isPrimary: !!img.isPrimary,
+        order: typeof img.order === 'number' ? img.order : idx,
+        tag: toStringSafe(tag || img.tag || 'gallery'),
+        uploadedAt: img.uploadedAt ? new Date(img.uploadedAt) : now,
+      }))
+      .filter(i => i.url)
+  } else {
+    nextImages = current.map(img => ({ ...img }))
+    if (Array.isArray(add) && add.length) {
+      const cleanAdds = add.map((img, idx) => ({
+        publicId: toStringSafe(img.publicId),
+        url: toStringSafe(img.url),
+        alt: toStringSafe(img.alt),
+        isPrimary: false,
+        order: typeof img.order === 'number' ? img.order : current.length + idx,
+        tag: toStringSafe(tag || img.tag || 'gallery'),
+        uploadedAt: new Date(),
+      })).filter(i => i.url)
+      nextImages.push(...cleanAdds)
+    }
+    if (typeof setPrimary === 'string' && nextImages.length) {
+      const primaryId = String(setPrimary)
+      nextImages = nextImages.map(img => ({ ...img, isPrimary: img.publicId === primaryId }))
+    }
+    if (Array.isArray(order) && nextImages.length) {
+      const byId = new Map(nextImages.map(img => [img.publicId, img]))
+      const reordered = order.map(id => byId.get(String(id))).filter(Boolean)
+      if (reordered.length) {
+        nextImages = reordered.map((img, idx) => ({ ...img, order: idx }))
+      }
+    }
+  }
+
+  const updates = { $set: { images: nextImages, updatedAt: new Date() } }
+  const result = await db.collection(COLLECTION).updateOne({ _id: model._id }, updates)
+  if (debug) console.log('[DEBUG_ADMIN] images PATCH update result', { matchedCount: result?.matchedCount, modifiedCount: result?.modifiedCount })
+  const updated = await db.collection(COLLECTION).findOne({ _id: model._id })
+  res.status(200).json(updated)
+}
+
+async function handleImagesDelete(req, res, model, db) {
+  const { publicId } = req.query || {}
+  if (!publicId) return res.status(400).json({ error: 'Missing publicId' })
+  const next = (Array.isArray(model.images) ? model.images : []).filter(img => img.publicId !== publicId)
+  const result = await db.collection(COLLECTION).updateOne(
+    { _id: model._id },
+    { $set: { images: next, updatedAt: new Date() } }
+  )
+  const debug = process.env.DEBUG_ADMIN === 'true'
+  if (debug) console.log('[DEBUG_ADMIN] images DELETE update result', { matchedCount: result?.matchedCount, modifiedCount: result?.modifiedCount })
+  res.status(200).json({ success: true })
+}
+
+async function handleImagesPost(req, res, model, db) {
+  const { url, publicId, tag } = req.body || {}
+  if (!url || !publicId) return res.status(400).json({ error: 'Missing fields' })
+  await db.collection(COLLECTION).updateOne(
+    { _id: model._id },
+    {
+      $push: { images: { url, publicId, tag: tag || 'gallery' } },
+      $set: { updatedAt: new Date() },
+    }
+  )
+  res.status(200).json({ success: true })
+}
+
+async function imagesEntry(req, res) {
+  const debug = process.env.DEBUG_ADMIN === 'true'
+  if (debug) {
+    console.log('[DEBUG_ADMIN] === models/images called ===')
+    console.log('[DEBUG_ADMIN] Method:', req.method)
+    console.log('[DEBUG_ADMIN] URL:', req.url)
+    console.log('[DEBUG_ADMIN] Query:', req.query)
+  }
+
+  const auth = await requireAuth(req, res, true)
+  if (!auth?.userId) return
+
+  const { modelCode, modelId } = req.query || {}
+  if (debug) console.log('[DEBUG_ADMIN] model identifiers', { modelCode, modelId })
+  if (!modelCode && !modelId) return res.status(400).json({ error: 'modelCode or modelId is required' })
+
+  const db = await getDb()
+  try {
+    await ensureModelIndexes()
+  } catch (err) {
+    if (debug) console.warn('[DEBUG_ADMIN] ensureModelIndexes error (continuing):', err?.message || err)
+  }
+  const model = await findOrCreateModel({ modelId, modelCode })
+  if (!model?._id) return res.status(404).json({ error: 'Model not found' })
+
+  switch (req.method) {
+    case 'PATCH':
+      return handleImagesPatch(req, res, model, db)
+    case 'DELETE':
+      return handleImagesDelete(req, res, model, db)
+    case 'POST':
+      return handleImagesPost(req, res, model, db)
+    default:
+      return res.status(405).json({ error: 'method_not_allowed' })
+  }
+}
+
+app.patch(['/api/models/images', '/models/images'], imagesEntry)
+app.post(['/api/models/images', '/models/images'], imagesEntry)
+app.delete(['/api/models/images', '/models/images'], imagesEntry)
+
+// ----- Cloudinary sign -----
+app.post(['/api/cloudinary/sign', '/cloudinary/sign'], async (req, res) => {
+  const auth = await requireAuth(req, res, false) // Allow any authenticated user for blog uploads
+  if (!auth?.userId) return
+
+  const { subfolder = '', tags = [] } = req.body || {}
+  const timestamp = Math.round(Date.now() / 1000)
+  const root = process.env.CLOUDINARY_ROOT_FOLDER || 'firefly-estimator/models'
+  const safeSub = String(subfolder).replace(/[^a-zA-Z0-9_\/-]/g, '')
+  const folder = safeSub ? `${root}/${safeSub}` : root
+  const debug = process.env.DEBUG_ADMIN === 'true'
+  if (debug) console.log('[DEBUG_ADMIN] cloudinary/sign', { folder, tags, cloudName: process.env.CLOUDINARY_CLOUD_NAME })
+  try {
+    const apiKey = process.env.CLOUDINARY_API_KEY
+    const apiSecret = process.env.CLOUDINARY_API_SECRET
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME
+    if (!apiKey || !apiSecret || !cloudName) {
+      return res.status(500).json({ error: 'missing_env', message: 'Cloudinary env vars are not configured' })
+    }
+
+    const paramsToSign = {
+      folder,
+      tags: Array.isArray(tags) ? tags.join(',') : '',
+      timestamp,
+    }
+    const toSign = Object.keys(paramsToSign)
+      .sort()
+      .map(k => `${k}=${paramsToSign[k]}`)
+      .join('&')
+    const signature = createHash('sha1')
+      .update(`${toSign}${apiSecret}`)
+      .digest('hex')
+
+    res.status(200).json({
+      timestamp,
+      signature,
+      apiKey,
+      cloudName,
+      folder,
+    })
+  } catch (err) {
+    console.error('Cloudinary sign error', err)
+    res.status(500).json({ error: 'sign_error', message: String(err?.message || err) })
+  }
+})
+
+// ----- Clerk Webhook -----
+// Temporarily disabled - causing deployment crashes
+// app.post(['/api/webhooks/clerk', '/webhooks/clerk'], async (req, res) => {
+//   // Webhook handler code temporarily removed
+//   res.status(200).json({ success: true });
+// });
+
+// ===== Payment Routes =====
+
+// Test payment route
+app.get(['/api/payments/test', '/payments/test'], (req, res) => {
+  res.status(200).json({ success: true, message: 'Payment routes are working' })
+})
+
+// Setup ACH
+app.post(['/api/payments/setup-ach', '/payments/setup-ach'], async (req, res) => {
   try {
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
-    const { buildId } = req.query
+    const { buildId } = req.body
     if (!buildId) {
       return res.status(400).json({ error: 'Build ID is required' })
     }
 
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(500).json({ 
+        error: 'server_configuration_error',
+        details: 'STRIPE_SECRET_KEY environment variable is missing' 
+      })
+    }
+
     const build = await getBuildById(buildId)
-    if (!build || build.userId !== auth.userId) {
+    if (!build) {
       return res.status(404).json({ error: 'Build not found' })
     }
 
-    const db = await getDb()
-    const contract = await db.collection('contracts').findOne({ 
-      buildId: buildId, 
-      userId: auth.userId 
-    }, { sort: { version: -1 } }) // Get latest version
-
-    if (!contract) {
-      return res.status(404).json({ error: 'Contract not found' })
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
     }
 
-    // Get latest status from DocuSeal for all submissions
-    let overallStatus = contract.status
-    let updatedSubmissions = contract.submissions || []
-    let hasStatusChanges = false
-    
-    if (updatedSubmissions.length > 0) {
-      for (let i = 0; i < updatedSubmissions.length; i++) {
-        const submission = updatedSubmissions[i]
-        if (submission.submissionId) {
-          try {
-            const docusealSubmission = await getSubmission(submission.submissionId)
-            const docusealStatus = mapDocuSealStatus(docusealSubmission.status || docusealSubmission.state)
-            
-            // Update submission status if it changed
-            if (docusealStatus !== submission.status) {
-              updatedSubmissions[i] = {
-                ...submission,
-                status: docusealStatus
-              }
-              hasStatusChanges = true
-            }
-          } catch (error) {
-            console.error(`Failed to get DocuSeal status for ${submission.name}:`, error)
-            // Continue with local status
-          }
+    // Create or retrieve Stripe customer
+    let customerId = build.customerId
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: auth.user?.emailAddresses?.[0]?.emailAddress || `user+${auth.userId}@example.com`,
+        metadata: {
+          userId: auth.userId,
+          buildId: buildId
         }
-      }
-      
-      // Determine overall status based on all submissions
-      const allCompleted = updatedSubmissions.every(s => s.status === 'completed')
-      const anySigning = updatedSubmissions.some(s => s.status === 'signing')
-      const anyVoided = updatedSubmissions.some(s => s.status === 'voided')
-      
-      if (allCompleted) {
-        overallStatus = 'completed'
-      } else if (anyVoided) {
-        overallStatus = 'voided'
-      } else if (anySigning) {
-        overallStatus = 'signing'
-      } else {
-        overallStatus = 'ready'
-      }
-      
-      // Update our local status if it changed
-      if (hasStatusChanges || overallStatus !== contract.status) {
-        await db.collection('contracts').updateOne(
-          { _id: contract._id },
-          { 
-            $set: { 
-              status: overallStatus, 
-              submissions: updatedSubmissions,
-              updatedAt: new Date() 
-            },
-            $push: { 
-              audit: {
-                at: new Date(),
-                who: 'system',
-                action: 'status_updated',
-                meta: { 
-                  from: contract.status, 
-                  to: overallStatus,
-                  submissionUpdates: updatedSubmissions.map(s => ({ name: s.name, status: s.status }))
-                }
-              }
-            }
-          }
-        )
-      }
+      })
+      customerId = customer.id
+
+      // Save customer ID to build
+      const db = await getDb()
+      await db.collection('builds').updateOne(
+        { _id: build._id },
+        { $set: { customerId } }
+      )
     }
 
-    // Get primary submission for backward compatibility
-    const primarySubmission = updatedSubmissions.find(s => s.name === 'purchase_agreement') || updatedSubmissions[0]
-
-    res.status(200).json({
-      success: true,
-      status: overallStatus,
-      submissions: updatedSubmissions,
-      submissionId: primarySubmission?.submissionId,
-      signerUrl: primarySubmission?.signerUrl,
-      version: contract.version,
-      createdAt: contract.createdAt,
-      updatedAt: contract.updatedAt
+    // Create SetupIntent for ACH/bank account
+    const setupIntent = await stripe.setupIntents.create({
+      customer: customerId,
+      payment_method_types: ['us_bank_account', 'card'],
+      usage: 'off_session',
+      payment_method_options: {
+        us_bank_account: {
+          financial_connections: {
+            permissions: ['payment_method', 'balances']
+          },
+          verification_method: 'automatic'
+        }
+      },
+      metadata: {
+        buildId: buildId,
+        userId: auth.userId
+      }
     })
 
+    res.status(200).json(setupIntent)
   } catch (error) {
-    console.error('Contract status error:', error)
+    console.error('Setup ACH error:', error)
     res.status(500).json({ 
-      error: 'Failed to get contract status',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      error: 'setup_failed', 
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     })
   }
 })
 
-// DocuSeal webhook handler (for real-time status updates)
-app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
+// Save ACH Method
+app.post(['/api/payments/save-ach-method', '/payments/save-ach-method'], async (req, res) => {
   try {
-    // Verify webhook signature
-    const secret = process.env.DOCUSEAL_WEBHOOK_SECRET || ''
-    const signature = req.headers['x-docuseal-signature'] || req.headers['X-DocuSeal-Signature']
-    
-    if (!secret || signature !== secret) {
-      console.error('DocuSeal webhook: Invalid signature')
-      return res.status(401).json({ error: 'Unauthorized' })
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId, paymentMethodId, accountId, balanceCents, authAccepted } = req.body
+    if (!buildId || !paymentMethodId) {
+      return res.status(400).json({ error: 'Build ID and Payment Method ID are required' })
     }
 
-    const { event_type, data } = req.body
-    console.log('DocuSeal webhook received:', event_type, data?.id)
+    const build = await getBuildById(buildId)
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
 
-    if (!data?.id) {
-      return res.status(400).json({ error: 'Missing submission ID' })
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
     }
 
     const db = await getDb()
-    const contract = await db.collection('contracts').findOne({ 
-      'submissions.submissionId': data.id 
-    })
+    // Update build with payment method
+    await db.collection('builds').updateOne(
+      { _id: build._id },
+      {
+        $set: {
+          'payment.method': 'ach_debit',
+          'payment.paymentMethodId': paymentMethodId,
+          'payment.accountId': accountId,
+          'payment.balanceCents': balanceCents,
+          'payment.authAccepted': authAccepted || false,
+          'payment.ready': true,
+          'payment.updatedAt': new Date()
+        }
+      }
+    )
 
-    if (!contract) {
-      console.log('DocuSeal webhook: Contract not found for submission:', data.id)
-      return res.status(404).json({ error: 'Contract not found' })
+    // Also update the corresponding order if it exists
+    await db.collection('orders').updateOne(
+      { buildId: buildId },
+      {
+        $set: {
+          'payment.method': 'ach_debit',
+          'payment.paymentMethodId': paymentMethodId,
+          'payment.accountId': accountId,
+          'payment.balanceCents': balanceCents,
+          'payment.authAccepted': authAccepted || false,
+          'payment.ready': true,
+          'payment.updatedAt': new Date()
+        }
+      }
+    )
+
+    res.status(200).json({ success: true })
+  } catch (error) {
+    console.error('Save ACH method error:', error)
+    res.status(500).json({ error: 'save_failed', message: error.message })
+  }
+})
+
+// Mark Payment Ready
+app.post(['/api/payments/mark-ready', '/payments/mark-ready'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId, plan, method, mandateAccepted, transferInstructions, transferConfirmed, transferReference } = req.body
+    if (!buildId) {
+      return res.status(400).json({ error: 'Build ID is required' })
     }
 
-    // Find the specific submission that was updated
-    const submissionIndex = contract.submissions?.findIndex(s => s.submissionId === data.id)
-    if (submissionIndex === -1 || submissionIndex === undefined) {
-      console.log('DocuSeal webhook: Submission not found in contract:', data.id)
-      return res.status(404).json({ error: 'Submission not found' })
+    const db = await getDb()
+    const build = await getBuildById(buildId)
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
     }
 
-    const submission = contract.submissions[submissionIndex]
-    let newSubmissionStatus = submission.status
-    let shouldDownloadPdf = false
-
-    // Handle different event types for the specific submission
-    switch (event_type) {
-      case 'submission.created':
-        newSubmissionStatus = 'ready'
-        break
-      case 'submission.started':
-        newSubmissionStatus = 'signing'
-        break
-      case 'submission.completed':
-        newSubmissionStatus = 'completed'
-        shouldDownloadPdf = true
-        break
-      case 'submission.declined':
-        newSubmissionStatus = 'voided'
-        break
-      default:
-        console.log('DocuSeal webhook: Unhandled event type:', event_type)
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
     }
 
-    // Update the specific submission status
-    const updatedSubmissions = [...contract.submissions]
-    updatedSubmissions[submissionIndex] = {
-      ...submission,
-      status: newSubmissionStatus
+    // Mark payment as ready, preserving existing auth status
+    await db.collection('builds').updateOne(
+      { _id: build._id },
+      {
+        $set: {
+          'payment.ready': true,
+          'payment.readyAt': new Date(),
+          ...(plan && { 'payment.plan': plan }),
+          ...(method && { 'payment.method': method }),
+          ...(mandateAccepted !== undefined && { 'payment.mandateAccepted': mandateAccepted }),
+          ...(transferInstructions && { 'payment.transferInstructions': transferInstructions }),
+          ...(transferConfirmed !== undefined && { 'payment.transferConfirmed': transferConfirmed }),
+          ...(transferReference && { 'payment.transferReference': transferReference })
+        }
+      }
+    )
+
+    // Also update the corresponding order if it exists
+    await db.collection('orders').updateOne(
+      { buildId: buildId },
+      {
+        $set: {
+          'payment.ready': true,
+          'payment.readyAt': new Date(),
+          ...(plan && { 'payment.plan': plan }),
+          ...(method && { 'payment.method': method }),
+          ...(mandateAccepted !== undefined && { 'payment.mandateAccepted': mandateAccepted }),
+          ...(transferInstructions && { 'payment.transferInstructions': transferInstructions }),
+          ...(transferConfirmed !== undefined && { 'payment.transferConfirmed': transferConfirmed }),
+          ...(transferReference && { 'payment.transferReference': transferReference })
+        }
+      }
+    )
+
+    res.status(200).json({ success: true })
+  } catch (error) {
+    console.error('Mark payment ready error:', error)
+    res.status(500).json({ error: 'mark_ready_failed', message: error.message })
+  }
+})
+
+// Update Payment Authorization Status
+app.post(['/api/payments/update-auth-status', '/payments/update-auth-status'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId, authAccepted } = req.body
+    if (!buildId || authAccepted === undefined) {
+      return res.status(400).json({ error: 'Build ID and auth status are required' })
     }
 
-    // Determine overall contract status based on all submissions
-    const allCompleted = updatedSubmissions.every(s => s.status === 'completed')
-    const anySigning = updatedSubmissions.some(s => s.status === 'signing')
-    const anyVoided = updatedSubmissions.some(s => s.status === 'voided')
+    const build = await getBuildById(buildId)
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    const db = await getDb()
     
-    let newOverallStatus = contract.status
-    if (allCompleted) {
-      newOverallStatus = 'completed'
-    } else if (anyVoided) {
-      newOverallStatus = 'voided'
-    } else if (anySigning) {
-      newOverallStatus = 'signing'
-    } else {
-      newOverallStatus = 'ready'
+    // Update build with payment authorization status
+    await db.collection('builds').updateOne(
+      { _id: build._id },
+      {
+        $set: {
+          'payment.authAccepted': authAccepted,
+          'payment.updatedAt': new Date()
+        }
+      }
+    )
+
+    // Also update the corresponding order if it exists
+    await db.collection('orders').updateOne(
+      { buildId: buildId },
+      {
+        $set: {
+          'payment.authAccepted': authAccepted,
+          'payment.updatedAt': new Date()
+        }
+      }
+    )
+
+    res.status(200).json({ success: true })
+  } catch (error) {
+    console.error('Update payment auth status error:', error)
+    res.status(500).json({ error: 'update_failed', message: error.message })
+  }
+})
+
+// Provision Bank Transfer - UNIFIED IMPLEMENTATION
+app.post(['/api/payments/provision-bank-transfer', '/payments/provision-bank-transfer'], async (req, res) => {
+  console.log('[PROVISION-BANK-TRANSFER] Request received:', {
+    method: req.method,
+    hasBody: !!req.body,
+    bodyKeys: req.body ? Object.keys(req.body) : [],
+    hasStripeKey: !!process.env.STRIPE_SECRET_KEY
+  })
+
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) {
+      console.error('[PROVISION-BANK-TRANSFER] Authentication failed')
+      return
     }
 
-    // Update contract with new submission statuses and overall status
-    await db.collection('contracts').updateOne(
-      { _id: contract._id },
+    const { buildId } = req.body
+    if (!buildId) {
+      console.error('[PROVISION-BANK-TRANSFER] Missing buildId')
+      return res.status(400).json({ 
+        error: 'validation_error', 
+        message: 'Build ID is required' 
+      })
+    }
+
+    console.log('[PROVISION-BANK-TRANSFER] Processing for build:', buildId, 'user:', auth.userId)
+
+    const build = await getBuildById(buildId)
+    if (!build) {
+      console.error('[PROVISION-BANK-TRANSFER] Build not found:', buildId)
+      return res.status(404).json({ 
+        error: 'not_found', 
+        message: 'Build not found' 
+      })
+    }
+
+    if (build.userId !== auth.userId) {
+      console.error('[PROVISION-BANK-TRANSFER] Access denied. Build userId:', build.userId, 'Request userId:', auth.userId)
+      return res.status(403).json({ 
+        error: 'access_denied', 
+        message: 'Access denied' 
+      })
+    }
+
+    // Check if bank transfer is already provisioned
+    if (build.payment?.bankTransfer?.virtualAccountId) {
+      console.log('[PROVISION-BANK-TRANSFER] Bank transfer already provisioned:', build.payment.bankTransfer.virtualAccountId)
+      return res.status(200).json({
+        success: true,
+        virtualAccount: {
+          id: build.payment.bankTransfer.virtualAccountId,
+          referenceCode: build.payment.bankTransfer.referenceCode,
+          instructions: build.payment.bankTransfer.instructions
+        }
+      })
+    }
+
+    // Get or create Stripe customer
+    let customerId = build.customerId
+    if (!customerId) {
+      console.log('[PROVISION-BANK-TRANSFER] Creating new Stripe customer...')
+      const customer = await stripe.customers.create({
+        email: build.buyerInfo?.email,
+        name: `${build.buyerInfo?.firstName} ${build.buyerInfo?.lastName}`,
+        metadata: {
+          buildId: buildId,
+          userId: auth.userId
+        }
+      })
+      customerId = customer.id
+      
+      // Update build with customer ID
+      const db = await getDb()
+      await db.collection('builds').updateOne(
+        { _id: build._id },
+        { $set: { customerId: customerId } }
+      )
+      console.log('[PROVISION-BANK-TRANSFER] Created and saved customer:', customerId)
+    }
+
+    // Generate unique reference code
+    const referenceCode = `FF-${buildId.toString().slice(-8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`
+
+    // Create virtual account details (in production, this would integrate with real banking APIs)
+    const virtualAccount = {
+      id: `va_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      referenceCode: referenceCode,
+      instructions: {
+        beneficiary: 'Firefly Tiny Homes',
+        bankName: 'Stripe Treasury Bank',
+        routingNumber: '011401533',
+        accountNumber: '4000003947011000',
+        referenceCode: referenceCode
+      }
+    }
+
+    // Update build with bank transfer details
+    const db = await getDb()
+    await db.collection('builds').updateOne(
+      { _id: build._id },
       { 
-        $set: { 
-          status: newOverallStatus,
-          submissions: updatedSubmissions,
-          updatedAt: new Date(),
-          ...(data.completed_at && { completedAt: new Date(data.completed_at) })
-        },
-        $push: { 
-          audit: {
-            at: new Date(),
-            who: 'docuseal_webhook',
-            action: event_type,
-            meta: { 
-              from: contract.status, 
-              to: newOverallStatus, 
-              submissionName: submission.name,
-              submissionStatus: newSubmissionStatus,
-              eventData: data 
-            }
+        $set: {
+          'payment.method': 'bank_transfer',
+          'payment.bankTransfer': {
+            virtualAccountId: virtualAccount.id,
+            referenceCode: referenceCode,
+            instructions: virtualAccount.instructions,
+            provisionedAt: new Date()
           }
         }
       }
     )
 
-    // Download and store signed PDF if completed
-    if (shouldDownloadPdf && data.audit_trail_url) {
-      try {
-        const pdfBuffer = await downloadFile(data.audit_trail_url)
-        const publicId = `contracts/${contract.buildId}/v${contract.version}/signed_contract`
-        
-        const cloudinaryResult = await uploadPdfToCloudinary({
-          buffer: pdfBuffer,
-          folder: 'firefly-estimator/contracts',
-          publicId
-        })
+    console.log('[PROVISION-BANK-TRANSFER] Successfully provisioned bank transfer:', virtualAccount.id)
 
-        await db.collection('contracts').updateOne(
-          { _id: contract._id },
+    res.status(200).json({
+      success: true,
+      virtualAccount: virtualAccount
+    })
+
+  } catch (error) {
+    console.error('[PROVISION-BANK-TRANSFER] Error:', error)
+    res.status(500).json({ 
+      error: 'provision_failed', 
+      message: 'Failed to provision bank transfer account',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
+  }
+})
+
+// Collect at Confirmation
+app.post(['/api/payments/collect-at-confirmation', '/payments/collect-at-confirmation'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId, amount } = req.body
+    if (!buildId || !amount) {
+      return res.status(400).json({ error: 'Build ID and amount are required' })
+    }
+
+    const build = await getBuildById(buildId)
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // This would integrate with the payment processor to collect the payment
+    // For now, we'll just mark it as collected
+    const db = await getDb()
+    await db.collection('builds').updateOne(
+      { _id: build._id },
+      {
+        $set: {
+          'payment.collected': true,
+          'payment.collectedAt': new Date(),
+          'payment.collectedAmount': amount
+        }
+      }
+    )
+
+    res.status(200).json({ success: true })
+  } catch (error) {
+    console.error('Collect payment error:', error)
+    res.status(500).json({ error: 'collection_failed', message: error.message })
+  }
+})
+
+// Setup Card Payment - UNIFIED IMPLEMENTATION
+app.post(['/api/payments/setup-card', '/payments/setup-card'], async (req, res) => {
+  console.log('[SETUP-CARD] Request received:', {
+    method: req.method,
+    hasBody: !!req.body,
+    bodyKeys: req.body ? Object.keys(req.body) : [],
+    hasStripeKey: !!process.env.STRIPE_SECRET_KEY
+  })
+
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) {
+      console.error('[SETUP-CARD] Authentication failed')
+      return
+    }
+
+    const { buildId } = req.body
+    if (!buildId) {
+      console.error('[SETUP-CARD] Missing buildId')
+      return res.status(400).json({ 
+        error: 'validation_error', 
+        message: 'Build ID is required' 
+      })
+    }
+
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.error('[SETUP-CARD] Missing Stripe secret key')
+      return res.status(500).json({ 
+        error: 'server_configuration_error',
+        message: 'Stripe not configured',
+        details: 'STRIPE_SECRET_KEY environment variable is missing' 
+      })
+    }
+
+    console.log('[SETUP-CARD] Setting up card payment for build:', buildId, 'user:', auth.userId)
+
+    const build = await getBuildById(buildId)
+    if (!build) {
+      console.error('[SETUP-CARD] Build not found:', buildId)
+      return res.status(404).json({ 
+        error: 'not_found', 
+        message: 'Build not found' 
+      })
+    }
+
+    if (build.userId !== auth.userId) {
+      console.error('[SETUP-CARD] Access denied. Build userId:', build.userId, 'Request userId:', auth.userId)
+      return res.status(403).json({ 
+        error: 'access_denied', 
+        message: 'Access denied' 
+      })
+    }
+
+    // Check if card payment is already set up
+    if (build.payment?.paymentIntentId && build.payment?.method === 'card') {
+      console.log('[SETUP-CARD] Card payment already set up:', build.payment.paymentIntentId)
+      return res.status(200).json({
+        success: true,
+        clientSecret: build.payment.clientSecret,
+        paymentIntentId: build.payment.paymentIntentId,
+        amount: build.payment.amountCents,
+        currency: 'usd'
+      })
+    }
+
+    // Get or create Stripe customer
+    let customerId = build.customerId
+    if (!customerId) {
+      console.log('[SETUP-CARD] Creating new Stripe customer...')
+      const customer = await stripe.customers.create({
+        email: build.buyerInfo?.email,
+        name: `${build.buyerInfo?.firstName} ${build.buyerInfo?.lastName}`,
+        metadata: {
+          buildId: buildId,
+          userId: auth.userId
+        }
+      })
+      customerId = customer.id
+      
+      // Update build with customer ID
+      const db = await getDb()
+      await db.collection('builds').updateOne(
+        { _id: build._id },
+        { $set: { customerId: customerId } }
+      )
+      console.log('[SETUP-CARD] Created and saved customer:', customerId)
+    }
+
+    // Calculate payment amount
+    const { calculateTotalPurchasePrice } = await import('../../src/utils/calculateTotal.js')
+    const totalAmount = calculateTotalPurchasePrice(build)
+    const totalCents = Math.round(totalAmount * 100)
+    
+    // Get payment plan from build or default to deposit
+    const paymentPlan = build.payment?.plan || { type: 'deposit', percent: 25 }
+    const depositCents = Math.round(totalCents * ((paymentPlan.percent || 25) / 100))
+    const currentAmountCents = paymentPlan.type === 'deposit' ? depositCents : totalCents
+
+    console.log('[SETUP-CARD] Payment calculation:', {
+      totalAmount,
+      totalCents,
+      depositCents,
+      currentAmountCents,
+      paymentPlanType: paymentPlan.type
+    })
+
+    // Create PaymentIntent for card payment
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: currentAmountCents,
+      currency: 'usd',
+      customer: customerId,
+      automatic_payment_methods: {
+        enabled: true,
+      },
+      metadata: {
+        buildId: buildId,
+        userId: auth.userId,
+        paymentPlan: paymentPlan.type,
+        paymentMethod: 'card'
+      },
+      description: `Firefly Tiny Home - ${build.modelName || 'Custom Build'} - ${paymentPlan.type === 'deposit' ? 'Deposit' : 'Full Payment'}`
+    })
+
+    console.log('[SETUP-CARD] Created PaymentIntent:', paymentIntent.id)
+
+    // Update build with payment intent
+    const db = await getDb()
+    await db.collection('builds').updateOne(
+      { _id: build._id },
+      { 
+        $set: {
+          'payment.method': 'card',
+          'payment.paymentIntentId': paymentIntent.id,
+          'payment.clientSecret': paymentIntent.client_secret,
+          'payment.plan': paymentPlan,
+          'payment.amountCents': currentAmountCents,
+          'payment.status': 'setup_complete',
+          'payment.setupAt': new Date()
+        }
+      }
+    )
+
+    res.status(200).json({
+      success: true,
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      amount: currentAmountCents,
+      currency: 'usd'
+    })
+
+  } catch (error) {
+    console.error('[SETUP-CARD] Error:', error)
+    res.status(500).json({ 
+      error: 'setup_failed', 
+      message: 'Failed to setup card payment',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
+  }
+})
+
+// Process Card Payment - UNIFIED IMPLEMENTATION
+app.post(['/api/payments/process-card', '/payments/process-card'], async (req, res) => {
+  console.log('[PROCESS-CARD] Request received:', {
+    method: req.method,
+    hasBody: !!req.body,
+    bodyKeys: req.body ? Object.keys(req.body) : []
+  })
+
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) {
+      console.error('[PROCESS-CARD] Authentication failed')
+      return
+    }
+
+    const { buildId, paymentIntentId } = req.body
+    if (!buildId || !paymentIntentId) {
+      console.error('[PROCESS-CARD] Missing required parameters')
+      return res.status(400).json({ 
+        error: 'validation_error', 
+        message: 'Build ID and Payment Intent ID are required' 
+      })
+    }
+
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.error('[PROCESS-CARD] Missing Stripe secret key')
+      return res.status(500).json({ 
+        error: 'server_configuration_error',
+        message: 'Stripe not configured',
+        details: 'STRIPE_SECRET_KEY environment variable is missing' 
+      })
+    }
+
+    console.log('[PROCESS-CARD] Processing card payment for build:', buildId, 'paymentIntent:', paymentIntentId)
+
+    const build = await getBuildById(buildId)
+    if (!build) {
+      console.error('[PROCESS-CARD] Build not found:', buildId)
+      return res.status(404).json({ 
+        error: 'not_found', 
+        message: 'Build not found' 
+      })
+    }
+
+    if (build.userId !== auth.userId) {
+      console.error('[PROCESS-CARD] Access denied. Build userId:', build.userId, 'Request userId:', auth.userId)
+      return res.status(403).json({ 
+        error: 'access_denied', 
+        message: 'Access denied' 
+      })
+    }
+
+    // Verify the payment intent belongs to this build
+    if (build.payment?.paymentIntentId !== paymentIntentId) {
+      console.error('[PROCESS-CARD] Invalid payment intent for build. Expected:', build.payment?.paymentIntentId, 'Received:', paymentIntentId)
+      return res.status(400).json({ 
+        error: 'validation_error', 
+        message: 'Invalid payment intent for this build' 
+      })
+    }
+
+    // Retrieve the payment intent to check its current status
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
+    console.log('[PROCESS-CARD] Payment intent status:', paymentIntent.status)
+    
+    if (paymentIntent.status === 'succeeded') {
+      console.log('[PROCESS-CARD] Payment already succeeded:', paymentIntentId)
+      
+      // Update build with success status
+      const db = await getDb()
+      await db.collection('builds').updateOne(
+        { _id: build._id },
+        { 
+          $set: {
+            'payment.status': 'succeeded',
+            'payment.processedAt': new Date(),
+            'payment.transactionId': paymentIntent.latest_charge
+          }
+        }
+      )
+
+      return res.status(200).json({
+        success: true,
+        status: 'succeeded',
+        message: 'Payment already processed successfully'
+      })
+    }
+
+    if (paymentIntent.status === 'requires_confirmation') {
+      console.log('[PROCESS-CARD] Confirming payment intent...')
+      // Confirm the payment intent
+      const confirmedIntent = await stripe.paymentIntents.confirm(paymentIntentId)
+      
+      if (confirmedIntent.status === 'succeeded') {
+        console.log('[PROCESS-CARD] Payment confirmed successfully:', paymentIntentId)
+        
+        // Update build with success status
+        const db = await getDb()
+        await db.collection('builds').updateOne(
+          { _id: build._id },
           { 
-            $set: { 
-              signedPdfCloudinaryId: cloudinaryResult.public_id,
-              signedPdfUrl: data.audit_trail_url
+            $set: {
+              'payment.status': 'succeeded',
+              'payment.processedAt': new Date(),
+              'payment.transactionId': confirmedIntent.latest_charge
             }
           }
         )
 
-        console.log('DocuSeal webhook: PDF stored to Cloudinary:', cloudinaryResult.public_id)
-      } catch (error) {
-        console.error('DocuSeal webhook: Failed to store PDF:', error)
+        return res.status(200).json({
+          success: true,
+          status: 'succeeded',
+          message: 'Payment processed successfully'
+        })
+      } else if (confirmedIntent.status === 'requires_action') {
+        console.log('[PROCESS-CARD] Payment requires additional action:', confirmedIntent.status)
+        
+        return res.status(200).json({
+          success: false,
+          status: 'requires_action',
+          clientSecret: confirmedIntent.client_secret,
+          message: 'Additional authentication required'
+        })
+      } else {
+        console.error('[PROCESS-CARD] Payment confirmation failed:', confirmedIntent.status)
+        
+        return res.status(400).json({
+          success: false,
+          status: confirmedIntent.status,
+          message: 'Payment confirmation failed',
+          error: confirmedIntent.last_payment_error?.message || 'Unknown error'
+        })
       }
-    }
-
-    // Update build status if contract completed
-    if (newStatus === 'completed') {
-      await updateBuild(contract.buildId, { 
-        'contract.status': 'completed',
-        'contract.completedAt': new Date(),
-        step: 8 // Advance to confirmation step
+    } else {
+      console.error('[PROCESS-CARD] Payment intent in unexpected state:', paymentIntent.status)
+      
+      return res.status(400).json({
+        success: false,
+        status: paymentIntent.status,
+        message: 'Payment intent is not ready for processing',
+        error: paymentIntent.last_payment_error?.message || 'Invalid payment intent state'
       })
     }
 
-    res.status(200).json({ success: true })
-
   } catch (error) {
-    console.error('DocuSeal webhook error:', error)
+    console.error('[PROCESS-CARD] Error:', error)
+    
+    // Handle specific Stripe errors
+    if (error.type === 'StripeCardError') {
+      return res.status(400).json({
+        success: false,
+        error: 'card_error',
+        message: error.message,
+        code: error.code
+      })
+    } else if (error.type === 'StripeInvalidRequestError') {
+      return res.status(400).json({
+        success: false,
+        error: 'invalid_request',
+        message: error.message
+      })
+    }
+    
     res.status(500).json({ 
-      error: 'Webhook processing failed',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      success: false,
+      error: 'processing_failed',
+      message: 'Failed to process card payment',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     })
   }
 })
 
-// Helper function to map DocuSeal status to our status
-function mapDocuSealStatus(docusealStatus) {
-  switch (docusealStatus) {
-    case 'pending':
-    case 'awaiting_signature':
-      return 'ready'
-    case 'opened':
-    case 'in_progress':
-      return 'signing'
-    case 'completed':
-      return 'completed'
-    case 'declined':
-    case 'expired':
-      return 'voided'
-    default:
-      return 'draft'
+// ============================================================================
+// ADMIN ROUTES
+// ============================================================================
+
+// Import and mount admin router (ESM/CJS interop safe)
+import adminRouterModule from './admin/index.js'
+
+function resolveRouter(mod, name) {
+  const candidate = (typeof mod === 'function') ? mod : (typeof mod?.default === 'function' ? mod.default : null)
+  if (!candidate) {
+    console.error(`[API] Failed to resolve ${name} router:`, { type: typeof mod, hasDefault: !!mod?.default })
   }
+  return candidate
 }
 
-// Helper function to build prefill data for DocuSeal
-function buildContractPrefill(build, settings) {
-  console.log('[CONTRACT_CREATE] Building prefill data for build:', build._id)
-  
-  const pricing = build.pricing || {}
-  const buyerInfo = build.buyerInfo || {}
-  const delivery = build.delivery || {}
-  const payment = build.payment || {}
-  
-  console.log('[CONTRACT_CREATE] Build data sections:', {
-    hasPricing: !!pricing,
-    hasBuyerInfo: !!buyerInfo,
-    hasDelivery: !!delivery,
-    hasPayment: !!payment,
-    pricingKeys: Object.keys(pricing),
-    buyerInfoKeys: Object.keys(buyerInfo),
-    deliveryKeys: Object.keys(delivery),
-    paymentKeys: Object.keys(payment)
+const adminRouter = resolveRouter(adminRouterModule, 'admin')
+if (adminRouter) {
+  app.use('/api/admin', adminRouter)
+} else {
+  // Provide a diagnostic fallback to avoid Express attempting to call undefined.apply
+  app.use('/api/admin', (req, res) => {
+    res.status(500).json({ error: 'admin router misconfigured' })
   })
-  
-  // Calculate key amounts
-  const totalPurchasePrice = pricing.total || 0
-  const depositPercent = payment.plan?.percent || 25
-  const depositAmount = Math.round(totalPurchasePrice * depositPercent / 100)
-  const balanceAmount = totalPurchasePrice - depositAmount
-
-  const prefill = {
-    // Order Information
-    order_id: build._id || '',
-    order_date: new Date().toLocaleDateString(),
-    
-    // Dealer Information
-    dealer_name: "Firefly Tiny Homes LLC",
-    dealer_address: "6150 TX-16, Pipe Creek, TX 78063", 
-    dealer_phone: "830-328-6109",
-    dealer_rep: "Firefly Representative",
-    
-    // Buyer Information
-    buyer_name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
-    buyer_first_name: buyerInfo.firstName || '',
-    buyer_last_name: buyerInfo.lastName || '',
-    buyer_email: buyerInfo.email || '',
-    buyer_phone: buyerInfo.phone || '',
-    buyer_address: buyerInfo.address || '',
-    buyer_city: buyerInfo.city || '',
-    buyer_state: buyerInfo.state || '',
-    buyer_zip: buyerInfo.zip || '',
-    
-    // Unit Information  
-    unit_brand: "Athens Park Select",
-    unit_model: build.modelName || build.modelCode || '',
-    unit_year: new Date().getFullYear().toString(),
-    unit_dimensions: build.model?.dimensions || '',
-    unit_serial: '', // Will be assigned later
-    
-    // Pricing
-    base_price: formatCurrency(pricing.basePrice || 0),
-    options_total: formatCurrency(pricing.optionsTotal || 0),
-    delivery_estimate: formatCurrency(pricing.deliveryEstimate || 0),
-    title_fee: formatCurrency(pricing.titleFee || 0),
-    setup_fee: formatCurrency(pricing.setupFee || 0),
-    taxes: formatCurrency(pricing.taxes || 0),
-    total_price: formatCurrency(totalPurchasePrice),
-    
-    // Payment Terms
-    deposit_percent: `${depositPercent}%`,
-    deposit_amount: formatCurrency(depositAmount),
-    balance_amount: formatCurrency(balanceAmount),
-    payment_method: payment.method === 'ach_debit' ? 'ACH/Bank Transfer' : 'Cash',
-    
-    // Delivery Information
-    delivery_address: delivery.address || buyerInfo.address || '',
-    delivery_city: delivery.city || buyerInfo.city || '',
-    delivery_state: delivery.state || buyerInfo.state || '',
-    delivery_zip: delivery.zip || buyerInfo.zip || '',
-    delivery_notes: delivery.notes || '',
-    
-    // Legal/Compliance
-    state_classification: "Travel Trailer (park model RV)",
-    completion_estimate: "8-12 weeks from contract signing",
-    storage_policy: "Delivery within 12 days after factory completion; storage charges may apply"
-  }
-
-  console.log('[CONTRACT_CREATE] Generated prefill data:', {
-    prefillKeys: Object.keys(prefill),
-    sampleValues: {
-      order_id: prefill.order_id,
-      buyer_name: prefill.buyer_name,
-      total_price: prefill.total_price,
-      payment_method: prefill.payment_method
-    }
-  })
-
-  return prefill
 }
 
-// Helper function to format currency for DocuSeal
-function formatCurrency(cents) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
-  }).format((cents || 0) / 100)
-}
 
-// Download contract packet (ZIP of all signed PDFs)
-app.get(['/api/contracts/download/packet', '/contracts/download/packet'], async (req, res) => {
-  try {
-    const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) return
 
-    const { buildId, version } = req.query
-    if (!buildId) {
-      return res.status(400).json({ error: 'Build ID is required' })
-    }
-
-    const build = await getBuildById(buildId)
-    if (!build || build.userId !== auth.userId) {
-      return res.status(404).json({ error: 'Build not found' })
-    }
-
-    const db = await getDb()
-    let query = { buildId: buildId, userId: auth.userId }
-    if (version) {
-      query.version = parseInt(version)
-    }
-    
-    const contract = await db.collection('contracts').findOne(query, { 
-      sort: { version: -1 } 
-    })
-
-    if (!contract) {
-      return res.status(404).json({ error: 'Contract not found' })
-    }
-
-    if (contract.status !== 'completed') {
-      return res.status(400).json({ error: 'Contract not completed yet' })
-    }
-
-    if (!contract.signedPdfCloudinaryId) {
-      return res.status(404).json({ error: 'Signed documents not available' })
-    }
-
-    // Generate signed download URL from Cloudinary
-    const signedUrl = signedCloudinaryUrl(contract.signedPdfCloudinaryId)
-    
-    // For now, redirect to the single PDF. In the future, this could create a ZIP
-    res.redirect(signedUrl)
-
-  } catch (error) {
-    console.error('Contract download error:', error)
-    res.status(500).json({ 
-      error: 'Failed to download contract packet',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    })
-  }
+// Fallback to JSON 404 to avoid hanging requests
+app.use((req, res) => {
+  const debug = process.env.DEBUG_ADMIN === 'true'
+  if (debug) console.log('[DEBUG_ADMIN] 404', { method: req.method, url: req.url })
+  res.status(404).json({ error: 'not_found', url: req.url })
 })
 
-// Download pre-signing summary PDF
-app.get(['/api/contracts/download/summary', '/contracts/download/summary'], async (req, res) => {
-  try {
-    const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) return
-
-    const { buildId } = req.query
-    if (!buildId) {
-      return res.status(400).json({ error: 'Build ID is required' })
-    }
-
-    const build = await getBuildById(buildId)
-    if (!build || build.userId !== auth.userId) {
-      return res.status(404).json({ error: 'Build not found' })
-    }
-
-    // For now, return a placeholder response. In production, this would generate
-    // a summary PDF with order details, pricing breakdown, etc.
-    res.status(501).json({ 
-      error: 'Summary PDF generation not yet implemented',
-      message: 'This feature will generate a pre-signing order summary PDF'
-    })
-
-  } catch (error) {
-    console.error('Contract summary download error:', error)
-    res.status(500).json({ 
-      error: 'Failed to download summary',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    })
-  }
+// Initialize admin database collections and indexes
+initializeAdminDatabase().catch(err => {
+  console.error('Failed to initialize admin database:', err)
 })
 
-// Bridge: create order from build and start DocuSeal; returns signer url
-app.post(['/api/builds/:id/contract', '/builds/:id/contract'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
 
-  try {
-    const b = await getBuildById(req.params.id)
-    if (!b || b.userId !== auth.userId) return res.status(404).json({ error: 'not_found' })
 
-    const db = await getDb()
-    const orders = db.collection(ORDERS_COLLECTION)
-
-    // Find existing order linked to build
-    let order = await orders.findOne({ userId: auth.userId, buildId: String(b._id) })
-    if (!order) {
-      // Create minimal order document from build
-      const now = new Date()
-      const doc = {
-        userId: auth.userId,
-        buildId: String(b._id),
-        status: 'draft',
-        model: { name: b.modelName, slug: b.modelSlug },
-        selections: Array.isArray(b?.selections?.options) ? b.selections.options.map(o=>({ key: o.id||o.key, label: o.name||o.label, priceDelta: Number(o.price||o.priceDelta||0), quantity: Number(o.quantity||1) })) : [],
-        pricing: b.pricing || {},
-        buyer: b.buyerInfo || {},
-        delivery: { address: b?.buyerInfo?.deliveryAddress || b?.buyerInfo?.address || '' },
-        timeline: [{ event: 'created_from_build', at: now }],
-        createdAt: now,
-        updatedAt: now,
-      }
-      const r = await orders.insertOne(doc)
-      order = { ...doc, _id: r.insertedId }
-    }
-
-    // Call unified contracts/create endpoint
-    req.body = JSON.stringify({ orderId: String(order._id) })
-    return app._router.handle(req, res, () => {})
-  } catch (error) {
-    console.error('Build→contract error:', error)
-    return res.status(500).json({ error: 'contract_bridge_failed', message: error.message || 'Failed to start contract' })
-  }
-})
-
-// Analytics endpoint
-app.post(['/api/analytics/event', '/analytics/event'], async (req, res) => {
-  try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { event, sessionId, timestamp, url, properties } = body
-    
-    // Store analytics event in database
-    const db = await getDb()
-    const analyticsCol = db.collection('Analytics')
-    
-    const analyticsEvent = {
-      event,
-      sessionId,
-      timestamp: new Date(timestamp || Date.now()),
-      url,
-      properties,
-      userAgent: req.headers['user-agent'],
-      ip: req.headers['x-forwarded-for'] || req.connection.remoteAddress,
-      createdAt: new Date()
-    }
-    
-    await analyticsCol.insertOne(analyticsEvent)
-    
-    return res.status(200).json({ ok: true })
-  } catch (error) {
-    console.error('Analytics event error:', error)
-    return res.status(500).json({ error: 'analytics_failed' })
-  }
-})
-
-// ----- User Profile Management -----
-
-// Get user profile
-app.get(['/api/profile', '/profile'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    await ensureUserProfileIndexes()
-    const profile = await getUserProfile(auth.userId)
-    return res.status(200).json(profile || {})
-  } catch (error) {
-    console.error('Get profile error:', error)
-    return res.status(500).json({ error: 'profile_fetch_failed' })
-  }
-})
-
-// Update user profile basic info
-app.patch(['/api/profile/basic', '/profile/basic'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    console.log('DEBUG: Starting profile/basic update for user:', auth.userId)
-    
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { firstName, lastName, email, phone, address, city, state, zip } = body
-    
-    console.log('DEBUG: Request body:', { firstName, lastName, email, phone, address, city, state, zip })
-    
-    // Validate required fields
-    if (!firstName || !lastName || !email) {
-      console.log('DEBUG: Missing required fields')
-      return res.status(400).json({ error: 'missing_required_fields', message: 'First name, last name, and email are required' })
-    }
-    
-    console.log('DEBUG: Ensuring user profile indexes...')
-    await ensureUserProfileIndexes()
-    console.log('DEBUG: Indexes ensured successfully')
-    
-    console.log('DEBUG: Updating user basic info...')
-    const profile = await updateUserBasicInfo(auth.userId, { firstName, lastName, email, phone, address, city, state, zip })
-    
-    console.log('DEBUG: Basic info updated successfully:', profile)
-    return res.status(200).json(profile)
-  } catch (error) {
-    console.error('Update profile error:', error)
-    console.error('Error stack:', error.stack)
-    
-    // Check for specific error types
-    if (error.message.includes('MONGODB_URI is not configured')) {
-      return res.status(503).json({ error: 'database_config_missing', message: 'Database configuration is missing' })
-    }
-    
-    if (error.message.includes('userId is required')) {
-      return res.status(400).json({ error: 'invalid_user', message: 'User ID is required' })
-    }
-    
-    if (error.message.includes('database') || error.message.includes('MongoDB')) {
-      return res.status(503).json({ error: 'database_unavailable', message: 'Database temporarily unavailable' })
-    }
-    
-    return res.status(500).json({ error: 'profile_update_failed', message: error.message })
-  }
-})
-
-// Get user addresses
-app.get(['/api/profile/addresses', '/profile/addresses'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    await ensureUserProfileIndexes()
-    const profile = await getUserProfile(auth.userId)
-    const addresses = profile?.addresses || []
-    return res.status(200).json(addresses)
-  } catch (error) {
-    console.error('Get addresses error:', error)
-    return res.status(500).json({ error: 'addresses_fetch_failed' })
-  }
-})
-
-// Add new address
-app.post(['/api/profile/addresses', '/profile/addresses'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    console.log('DEBUG: Starting addUserAddress for user:', auth.userId)
-    
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { address, city, state, zip, label } = body
-    
-    console.log('DEBUG: Request body:', { address, city, state, zip, label })
-    
-    if (!address || !city || !state || !zip) {
-      console.log('DEBUG: Missing address fields')
-      return res.status(400).json({ error: 'address_fields_required', message: 'Address, city, state, and zip are required' })
-    }
-    
-    console.log('DEBUG: Ensuring user profile indexes...')
-    await ensureUserProfileIndexes()
-    console.log('DEBUG: Indexes ensured successfully')
-    
-    console.log('DEBUG: Adding user address...')
-    const profile = await addUserAddress(auth.userId, { address, city, state, zip, label })
-    
-    console.log('DEBUG: Address added successfully:', profile)
-    return res.status(200).json(profile)
-  } catch (error) {
-    console.error('Add address error:', error)
-    console.error('Error stack:', error.stack)
-    
-    // Check for specific error types
-    if (error.message.includes('MONGODB_URI is not configured')) {
-      return res.status(503).json({ error: 'database_config_missing', message: 'Database configuration is missing' })
-    }
-    
-    if (error.message.includes('userId and address are required')) {
-      return res.status(400).json({ error: 'invalid_request', message: 'User ID and address are required' })
-    }
-    
-    if (error.message.includes('database') || error.message.includes('MongoDB')) {
-      return res.status(503).json({ error: 'database_unavailable', message: 'Database temporarily unavailable' })
-    }
-    
-    return res.status(500).json({ error: 'address_add_failed', message: error.message })
-  }
-})
-
-// Set primary address
-app.patch(['/api/profile/addresses/:addressId/primary', '/profile/addresses/:addressId/primary'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    const { addressId } = req.params
-    if (!addressId) {
-      return res.status(400).json({ error: 'address_id_required' })
-    }
-    
-    await ensureUserProfileIndexes()
-    const profile = await setPrimaryAddress(auth.userId, addressId)
-    
-    return res.status(200).json(profile)
-  } catch (error) {
-    console.error('Set primary address error:', error)
-    return res.status(500).json({ error: 'set_primary_failed' })
-  }
-})
-
-// Remove address
-app.delete(['/api/profile/addresses/:addressId', '/profile/addresses/:addressId'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    const { addressId } = req.params
-    if (!addressId) {
-      return res.status(400).json({ error: 'address_id_required' })
-    }
-    
-    await ensureUserProfileIndexes()
-    const profile = await removeUserAddress(auth.userId, addressId)
-    
-    return res.status(200).json(profile)
-  } catch (error) {
-    console.error('Remove address error:', error)
-    return res.status(500).json({ error: 'address_remove_failed' })
-  }
-})
-
-// Get auto-fill data
-app.get(['/api/profile/autofill', '/profile/autofill'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    console.log('DEBUG: Getting autofill data for user:', auth.userId)
-    await ensureUserProfileIndexes()
-    const autoFillData = await getAutoFillData(auth.userId)
-    console.log('DEBUG: Autofill data:', autoFillData)
-    return res.status(200).json(autoFillData)
-  } catch (error) {
-    console.error('Get autofill error:', error)
-    return res.status(500).json({ error: 'autofill_fetch_failed', message: error.message })
-  }
-})
-
-// Debug endpoint to test profile system
-app.get(['/api/profile/debug', '/profile/debug'], async (req, res) => {
-  const auth = await requireAuth(req, res, false)
-  if (!auth?.userId) return
-
-  try {
-    console.log('DEBUG: Testing profile system for user:', auth.userId)
-    
-    // Test database connection
-    console.log('DEBUG: Testing database connection...')
-    const db = await getDb()
-    console.log('DEBUG: Database connection successful')
-    
-    // Test profile indexes
-    console.log('DEBUG: Testing profile indexes...')
-    await ensureUserProfileIndexes()
-    console.log('DEBUG: Profile indexes ensured')
-    
-    // Test getting profile
-    console.log('DEBUG: Testing get profile...')
-    const profile = await getUserProfile(auth.userId)
-    console.log('DEBUG: Profile retrieved:', !!profile)
-    
-    // Test getting auto-fill data
-    console.log('DEBUG: Testing auto-fill data...')
-    const autoFillData = await getAutoFillData(auth.userId)
-    console.log('DEBUG: Auto-fill data retrieved:', !!autoFillData)
-    
-    // Test getting primary address
-    console.log('DEBUG: Testing primary address...')
-    const primaryAddress = await getPrimaryAddress(auth.userId)
-    console.log('DEBUG: Primary address retrieved:', !!primaryAddress)
-    
-    return res.status(200).json({
-      userId: auth.userId,
-      databaseConnected: true,
-      profileExists: !!profile,
-      autoFillDataExists: !!autoFillData,
-      primaryAddressExists: !!primaryAddress,
-      profile: profile || null,
-      autoFillData: autoFillData || {},
-      primaryAddress: primaryAddress || null,
-      timestamp: new Date().toISOString()
-    })
-  } catch (error) {
-    console.error('Profile debug error:', error)
-    console.error('Error stack:', error.stack)
-    
-    return res.status(500).json({ 
-      error: 'debug_failed', 
-      message: error.
+// Vercel Node.js functions expect (req, res). Call Express directly.
+export default (req, res) => app(req, res)
