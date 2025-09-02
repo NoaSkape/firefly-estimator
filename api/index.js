@@ -4390,6 +4390,14 @@ app.post(['/api/payments/process-card', '/payments/process-card'], async (req, r
   }
 })
 
+// ============================================================================
+// ADMIN ROUTES
+// ============================================================================
+
+// Import and mount admin router
+import adminRouter from './admin/index.js'
+app.use('/api/admin', adminRouter)
+
 // Fallback to JSON 404 to avoid hanging requests
 app.use((req, res) => {
   const debug = process.env.DEBUG_ADMIN === 'true'

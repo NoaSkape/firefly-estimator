@@ -1,6 +1,11 @@
 import StoryTemplate from './StoryTemplate'
 import EducationalTemplate from './EducationalTemplate'
 import InspirationalTemplate from './InspirationalTemplate'
+import { 
+  BookOpenIcon,
+  DocumentTextIcon,
+  PaintBrushIcon
+} from '@heroicons/react/24/outline'
 
 // Template registry with metadata and configuration
 export const TEMPLATE_REGISTRY = {
@@ -9,7 +14,7 @@ export const TEMPLATE_REGISTRY = {
     name: 'Story-Driven',
     component: StoryTemplate,
     description: 'Personal experience and narrative flow',
-    icon: 'BookOpenIcon',
+    icon: BookOpenIcon,
     color: 'bg-blue-500',
     defaultSections: [
       'hero',
@@ -30,7 +35,7 @@ export const TEMPLATE_REGISTRY = {
     name: 'Educational',
     component: EducationalTemplate,
     description: 'How-to guides and step-by-step content',
-    icon: 'DocumentTextIcon',
+    icon: DocumentTextIcon,
     color: 'bg-green-500',
     defaultSections: [
       'hero',
@@ -53,7 +58,7 @@ export const TEMPLATE_REGISTRY = {
     name: 'Inspirational',
     component: InspirationalTemplate,
     description: 'Visual showcase and design inspiration',
-    icon: 'PaintBrushIcon',
+    icon: PaintBrushIcon,
     color: 'bg-purple-500',
     defaultSections: [
       'hero',

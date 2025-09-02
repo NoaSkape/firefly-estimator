@@ -12,6 +12,9 @@ import {
   ArrowLeftIcon,
   CheckIcon
 } from '@heroicons/react/24/outline'
+import TemplateRenderer from './blog-templates/TemplateRenderer'
+import SectionManager from './blog-templates/SectionManager'
+import { TEMPLATE_REGISTRY, getDefaultSections } from './blog-templates/TemplateRegistry'
 
 export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
   const { user } = useUser()
@@ -37,6 +40,9 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
     status: 'draft', // draft, published
     publishDate: new Date().toISOString().split('T')[0]
   })
+  
+  // Template sections state
+  const [activeSections, setActiveSections] = useState(getDefaultSections(postData.template))
 
   const categories = [
     'Buying Guides',
@@ -47,29 +53,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
     'Sustainability'
   ]
 
-  const templates = [
-    {
-      id: 'story',
-      name: 'Story-Driven',
-      icon: BookOpenIcon,
-      description: 'Personal experience and narrative flow',
-      color: 'bg-blue-500'
-    },
-    {
-      id: 'educational',
-      name: 'Educational',
-      icon: DocumentTextIcon,
-      description: 'How-to guides and step-by-step content',
-      color: 'bg-green-500'
-    },
-    {
-      id: 'inspiration',
-      name: 'Inspiration',
-      icon: PaintBrushIcon,
-      description: 'Visual showcase and design inspiration',
-      color: 'bg-purple-500'
-    }
-  ]
+  const templates = Object.values(TEMPLATE_REGISTRY)
 
   const handleSave = async () => {
     if (!postData.title || !postData.content) {
@@ -196,6 +180,16 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
       slug: generateSlug(title)
     }))
   }
+  
+  const handleTemplateChange = (templateId) => {
+    setPostData(prev => ({ ...prev, template: templateId }))
+    // Update active sections when template changes
+    setActiveSections(getDefaultSections(templateId))
+  }
+  
+  const handleSectionsChange = (newSections) => {
+    setActiveSections(newSections)
+  }
 
   const addTag = (tag) => {
     if (tag && !postData.tags.includes(tag)) {
@@ -285,7 +279,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                     return (
                       <button
                         key={template.id}
-                        onClick={() => setPostData(prev => ({ ...prev, template: template.id }))}
+                        onClick={() => handleTemplateChange(template.id)}
                         className={`p-4 border-2 rounded-lg text-left transition-all ${
                           postData.template === template.id
                             ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
@@ -368,6 +362,16 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                 </div>
               </div>
 
+              {/* Section Manager */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Template Sections</label>
+                <SectionManager
+                  templateId={postData.template}
+                  activeSections={activeSections}
+                  onSectionsChange={handleSectionsChange}
+                />
+              </div>
+              
               {/* Content */}
               <div>
                 <label className="block text-sm font-medium mb-2">Content *</label>
@@ -509,20 +513,22 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
           {activeTab === 'preview' && (
             <div className="space-y-6">
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-                <h1 className="text-3xl font-bold mb-4 text-gray-900 dark:text-gray-100">{postData.title || 'Preview Title'}</h1>
-                {postData.excerpt && (
-                  <p className="text-lg text-gray-600 dark:text-gray-300 mb-6 italic">{postData.excerpt}</p>
-                )}
-                {postData.featuredImage && (
-                  <img 
-                    src={typeof postData.featuredImage === 'string' ? postData.featuredImage : postData.featuredImage.url} 
-                    alt={typeof postData.featuredImage === 'string' ? 'Featured' : postData.featuredImage.alt} 
-                    className="w-full h-64 object-cover rounded-lg mb-6"
-                  />
-                )}
-                <div 
-                  className="prose max-w-none"
-                  dangerouslySetInnerHTML={{ __html: postData.content || '<p>Your content will appear here...</p>' }}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Template Preview</h2>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {postData.template === 'story' && 'Story-Driven Template'}
+                    {postData.template === 'educational' && 'Educational Template'}
+                    {postData.template === 'inspiration' && 'Inspirational Template'}
+                  </span>
+                </div>
+                
+                {/* Template Renderer */}
+                <TemplateRenderer
+                  postData={postData}
+                  templateId={postData.template}
+                  activeSections={activeSections}
+                  isPreview={true}
+                  isEditing={false}
                 />
               </div>
             </div>
