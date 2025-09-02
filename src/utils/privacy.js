@@ -1,102 +1,6 @@
 // Privacy compliance utilities for GDPR/CPRA compliance
 import { useState, useEffect, useCallback } from 'react'
 
-// Cookie consent management
-export class CookieConsentManager {
-  constructor() {
-    this.consentKey = 'firefly_cookie_consent'
-    this.preferencesKey = 'firefly_cookie_preferences'
-    this.defaultPreferences = {
-      necessary: true, // Always required
-      analytics: false,
-      marketing: false,
-      preferences: false
-    }
-  }
-
-  // Get current consent status
-  getConsent() {
-    try {
-      const stored = localStorage.getItem(this.consentKey)
-      return stored ? JSON.parse(stored) : null
-    } catch (error) {
-      console.warn('Failed to read cookie consent:', error)
-      return null
-    }
-  }
-
-  // Get cookie preferences
-  getPreferences() {
-    try {
-      const stored = localStorage.getItem(this.preferencesKey)
-      return stored ? JSON.parse(stored) : this.defaultPreferences
-    } catch (error) {
-      console.warn('Failed to read cookie preferences:', error)
-      return this.defaultPreferences
-    }
-  }
-
-  // Set consent
-  setConsent(consent, preferences = null) {
-    try {
-      const consentData = {
-        timestamp: Date.now(),
-        consent: consent,
-        preferences: preferences || this.defaultPreferences,
-        version: '1.0'
-      }
-      
-      localStorage.setItem(this.consentKey, JSON.stringify(consentData))
-      
-      if (preferences) {
-        localStorage.setItem(this.preferencesKey, JSON.stringify(preferences))
-      }
-      
-      // Dispatch custom event for other components
-      window.dispatchEvent(new CustomEvent('cookieConsentChanged', { 
-        detail: consentData 
-      }))
-      
-      return true
-    } catch (error) {
-      console.error('Failed to set cookie consent:', error)
-      return false
-    }
-  }
-
-  // Check if consent is given for specific category
-  hasConsent(category) {
-    const consent = this.getConsent()
-    if (!consent) return false
-    
-    if (category === 'necessary') return true
-    return consent.preferences[category] === true
-  }
-
-  // Revoke consent
-  revokeConsent() {
-    try {
-      localStorage.removeItem(this.consentKey)
-      localStorage.removeItem(this.preferencesKey)
-      
-      window.dispatchEvent(new CustomEvent('cookieConsentRevoked'))
-      return true
-    } catch (error) {
-      console.error('Failed to revoke cookie consent:', error)
-      return false
-    }
-  }
-
-  // Get consent age in days
-  getConsentAge() {
-    const consent = this.getConsent()
-    if (!consent) return null
-    
-    const ageMs = Date.now() - consent.timestamp
-    return Math.floor(ageMs / (1000 * 60 * 60 * 24))
-  }
-}
-
 // Data subject rights management
 export class DataSubjectRights {
   constructor() {
@@ -287,47 +191,8 @@ export class PrivacyComplianceChecker {
 
 // React hooks for privacy compliance
 export const usePrivacyCompliance = () => {
-  const [cookieConsent, setCookieConsent] = useState(null)
-  const [cookiePreferences, setCookiePreferences] = useState(null)
-  const [showConsentBanner, setShowConsentBanner] = useState(false)
-
-  const cookieManager = new CookieConsentManager()
   const dsrManager = new DataSubjectRights()
   const complianceChecker = new PrivacyComplianceChecker()
-
-  // Initialize consent state
-  useEffect(() => {
-    const consent = cookieManager.getConsent()
-    const preferences = cookieManager.getPreferences()
-    
-    setCookieConsent(consent)
-    setCookiePreferences(preferences)
-    
-    // Show banner if no consent given
-    if (!consent) {
-      setShowConsentBanner(true)
-    }
-  }, [])
-
-  // Handle consent change
-  const handleConsentChange = useCallback((consent, preferences) => {
-    const success = cookieManager.setConsent(consent, preferences)
-    if (success) {
-      setCookieConsent({ consent, preferences, timestamp: Date.now() })
-      setCookiePreferences(preferences)
-      setShowConsentBanner(false)
-    }
-  }, [])
-
-  // Handle consent revocation
-  const handleConsentRevocation = useCallback(() => {
-    const success = cookieManager.revokeConsent()
-    if (success) {
-      setCookieConsent(null)
-      setCookiePreferences(null)
-      setShowConsentBanner(true)
-    }
-  }, [])
 
   // Submit DSR request
   const submitDSRRequest = useCallback(async (type, details) => {
@@ -343,14 +208,8 @@ export const usePrivacyCompliance = () => {
   }, [])
 
   return {
-    cookieConsent,
-    cookiePreferences,
-    showConsentBanner,
-    handleConsentChange,
-    handleConsentRevocation,
     submitDSRRequest,
     checkCompliance,
-    cookieManager,
     dsrManager,
     complianceChecker
   }
@@ -384,7 +243,6 @@ export const generatePrivacyNotice = (dataPractices) => {
 
 // Export all utilities
 export default {
-  CookieConsentManager,
   DataSubjectRights,
   PrivacyComplianceChecker,
   usePrivacyCompliance,
