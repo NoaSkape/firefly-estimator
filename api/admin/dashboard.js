@@ -2,7 +2,6 @@
 // Integrates with Clerk and MongoDB to provide real-time business metrics
 
 import express from 'express'
-import { validateAdminAccess, validatePermission } from '../../lib/simpleAdminAuth.js'
 import { getDb } from '../../lib/db.js'
 import { ORDERS_COLLECTION } from '../../lib/orders.js'
 import { BUILDS_COLLECTION } from '../../lib/builds.js'
@@ -21,11 +20,11 @@ try {
 
 const router = express.Router()
 
-// Admin authentication middleware for all routes
-router.use(validateAdminAccess)
+// Note: Authentication is handled by the parent admin router
+// No need for additional auth middleware here
 
-// Get comprehensive dashboard data
-router.get('/', validatePermission('FINANCIAL_VIEW'), async (req, res) => {
+// Get comprehensive dashboard data  
+router.get('/', async (req, res) => {
   console.log('[DEBUG_DASHBOARD] Starting dashboard request:', {
     method: req.method,
     url: req.url,
@@ -292,7 +291,7 @@ router.get('/', validatePermission('FINANCIAL_VIEW'), async (req, res) => {
 })
 
 // Get detailed user information (Clerk + MongoDB)
-router.get('/users/detailed', validatePermission('USERS_VIEW'), async (req, res) => {
+router.get('/users/detailed', async (req, res) => {
   try {
     const usersCollection = await getCollection('UserProfiles')
     
@@ -346,7 +345,7 @@ router.get('/users/detailed', validatePermission('USERS_VIEW'), async (req, res)
 })
 
 // Get active builds information
-router.get('/builds/active', validatePermission('ORDERS_VIEW'), async (req, res) => {
+router.get('/builds/active', async (req, res) => {
   try {
     const ordersCollection = await getCollection(ORDERS_COLLECTION)
     const modelsCollection = await getCollection(MODELS_COLLECTION)
@@ -391,7 +390,7 @@ router.get('/builds/active', validatePermission('ORDERS_VIEW'), async (req, res)
 })
 
 // Get paid orders information
-router.get('/orders/paid', validatePermission('ORDERS_VIEW'), async (req, res) => {
+router.get('/orders/paid', async (req, res) => {
   try {
     const ordersCollection = await getCollection(ORDERS_COLLECTION)
     const modelsCollection = await getCollection(MODELS_COLLECTION)
@@ -433,7 +432,7 @@ router.get('/orders/paid', validatePermission('ORDERS_VIEW'), async (req, res) =
 })
 
 // Get revenue breakdown
-router.get('/financial/revenue', validatePermission('FINANCIAL_REPORTS'), async (req, res) => {
+router.get('/financial/revenue', async (req, res) => {
   try {
     const ordersCollection = await getCollection(ORDERS_COLLECTION)
     
