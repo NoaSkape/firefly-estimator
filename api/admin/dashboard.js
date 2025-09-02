@@ -22,7 +22,7 @@ try {
 const router = express.Router()
 
 // Admin authentication middleware for all routes
-router.use((req, res, next) => adminAuth.validateAdminAccess(req, res, next))
+router.use(adminAuth.validateAdminAccess.bind(adminAuth))
 
 // Get comprehensive dashboard data
 router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async (req, res) => {
