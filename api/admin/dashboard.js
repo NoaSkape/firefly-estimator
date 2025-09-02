@@ -17,7 +17,7 @@ const router = express.Router()
 router.use(adminAuth.validateAdminAccess.bind(adminAuth))
 
 // Get comprehensive dashboard data
-router.get('/', hasPermission(PERMISSIONS.FINANCIAL_VIEW), async (req, res) => {
+router.get('/', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_VIEW), async (req, res) => {
   try {
     const { range = '30d' } = req.query
     
@@ -273,7 +273,7 @@ router.get('/', hasPermission(PERMISSIONS.FINANCIAL_VIEW), async (req, res) => {
 })
 
 // Get detailed user information (Clerk + MongoDB)
-router.get('/users/detailed', hasPermission(PERMISSIONS.USERS_VIEW), async (req, res) => {
+router.get('/users/detailed', adminAuth.validatePermission(PERMISSIONS.USERS_VIEW), async (req, res) => {
   try {
     const usersCollection = await getCollection(COLLECTIONS.USERS)
     
@@ -327,7 +327,7 @@ router.get('/users/detailed', hasPermission(PERMISSIONS.USERS_VIEW), async (req,
 })
 
 // Get active builds information
-router.get('/builds/active', hasPermission(PERMISSIONS.ORDERS_VIEW), async (req, res) => {
+router.get('/builds/active', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIEW), async (req, res) => {
   try {
     const ordersCollection = await getCollection(COLLECTIONS.ORDERS)
     const modelsCollection = await getCollection(COLLECTIONS.MODELS)
@@ -371,7 +371,7 @@ router.get('/builds/active', hasPermission(PERMISSIONS.ORDERS_VIEW), async (req,
 })
 
 // Get paid orders information
-router.get('/orders/paid', hasPermission(PERMISSIONS.ORDERS_VIEW), async (req, res) => {
+router.get('/orders/paid', adminAuth.validatePermission(PERMISSIONS.ORDERS_VIEW), async (req, res) => {
   try {
     const ordersCollection = await getCollection(COLLECTIONS.ORDERS)
     const modelsCollection = await getCollection(COLLECTIONS.MODELS)
@@ -464,51 +464,10 @@ router.get('/users/detailed', hasPermission(PERMISSIONS.USERS_VIEW), async (req,
   }
 })
 
-// Get active builds information
-router.get('/builds/active', hasPermission(PERMISSIONS.ORDERS_VIEW), async (req, res) => {
-  try {
-    const ordersCollection = await getCollection(COLLECTIONS.ORDERS)
-    const modelsCollection = await getCollection(COLLECTIONS.MODELS)
-    
-    // Get active builds (orders in production stages)
-    const activeBuilds = await ordersCollection.find({
-      status: { $in: ['confirmed', 'production', 'ready'] },
-      stage: { $in: ['design', 'production', 'quality'] }
-    }).sort({ createdAt: -1 }).limit(50).toArray()
 
-    // Get model details for each build
-    const modelIds = activeBuilds.map(build => build.modelId)
-    const models = await modelsCollection.find({ _id: { $in: modelIds } }).toArray()
-    const modelMap = models.reduce((acc, model) => {
-      acc[model._id] = model
-      return acc
-    }, {})
-
-    // Format build data
-    const formattedBuilds = activeBuilds.map(build => ({
-      id: build._id,
-      modelName: modelMap[build.modelId]?.name || 'Unknown Model',
-      customerName: build.customerInfo?.name || 'Unknown Customer',
-      stage: build.stage || 'unknown',
-      status: build.status || 'unknown',
-      startDate: build.createdAt,
-      estimatedCompletion: build.deliveryDate,
-      progress: build.progress || 0
-    }))
-
-    res.json({
-      success: true,
-      data: formattedBuilds
-    })
-
-  } catch (error) {
-    console.error('Active builds API error:', error)
-    res.status(500).json({ error: 'Failed to fetch active builds data' })
-  }
-})
 
 // Get revenue breakdown
-router.get('/financial/revenue', hasPermission(PERMISSIONS.FINANCIAL_REPORTS), async (req, res) => {
+router.get('/financial/revenue', adminAuth.validatePermission(PERMISSIONS.FINANCIAL_REPORTS), async (req, res) => {
   try {
     const ordersCollection = await getCollection(COLLECTIONS.ORDERS)
     
