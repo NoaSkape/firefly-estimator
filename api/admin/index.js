@@ -24,7 +24,9 @@ initializeAdminDatabase().catch(console.error)
 // ============================================================================
 
 // Admin authentication middleware for all routes
-router.use(adminAuth.validateAdminAccess.bind(adminAuth))
+router.use((req, res, next) => {
+  adminAuth.validateAdminAccess(req, res, next);
+})
 
 // Request validation schemas
 const adminSchemas = {
