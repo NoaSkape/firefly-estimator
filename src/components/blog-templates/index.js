@@ -16,6 +16,12 @@ export { default as DragDropSectionManager } from './DragDropSectionManager'
 export { default as TouchDragDrop } from './TouchDragDrop'
 export { default as VisualDragInterface } from './VisualDragInterface'
 
+// Export content optimization components
+export { default as UserStorySubmission } from './UserStorySubmission'
+export { default as SEOOptimizer } from './SEOOptimizer'
+export { default as ConversionCTAManager } from './ConversionCTAManager'
+export { default as QuickContentCreator } from './QuickContentCreator'
+
 // Export micro-interaction components
 export { 
   AnimatedSection, 

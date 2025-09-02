@@ -10,13 +10,17 @@ import {
   CalendarIcon,
   TagIcon,
   ArrowLeftIcon,
-  CheckIcon
+  CheckIcon,
+  BoltIcon
 } from '@heroicons/react/24/outline'
 import TemplateRenderer from './blog-templates/TemplateRenderer'
 import DragDropSectionManager from './blog-templates/DragDropSectionManager'
 import { TEMPLATE_REGISTRY, getDefaultSections } from './blog-templates/TemplateRegistry'
 import InteractivePreview from './blog-templates/InteractivePreview'
 import EngagementTracker from './blog-templates/EngagementTracker'
+import QuickContentCreator from './blog-templates/QuickContentCreator'
+import ConversionCTAManager from './blog-templates/ConversionCTAManager'
+import SEOOptimizer from './blog-templates/SEOOptimizer'
 
 export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
   const { user } = useUser()
@@ -29,7 +33,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
   const isAdmin = canEditModelsClient(user)
 
   // Blog post state
-  const [postData, setPostData] = useState(post || {
+  const [postData, setPostData] = useState({
     title: '',
     excerpt: '',
     content: '',
@@ -40,11 +44,13 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
     metaDescription: '',
     tags: [],
     status: 'draft', // draft, published
-    publishDate: new Date().toISOString().split('T')[0]
+    publishDate: new Date().toISOString().split('T')[0],
+    ctas: [],
+    ...post
   })
   
   // Template sections state
-  const [activeSections, setActiveSections] = useState(getDefaultSections(postData.template))
+  const [activeSections, setActiveSections] = useState(post?.activeSections || getDefaultSections('story'))
 
   const categories = [
     'Buying Guides',
@@ -206,6 +212,27 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
     setPostData(prev => ({
       ...prev,
       tags: prev.tags.filter(tag => tag !== tagToRemove)
+    }))
+  }
+
+  const handleContentGenerated = (generatedContent) => {
+    setPostData(prev => ({
+      ...prev,
+      title: generatedContent.title,
+      content: generatedContent.content,
+      metaDescription: generatedContent.metaDescription,
+      tags: generatedContent.tags,
+      category: generatedContent.category
+    }))
+    
+    // Switch to content tab to review and edit
+    setActiveTab('content')
+  }
+
+  const handleCTAsChange = (newCTAs) => {
+    setPostData(prev => ({
+      ...prev,
+      ctas: newCTAs
     }))
   }
 
@@ -508,6 +535,25 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
                   onChange={(e) => setPostData(prev => ({ ...prev, publishDate: e.target.value }))}
                   className="w-full p-3 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
                 />
+              </div>
+
+              {/* Conversion CTAs */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                  Conversion CTAs
+                </h3>
+                <ConversionCTAManager
+                  ctas={postData.ctas}
+                  onCTAsChange={handleCTAsChange}
+                />
+              </div>
+
+              {/* SEO Optimization */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                  SEO Optimization
+                </h3>
+                <SEOOptimizer postData={postData} />
               </div>
             </div>
           )}

@@ -29,6 +29,7 @@ import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon
 } from '@heroicons/react/24/outline'
+import { useAuth } from '@clerk/clerk-react'
 import AdminLayout from '../../components/AdminLayout'
 
 // Register Chart.js components

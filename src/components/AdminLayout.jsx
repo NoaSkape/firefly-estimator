@@ -18,7 +18,7 @@ import {
   Bars3Icon,
   XMarkIcon
 } from '@heroicons/react/24/outline'
-import { useUser } from '@clerk/clerk-react'
+import { useUser, useAuth } from '@clerk/clerk-react'
 
 const AdminLayout = ({ children, title = 'Admin Panel' }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -27,6 +27,7 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, signOut } = useUser()
+  const { getToken } = useAuth()
 
   // Navigation items with permissions
   const navigationItems = [
@@ -96,10 +97,15 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
   useEffect(() => {
     const fetchUserInfo = async () => {
       try {
-        const response = await fetch('/api/admin/me')
+        const token = await getToken()
+        const headers = token ? { Authorization: `Bearer ${token}` } : {}
+        
+        const response = await fetch('/api/admin/me', { headers })
         if (response.ok) {
           const data = await response.json()
           setUserInfo(data.data)
+        } else {
+          console.error('Failed to fetch user info:', response.status, response.statusText)
         }
       } catch (error) {
         console.error('Failed to fetch user info:', error)
@@ -109,7 +115,7 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
     if (user) {
       fetchUserInfo()
     }
-  }, [user])
+  }, [user, getToken])
 
   // Check if user has permission for a navigation item
   const hasPermission = (permission) => {
