@@ -33,20 +33,36 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
   const isAdmin = canEditModelsClient(user)
 
   // Blog post state
-  const [postData, setPostData] = useState({
-    title: '',
-    excerpt: '',
-    content: '',
-    category: '',
-    template: 'story', // story, educational, inspiration
-    featuredImage: null,
-    slug: '',
-    metaDescription: '',
-    tags: [],
-    status: 'draft', // draft, published
-    publishDate: new Date().toISOString().split('T')[0],
-    ctas: [],
-    ...post
+  const [postData, setPostData] = useState(() => {
+    // Initialize with defaults
+    const defaults = {
+      title: '',
+      excerpt: '',
+      content: '',
+      category: '',
+      template: 'story', // story, educational, inspiration
+      featuredImage: null,
+      slug: '',
+      metaDescription: '',
+      tags: [],
+      status: 'draft', // draft, published
+      publishDate: new Date().toISOString().split('T')[0],
+      ctas: []
+    }
+    
+    // If editing existing post, merge with defaults and format dates properly
+    if (post) {
+      return {
+        ...defaults,
+        ...post,
+        // Ensure publishDate is in correct format for input field
+        publishDate: post.publishDate 
+          ? new Date(post.publishDate).toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0]
+      }
+    }
+    
+    return defaults
   })
   
   // Template sections state
@@ -77,18 +93,39 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
         return
       }
 
+      // Debug logging
+      if (debug) {
+        console.log('[DEBUG_ADMIN] Saving blog post', {
+          isEdit: !!post,
+          postId: post?._id || post?.id,
+          postData: postData,
+          url: post ? `/api/blog/${post._id || post.id}` : '/api/blog'
+        })
+      }
+
       const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
-      const url = post ? `/api/blog/${post.id}` : '/api/blog'
+      const url = post ? `/api/blog/${post._id || post.id}` : '/api/blog'
       const method = post ? 'PUT' : 'POST'
+
+      // Ensure publishDate is properly formatted for the API
+      const dataToSend = {
+        ...postData,
+        publishDate: postData.publishDate ? new Date(postData.publishDate).toISOString() : new Date().toISOString()
+      }
 
       const response = await fetch(url, {
         method,
         headers,
-        body: JSON.stringify(postData)
+        body: JSON.stringify(dataToSend)
       })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Unknown error' }))
+        console.error('[DEBUG_ADMIN] API error response:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData
+        })
         throw new Error(errorData.message || `HTTP ${response.status}: Failed to save blog post`)
       }
 
