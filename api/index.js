@@ -1113,6 +1113,127 @@ app.get(['/api/debug/maps', '/debug/maps'], async (req, res) => {
   }
 })
 
+// Debug endpoint to verify all registered routes
+app.get(['/api/debug/routes', '/debug/routes'], (req, res) => {
+  try {
+    const routes = []
+    
+    // Extract routes from Express app
+    function extractRoutes(stack, basePath = '') {
+      stack.forEach((layer) => {
+        if (layer.route) {
+          // Regular route
+          const methods = Object.keys(layer.route.methods)
+          routes.push({
+            path: basePath + layer.route.path,
+            methods: methods,
+            type: 'route'
+          })
+        } else if (layer.name === 'router') {
+          // Router middleware
+          const routerPath = layer.regexp.source
+            .replace('\\/?', '')
+            .replace('(?=\\/|$)', '')
+            .replace('^', '')
+            .replace('$', '')
+          extractRoutes(layer.handle.stack, basePath + routerPath)
+        } else if (layer.regexp && layer.regexp.source) {
+          // Other middleware
+          routes.push({
+            path: layer.regexp.source,
+            name: layer.name,
+            type: 'middleware'
+          })
+        }
+      })
+    }
+    
+    extractRoutes(app._router.stack)
+    
+    // Filter for AI routes specifically
+    const aiRoutes = routes.filter(route => 
+      route.path && (
+        route.path.includes('/ai/') || 
+        route.path.includes('generate-') ||
+        route.type === 'route'
+      )
+    )
+    
+    return res.json({
+      timestamp: new Date().toISOString(),
+      totalRoutes: routes.length,
+      aiRoutesFound: aiRoutes.length,
+      aiRoutes: aiRoutes,
+      searchedFor: ['/ai/generate-topics', '/ai/generate-content'],
+      allRoutes: routes.filter(r => r.type === 'route').slice(0, 20) // First 20 routes
+    })
+  } catch (error) {
+    console.error('Debug routes error:', error)
+    return res.status(500).json({ 
+      error: 'debug_failed', 
+      message: error.message,
+      timestamp: new Date().toISOString()
+    })
+  }
+})
+
+// Debug endpoint to test AI endpoints specifically
+app.get(['/api/debug/ai-endpoints', '/debug/ai-endpoints'], (req, res) => {
+  try {
+    const aiEndpointTests = []
+    
+    // Test if endpoints are reachable
+    const testPaths = [
+      '/ai/generate-content',
+      '/ai/generate-topics'
+    ]
+    
+    testPaths.forEach(path => {
+      try {
+        // Try to match against Express router
+        const matchFound = app._router.stack.some(layer => {
+          if (layer.route && layer.route.path === path) {
+            return true
+          }
+          return false
+        })
+        
+        aiEndpointTests.push({
+          path: path,
+          registered: matchFound,
+          methods: matchFound ? ['POST', 'OPTIONS'] : ['NONE']
+        })
+      } catch (error) {
+        aiEndpointTests.push({
+          path: path,
+          registered: false,
+          error: error.message
+        })
+      }
+    })
+    
+    return res.json({
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'unknown',
+      aiApiKey: process.env.VITE_AI_API_KEY ? `${process.env.VITE_AI_API_KEY.slice(0, 10)}...` : 'MISSING',
+      endpointTests: aiEndpointTests,
+      requestDetails: {
+        method: req.method,
+        url: req.url,
+        originalUrl: req.originalUrl,
+        path: req.path
+      }
+    })
+  } catch (error) {
+    console.error('Debug AI endpoints error:', error)
+    return res.status(500).json({ 
+      error: 'debug_failed', 
+      message: error.message,
+      timestamp: new Date().toISOString()
+    })
+  }
+})
+
 // Debug endpoint to test delivery calculation for a specific address
 app.get(['/api/debug/delivery', '/debug/delivery'], async (req, res) => {
   try {
