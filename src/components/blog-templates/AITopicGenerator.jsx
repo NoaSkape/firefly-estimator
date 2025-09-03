@@ -20,11 +20,12 @@ export default function AITopicGenerator({ onTopicSelected, currentTitle, setPos
     try {
       console.log('[AI_TOPIC_GEN] Starting topic generation...')
       
-      const response = await fetch('/api/ai/generate-topics', {
+      const response = await fetch('/ai/generate-topics', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
+        signal: AbortSignal.timeout(120000), // 2 minute timeout for AI processing
         body: JSON.stringify({
           sources: [
             'existing-blog-posts',

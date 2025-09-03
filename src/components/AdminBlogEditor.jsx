@@ -350,6 +350,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
         headers: {
           'Content-Type': 'application/json'
         },
+        signal: AbortSignal.timeout(120000), // 2 minute timeout for AI processing
         body: JSON.stringify({
           topic: aiTestMessage,
           template: 'story',

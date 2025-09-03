@@ -44,11 +44,12 @@ export default function EnhancedAIGenerator({
       setGenerationStage('Researching competitor content and best practices...')
       setGenerationProgress(30)
       
-      const response = await fetch('/api/ai/generate-content', {
+      const response = await fetch('/ai/generate-content', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
+        signal: AbortSignal.timeout(180000), // 3 minute timeout for full post generation
         body: JSON.stringify({
           topic: postData.title,
           template: selectedTemplate,

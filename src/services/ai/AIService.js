@@ -23,7 +23,7 @@ class AIService {
   // Generate blog post content using AI
   async generateBlogPost(topic, template, sections = []) {
     try {
-      const response = await fetch(`${this.baseURL}/generate-content`, {
+      const response = await fetch(`/ai/generate-content`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -51,7 +51,7 @@ class AIService {
   // Generate specific section content
   async generateSectionContent(topic, template, sectionKey, customPrompt = '') {
     try {
-      const response = await fetch(`${this.baseURL}/generate-content`, {
+      const response = await fetch(`/ai/generate-content`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
