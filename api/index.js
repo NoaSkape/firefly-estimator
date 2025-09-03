@@ -317,7 +317,205 @@ Always include specific examples, real scenarios, and actionable advice. Make co
   }
 })
 
-// AI Topic Generation Endpoint
+// Helper functions for AI content generation
+function getSectionInfo(sectionKey) {
+  const sections = {
+    'introduction': {
+      label: 'Introduction',
+      description: 'Hook readers with an engaging opening that sets the stage for the topic'
+    },
+    'keyBenefits': {
+      label: 'Key Benefits',
+      description: 'List and explain the main advantages and positive aspects'
+    },
+    'personalStory': {
+      label: 'Personal Story',
+      description: 'Share a relevant personal experience or customer story'
+    },
+    'proTips': {
+      label: 'Pro Tips',
+      description: 'Provide expert advice and actionable tips'
+    },
+    'comparison': {
+      label: 'Comparison',
+      description: 'Compare different options, approaches, or perspectives'
+    },
+    'conclusion': {
+      label: 'Conclusion',
+      description: 'Wrap up with a compelling call-to-action and summary'
+    }
+  }
+  return sections[sectionKey] || sections['introduction']
+}
+
+function getTemplateInfo(template) {
+  const templates = {
+    'story': {
+      name: 'Story-Driven Template',
+      description: 'Narrative-focused with personal experiences and customer stories'
+    },
+    'educational': {
+      name: 'Educational Template',
+      description: 'Informative and instructional content with clear explanations'
+    },
+    'inspiration': {
+      name: 'Inspirational Template',
+      description: 'Motivational content that inspires action and dreams'
+    }
+  }
+  return templates[template] || templates['story']
+}
+
+function parseContent(content, topic, template) {
+  try {
+    // Extract structured content from AI response
+    const titleMatch = content.match(/TITLE:\s*(.+)/i)
+    const metaMatch = content.match(/META_DESCRIPTION:\s*(.+)/i)
+    const contentMatch = content.match(/CONTENT:\s*([\s\S]*?)(?=TAGS:|CATEGORY:|SLUG:|$)/i)
+    const tagsMatch = content.match(/TAGS:\s*(.+)/i)
+    const categoryMatch = content.match(/CATEGORY:\s*(.+)/i)
+    const slugMatch = content.match(/SLUG:\s*(.+)/i)
+
+    return {
+      title: titleMatch?.[1]?.trim() || topic,
+      metaDescription: metaMatch?.[1]?.trim() || `Discover everything about ${topic.toLowerCase()}`,
+      content: contentMatch?.[1]?.trim() || content,
+      tags: tagsMatch?.[1]?.split(',').map(tag => tag.trim()) || ['tiny homes', 'park model homes'],
+      category: categoryMatch?.[1]?.trim() || 'tiny home living',
+      slug: slugMatch?.[1]?.trim() || generateSlug(topic),
+      template: template,
+      status: 'draft',
+      aiGenerated: true,
+      generatedAt: new Date().toISOString()
+    }
+  } catch (error) {
+    console.error('Failed to parse AI content:', error)
+    throw new Error('Failed to parse AI-generated content')
+  }
+}
+
+function generateSlug(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim('-')
+}
+
+// ===== End AI Routes =====
+
+// Stripe
+const stripeSecret = process.env.STRIPE_SECRET_KEY
+if (!stripeSecret) {
+  console.error('Missing STRIPE_SECRET_KEY in environment variables.')
+}
+export const stripe = new Stripe(stripeSecret)
+
+const getOrigin = (req) => {
+  return req.headers.origin || process.env.APP_URL || 'http://localhost:5173'
+}
+
+function buildPrefillFromOrder(o, settings) {
+  const buyer = o?.buyer || {}
+  const snap = o?.pricingSnapshot || {}
+  const rate = Number(snap.delivery_rate_per_mile || settings?.pricing?.delivery_rate_per_mile || 0)
+  const minimum = Number(snap.delivery_minimum || settings?.pricing?.delivery_minimum || 0)
+  const titleFee = Number(snap.title_fee || settings?.pricing?.title_fee_default || 0)
+  const setupFee = Number(snap.setup_fee || settings?.pricing?.setup_fee_default || 0)
+  const taxRatePct = Number(snap.tax_rate_percent || settings?.pricing?.tax_rate_percent || 0)
+  const depositPct = Number(snap.deposit_percent || settings?.pricing?.deposit_percent || 0)
+
+  const basePrice = Number(o?.pricing?.base || 0)
+  const optionsSubtotal = Number(o?.pricing?.options || 0)
+  const deliveryFee = Number(o?.delivery?.fee || 0)
+  const taxableSubtotal = basePrice + optionsSubtotal + deliveryFee + titleFee + setupFee
+  const salesTax = roundToCents(taxableSubtotal * (taxRatePct / 100))
+  const totalPurchasePrice = roundToCents(taxableSubtotal + salesTax)
+  const depositDue = roundToCents(totalPurchasePrice * (depositPct / 100))
+  const finalPayment = roundToCents(totalPurchasePrice - depositDue)
+
+  // Options arrays
+  const opts = Array.isArray(o?.selections) ? o.selections : []
+  const option_category = opts.map(_ => 'Options')
+  const option_description = opts.map(x => x.label || x.name || '')
+  const option_variant = opts.map(_ => '')
+  const option_quantity = opts.map(x => Number(x.quantity || 1))
+  const option_unit_price = opts.map(x => roundToCents(x.priceDelta || x.price || 0))
+  const option_line_total = option_unit_price.map((p, i) => roundToCents(p * option_quantity[i]))
+
+  return {
+    order_number: o.orderId || String(o?._id || ''),
+    order_date: new Date(o?.createdAt || Date.now()).toISOString().slice(0, 10),
+    buyer1_full_name: [buyer.firstName, buyer.lastName].filter(Boolean).join(' ').trim(),
+    buyer1_email: buyer.email || '',
+    buyer1_phone: buyer.phone || '',
+    buyer1_mailing_address: [buyer.address, buyer.city, buyer.state, buyer.zip].filter(Boolean).join(', '),
+    buyer2_full_name: buyer?.coBuyer?.fullName || '',
+    buyer2_email: buyer?.coBuyer?.email || '',
+    buyer2_phone: buyer?.coBuyer?.phone || '',
+    buyer2_mailing_address: buyer?.coBuyer?.address || '',
+    delivery_address: o?.delivery?.address || '',
+
+    brand: 'Firefly Tiny Homes',
+    model_no: o?.model?.slug || o?.model?.modelCode || '',
+    model_year: String(new Date().getFullYear()),
+    model_size: o?.model?.size || '',
+    base_home: basePrice,
+    unit_serial: o?.unit_serial || '',
+
+    option_category,
+    option_description,
+    option_variant,
+    option_quantity,
+    option_unit_price,
+    option_line_total,
+
+    base_price: basePrice,
+    options_subtotal: optionsSubtotal,
+    delivery_fee: deliveryFee,
+    title_fee: titleFee,
+    setup_fee: setupFee,
+    tax_rate: taxRatePct,
+    sales_tax: salesTax,
+    total_purchase_price: totalPurchasePrice,
+    deposit_percent: depositPct,
+    deposit_due_amount: depositDue,
+    final_payment_total: finalPayment,
+
+    delivery_miles: Number(o?.delivery?.miles || 0),
+    delivery_rate_per_mile: rate,
+    delivery_minimum: minimum,
+  }
+}
+
+// startContractFlow function removed - was only used by old order-based contract system
+
+async function createCheckoutSession(req, res) {
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: { name: 'Firefly Estimate Deposit (TEST)' },
+            unit_amount: 5000,
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: `${getOrigin(req)}/checkout/confirm?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${getOrigin(req)}/`,
+    })
+    return res.status(200).json({ url: session.url })
+  } catch (err) {
+    console.error('Stripe error:', err)
+    return res.status(500).json({ error: err?.message || 'stripe_error' })
+  }
+}
+
+// AI Topic Generation Endpoint - MUST be before URL normalization middleware
 app.options('/ai/generate-topics', (req, res) => {
   applyCors(req, res, 'POST, OPTIONS')
   res.status(200).end()
@@ -517,204 +715,6 @@ Generate topics that would perform well against competitors like Athens Park Mod
     })
   }
 })
-
-// Helper functions for AI content generation
-function getSectionInfo(sectionKey) {
-  const sections = {
-    'introduction': {
-      label: 'Introduction',
-      description: 'Hook readers with an engaging opening that sets the stage for the topic'
-    },
-    'keyBenefits': {
-      label: 'Key Benefits',
-      description: 'List and explain the main advantages and positive aspects'
-    },
-    'personalStory': {
-      label: 'Personal Story',
-      description: 'Share a relevant personal experience or customer story'
-    },
-    'proTips': {
-      label: 'Pro Tips',
-      description: 'Provide expert advice and actionable tips'
-    },
-    'comparison': {
-      label: 'Comparison',
-      description: 'Compare different options, approaches, or perspectives'
-    },
-    'conclusion': {
-      label: 'Conclusion',
-      description: 'Wrap up with a compelling call-to-action and summary'
-    }
-  }
-  return sections[sectionKey] || sections['introduction']
-}
-
-function getTemplateInfo(template) {
-  const templates = {
-    'story': {
-      name: 'Story-Driven Template',
-      description: 'Narrative-focused with personal experiences and customer stories'
-    },
-    'educational': {
-      name: 'Educational Template',
-      description: 'Informative and instructional content with clear explanations'
-    },
-    'inspiration': {
-      name: 'Inspirational Template',
-      description: 'Motivational content that inspires action and dreams'
-    }
-  }
-  return templates[template] || templates['story']
-}
-
-function parseContent(content, topic, template) {
-  try {
-    // Extract structured content from AI response
-    const titleMatch = content.match(/TITLE:\s*(.+)/i)
-    const metaMatch = content.match(/META_DESCRIPTION:\s*(.+)/i)
-    const contentMatch = content.match(/CONTENT:\s*([\s\S]*?)(?=TAGS:|CATEGORY:|SLUG:|$)/i)
-    const tagsMatch = content.match(/TAGS:\s*(.+)/i)
-    const categoryMatch = content.match(/CATEGORY:\s*(.+)/i)
-    const slugMatch = content.match(/SLUG:\s*(.+)/i)
-
-    return {
-      title: titleMatch?.[1]?.trim() || topic,
-      metaDescription: metaMatch?.[1]?.trim() || `Discover everything about ${topic.toLowerCase()}`,
-      content: contentMatch?.[1]?.trim() || content,
-      tags: tagsMatch?.[1]?.split(',').map(tag => tag.trim()) || ['tiny homes', 'park model homes'],
-      category: categoryMatch?.[1]?.trim() || 'tiny home living',
-      slug: slugMatch?.[1]?.trim() || generateSlug(topic),
-      template: template,
-      status: 'draft',
-      aiGenerated: true,
-      generatedAt: new Date().toISOString()
-    }
-  } catch (error) {
-    console.error('Failed to parse AI content:', error)
-    throw new Error('Failed to parse AI-generated content')
-  }
-}
-
-function generateSlug(text) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .trim('-')
-}
-
-// ===== End AI Routes =====
-
-// Stripe
-const stripeSecret = process.env.STRIPE_SECRET_KEY
-if (!stripeSecret) {
-  console.error('Missing STRIPE_SECRET_KEY in environment variables.')
-}
-export const stripe = new Stripe(stripeSecret)
-
-const getOrigin = (req) => {
-  return req.headers.origin || process.env.APP_URL || 'http://localhost:5173'
-}
-
-function buildPrefillFromOrder(o, settings) {
-  const buyer = o?.buyer || {}
-  const snap = o?.pricingSnapshot || {}
-  const rate = Number(snap.delivery_rate_per_mile || settings?.pricing?.delivery_rate_per_mile || 0)
-  const minimum = Number(snap.delivery_minimum || settings?.pricing?.delivery_minimum || 0)
-  const titleFee = Number(snap.title_fee || settings?.pricing?.title_fee_default || 0)
-  const setupFee = Number(snap.setup_fee || settings?.pricing?.setup_fee_default || 0)
-  const taxRatePct = Number(snap.tax_rate_percent || settings?.pricing?.tax_rate_percent || 0)
-  const depositPct = Number(snap.deposit_percent || settings?.pricing?.deposit_percent || 0)
-
-  const basePrice = Number(o?.pricing?.base || 0)
-  const optionsSubtotal = Number(o?.pricing?.options || 0)
-  const deliveryFee = Number(o?.delivery?.fee || 0)
-  const taxableSubtotal = basePrice + optionsSubtotal + deliveryFee + titleFee + setupFee
-  const salesTax = roundToCents(taxableSubtotal * (taxRatePct / 100))
-  const totalPurchasePrice = roundToCents(taxableSubtotal + salesTax)
-  const depositDue = roundToCents(totalPurchasePrice * (depositPct / 100))
-  const finalPayment = roundToCents(totalPurchasePrice - depositDue)
-
-  // Options arrays
-  const opts = Array.isArray(o?.selections) ? o.selections : []
-  const option_category = opts.map(_ => 'Options')
-  const option_description = opts.map(x => x.label || x.name || '')
-  const option_variant = opts.map(_ => '')
-  const option_quantity = opts.map(x => Number(x.quantity || 1))
-  const option_unit_price = opts.map(x => roundToCents(x.priceDelta || x.price || 0))
-  const option_line_total = option_unit_price.map((p, i) => roundToCents(p * option_quantity[i]))
-
-  return {
-    order_number: o.orderId || String(o?._id || ''),
-    order_date: new Date(o?.createdAt || Date.now()).toISOString().slice(0, 10),
-    buyer1_full_name: [buyer.firstName, buyer.lastName].filter(Boolean).join(' ').trim(),
-    buyer1_email: buyer.email || '',
-    buyer1_phone: buyer.phone || '',
-    buyer1_mailing_address: [buyer.address, buyer.city, buyer.state, buyer.zip].filter(Boolean).join(', '),
-    buyer2_full_name: buyer?.coBuyer?.fullName || '',
-    buyer2_email: buyer?.coBuyer?.email || '',
-    buyer2_phone: buyer?.coBuyer?.phone || '',
-    buyer2_mailing_address: buyer?.coBuyer?.address || '',
-    delivery_address: o?.delivery?.address || '',
-
-    brand: 'Firefly Tiny Homes',
-    model_no: o?.model?.slug || o?.model?.modelCode || '',
-    model_year: String(new Date().getFullYear()),
-    model_size: o?.model?.size || '',
-    base_home: basePrice,
-    unit_serial: o?.unit_serial || '',
-
-    option_category,
-    option_description,
-    option_variant,
-    option_quantity,
-    option_unit_price,
-    option_line_total,
-
-    base_price: basePrice,
-    options_subtotal: optionsSubtotal,
-    delivery_fee: deliveryFee,
-    title_fee: titleFee,
-    setup_fee: setupFee,
-    tax_rate: taxRatePct,
-    sales_tax: salesTax,
-    total_purchase_price: totalPurchasePrice,
-    deposit_percent: depositPct,
-    deposit_due_amount: depositDue,
-    final_payment_total: finalPayment,
-
-    delivery_miles: Number(o?.delivery?.miles || 0),
-    delivery_rate_per_mile: rate,
-    delivery_minimum: minimum,
-  }
-}
-
-// startContractFlow function removed - was only used by old order-based contract system
-
-async function createCheckoutSession(req, res) {
-  try {
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: { name: 'Firefly Estimate Deposit (TEST)' },
-            unit_amount: 5000,
-          },
-          quantity: 1,
-        },
-      ],
-      success_url: `${getOrigin(req)}/checkout/confirm?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${getOrigin(req)}/`,
-    })
-    return res.status(200).json({ url: session.url })
-  } catch (err) {
-    console.error('Stripe error:', err)
-    return res.status(500).json({ error: err?.message || 'stripe_error' })
-  }
-}
 
 // Preserve original path for deployments that rewrite to /api/index/...
 app.use((req, _res, next) => {
