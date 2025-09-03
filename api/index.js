@@ -318,11 +318,25 @@ Always include specific examples, real scenarios, and actionable advice. Make co
 })
 
 // AI Topic Generation Endpoint
+app.options('/ai/generate-topics', (req, res) => {
+  applyCors(req, res, 'POST, OPTIONS')
+  res.status(200).end()
+})
+
 app.post('/ai/generate-topics', async (req, res) => {
-  // Apply CORS
-  applyCors(req, res)
-  
   try {
+    // Apply CORS headers for this endpoint
+    applyCors(req, res, 'POST, OPTIONS')
+
+    const debug = process.env.DEBUG_ADMIN === 'true'
+    if (debug) {
+      console.log('[DEBUG_ADMIN] AI topic generation endpoint hit:', {
+        method: req.method,
+        url: req.url,
+        originalUrl: req.originalUrl
+      })
+    }
+    
     console.log('[DEBUG_ADMIN] AI topic generation request:', req.body)
     
     const { sources, count = 6, industry, location, avoidDuplicates, seoOptimized } = req.body
