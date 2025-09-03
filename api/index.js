@@ -319,6 +319,9 @@ Always include specific examples, real scenarios, and actionable advice. Make co
 
 // AI Topic Generation Endpoint
 app.post('/ai/generate-topics', async (req, res) => {
+  // Apply CORS
+  applyCors(req, res)
+  
   try {
     console.log('[DEBUG_ADMIN] AI topic generation request:', req.body)
     
@@ -328,12 +331,12 @@ app.post('/ai/generate-topics', async (req, res) => {
     let existingTopics = []
     if (avoidDuplicates) {
       try {
-        const db = await connectDB()
+        const db = await getDb()
         const blogPosts = await db.collection('blog_posts').find({}, { title: 1 }).toArray()
         existingTopics = blogPosts.map(post => post.title.toLowerCase())
         console.log('[DEBUG_ADMIN] Found existing topics:', existingTopics.length)
       } catch (dbError) {
-        console.warn('[DEBUG_ADMIN] Could not fetch existing topics:', dbError)
+        console.warn('[DEBUG_ADMIN] Could not fetch existing topics:', dbError.message)
       }
     }
 
@@ -728,8 +731,10 @@ app.use((req, res, next) => {
 // Handle explicit rewrite target /api/index?path=/...
 app.use('/api/index', (req, _res, next) => {
   const p = (req.query && (req.query.path || req.query.p)) || null
+  console.log('[DEBUG_ADMIN] Path middleware:', { originalUrl: req.originalUrl, path: p, newUrl: req.url })
   if (p) {
     req.url = String(p).startsWith('/') ? String(p) : `/${String(p)}`
+    console.log('[DEBUG_ADMIN] Rewrote URL to:', req.url)
   }
   next()
 })
