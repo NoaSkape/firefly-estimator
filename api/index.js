@@ -574,7 +574,7 @@ app.get(['/api/debug/ai-test', '/debug/ai-test'], (req, res) => {
   }
 })
 
-// AI Topic Generation Endpoint - MUST be before URL normalization middleware
+// WORKING AI Topic Generation Endpoint - Copy exact pattern from generate-content
 app.options('/ai/generate-topics', (req, res) => {
   applyCors(req, res, 'POST, OPTIONS')
   res.status(200).end()
