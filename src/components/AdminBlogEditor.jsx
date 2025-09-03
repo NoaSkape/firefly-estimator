@@ -121,7 +121,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
 
   const templates = Object.values(TEMPLATE_REGISTRY)
 
-  const handleSave = async () => {
+  const handleSave = async (forcePublish = false) => {
     if (!postData.title || !postData.content) {
       alert('Please fill in the title and content')
       return
@@ -135,12 +135,17 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
         return
       }
 
+      // Determine final status - if forcePublish is true, set to published
+      const finalStatus = forcePublish ? 'published' : postData.status
+
       // Debug logging - ALWAYS log saves
       console.log('[BLOG_SAVE] Starting blog post save', {
         isEdit: !!post,
         postId: post?._id || post?.id,
         title: postData.title,
-        status: postData.status,
+        originalStatus: postData.status,
+        finalStatus: finalStatus,
+        forcePublish: forcePublish,
         hasToken: !!token,
         tokenLength: token?.length,
         url: post ? `/api/admin/blog/${post._id || post.id}` : '/api/blog',
@@ -155,6 +160,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
       // Ensure publishDate is properly formatted for the API
       const dataToSend = {
         ...postData,
+        status: finalStatus,
         publishDate: postData.publishDate ? new Date(postData.publishDate).toISOString() : new Date().toISOString()
       }
 
@@ -408,7 +414,7 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
             </div>
           </div>
           <button
-            onClick={handleSave}
+            onClick={() => handleSave(!post)} // Force publish for new posts, respect status for edits
             disabled={saving}
             className="px-4 py-2 bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50 flex items-center gap-2"
           >

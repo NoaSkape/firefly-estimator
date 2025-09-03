@@ -518,6 +518,44 @@ async function createCheckoutSession(req, res) {
   }
 }
 
+// Debug endpoint to check blog posts in database - BEFORE normalization middleware
+app.get(['/api/debug/blog-posts', '/debug/blog-posts'], async (req, res) => {
+  try {
+    const db = await getDb()
+    const allPosts = await db.collection('blog_posts').find({}).toArray()
+    const publishedPosts = await db.collection('blog_posts').find({ status: 'published' }).toArray()
+    const draftPosts = await db.collection('blog_posts').find({ status: 'draft' }).toArray()
+    
+    return res.json({
+      timestamp: new Date().toISOString(),
+      totalPosts: allPosts.length,
+      publishedPosts: publishedPosts.length,
+      draftPosts: draftPosts.length,
+      allPostsInfo: allPosts.map(p => ({
+        id: p._id,
+        title: p.title,
+        status: p.status,
+        slug: p.slug,
+        createdAt: p.createdAt
+      })),
+      apiQueryResult: `Query { status: 'published' } returns ${publishedPosts.length} posts`,
+      latestPost: allPosts.length > 0 ? {
+        id: allPosts[allPosts.length - 1]._id,
+        title: allPosts[allPosts.length - 1].title,
+        status: allPosts[allPosts.length - 1].status,
+        createdAt: allPosts[allPosts.length - 1].createdAt
+      } : null
+    })
+  } catch (error) {
+    console.error('Debug blog posts error:', error)
+    return res.status(500).json({ 
+      error: 'debug_failed', 
+      message: error.message,
+      timestamp: new Date().toISOString()
+    })
+  }
+})
+
 // Debug endpoint to test AI endpoints specifically - BEFORE normalization middleware
 app.get(['/api/debug/ai-test', '/debug/ai-test'], (req, res) => {
   try {
