@@ -515,6 +515,65 @@ async function createCheckoutSession(req, res) {
   }
 }
 
+// Debug endpoint to test AI endpoints specifically - BEFORE normalization middleware
+app.get(['/api/debug/ai-test', '/debug/ai-test'], (req, res) => {
+  try {
+    const aiEndpointTests = []
+    
+    // Test if endpoints are reachable
+    const testPaths = [
+      '/ai/generate-content',
+      '/ai/generate-topics'
+    ]
+    
+    testPaths.forEach(path => {
+      try {
+        // Try to match against Express router
+        const matchFound = app._router.stack.some(layer => {
+          if (layer.route && layer.route.path === path) {
+            return true
+          }
+          return false
+        })
+        
+        aiEndpointTests.push({
+          path: path,
+          registered: matchFound,
+          methods: matchFound ? ['POST', 'OPTIONS'] : ['NONE']
+        })
+      } catch (error) {
+        aiEndpointTests.push({
+          path: path,
+          registered: false,
+          error: error.message
+        })
+      }
+    })
+    
+    return res.json({
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'unknown',
+      aiApiKey: process.env.VITE_AI_API_KEY ? `${process.env.VITE_AI_API_KEY.slice(0, 10)}...` : 'MISSING',
+      endpointTests: aiEndpointTests,
+      requestDetails: {
+        method: req.method,
+        url: req.url,
+        originalUrl: req.originalUrl,
+        path: req.path
+      },
+      deploymentTest: 'SUCCESS - This debug endpoint works, confirming code deployment',
+      middlewarePosition: 'BEFORE URL normalization - should work correctly'
+    })
+  } catch (error) {
+    console.error('Debug AI endpoints error:', error)
+    return res.status(500).json({ 
+      error: 'debug_failed', 
+      message: error.message,
+      timestamp: new Date().toISOString()
+    })
+  }
+})
+
 // AI Topic Generation Endpoint - MUST be before URL normalization middleware
 app.options('/ai/generate-topics', (req, res) => {
   applyCors(req, res, 'POST, OPTIONS')
@@ -1169,63 +1228,6 @@ app.get(['/api/debug/routes', '/debug/routes'], (req, res) => {
     })
   } catch (error) {
     console.error('Debug routes error:', error)
-    return res.status(500).json({ 
-      error: 'debug_failed', 
-      message: error.message,
-      timestamp: new Date().toISOString()
-    })
-  }
-})
-
-// Debug endpoint to test AI endpoints specifically
-app.get(['/api/debug/ai-endpoints', '/debug/ai-endpoints'], (req, res) => {
-  try {
-    const aiEndpointTests = []
-    
-    // Test if endpoints are reachable
-    const testPaths = [
-      '/ai/generate-content',
-      '/ai/generate-topics'
-    ]
-    
-    testPaths.forEach(path => {
-      try {
-        // Try to match against Express router
-        const matchFound = app._router.stack.some(layer => {
-          if (layer.route && layer.route.path === path) {
-            return true
-          }
-          return false
-        })
-        
-        aiEndpointTests.push({
-          path: path,
-          registered: matchFound,
-          methods: matchFound ? ['POST', 'OPTIONS'] : ['NONE']
-        })
-      } catch (error) {
-        aiEndpointTests.push({
-          path: path,
-          registered: false,
-          error: error.message
-        })
-      }
-    })
-    
-    return res.json({
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'unknown',
-      aiApiKey: process.env.VITE_AI_API_KEY ? `${process.env.VITE_AI_API_KEY.slice(0, 10)}...` : 'MISSING',
-      endpointTests: aiEndpointTests,
-      requestDetails: {
-        method: req.method,
-        url: req.url,
-        originalUrl: req.originalUrl,
-        path: req.path
-      }
-    })
-  } catch (error) {
-    console.error('Debug AI endpoints error:', error)
     return res.status(500).json({ 
       error: 'debug_failed', 
       message: error.message,
