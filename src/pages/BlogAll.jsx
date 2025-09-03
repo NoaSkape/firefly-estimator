@@ -291,9 +291,9 @@ export default function BlogAll() {
                 {filteredPosts.map((post) => (
                   <article key={post.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
                     <div className="relative">
-                      {post.image ? (
+                      {post.featuredImage?.url ? (
                         <img 
-                          src={post.image} 
+                          src={post.featuredImage.url} 
                           alt={post.title}
                           className="w-full h-48 object-cover"
                         />
