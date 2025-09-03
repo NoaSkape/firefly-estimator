@@ -3402,6 +3402,58 @@ app.put(['/api/admin/blog/:id', '/admin/blog/:id'], async (req, res) => {
   }
 })
 
+// Admin endpoint for fetching draft blog posts
+app.get(['/api/admin/drafts', '/admin/drafts'], async (req, res) => {
+  applyCors(req, res, 'GET, OPTIONS')
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
+
+  try {
+    const db = await getDb()
+    const { limit = 10, offset = 0 } = req.query
+    
+    // Query for draft posts only
+    const query = { status: 'draft' }
+    
+    const drafts = await db.collection('blog_posts')
+      .find(query)
+      .sort({ updatedAt: -1 }) // Most recently updated first
+      .skip(parseInt(offset))
+      .limit(parseInt(limit))
+      .toArray()
+    
+    // Get total count for pagination
+    const total = await db.collection('blog_posts').countDocuments(query)
+    
+    // Transform the data for the frontend
+    const transformedDrafts = drafts.map(draft => ({
+      _id: draft._id,
+      title: draft.title,
+      excerpt: draft.excerpt,
+      status: draft.status,
+      slug: draft.slug,
+      createdAt: draft.createdAt,
+      updatedAt: draft.updatedAt,
+      author: draft.author,
+      template: draft.template,
+      featuredImage: draft.featuredImage
+    }))
+    
+    return res.status(200).json({
+      posts: transformedDrafts,
+      total: total,
+      hasMore: total > parseInt(offset) + parseInt(limit),
+      postsLength: transformedDrafts.length
+    })
+  } catch (error) {
+    console.error('Admin drafts fetch error:', error)
+    return res.status(500).json({ 
+      error: 'fetch_failed', 
+      details: error.message || 'Internal server error'
+    })
+  }
+})
+
 // Admin endpoint for fetching blog posts for editing (includes unpublished posts)
 app.get(['/api/admin/blog/:id', '/admin/blog/:id'], async (req, res) => {
   applyCors(req, res, 'GET, OPTIONS')

@@ -30,6 +30,7 @@ const AdminOverview = lazy(() => import('./pages/admin/AdminOverview'))
 const AdvancedReporting = lazy(() => import('./components/AdvancedReporting'))
 const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard'))
 const AdminCustomers = lazy(() => import('./pages/admin/Customers'))
+const AdminDrafts = lazy(() => import('./pages/admin/Drafts'))
 const AdminAnalytics = lazy(() => import('./pages/admin/Analytics'))
 const PublicModelDetail = lazy(() => import('./public/PublicModelDetail'))
 const PackageDetail = lazy(() => import('./public/PackageDetail'))
@@ -350,6 +351,11 @@ function App() {
             <BlogCreate />
           </ProtectedRoute>
         } />
+        <Route path="/blog/edit/:id" element={
+          <ProtectedRoute requireAdmin={true}>
+            <BlogCreate />
+          </ProtectedRoute>
+        } />
         <Route path="/blog/why-go-tiny-complete-guide-park-model-living" element={<WhyGoTiny />} />
         <Route path="/blog/best-skirting-options-park-model-homes" element={<BestSkirtingOptions />} />
         <Route path="/blog/park-model-regulations-texas-law" element={<TexasRegulations />} />
@@ -401,6 +407,11 @@ function App() {
               <Route path="/admin/customers" element={
                 <ProtectedRoute requireAdmin={true}>
                   <AdminCustomers />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/drafts" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminDrafts />
                 </ProtectedRoute>
               } />
                               <Route path="/admin/analytics" element={

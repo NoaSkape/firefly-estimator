@@ -38,6 +38,12 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
       permission: 'financial:view'
     },
     {
+      name: 'Drafts',
+      href: '/admin/drafts',
+      icon: DocumentTextIcon,
+      permission: 'models:view' // Use same permission as models for now
+    },
+    {
       name: 'Models',
       href: '/admin/models',
       icon: CubeIcon,
