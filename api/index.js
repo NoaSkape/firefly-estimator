@@ -134,11 +134,14 @@ app.post('/ai/generate-content', async (req, res) => {
       return res.status(400).json({ error: 'Invalid request body' })
     }
 
-    const { topic, template, sections, type = 'full' } = req.body
+    const { topic, template, sections = [], type = 'full', excerpt, sources, includeResearch, seoOptimization } = req.body
 
     if (!topic) {
       return res.status(400).json({ error: 'Topic is required' })
     }
+
+    // Ensure sections is an array for compatibility
+    const safeSections = Array.isArray(sections) ? sections : []
 
     // Check if API key is configured
     const apiKey = process.env.VITE_AI_API_KEY
@@ -185,7 +188,7 @@ Create a high-quality blog post about: "${topic}"
 Template: ${templateInfo.name}
 Style: ${templateInfo.description}
 
-Required sections: ${sections.join(', ')}
+Required sections: ${safeSections.length > 0 ? safeSections.join(', ') : 'Standard blog post structure with introduction, main content, and conclusion'}
 
 Requirements:
 - Write in a conversational, expert tone
@@ -596,7 +599,13 @@ app.post('/ai/generate-topics', async (req, res) => {
     
     console.log('[DEBUG_ADMIN] AI topic generation request:', req.body)
     
-    const { sources, count = 6, industry, location, avoidDuplicates, seoOptimized } = req.body
+    const { sources = [], count = 6, industry = 'park-model-homes', location = 'Texas', avoidDuplicates = true, seoOptimized = true } = req.body
+
+    // Ensure sources is an array
+    const safeSources = Array.isArray(sources) ? sources : []
+    if (safeSources.length === 0) {
+      safeSources.push('fireflytinyhomes.com', 'athens-park-models', 'champion-park-models', 'modern-park-models')
+    }
     
     // Get existing blog posts to avoid duplicates
     let existingTopics = []
@@ -617,7 +626,7 @@ app.post('/ai/generate-topics', async (req, res) => {
 TASK: Generate ${count} fresh, SEO-optimized blog post topics that will rank well and drive conversions.
 
 RESEARCH SOURCES TO CONSIDER:
-${sources.map(source => `- ${source}`).join('\n')}
+${safeSources.map(source => `- ${source}`).join('\n')}
 
 EXISTING TOPICS TO AVOID:
 ${existingTopics.length > 0 ? existingTopics.map(topic => `- ${topic}`).join('\n') : '- None found'}
@@ -641,6 +650,8 @@ FORMAT: Return a JSON array with exactly ${count} topics, each containing:
 }
 
 Generate topics that would perform well against competitors like Athens Park Models, Champion Park Models, and Modern Park Models.`
+
+    console.log('[DEBUG_ADMIN] Sending prompt to AI (first 500 chars):', prompt.substring(0, 500) + '...')
 
     // Call AI service
     const apiKey = process.env.VITE_AI_API_KEY
