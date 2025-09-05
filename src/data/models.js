@@ -270,6 +270,7 @@ export const MODELS = [
     subtitle: "APX-118",
     basePrice: 60971,
     description: "1 BR / 1 Bath W/ Bay Window",
+    tourUrl: "https://my.matterport.com/show/?m=jBBqMkYVLDZ",
     specs: {
       length: "18'",
       width: "8'6\"",

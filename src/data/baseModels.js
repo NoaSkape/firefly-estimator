@@ -183,7 +183,8 @@ export const BASE_MODELS = {
     height: "13'6\"",
     weight: "11,000 lbs",
     bedrooms: 1,
-    bathrooms: 1
+    bathrooms: 1,
+    tourUrl: "https://my.matterport.com/show/?m=jBBqMkYVLDZ"
   },
   "apx-122": {
     modelCode: "APX-122",
