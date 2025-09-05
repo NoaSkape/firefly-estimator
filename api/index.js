@@ -4363,7 +4363,7 @@ async function handleModelWrite(req, res) {
   const debug = process.env.DEBUG_ADMIN === 'true'
   const { code } = req.params
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-  const { name, price, description, specs, features, packages, addOns } = body
+  const { name, price, description, specs, features, packages, addOns, tourUrl } = body
 
   const $set = { updatedAt: new Date() }
   if (typeof name === 'string') $set.name = String(name).slice(0, 200)
@@ -4383,6 +4383,11 @@ async function handleModelWrite(req, res) {
 
   if (Array.isArray(features)) {
     $set.features = features.map(f => String(f).slice(0, 300)).slice(0, 100)
+  }
+
+  // 3D Tour URL
+  if (typeof tourUrl === 'string') {
+    $set.tourUrl = String(tourUrl).slice(0, 500)
   }
 
   // Public site add-on packages (up to 4) and single add-ons

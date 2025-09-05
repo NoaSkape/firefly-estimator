@@ -19,6 +19,7 @@ export default function PublicModelDetail() {
   const [error, setError] = useState(null)
   const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
+  const [isTourOpen, setIsTourOpen] = useState(false)
   const thumbnailContainerRef = useRef(null)
   const thumbnailRefs = useRef([])
   const isAdmin = canEditModelsClient(user)
@@ -304,6 +305,22 @@ export default function PublicModelDetail() {
                 ))}
               </div>
             )}
+
+            {/* 3D Virtual Tour Button */}
+            {model.tourUrl && (
+              <div className="pt-4">
+                <button
+                  onClick={() => setIsTourOpen(true)}
+                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-4 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2 shadow-lg"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <span>Explore This Home In 3D</span>
+                </button>
+              </div>
+            )}
+
             {/* New: Packages grid under photos */}
             <div className="card">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Popular Add‑On Packages</h2>
@@ -435,6 +452,38 @@ export default function PublicModelDetail() {
           </div>
         </div>
       </div>
+
+      {/* 3D Tour Modal */}
+      {isTourOpen && model?.tourUrl && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-7xl h-5/6 flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="text-lg font-semibold text-black">Virtual 3D Tour - {model.name}</h3>
+              <button 
+                onClick={() => setIsTourOpen(false)} 
+                className="text-gray-500 hover:text-gray-700 text-xl px-2"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 bg-gray-100">
+              <iframe 
+                src={`${model.tourUrl}${model.tourUrl.includes('?') ? '&' : '?'}play=1&qs=1`}
+                className="w-full h-full"
+                frameBorder="0"
+                allowFullScreen
+                allow="xr-spatial-tracking"
+                title={`3D Tour of ${model.name}`}
+                onError={() => {
+                  // Fallback: open in new window if iframe fails
+                  window.open(model.tourUrl, '_blank');
+                  setIsTourOpen(false);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {isAdmin && isEditorOpen && model && (
         <AdminModelEditor idParam={actualModelCode} model={model} onClose={() => setIsEditorOpen(false)} onSaved={handleModelUpdate} />

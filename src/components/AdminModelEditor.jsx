@@ -27,6 +27,7 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
   const [images, setImages] = useState(Array.isArray(model.images) ? model.images : [])
   const [packages, setPackages] = useState(Array.isArray(model.packages) ? model.packages : [])
   const [addOns, setAddOns] = useState(Array.isArray(model.addOns) ? model.addOns : [])
+  const [tourUrl, setTourUrl] = useState(model.tourUrl || '')
   const [uploading, setUploading] = useState(false)
   const [imageTag, setImageTag] = useState('gallery')
   const dragIndexRef = useRef(null)
@@ -76,7 +77,7 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
       const res = await fetch(url, {
         method: 'PATCH',
         headers,
-        body: JSON.stringify({ name, price, description, specs, features, packages, addOns })
+        body: JSON.stringify({ name, price, description, specs, features, packages, addOns, tourUrl })
       })
       if (!res.ok) throw new Error('Failed to save model')
       const updated = await res.json()
@@ -331,7 +332,7 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
         </div>
         <div className="px-4 pt-2 flex gap-2 border-b border-gray-200 dark:border-gray-800">
-          {['overview','specs','features','images','packages','addons'].map(t => (
+          {['overview','specs','features','images','packages','addons','tour'].map(t => (
             <button key={t} className={`px-3 py-2 ${tab===t?'border-b-2 border-primary-600 text-primary-700':''}`} onClick={()=>setTab(t)}>{t[0].toUpperCase()+t.slice(1)}</button>
           ))}
         </div>
@@ -493,6 +494,37 @@ export default function AdminModelEditor({ idParam, model, onClose, onSaved }) {
                 </div>
               ))}
               <button className="btn-secondary" onClick={()=>setAddOns([...addOns,{ id:'', name:'', priceDelta:0, description:'', image:'' }])}>Add Add‑On</button>
+            </div>
+          )}
+          {tab==='tour' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-yellow-500 mb-2">3D Virtual Tour URL</label>
+                <input 
+                  className="input-field w-full" 
+                  type="url"
+                  placeholder="https://my.matterport.com/show/?m=..." 
+                  value={tourUrl} 
+                  onChange={e=>setTourUrl(e.target.value)} 
+                />
+                <p className="text-sm text-gray-400 mt-2">
+                  Paste the share URL from Champion Homes' Matterport tour
+                </p>
+              </div>
+              
+              {tourUrl && (
+                <div className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
+                  <p className="text-sm font-medium mb-2">Preview:</p>
+                  <div className="aspect-video bg-gray-200 rounded flex items-center justify-center">
+                    <button 
+                      onClick={() => window.open(tourUrl, '_blank')}
+                      className="bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded font-semibold"
+                    >
+                      🏠 Test Tour Link
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
