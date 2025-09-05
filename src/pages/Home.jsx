@@ -60,7 +60,7 @@ export default function Home() {
     "name":"Firefly Tiny Homes",
     "url":"https://fireflyestimator.com",
     "logo":"https://fireflyestimator.com/logo/firefly-logo.png",
-    "description": "Premium tiny home manufacturer specializing in custom, high-quality tiny homes with innovative design and sustainable materials.",
+    "description": "Premier tiny home dealership specializing in custom, high-quality tiny homes with innovative design and sustainable materials.",
     "address": {
       "@type": "PostalAddress",
       "streetAddress": "6150 TX-16",
@@ -87,7 +87,7 @@ export default function Home() {
     "@type":"WebSite",
     "url":"https://fireflyestimator.com",
     "name":"Firefly Tiny Homes",
-    "description": "Professional tiny home manufacturing and sales website",
+    "description": "Professional tiny home dealership and sales website",
     "potentialAction":{
       "@type":"SearchAction",
       "target":"https://fireflyestimator.com/search?q={query}",

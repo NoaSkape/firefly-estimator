@@ -28,7 +28,7 @@ export default function Contact() {
           "@context": "https://schema.org",
           "@type": "LocalBusiness",
           "name": "Firefly Tiny Homes",
-          "description": "Premium tiny home manufacturer in Pipe Creek, Texas",
+          "description": "Premier tiny home dealership in Pipe Creek, Texas",
           "url": "https://fireflyestimator.com",
           "telephone": "+1-830-241-2410",
           "email": "office@fireflytinyhomes.com",

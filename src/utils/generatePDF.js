@@ -119,7 +119,7 @@ export const generatePDF = async (quoteData) => {
       </div>
       
       <div style="text-align: center; color: #6b7280; font-size: 11px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
-        <p style="margin: 0;">Firefly Tiny Homes | Professional Tiny Home Manufacturing</p>
+        <p style="margin: 0;">Firefly Tiny Homes | Professional Tiny Home Dealership</p>
         <p style="margin: 5px 0;">Contact us for more information or to schedule a consultation</p>
       </div>
     `
