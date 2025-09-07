@@ -2102,6 +2102,492 @@ function BankTransferDetailsStep({
     )
   }
 
+  return null
+}
+
+
+  // Validate Step 2 form
+  const validateStep2 = () => {
+    const errors = {}
+    
+    if (!cardholderName.trim()) {
+      errors.cardholderName = 'Cardholder name is required'
+    }
+    
+    if (!billingAddress.street.trim()) {
+      errors.street = 'Street address is required'
+    }
+    
+    if (!billingAddress.city.trim()) {
+      errors.city = 'City is required'
+    }
+    
+    if (!billingAddress.state.trim()) {
+      errors.state = 'State is required'
+    }
+    
+    if (!billingAddress.zip.trim()) {
+      errors.zip = 'ZIP code is required'
+    } else if (!/^\d{5}(-\d{4})?$/.test(billingAddress.zip.trim())) {
+      errors.zip = 'Please enter a valid ZIP code'
+    }
+    
+    if (!disclosures.validation) {
+      errors.validation = 'This disclosure must be acknowledged'
+    }
+    
+    if (!disclosures.noChargeYet) {
+      errors.noChargeYet = 'This disclosure must be acknowledged'
+    }
+    
+    if (!disclosures.processingFees) {
+      errors.processingFees = 'This disclosure must be acknowledged'
+    }
+    
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  // Step 2: Verify card and create payment method
+  async function verifyCard() {
+    if (!validateStep2()) return
+    if (!stripe || !elements) return
+
+    setProcessing(true)
+    setError(null)
+    
+    try {
+      const cardElement = elements.getElement('card')
+      if (!cardElement) {
+        throw new Error('Card element not found')
+      }
+
+      // Create payment method with Stripe
+      const { error, paymentMethod } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: cardElement,
+        billing_details: {
+          name: cardholderName,
+          address: {
+            line1: billingAddress.street,
+            city: billingAddress.city,
+            state: billingAddress.state,
+            postal_code: billingAddress.zip,
+            country: 'US'
+          }
+        }
+      })
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      // Verify the payment method with backend
+      const token = await getToken()
+      const res = await fetch('/api/payments/verify-card', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          buildId,
+          paymentMethodId: paymentMethod.id,
+          cardholderName,
+          billingAddress
+        })
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Card verification failed')
+      }
+
+      const data = await res.json()
+      
+      // Store payment method details
+      setPaymentMethodId(paymentMethod.id)
+      setCardDetails({
+        brand: paymentMethod.card.brand,
+        last4: paymentMethod.card.last4,
+        exp_month: paymentMethod.card.exp_month,
+        exp_year: paymentMethod.card.exp_year
+      })
+
+      addToast({
+        type: 'success',
+        title: 'Card Verified',
+        message: 'Your credit card has been successfully verified.'
+      })
+
+      // Move to Step 3
+      setStep('confirm')
+      
+    } catch (error) {
+      console.error('Card verification error:', error)
+      setError(error.message)
+      addToast({
+        type: 'error',
+        title: 'Verification Failed',
+        message: error.message || 'Unable to verify your card. Please check your details and try again.'
+      })
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  // Validate Step 3 form
+  const validateStep3 = () => {
+    const errors = {}
+    
+    if (!authorizations.chargeAuthorization) {
+      errors.chargeAuthorization = 'This authorization is required'
+    }
+    
+    if (!authorizations.nonRefundable) {
+      errors.nonRefundable = 'This acknowledgment is required'
+    }
+    
+    if (!authorizations.highValueTransaction) {
+      errors.highValueTransaction = 'This acknowledgment is required'
+    }
+    
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  // Step 3: Confirm authorization and save payment method
+  async function confirmAuthorization() {
+    if (!validateStep3()) return
+
+    setProcessing(true)
+    setError(null)
+    
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/payments/save-card-method', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          buildId,
+          paymentMethodId,
+          paymentPlan,
+          cardholderName,
+          billingAddress,
+          cardDetails,
+          authorizations
+        })
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Failed to save payment method')
+      }
+
+      const data = await res.json()
+
+      addToast({
+        type: 'success',
+        title: 'Authorization Confirmed',
+        message: 'Your credit card has been securely validated and saved.'
+      })
+
+      // Continue to review step
+      onContinue()
+      
+    } catch (error) {
+      console.error('Save card method error:', error)
+      setError(error.message)
+      addToast({
+        type: 'error',
+        title: 'Save Failed',
+        message: error.message || 'Unable to save payment method. Please try again.'
+      })
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  // Reset and retry
+  function resetAndRetry() {
+    setError(null)
+    setValidationErrors({})
+    setPaymentMethodId(null)
+    setCardDetails(null)
+    setStep('connect')
+  }
+
+  // Step 2: Connect & Verify Credit Card
+  if (step === 'connect') {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+          <h2 className="text-white font-semibold text-xl mb-3">Connect Your Credit Card</h2>
+          <p className="text-gray-300 text-sm leading-relaxed">
+            Securely connect and verify your credit card. We use Stripe's PCI-compliant processing to protect your information.
+          </p>
+        </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className={`p-4 rounded-lg border ${
+            error.recoverable 
+              ? 'bg-yellow-900/30 border-yellow-600' 
+              : 'bg-red-900/30 border-red-600'
+          }`}>
+            <div className="flex items-start">
+              <span className={`text-xl mr-3 ${
+                error.recoverable ? 'text-yellow-400' : 'text-red-400'
+              }`}>
+                {error.recoverable ? '⚠️' : '❌'}
+              </span>
+              <div className="flex-1">
+                <div className={`font-medium ${
+                  error.recoverable ? 'text-yellow-200' : 'text-red-200'
+                }`}>
+                  {error.message}
+                </div>
+                {error.recoverable && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={resetAndRetry}
+                      className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 text-white text-sm rounded transition-colors"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Security Information */}
+        <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4">
+          <div className="text-blue-200">
+            <div className="font-semibold text-sm mb-2">🔒 Secure Card Processing</div>
+            <ul className="text-xs space-y-1">
+              <li>• PCI DSS Level 1 compliant payment processing</li>
+              <li>• End-to-end encryption of all card data</li>
+              <li>• 3D Secure authentication when required by your bank</li>
+              <li>• No sensitive card information stored on our servers</li>
+              <li>• Processing fee: 2.9% + $0.30 per transaction</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Payment Summary */}
+        <div className="bg-green-900/30 border border-green-600 rounded-lg p-4">
+          <div className="text-white">
+            <div className="font-semibold text-sm mb-2">💳 Payment Summary</div>
+            <div className="text-sm space-y-1">
+              <div className="flex justify-between">
+                <span>Payment Amount:</span>
+                <span>{formatCurrency(currentAmountCents)}</span>
+              </div>
+              <div className="flex justify-between text-green-200">
+                <span>Processing Fee:</span>
+                <span>{formatCurrency(Math.round(currentAmountCents * 0.029 + 30))}</span>
+              </div>
+              <div className="flex justify-between font-semibold border-t border-green-600 pt-1 mt-1">
+                <span>Total:</span>
+                <span>{formatCurrency(currentAmountCents + Math.round(currentAmountCents * 0.029 + 30))}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <button 
+            className="btn-primary"
+            onClick={setupCardPayment}
+            disabled={processing}
+          >
+            {processing ? (
+              <span className="flex items-center justify-center">
+                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                Setting up...
+              </span>
+            ) : (
+              'Setup Card Payment'
+            )}
+          </button>
+          <button 
+            className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
+            onClick={onBack}
+          >
+            ← Back
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Step 2: Payment
+  if (step === 'payment') {
+    return (
+      <div className="space-y-6">
+        {/* Payment Form */}
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+          <h2 className="text-white font-semibold text-lg mb-4">Enter Card Details</h2>
+          <p className="text-gray-300 text-sm mb-6">
+            Please enter your card information below. Your payment will be processed securely.
+          </p>
+          
+          {clientSecret && (
+            <Elements stripe={stripePromise} options={{ clientSecret }}>
+              <CardPaymentForm 
+                onSuccess={() => {
+                  setSuccess(true)
+                  setStep('confirmation')
+                }}
+                onError={(error) => {
+                  setError({
+                    message: error.message || 'Payment failed. Please try again.',
+                    recoverable: true
+                  })
+                }}
+                onRequiresAction={(clientSecret) => {
+                  setRequiresAction(true)
+                  setActionClientSecret(clientSecret)
+                }}
+                processing={processing}
+                setProcessing={setProcessing}
+                formatCurrency={formatCurrency}
+                currentAmountCents={currentAmountCents}
+              />
+            </Elements>
+          )}
+        </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="p-4 rounded-lg border bg-red-900/30 border-red-600">
+            <div className="flex items-start">
+              <span className="text-red-400 text-xl mr-3">❌</span>
+              <div className="flex-1">
+                <div className="font-medium text-red-200">
+                  {error.message}
+                </div>
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={resetAndRetry}
+                    className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white text-sm rounded transition-colors"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3D Secure Authentication */}
+        {requiresAction && actionClientSecret && (
+          <div className="bg-yellow-900/30 border border-yellow-600 rounded-lg p-4">
+            <div className="text-yellow-200">
+              <div className="font-semibold text-sm mb-2">🔐 Additional Authentication Required</div>
+              <p className="text-sm mb-3">
+                Your bank requires additional verification. Please complete the authentication process.
+              </p>
+              <button
+                type="button"
+                onClick={handle3DSecureAuthentication}
+                disabled={processing}
+                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white rounded transition-colors"
+              >
+                {processing ? 'Processing...' : 'Complete Authentication'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button 
+            className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
+            onClick={resetAndRetry}
+            disabled={processing}
+          >
+            ← Back to Setup
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Step 3: Confirmation
+  if (step === 'confirmation') {
+    return (
+      <div className="space-y-6">
+        {/* Success Section */}
+        <div className="bg-green-900/30 border border-green-600 rounded-lg p-6">
+          <div className="flex items-center mb-4">
+            <span className="text-green-400 text-xl mr-3">✓</span>
+            <h2 className="text-white font-semibold text-xl">Payment Successful</h2>
+          </div>
+          <p className="text-green-200 text-sm leading-relaxed">
+            Your card payment of <strong>{formatCurrency(currentAmountCents)}</strong> has been processed successfully. 
+            You will receive a confirmation email shortly. You can now proceed to the next step.
+          </p>
+        </div>
+
+        {/* Payment Summary */}
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+          <h3 className="text-white font-semibold text-lg mb-4">Payment Summary</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between py-2 border-b border-gray-600">
+              <span className="text-gray-300">Payment Amount:</span>
+              <span className="text-white font-medium">{formatCurrency(currentAmountCents)}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-gray-600">
+              <span className="text-gray-300">Processing Fee:</span>
+              <span className="text-white font-medium">{formatCurrency(Math.round(currentAmountCents * 0.029 + 30))}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-gray-600">
+              <span className="text-gray-300">Transaction ID:</span>
+              <span className="text-white font-mono text-sm">{paymentIntentId?.slice(-12)}</span>
+            </div>
+            <div className="flex justify-between py-2">
+              <span className="text-gray-300">Status:</span>
+              <span className="text-green-400 font-medium">Completed</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Next Steps */}
+        <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4">
+          <div className="text-blue-200">
+            <div className="font-semibold text-sm mb-2">📋 Next Steps</div>
+            <ul className="text-xs space-y-1">
+              <li>• You'll receive a payment confirmation email</li>
+              <li>• Proceed to contract signing and final confirmation</li>
+              <li>• Your order will be scheduled for production</li>
+              <li>• We'll keep you updated on your build progress</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <button 
+            className="btn-primary"
+            onClick={onContinue}
+          >
+            Continue to Review
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return null
+}
+
 // Stripe Card Payment Form Component
 function CardPaymentForm({ 
   onSuccess, 
