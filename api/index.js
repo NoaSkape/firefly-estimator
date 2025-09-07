@@ -5376,6 +5376,845 @@ app.post(['/api/payments/process-card', '/payments/process-card'], async (req, r
 })
 
 // ============================================================================
+// CREDIT CARD PAYMENT ROUTES (NEW)
+// ============================================================================
+
+// Verify credit card and create payment method
+app.post(['/api/payments/verify-card', '/payments/verify-card'], async (req, res) => {
+  await applyCors(req, res)
+  
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { 
+      buildId, 
+      paymentMethodId, 
+      cardholderName, 
+      billingAddress 
+    } = req.body
+
+    if (!buildId || !paymentMethodId || !cardholderName) {
+      return res.status(400).json({ error: 'Build ID, payment method ID, and cardholder name are required' })
+    }
+
+    // Validate billing address
+    const addressFields = ['street', 'city', 'state', 'zip']
+    for (const field of addressFields) {
+      if (!billingAddress?.[field]?.trim()) {
+        return res.status(400).json({ 
+          error: `Billing address ${field} is required`,
+          field: `billingAddress.${field}`
+        })
+      }
+    }
+
+    const build = await getBuildById(buildId)
+    
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Get or create Stripe customer
+    let customerId = build.customerId
+    
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: build.buyerInfo?.email,
+        name: cardholderName,
+        address: {
+          line1: billingAddress.street,
+          city: billingAddress.city,
+          state: billingAddress.state,
+          postal_code: billingAddress.zip,
+          country: 'US'
+        },
+        metadata: {
+          buildId: String(buildId),
+          userId: auth.userId
+        }
+      })
+      customerId = customer.id
+
+      // Update build with customer ID
+      const db = await getDb()
+      await db.collection('builds').updateOne(
+        { _id: new ObjectId(String(buildId)) },
+        { $set: { customerId: customerId } }
+      )
+    }
+
+    // Attach payment method to customer
+    await stripe.paymentMethods.attach(paymentMethodId, {
+      customer: customerId
+    })
+
+    // Verify the payment method with a $0 setup intent
+    const setupIntent = await stripe.setupIntents.create({
+      customer: customerId,
+      payment_method: paymentMethodId,
+      confirm: true,
+      usage: 'off_session',
+      metadata: {
+        buildId: String(buildId),
+        userId: auth.userId,
+        verification: 'true'
+      }
+    })
+
+    if (setupIntent.status !== 'succeeded') {
+      // Handle cases where additional action is required
+      if (setupIntent.status === 'requires_action') {
+        return res.status(200).json({
+          success: false,
+          requiresAction: true,
+          clientSecret: setupIntent.client_secret,
+          message: 'Additional authentication required'
+        })
+      } else {
+        throw new Error('Card verification failed')
+      }
+    }
+
+    // Get payment method details for response
+    const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId)
+
+    res.status(200).json({
+      success: true,
+      message: 'Card verified successfully',
+      paymentMethod: {
+        id: paymentMethod.id,
+        brand: paymentMethod.card.brand,
+        last4: paymentMethod.card.last4,
+        exp_month: paymentMethod.card.exp_month,
+        exp_year: paymentMethod.card.exp_year
+      },
+      setupIntentId: setupIntent.id
+    })
+
+  } catch (error) {
+    console.error('Card verification error:', error)
+    
+    // Handle specific Stripe errors
+    if (error.type === 'StripeCardError') {
+      return res.status(400).json({ 
+        error: error.message,
+        code: error.code
+      })
+    }
+    
+    res.status(500).json({ 
+      error: 'Failed to verify card',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
+  }
+})
+
+// Save credit card payment method and authorization
+app.post(['/api/payments/save-card-method', '/payments/save-card-method'], async (req, res) => {
+  await applyCors(req, res)
+  
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { 
+      buildId, 
+      paymentMethodId, 
+      paymentPlan, 
+      cardholderName, 
+      billingAddress, 
+      cardDetails,
+      authorizations 
+    } = req.body
+
+    if (!buildId || !paymentMethodId || !paymentPlan || !cardholderName) {
+      return res.status(400).json({ error: 'Build ID, payment method ID, payment plan, and cardholder name are required' })
+    }
+
+    // Validate authorizations
+    if (!authorizations?.chargeAuthorization || !authorizations?.nonRefundable || !authorizations?.highValueTransaction) {
+      return res.status(400).json({ error: 'All required authorizations must be acknowledged' })
+    }
+
+    const build = await getBuildById(buildId)
+    
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    const db = await getDb()
+    const now = new Date()
+
+    // Calculate amounts based on payment plan
+    const { calculateTotalPurchasePrice } = await import('../src/utils/calculateTotal.js')
+    const settings = await getOrgSettings()
+    
+    const totalAmount = calculateTotalPurchasePrice(build, settings)
+    const totalCents = Math.round(totalAmount * 100)
+    const depositPercent = paymentPlan.percent || settings.pricing?.deposit_percent || 25
+    const depositCents = Math.round(totalCents * (depositPercent / 100))
+
+    // Update build with credit card payment information
+    const updateData = {
+      'payment.method': 'card',
+      'payment.plan': paymentPlan,
+      'payment.ready': true,
+      'payment.status': 'pending_contract',
+      'payment.card': {
+        paymentMethodId: paymentMethodId,
+        cardholderName: cardholderName,
+        billingAddress: billingAddress,
+        cardDetails: {
+          brand: cardDetails.brand,
+          last4: cardDetails.last4,
+          exp_month: cardDetails.exp_month,
+          exp_year: cardDetails.exp_year
+        },
+        authorizations: authorizations,
+        verifiedAt: now
+      },
+      'payment.amounts': {
+        total: totalCents,
+        deposit: depositCents,
+        final: totalCents - depositCents
+      },
+      'payment.updatedAt': now
+    }
+
+    await db.collection('builds').updateOne(
+      { _id: new ObjectId(String(buildId)) },
+      { $set: updateData }
+    )
+
+    res.status(200).json({
+      success: true,
+      message: 'Credit card payment method saved successfully',
+      paymentPlan: paymentPlan,
+      amounts: {
+        total: totalCents,
+        deposit: depositCents,
+        final: totalCents - depositCents
+      }
+    })
+
+  } catch (error) {
+    console.error('Save card method error:', error)
+    res.status(500).json({ 
+      error: 'Failed to save payment method',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
+  }
+})
+
+// Process credit card payment for specific milestone
+app.post(['/api/payments/process-card-payment', '/payments/process-card-payment'], async (req, res) => {
+  await applyCors(req, res)
+  
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId, milestone } = req.body
+
+    if (!buildId || !milestone) {
+      return res.status(400).json({ error: 'Build ID and milestone are required' })
+    }
+
+    // Validate milestone
+    if (!['deposit', 'final', 'full'].includes(milestone)) {
+      return res.status(400).json({ error: 'Invalid milestone' })
+    }
+
+    const build = await getBuildById(buildId)
+    
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Check if contract is signed (required for post-contract payments)
+    if (!build.contract?.signed) {
+      return res.status(400).json({ 
+        error: 'Contract must be signed before processing payment',
+        phase: 'pre_contract'
+      })
+    }
+
+    // Check if payment method is card and has required data
+    if (build.payment?.method !== 'card' || !build.payment?.card?.paymentMethodId) {
+      return res.status(400).json({ error: 'Credit card payment method not found' })
+    }
+
+    const cardPayment = build.payment.card
+    const paymentPlan = build.payment.plan
+
+    // Determine payment amount based on milestone
+    let amount
+    if (milestone === 'deposit') {
+      amount = build.payment.amounts?.deposit || 0
+    } else if (milestone === 'final') {
+      amount = build.payment.amounts?.final || 0
+    } else if (milestone === 'full') {
+      amount = build.payment.amounts?.total || 0
+    }
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid payment amount' })
+    }
+
+    // Check if this milestone has already been paid
+    const db = await getDb()
+    const paymentKey = `payment.${milestone}Paid`
+    const existingPayment = await db.collection('builds').findOne({
+      _id: new ObjectId(String(buildId)),
+      [paymentKey]: true
+    })
+
+    if (existingPayment) {
+      return res.status(400).json({ error: `${milestone} payment has already been processed` })
+    }
+
+    // Create payment intent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amount,
+      currency: 'usd',
+      customer: build.customerId,
+      payment_method: cardPayment.paymentMethodId,
+      confirm: true,
+      off_session: true, // Indicates this is for a saved payment method
+      metadata: {
+        buildId: String(buildId),
+        userId: auth.userId,
+        milestone: milestone,
+        paymentPlan: paymentPlan.type
+      }
+    })
+
+    // Handle payment intent status
+    if (paymentIntent.status === 'succeeded') {
+      // Update build with payment success
+      const updateFields = {
+        [`payment.${milestone}Paid`]: true,
+        [`payment.${milestone}PaidAt`]: new Date(),
+        'payment.lastPaymentAt': new Date(),
+        'payment.updatedAt': new Date()
+      }
+
+      // Check if all required payments are complete
+      let allPaid = false
+      if (paymentPlan.type === 'deposit') {
+        if (milestone === 'deposit') {
+          allPaid = false // Still need final payment
+        } else if (milestone === 'final') {
+          // Check if deposit was already paid
+          allPaid = build.payment.depositPaid === true
+        }
+      } else if (paymentPlan.type === 'full') {
+        allPaid = milestone === 'full'
+      }
+
+      if (allPaid) {
+        updateFields['payment.status'] = 'fully_paid'
+        updateFields['payment.fullyPaidAt'] = new Date()
+      }
+
+      await db.collection('builds').updateOne(
+        { _id: new ObjectId(String(buildId)) },
+        { $set: updateFields }
+      )
+
+      res.status(200).json({
+        success: true,
+        status: 'succeeded',
+        paymentIntentId: paymentIntent.id,
+        milestone: milestone,
+        amount: amount,
+        allPaid: allPaid,
+        message: `${milestone} payment processed successfully`
+      })
+
+    } else if (paymentIntent.status === 'requires_action') {
+      // 3D Secure or other authentication required
+      res.status(200).json({
+        success: false,
+        status: 'requires_action',
+        paymentIntentId: paymentIntent.id,
+        clientSecret: paymentIntent.client_secret,
+        message: 'Additional authentication required'
+      })
+
+    } else {
+      // Payment failed
+      throw new Error(`Payment failed with status: ${paymentIntent.status}`)
+    }
+
+  } catch (error) {
+    console.error('Process card payment error:', error)
+    
+    // Handle specific Stripe errors
+    if (error.type === 'StripeCardError') {
+      return res.status(400).json({ 
+        error: error.message,
+        code: error.code,
+        decline_code: error.decline_code
+      })
+    }
+    
+    res.status(500).json({ 
+      error: 'Failed to process payment',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
+  }
+})
+
+// ============================================================================
+// BANK TRANSFER PAYMENT ROUTES
+// ============================================================================
+
+// Create bank transfer payment intents
+app.post(['/api/payments/bank-transfer-intents', '/payments/bank-transfer-intents'], async (req, res) => {
+  await applyCors(req, res)
+  
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { 
+      buildId, 
+      paymentPlan, 
+      payerInfo, 
+      commitments 
+    } = req.body
+
+    if (!buildId || !paymentPlan || !payerInfo) {
+      return res.status(400).json({ error: 'Build ID, payment plan, and payer info are required' })
+    }
+
+    // Validate required fields
+    const requiredFields = ['fullLegalName', 'email', 'phone', 'preferredTransferType']
+    for (const field of requiredFields) {
+      if (!payerInfo[field]?.trim()) {
+        return res.status(400).json({ 
+          error: `${field.replace(/([A-Z])/g, ' $1').toLowerCase()} is required`,
+          field: field
+        })
+      }
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(payerInfo.email)) {
+      return res.status(400).json({ 
+        error: 'Please enter a valid email address',
+        field: 'email'
+      })
+    }
+
+    // Validate billing address
+    const addressFields = ['street', 'city', 'state', 'zip']
+    for (const field of addressFields) {
+      if (!payerInfo.billingAddress?.[field]?.trim()) {
+        return res.status(400).json({ 
+          error: `Billing address ${field} is required`,
+          field: `billingAddress.${field}`
+        })
+      }
+    }
+
+    // Validate ZIP code format (basic US ZIP validation)
+    const zipRegex = /^\d{5}(-\d{4})?$/
+    if (!zipRegex.test(payerInfo.billingAddress.zip.trim())) {
+      return res.status(400).json({ 
+        error: 'Please enter a valid ZIP code',
+        field: 'billingAddress.zip'
+      })
+    }
+
+    // Validate commitments
+    if (!commitments?.customerInitiated || !commitments?.fundsClearing) {
+      return res.status(400).json({ error: 'All required commitments must be acknowledged' })
+    }
+
+    // For deposit plans, validate storage fees commitment
+    if (paymentPlan.type === 'deposit' && !commitments?.storageFees) {
+      return res.status(400).json({ error: 'Storage fees commitment must be acknowledged for deposit plans' })
+    }
+
+    const build = await getBuildById(buildId)
+    
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    const db = await getDb()
+    const now = new Date()
+
+    // Calculate amounts based on payment plan
+    const { calculateTotalPurchasePrice } = await import('../src/utils/calculateTotal.js')
+    const settings = await getOrgSettings()
+    
+    const totalAmount = calculateTotalPurchasePrice(build, settings)
+    const totalCents = Math.round(totalAmount * 100)
+    const depositPercent = paymentPlan.percent || settings.pricing?.deposit_percent || 25
+    const depositCents = Math.round(totalCents * (depositPercent / 100))
+
+    // Create bank transfer intents based on payment plan
+    const intents = []
+    
+    if (paymentPlan.type === 'deposit') {
+      // Create deposit intent
+      intents.push({
+        buildId: new ObjectId(String(buildId)),
+        userId: auth.userId,
+        milestone: 'deposit',
+        expectedAmount: depositCents,
+        status: 'pending_contract',
+        payerInfo: payerInfo,
+        commitments: commitments,
+        createdAt: now,
+        updatedAt: now
+      })
+      
+      // Create final payment intent
+      intents.push({
+        buildId: new ObjectId(String(buildId)),
+        userId: auth.userId,
+        milestone: 'final',
+        expectedAmount: totalCents - depositCents,
+        status: 'pending_contract',
+        payerInfo: payerInfo,
+        commitments: commitments,
+        createdAt: now,
+        updatedAt: now
+      })
+    } else {
+      // Create single full payment intent
+      intents.push({
+        buildId: new ObjectId(String(buildId)),
+        userId: auth.userId,
+        milestone: 'full',
+        expectedAmount: totalCents,
+        status: 'pending_contract',
+        payerInfo: payerInfo,
+        commitments: commitments,
+        createdAt: now,
+        updatedAt: now
+      })
+    }
+
+    // Insert intents into database
+    const result = await db.collection('bankTransferIntents').insertMany(intents)
+
+    // Update build with bank transfer payment information
+    const updateData = {
+      'payment.method': 'bank_transfer',
+      'payment.plan': paymentPlan,
+      'payment.ready': true,
+      'payment.status': 'pending_contract',
+      'payment.bankTransfer': {
+        payerInfo: payerInfo,
+        commitments: commitments,
+        intents: result.insertedIds
+      },
+      'payment.amounts': {
+        total: totalCents,
+        deposit: depositCents,
+        final: totalCents - depositCents
+      },
+      'payment.updatedAt': now
+    }
+
+    await db.collection('builds').updateOne(
+      { _id: new ObjectId(String(buildId)) },
+      { $set: updateData }
+    )
+
+    res.status(200).json({
+      success: true,
+      message: 'Bank transfer intents created successfully',
+      intents: intents.map((intent, index) => ({
+        id: result.insertedIds[index],
+        milestone: intent.milestone,
+        expectedAmount: intent.expectedAmount
+      })),
+      paymentPlan: paymentPlan,
+      amounts: {
+        total: totalCents,
+        deposit: depositCents,
+        final: totalCents - depositCents
+      }
+    })
+
+  } catch (error) {
+    console.error('Bank transfer intents error:', error)
+    res.status(500).json({ 
+      error: 'Failed to create bank transfer intents',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
+  }
+})
+
+// Get bank transfer instructions for a specific milestone
+app.get(['/api/payments/bank-transfer-instructions', '/payments/bank-transfer-instructions'], async (req, res) => {
+  await applyCors(req, res)
+  
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId, milestone } = req.query
+
+    if (!buildId || !milestone) {
+      return res.status(400).json({ error: 'Build ID and milestone are required' })
+    }
+
+    const build = await getBuildById(buildId)
+    
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    if (build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    const db = await getDb()
+
+    // Find the bank transfer intent for this milestone
+    const intent = await db.collection('bankTransferIntents').findOne({
+      buildId: new ObjectId(String(buildId)),
+      milestone: milestone,
+      userId: auth.userId
+    })
+
+    if (!intent) {
+      return res.status(404).json({ error: 'Bank transfer intent not found' })
+    }
+
+    // If no Stripe invoice ID, create one
+    if (!intent.stripeInvoiceId) {
+      // Create Stripe invoice for bank transfer
+      const invoice = await stripe.invoices.create({
+        customer: build.customerId || undefined,
+        collection_method: 'send_invoice',
+        days_until_due: 30,
+        metadata: {
+          buildId: String(buildId),
+          userId: auth.userId,
+          milestone: milestone,
+          intentId: String(intent._id)
+        }
+      })
+
+      // Create invoice item
+      await stripe.invoiceItems.create({
+        customer: invoice.customer,
+        invoice: invoice.id,
+        amount: intent.expectedAmount,
+        currency: 'usd',
+        description: `${milestone === 'deposit' ? 'Deposit' : milestone === 'final' ? 'Final Payment' : 'Full Payment'} - Tiny Home Build`
+      })
+
+      // Send the invoice
+      await stripe.invoices.sendInvoice(invoice.id)
+
+      // Update intent with Stripe invoice ID and status
+      await db.collection('bankTransferIntents').updateOne(
+        { _id: intent._id },
+        { 
+          $set: { 
+            stripeInvoiceId: invoice.id,
+            status: 'awaiting_funds',
+            updatedAt: new Date()
+          }
+        }
+      )
+
+      intent.stripeInvoiceId = invoice.id
+    }
+
+    // Generate unique bank details (this would typically come from your bank/payment processor)
+    const bankDetails = {
+      recipientName: 'Firefly Tiny Homes LLC',
+      bankName: 'Example Bank',
+      routingNumber: '123456789',
+      accountNumber: `4000000000${String(intent._id).slice(-6)}`, // Unique account per intent
+      referenceCode: `FTH-${String(intent._id).slice(-8).toUpperCase()}`
+    }
+
+    // Construct instructions
+    const instructions = {
+      amount: intent.expectedAmount,
+      bankDetails: bankDetails,
+      instructions: {
+        achCredit: 'ACH Credit typically posts in 1–2 business days.',
+        wire: 'Wires can arrive same-day before your bank\'s cutoff; bank fees may apply.',
+        clearing: 'Funds must clear before release.',
+        storageReminder: milestone === 'final' ? 'Delivery must occur within 12 days after completion; storage charges apply thereafter and must be paid prior to shipment.' : null
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      instructions: instructions,
+      milestone: milestone,
+      status: intent.status
+    })
+
+  } catch (error) {
+    console.error('Bank transfer instructions error:', error)
+    res.status(500).json({ 
+      error: 'Failed to get bank transfer instructions',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
+  }
+})
+
+// ============================================================================
+// BUILD STATUS ROUTES
+// ============================================================================
+
+// Update build status
+app.patch(['/api/builds/update-status', '/builds/update-status'], async (req, res) => {
+  await applyCors(req, res)
+  
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId, status, adminOverride = false } = req.body
+
+    if (!buildId || !status) {
+      return res.status(400).json({ error: 'Build ID and status are required' })
+    }
+
+    // Validate status values
+    const validStatuses = [
+      'draft', 'configured', 'contract_pending', 'contract_signed', 
+      'payment_pending', 'in_production', 'factory_complete', 
+      'ready_for_delivery', 'delivered', 'cancelled'
+    ]
+
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status value' })
+    }
+
+    const build = await getBuildById(buildId)
+    
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    // Check permissions - only admin or build owner can update status
+    const isAdmin = auth.publicMetadata?.role === 'admin' || adminOverride
+    if (!isAdmin && build.userId !== auth.userId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    const db = await getDb()
+    const now = new Date()
+
+    // Prepare update data
+    const updateData = {
+      status: status,
+      updatedAt: now,
+      updatedBy: auth.userId
+    }
+
+    // Add status-specific timestamps
+    if (status === 'factory_complete') {
+      updateData.factoryCompletedAt = now
+    } else if (status === 'delivered') {
+      updateData.deliveredAt = now
+    }
+
+    // Update the build
+    await db.collection('builds').updateOne(
+      { _id: new ObjectId(String(buildId)) },
+      { $set: updateData }
+    )
+
+    // Handle bank transfer milestone activation
+    if (status === 'factory_complete' && build.payment?.method === 'bank_transfer') {
+      const paymentPlan = build.payment.plan?.type
+      
+      // For deposit + final plans, activate the final payment milestone
+      if (paymentPlan === 'deposit' && !build.payment?.finalPaid) {
+        // Check if there's a final payment intent
+        const finalIntent = await db.collection('bankTransferIntents').findOne({
+          buildId: new ObjectId(String(buildId)),
+          milestone: 'final'
+        })
+
+        if (finalIntent && finalIntent.status === 'pending_contract') {
+          // Activate the final payment milestone
+          await db.collection('bankTransferIntents').updateOne(
+            { _id: finalIntent._id },
+            { 
+              $set: {
+                status: 'awaiting_activation',
+                factoryCompletedAt: now,
+                updatedAt: now
+              }
+            }
+          )
+
+          console.log(`Activated final payment milestone for build ${buildId}`)
+        }
+      }
+    }
+
+    // Log the status change
+    await db.collection('builds').updateOne(
+      { _id: new ObjectId(String(buildId)) },
+      { 
+        $push: {
+          statusHistory: {
+            status: status,
+            changedAt: now,
+            changedBy: auth.userId,
+            isAdmin: isAdmin
+          }
+        }
+      }
+    )
+
+    res.status(200).json({
+      success: true,
+      message: `Build status updated to ${status}`,
+      build: {
+        _id: buildId,
+        status: status,
+        updatedAt: now
+      }
+    })
+
+  } catch (error) {
+    console.error('Update build status error:', error)
+    res.status(500).json({ 
+      error: 'Failed to update build status',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
+  }
+})
+
+// ============================================================================
 // ADMIN ROUTES
 // ============================================================================
 
