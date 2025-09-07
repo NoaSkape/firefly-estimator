@@ -5848,7 +5848,7 @@ app.post(['/api/payments/bank-transfer-intents', '/payments/bank-transfer-intent
     }
 
     // For deposit plans, validate storage fees commitment
-    if (paymentPlan.type === 'deposit' && !commitments?.storageFees) {
+    if (paymentPlan.type === 'deposit' && !commitments?.storageFeesAcknowledged) {
       return res.status(400).json({ error: 'Storage fees commitment must be acknowledged for deposit plans' })
     }
 
