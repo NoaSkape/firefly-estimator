@@ -173,6 +173,13 @@ export default function CreditCardSteps({
         message: 'Your credit card has been successfully verified.'
       })
 
+      // Auto-check authorizations since user already agreed to disclosures in Step 2
+      setAuthorizations({
+        chargeAuthorization: true,
+        nonRefundable: true,
+        highValueTransaction: true
+      })
+
       // Move to Step 3
       setStep('confirm')
       
