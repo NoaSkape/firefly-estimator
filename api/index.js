@@ -5459,6 +5459,10 @@ app.post(['/api/payments/verify-card', '/payments/verify-card'], async (req, res
       payment_method: paymentMethodId,
       confirm: true,
       usage: 'off_session',
+      automatic_payment_methods: {
+        enabled: true,
+        allow_redirects: 'never'
+      },
       metadata: {
         buildId: String(buildId),
         userId: auth.userId,
