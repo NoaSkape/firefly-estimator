@@ -9,6 +9,7 @@ import { navigateToStep, updateBuildStep } from '../../utils/checkoutNavigation'
 import { calculateTotalPurchasePrice } from '../../utils/calculateTotal'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, useStripe, useElements, PaymentElement, CardElement } from '@stripe/react-stripe-js'
+import CreditCardSteps from '../../components/CreditCardSteps'
 
 // Initialize Stripe
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51S0QprRfITEPMgPOGN1k6eeR2sGhTPDhW0gAdCjrxK7xaRgMqCDhAeGQGgSq2q4sJdN1u2i5VPjf8xCJlKGHlE5700WgUf9Xrb')
@@ -952,14 +953,20 @@ export default function CashPayment() {
             )}
 
             {paymentMethod === 'card' && (
-              <CardDetailsStep 
-                onContinue={() => navigate(`/checkout/${buildId}/cash-payment/review`)}
-                onBack={() => navigate(`/checkout/${buildId}/cash-payment/choose`)}
-                formatCurrency={formatCurrency}
-                currentAmountCents={currentAmountCents}
-                buildId={buildId}
-                getToken={getToken}
-              />
+              <Elements stripe={stripePromise}>
+                <CreditCardSteps 
+                  onContinue={() => navigate(`/checkout/${buildId}/cash-payment/review`)}
+                  onBack={() => navigate(`/checkout/${buildId}/cash-payment/choose`)}
+                  formatCurrency={formatCurrency}
+                  currentAmountCents={currentAmountCents}
+                  buildId={buildId}
+                  getToken={getToken}
+                  paymentPlan={paymentPlan}
+                  totalCents={totalCents}
+                  depositCents={depositCents}
+                  build={build}
+                />
+              </Elements>
             )}
           </div>
             </div>
@@ -2098,169 +2105,262 @@ function BankTransferDetailsStep({
   return null
 }
 
-// Card Details Component - Complete Credit Card Wizard
+// Card Details Component - Step 2 & 3 Credit Card Wizard
 function CardDetailsStep({ 
   onContinue, 
   onBack, 
   formatCurrency, 
   currentAmountCents,
   buildId,
-  getToken
+  getToken,
+  paymentPlan,
+  totalCents,
+  depositCents,
+  build
 }) {
-  const [step, setStep] = useState('setup') // 'setup', 'payment', 'confirmation'
-  const [clientSecret, setClientSecret] = useState(null)
-  const [paymentIntentId, setPaymentIntentId] = useState(null)
+  const [step, setStep] = useState('connect') // 'connect', 'confirm'
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(false)
-  const [requiresAction, setRequiresAction] = useState(false)
-  const [actionClientSecret, setActionClientSecret] = useState(null)
+  const [validationErrors, setValidationErrors] = useState({})
+  const [paymentMethodId, setPaymentMethodId] = useState(null)
+  const [cardDetails, setCardDetails] = useState(null)
   const { addToast } = useToast()
+  const stripe = useStripe()
+  const elements = useElements()
 
-  // Setup card payment
-  async function setupCardPayment() {
-    setProcessing(true)
-    setError(null)
-    
-    try {
-      console.log('[FRONTEND] Setting up card payment for build:', buildId)
-      const token = await getToken()
-      const res = await fetch('/api/payments/setup-card', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({ buildId })
-      })
+  // Step 2 - Card verification state
+  const [cardholderName, setCardholderName] = useState('')
+  const [billingAddress, setBillingAddress] = useState({
+    street: '',
+    city: '',
+    state: '',
+    zip: ''
+  })
+  const [disclosures, setDisclosures] = useState({
+    validation: false,
+    noChargeYet: false,
+    processingFees: false
+  })
 
-      console.log('[FRONTEND] Card setup response status:', res.status)
+  // Step 3 - Authorization state  
+  const [authorizations, setAuthorizations] = useState({
+    chargeAuthorization: false,
+    nonRefundable: false,
+    highValueTransaction: false
+  })
 
-      if (res.ok) {
-        const data = await res.json()
-        console.log('[FRONTEND] Card setup success:', data)
-        
-        if (data.success && data.clientSecret && data.paymentIntentId) {
-          setClientSecret(data.clientSecret)
-          setPaymentIntentId(data.paymentIntentId)
-          setStep('payment')
-        } else {
-          throw new Error('Invalid response structure from card setup')
-        }
-      } else {
-        const errorData = await res.json().catch(() => ({}))
-        console.error('[FRONTEND] Card setup error response:', errorData)
-        throw new Error(errorData.message || errorData.error || 'Failed to setup card payment')
-      }
-    } catch (error) {
-      console.error('[FRONTEND] Setup card payment error:', error)
-      setError({
-        message: error.message || 'Failed to setup card payment. Please try again.',
-        recoverable: true
+  // Auto-populate billing address from build data
+  useEffect(() => {
+    if (build?.buyerInfo && step === 'connect') {
+      setCardholderName(`${build.buyerInfo.firstName} ${build.buyerInfo.lastName}`)
+      setBillingAddress({
+        street: build.buyerInfo.address || '',
+        city: build.buyerInfo.city || '',
+        state: build.buyerInfo.state || '',
+        zip: build.buyerInfo.zip || ''
       })
-      addToast({
-        type: 'error',
-        title: 'Setup Error',
-        message: error.message || 'Unable to initialize card payment. Please try again.'
-      })
-    } finally {
-      setProcessing(false)
     }
+  }, [build?.buyerInfo, step])
+
+  // Validate Step 2 form
+  const validateStep2 = () => {
+    const errors = {}
+    
+    if (!cardholderName.trim()) {
+      errors.cardholderName = 'Cardholder name is required'
+    }
+    
+    if (!billingAddress.street.trim()) {
+      errors.street = 'Street address is required'
+    }
+    
+    if (!billingAddress.city.trim()) {
+      errors.city = 'City is required'
+    }
+    
+    if (!billingAddress.state.trim()) {
+      errors.state = 'State is required'
+    }
+    
+    if (!billingAddress.zip.trim()) {
+      errors.zip = 'ZIP code is required'
+    } else if (!/^\d{5}(-\d{4})?$/.test(billingAddress.zip.trim())) {
+      errors.zip = 'Please enter a valid ZIP code'
+    }
+    
+    if (!disclosures.validation) {
+      errors.validation = 'This disclosure must be acknowledged'
+    }
+    
+    if (!disclosures.noChargeYet) {
+      errors.noChargeYet = 'This disclosure must be acknowledged'
+    }
+    
+    if (!disclosures.processingFees) {
+      errors.processingFees = 'This disclosure must be acknowledged'
+    }
+    
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
   }
 
-  // Process card payment
-  async function processCardPayment() {
+  // Step 2: Verify card and create payment method
+  async function verifyCard() {
+    if (!validateStep2()) return
+    if (!stripe || !elements) return
+
     setProcessing(true)
     setError(null)
     
     try {
-      console.log('[FRONTEND] Processing card payment for build:', buildId, 'paymentIntent:', paymentIntentId)
+      const cardElement = elements.getElement('card')
+      if (!cardElement) {
+        throw new Error('Card element not found')
+      }
+
+      // Create payment method with Stripe
+      const { error, paymentMethod } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: cardElement,
+        billing_details: {
+          name: cardholderName,
+          address: {
+            line1: billingAddress.street,
+            city: billingAddress.city,
+            state: billingAddress.state,
+            postal_code: billingAddress.zip,
+            country: 'US'
+          }
+        }
+      })
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      // Verify the payment method with backend
       const token = await getToken()
-      const res = await fetch('/api/payments/process-card', {
+      const res = await fetch('/api/payments/verify-card', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ 
-          buildId, 
-          paymentIntentId 
+        body: JSON.stringify({
+          buildId,
+          paymentMethodId: paymentMethod.id,
+          cardholderName,
+          billingAddress
         })
       })
 
-      console.log('[FRONTEND] Card process response status:', res.status)
-
-      if (res.ok) {
-        const data = await res.json()
-        console.log('[FRONTEND] Card process response:', data)
-
-        if (data.success && data.status === 'succeeded') {
-          setSuccess(true)
-          setStep('confirmation')
-          addToast({
-            type: 'success',
-            title: 'Payment Successful',
-            message: 'Your card payment has been processed successfully.'
-          })
-        } else if (data.status === 'requires_action') {
-          setRequiresAction(true)
-          setActionClientSecret(data.clientSecret)
-          addToast({
-            type: 'info',
-            title: 'Additional Action Required',
-            message: 'Your bank requires additional verification. Please complete the authentication.'
-          })
-        } else {
-          throw new Error(data.message || 'Payment processing failed')
-        }
-      } else {
-        const errorData = await res.json().catch(() => ({}))
-        console.error('[FRONTEND] Card process error response:', errorData)
-        throw new Error(errorData.message || errorData.error || 'Payment processing failed')
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Card verification failed')
       }
-    } catch (error) {
-      console.error('[FRONTEND] Process card payment error:', error)
-      setError({
-        message: error.message || 'Payment processing failed. Please try again.',
-        recoverable: true
+
+      const data = await res.json()
+      
+      // Store payment method details
+      setPaymentMethodId(paymentMethod.id)
+      setCardDetails({
+        brand: paymentMethod.card.brand,
+        last4: paymentMethod.card.last4,
+        exp_month: paymentMethod.card.exp_month,
+        exp_year: paymentMethod.card.exp_year
       })
+
+      addToast({
+        type: 'success',
+        title: 'Card Verified',
+        message: 'Your credit card has been successfully verified.'
+      })
+
+      // Move to Step 3
+      setStep('confirm')
+      
+    } catch (error) {
+      console.error('Card verification error:', error)
+      setError(error.message)
       addToast({
         type: 'error',
-        title: 'Payment Error',
-        message: error.message || 'Unable to process payment. Please try again.'
+        title: 'Verification Failed',
+        message: error.message || 'Unable to verify your card. Please check your details and try again.'
       })
     } finally {
       setProcessing(false)
     }
   }
 
-  // Handle 3D Secure authentication
-  async function handle3DSecureAuthentication() {
-    if (!actionClientSecret) return
+  // Validate Step 3 form
+  const validateStep3 = () => {
+    const errors = {}
+    
+    if (!authorizations.chargeAuthorization) {
+      errors.chargeAuthorization = 'This authorization is required'
+    }
+    
+    if (!authorizations.nonRefundable) {
+      errors.nonRefundable = 'This acknowledgment is required'
+    }
+    
+    if (!authorizations.highValueTransaction) {
+      errors.highValueTransaction = 'This acknowledgment is required'
+    }
+    
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  // Step 3: Confirm authorization and save payment method
+  async function confirmAuthorization() {
+    if (!validateStep3()) return
 
     setProcessing(true)
     setError(null)
-
+    
     try {
-      const stripe = await stripePromise
-      const { error: confirmError } = await stripe.confirmCardPayment(actionClientSecret)
-      
-      if (confirmError) {
-        throw new Error(confirmError.message)
+      const token = await getToken()
+      const res = await fetch('/api/payments/save-card-method', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          buildId,
+          paymentMethodId,
+          paymentPlan,
+          cardholderName,
+          billingAddress,
+          cardDetails,
+          authorizations
+        })
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Failed to save payment method')
       }
 
-      // Re-process the payment after 3D Secure
-      await processCardPayment()
-    } catch (error) {
-      console.error('3D Secure authentication error:', error)
-      setError({
-        message: 'Authentication failed. Please try again.',
-        recoverable: true
+      const data = await res.json()
+
+      addToast({
+        type: 'success',
+        title: 'Authorization Confirmed',
+        message: 'Your credit card has been securely validated and saved.'
       })
+
+      // Continue to review step
+      onContinue()
+      
+    } catch (error) {
+      console.error('Save card method error:', error)
+      setError(error.message)
       addToast({
         type: 'error',
-        title: 'Authentication Failed',
-        message: '3D Secure authentication was not completed. Please try again.'
+        title: 'Save Failed',
+        message: error.message || 'Unable to save payment method. Please try again.'
       })
     } finally {
       setProcessing(false)
@@ -2270,23 +2370,21 @@ function CardDetailsStep({
   // Reset and retry
   function resetAndRetry() {
     setError(null)
-    setRequiresAction(false)
-    setActionClientSecret(null)
-    setClientSecret(null)
-    setPaymentIntentId(null)
-    setStep('setup')
+    setValidationErrors({})
+    setPaymentMethodId(null)
+    setCardDetails(null)
+    setStep('connect')
   }
 
-  // Step 1: Setup
-  if (step === 'setup') {
+  // Step 2: Connect & Verify Credit Card
+  if (step === 'connect') {
     return (
       <div className="space-y-6">
-        {/* Welcome Section */}
+        {/* Header */}
         <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-          <h2 className="text-white font-semibold text-xl mb-3">Credit/Debit Card Setup</h2>
+          <h2 className="text-white font-semibold text-xl mb-3">Connect Your Credit Card</h2>
           <p className="text-gray-300 text-sm leading-relaxed">
-            We'll securely process your card payment of <strong>{formatCurrency(currentAmountCents)}</strong> 
-            using Stripe's enterprise-grade security. Your card information is encrypted and never stored on our servers.
+            Securely connect and verify your credit card. We use Stripe's PCI-compliant processing to protect your information.
           </p>
         </div>
 

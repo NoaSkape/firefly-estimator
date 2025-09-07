@@ -5,6 +5,7 @@ import { Helmet } from 'react-helmet-async'
 import CheckoutProgress from '../../components/CheckoutProgress'
 import RenameModal from '../../components/RenameModal'
 import BankTransferInstructions from '../../components/BankTransferInstructions'
+import CreditCardPayment from '../../components/CreditCardPayment'
 import { useToast } from '../../components/ToastProvider'
 import { calculateTotalPurchasePrice } from '../../utils/calculateTotal'
 import { 
@@ -53,6 +54,7 @@ export default function BuildsDashboard() {
   const [settings, setSettings] = useState(null)
   const [renameModal, setRenameModal] = useState({ isOpen: false, build: null })
   const [bankTransferModal, setBankTransferModal] = useState({ isOpen: false, build: null, milestone: null })
+  const [creditCardModal, setCreditCardModal] = useState({ isOpen: false, build: null, milestone: null })
   const [sortBy, setSortBy] = useState('newest')
   const [showInfoBanner, setShowInfoBanner] = useState(() => {
     // Check sessionStorage to see if banner was dismissed this session
@@ -88,9 +90,9 @@ export default function BuildsDashboard() {
     sessionStorage.setItem('myHomeTipDismissed', 'true')
   }
 
-  // Get payment status for bank transfer builds
+  // Get payment status for builds with payment methods
   const getPaymentStatus = (build) => {
-    if (!build.payment || build.payment.method !== 'bank_transfer') {
+    if (!build.payment || !['bank_transfer', 'card'].includes(build.payment.method)) {
       return null
     }
 
@@ -169,8 +171,12 @@ export default function BuildsDashboard() {
     }
   }
 
-  const openBankTransferModal = (build, milestone) => {
-    setBankTransferModal({ isOpen: true, build, milestone })
+  const openPaymentModal = (build, milestone) => {
+    if (build.payment?.method === 'bank_transfer') {
+      setBankTransferModal({ isOpen: true, build, milestone })
+    } else if (build.payment?.method === 'card') {
+      setCreditCardModal({ isOpen: true, build, milestone })
+    }
   }
 
   // Load settings and models
@@ -519,7 +525,9 @@ export default function BuildsDashboard() {
                             ) : (
                               <BanknotesIcon className="w-3 h-3 mr-1" />
                             )}
-                            <span className="font-medium">Bank Transfer:</span>
+                            <span className="font-medium">
+                              {build.payment.method === 'bank_transfer' ? 'Bank Transfer:' : 'Credit Card:'}
+                            </span>
                             <span className="ml-1">{paymentStatus.message}</span>
                           </div>
                         </div>
@@ -536,7 +544,7 @@ export default function BuildsDashboard() {
                       return (
                         <button 
                           className="bg-red-600 hover:bg-red-500 text-white text-sm px-4 py-2 rounded transition-colors"
-                          onClick={() => openBankTransferModal(build, paymentStatus.milestone)}
+                          onClick={() => openPaymentModal(build, paymentStatus.milestone)}
                           title="Complete required payment"
                         >
                           Pay Now
@@ -671,6 +679,38 @@ export default function BuildsDashboard() {
                 milestone={bankTransferModal.milestone}
                 onComplete={() => {
                   setBankTransferModal({ isOpen: false, build: null, milestone: null })
+                  // Refresh builds to update payment status
+                  loadBuilds(true)
+                }}
+                showTitle={false}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Credit Card Payment Modal */}
+      {creditCardModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-900 rounded-lg border border-gray-700 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-white">
+                  Credit Card Payment - {creditCardModal.build?.modelName || creditCardModal.build?.modelSlug}
+                </h2>
+                <button 
+                  onClick={() => setCreditCardModal({ isOpen: false, build: null, milestone: null })}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <CreditCardPayment 
+                buildId={creditCardModal.build?._id}
+                milestone={creditCardModal.milestone}
+                onComplete={() => {
+                  setCreditCardModal({ isOpen: false, build: null, milestone: null })
                   // Refresh builds to update payment status
                   loadBuilds(true)
                 }}
