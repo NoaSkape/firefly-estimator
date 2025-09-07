@@ -35,6 +35,26 @@ export default function CashPayment() {
   })
   const [paymentMethod, setPaymentMethod] = useState('ach_debit') // 'ach_debit', 'bank_transfer', 'card'
 
+  // Bank Transfer Payer Info (Phase 1)
+  const [bankTransferPayerInfo, setBankTransferPayerInfo] = useState({
+    fullLegalName: '',
+    email: '',
+    phone: '',
+    billingAddress: {
+      street: '',
+      city: '',
+      state: '',
+      zip: ''
+    },
+    preferredTransferType: '', // 'ACH Credit' | 'Wire' | 'Not sure yet'
+    plannedSendDate: ''
+  })
+  const [bankTransferCommitments, setBankTransferCommitments] = useState({
+    customerInitiated: false,
+    fundsClearing: false,
+    storageFeesAcknowledged: false
+  })
+
   // Step 6B: Payment Details
   const [setupIntent, setSetupIntent] = useState(null)
   const [financialConnections, setFinancialConnections] = useState(null)
@@ -923,6 +943,11 @@ export default function CashPayment() {
                 setSetupError={setSetupError}
                 resetAndRetry={resetAndRetry}
                 needsRefresh={needsRefresh}
+                paymentPlan={paymentPlan}
+                totalCents={totalCents}
+                depositCents={depositCents}
+                build={build}
+                getToken={getToken}
               />
             )}
 
@@ -1580,7 +1605,7 @@ function ACHElementsForm({
   )
 }
 
-// Bank Transfer Details Component - Complete Wizard
+// Bank Transfer Details Component - Integrated into existing wizard
 function BankTransferDetailsStep({ 
   bankTransferDetails, 
   provisionBankTransfer, 
@@ -1597,285 +1622,473 @@ function BankTransferDetailsStep({
   setupError,
   setSetupError,
   resetAndRetry,
-  needsRefresh
+  needsRefresh,
+  paymentPlan,
+  totalCents,
+  depositCents,
+  build,
+  getToken
 }) {
   const [processing, setProcessing] = useState(false)
-  const [step, setStep] = useState('setup') // 'setup', 'instructions', 'confirmation'
+  
+  // Bank Transfer Payer Info (Phase 1 - Pre-Contract)
+  const [payerInfo, setPayerInfo] = useState({
+    fullLegalName: build?.buyerInfo ? `${build.buyerInfo.firstName} ${build.buyerInfo.lastName}` : '',
+    email: build?.buyerInfo?.email || '',
+    phone: build?.buyerInfo?.phone || '',
+    billingAddress: {
+      street: build?.buyerInfo?.address || '',
+      city: build?.buyerInfo?.city || '',
+      state: build?.buyerInfo?.state || '',
+      zip: build?.buyerInfo?.zip || ''
+    },
+    preferredTransferType: '',
+    plannedSendDate: ''
+  })
+  
+  const [commitments, setCommitments] = useState({
+    customerInitiated: false,
+    fundsClearing: false,
+    storageFeesAcknowledged: false
+  })
+  
+  const [validationErrors, setValidationErrors] = useState({})
 
-  // Auto-advance to instructions if we already have transfer details
+  // Auto-populate from existing customer data
   useEffect(() => {
-    if (transferInstructions && step === 'setup') {
-      setStep('instructions')
+    if (build?.buyerInfo) {
+      setPayerInfo(prev => ({
+        ...prev,
+        fullLegalName: `${build.buyerInfo.firstName} ${build.buyerInfo.lastName}`,
+        email: build.buyerInfo.email || '',
+        phone: build.buyerInfo.phone || '',
+        billingAddress: {
+          street: build.buyerInfo.address || '',
+          city: build.buyerInfo.city || '',
+          state: build.buyerInfo.state || '',
+          zip: build.buyerInfo.zip || ''
+        }
+      }))
     }
-  }, [transferInstructions, step])
+  }, [build?.buyerInfo])
 
-  async function handleProvisionTransfer() {
+  // Validation function
+  const validateForm = () => {
+    const errors = {}
+    
+    if (!payerInfo.fullLegalName.trim()) {
+      errors.fullLegalName = 'Full legal name is required'
+    }
+    
+    if (!payerInfo.email.trim()) {
+      errors.email = 'Email address is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payerInfo.email)) {
+      errors.email = 'Please enter a valid email address'
+    }
+    
+    if (!payerInfo.phone.trim()) {
+      errors.phone = 'Phone number is required'
+    }
+    
+    if (!payerInfo.billingAddress.street.trim()) {
+      errors.street = 'Street address is required'
+    }
+    
+    if (!payerInfo.billingAddress.city.trim()) {
+      errors.city = 'City is required'
+    }
+    
+    if (!payerInfo.billingAddress.state.trim()) {
+      errors.state = 'State is required'
+    }
+    
+    if (!payerInfo.billingAddress.zip.trim()) {
+      errors.zip = 'ZIP code is required'
+    }
+    
+    if (!payerInfo.preferredTransferType) {
+      errors.preferredTransferType = 'Please select a transfer type'
+    }
+    
+    if (!commitments.customerInitiated) {
+      errors.customerInitiated = 'This acknowledgment is required'
+    }
+    
+    if (!commitments.fundsClearing) {
+      errors.fundsClearing = 'This acknowledgment is required'
+    }
+    
+    if (paymentPlan.type === 'deposit' && !commitments.storageFeesAcknowledged) {
+      errors.storageFeesAcknowledged = 'This acknowledgment is required for deposit payments'
+    }
+    
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleSaveAndContinue = async () => {
+    if (!validateForm()) return
+
     setProcessing(true)
     try {
-      await provisionBankTransfer()
-      setStep('instructions')
+      const token = await getToken()
+      const res = await fetch('/api/payments/bank-transfer-intents', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          buildId: build._id,
+          paymentPlan,
+          payerInfo,
+          commitments
+        })
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Failed to save bank transfer information')
+      }
+
+      const data = await res.json()
+      console.log('Bank transfer intents created:', data)
+
+      // Continue to review step
+      onContinue()
     } catch (error) {
-      console.error('Bank transfer provision error:', error)
+      console.error('Save bank transfer error:', error)
+      setValidationErrors({ 
+        general: error.message || 'Failed to save bank transfer information. Please try again.' 
+      })
     } finally {
       setProcessing(false)
     }
   }
 
-  function handleConfirmTransfer() {
-    setTransferConfirmed(true)
-    setStep('confirmation')
-  }
-
-  function handleBackToInstructions() {
-    setTransferConfirmed(false)
-    setStep('instructions')
-  }
-
-  // Step 1: Setup
-  if (step === 'setup') {
     return (
       <div className="space-y-6">
-        {/* Welcome Section */}
+      {/* Header */}
         <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-          <h2 className="text-white font-semibold text-xl mb-3">Bank Transfer Setup</h2>
+        <h2 className="text-white font-semibold text-xl mb-3">Bank Transfer (Wire/ACH Credit)</h2>
           <p className="text-gray-300 text-sm leading-relaxed">
-            We'll create a secure virtual account for your bank transfer. This allows us to receive your payment 
-            of <strong>{formatCurrency(currentAmountCents)}</strong> and automatically match it to your order.
+          Complete your payer information and choose your payment plan. Bank transfer instructions will be provided after contract signing.
           </p>
         </div>
 
-        {/* Error Display */}
-        {setupError && (
-          <div className={`p-4 rounded-lg border ${
-            setupError.recoverable 
-              ? 'bg-yellow-900/30 border-yellow-600' 
-              : 'bg-red-900/30 border-red-600'
-          }`}>
+      {/* General Error Display */}
+      {validationErrors.general && (
+        <div className="bg-red-900/30 border border-red-600 rounded-lg p-4">
             <div className="flex items-start">
-              <span className={`text-xl mr-3 ${
-                setupError.recoverable ? 'text-yellow-400' : 'text-red-400'
-              }`}>
-                {setupError.recoverable ? '⚠️' : '❌'}
-              </span>
+            <span className="text-red-400 text-xl mr-3">❌</span>
               <div className="flex-1">
-                <div className={`font-medium ${
-                  setupError.recoverable ? 'text-yellow-200' : 'text-red-200'
-                }`}>
-                  {setupError.message}
+              <div className="font-medium text-red-200">
+                {validationErrors.general}
                 </div>
-                {setupError.recoverable && (
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={resetAndRetry}
-                      className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 text-white text-sm rounded transition-colors"
-                    >
-                      Try Again
-                    </button>
-                    {needsRefresh && (
-                      <button
-                        type="button"
-                        onClick={() => window.location.reload()}
-                        className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white text-sm rounded transition-colors"
-                      >
-                        Refresh Page
-                      </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Section A - Payer Info */}
+      <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+        <h3 className="text-white font-semibold text-lg mb-4">Payer Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Full Legal Name */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Full Legal Name (Person or Business) *
+            </label>
+            <input
+              type="text"
+              value={payerInfo.fullLegalName}
+              onChange={(e) => setPayerInfo(prev => ({ ...prev, fullLegalName: e.target.value }))}
+              className={`w-full px-3 py-2 bg-gray-800 border rounded-md text-white placeholder-gray-400 ${
+                validationErrors.fullLegalName ? 'border-red-500' : 'border-gray-600'
+              }`}
+              placeholder="Enter full legal name as it appears on your bank account"
+            />
+            {validationErrors.fullLegalName && (
+              <p className="mt-1 text-sm text-red-400">{validationErrors.fullLegalName}</p>
                     )}
                   </div>
+
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Email Address *
+            </label>
+            <input
+              type="email"
+              value={payerInfo.email}
+              onChange={(e) => setPayerInfo(prev => ({ ...prev, email: e.target.value }))}
+              className={`w-full px-3 py-2 bg-gray-800 border rounded-md text-white placeholder-gray-400 ${
+                validationErrors.email ? 'border-red-500' : 'border-gray-600'
+              }`}
+              placeholder="your@email.com"
+            />
+            {validationErrors.email && (
+              <p className="mt-1 text-sm text-red-400">{validationErrors.email}</p>
                 )}
               </div>
+
+          {/* Phone */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Phone Number *
+            </label>
+            <input
+              type="tel"
+              value={payerInfo.phone}
+              onChange={(e) => setPayerInfo(prev => ({ ...prev, phone: e.target.value }))}
+              className={`w-full px-3 py-2 bg-gray-800 border rounded-md text-white placeholder-gray-400 ${
+                validationErrors.phone ? 'border-red-500' : 'border-gray-600'
+              }`}
+              placeholder="(555) 123-4567"
+            />
+            {validationErrors.phone && (
+              <p className="mt-1 text-sm text-red-400">{validationErrors.phone}</p>
+                )}
             </div>
+
+          {/* Billing Address */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Billing Address *
+            </label>
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={payerInfo.billingAddress.street}
+                onChange={(e) => setPayerInfo(prev => ({ 
+                  ...prev, 
+                  billingAddress: { ...prev.billingAddress, street: e.target.value }
+                }))}
+                className={`w-full px-3 py-2 bg-gray-800 border rounded-md text-white placeholder-gray-400 ${
+                  validationErrors.street ? 'border-red-500' : 'border-gray-600'
+                }`}
+                placeholder="Street Address"
+              />
+              {validationErrors.street && (
+                <p className="mt-1 text-sm text-red-400">{validationErrors.street}</p>
+              )}
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <input
+                  type="text"
+                  value={payerInfo.billingAddress.city}
+                  onChange={(e) => setPayerInfo(prev => ({ 
+                    ...prev, 
+                    billingAddress: { ...prev.billingAddress, city: e.target.value }
+                  }))}
+                  className={`px-3 py-2 bg-gray-800 border rounded-md text-white placeholder-gray-400 ${
+                    validationErrors.city ? 'border-red-500' : 'border-gray-600'
+                  }`}
+                  placeholder="City"
+                />
+                <input
+                  type="text"
+                  value={payerInfo.billingAddress.state}
+                  onChange={(e) => setPayerInfo(prev => ({ 
+                    ...prev, 
+                    billingAddress: { ...prev.billingAddress, state: e.target.value }
+                  }))}
+                  className={`px-3 py-2 bg-gray-800 border rounded-md text-white placeholder-gray-400 ${
+                    validationErrors.state ? 'border-red-500' : 'border-gray-600'
+                  }`}
+                  placeholder="State"
+                />
+                <input
+                  type="text"
+                  value={payerInfo.billingAddress.zip}
+                  onChange={(e) => setPayerInfo(prev => ({ 
+                    ...prev, 
+                    billingAddress: { ...prev.billingAddress, zip: e.target.value }
+                  }))}
+                  className={`px-3 py-2 bg-gray-800 border rounded-md text-white placeholder-gray-400 ${
+                    validationErrors.zip ? 'border-red-500' : 'border-gray-600'
+                  }`}
+                  placeholder="ZIP"
+                />
+              </div>
+              {(validationErrors.city || validationErrors.state || validationErrors.zip) && (
+                <p className="mt-1 text-sm text-red-400">
+                  {validationErrors.city || validationErrors.state || validationErrors.zip}
+                </p>
+              )}
+          </div>
+        </div>
+
+          {/* Preferred Transfer Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Preferred Transfer Type *
+            </label>
+            <select
+              value={payerInfo.preferredTransferType}
+              onChange={(e) => setPayerInfo(prev => ({ ...prev, preferredTransferType: e.target.value }))}
+              className={`w-full px-3 py-2 bg-gray-800 border rounded-md text-white ${
+                validationErrors.preferredTransferType ? 'border-red-500' : 'border-gray-600'
+              }`}
+            >
+              <option value="">Select transfer type</option>
+              <option value="ACH Credit">ACH Credit</option>
+              <option value="Wire">Wire</option>
+              <option value="Not sure yet">Not sure yet</option>
+            </select>
+            {validationErrors.preferredTransferType && (
+              <p className="mt-1 text-sm text-red-400">{validationErrors.preferredTransferType}</p>
+            )}
+        </div>
+
+          {/* Planned Send Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Planned Send Date <span className="text-gray-500">(Optional)</span>
+            </label>
+            <input
+              type="date"
+              value={payerInfo.plannedSendDate}
+              onChange={(e) => setPayerInfo(prev => ({ ...prev, plannedSendDate: e.target.value }))}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white"
+            />
+          </div>
+        </div>
+        </div>
+
+      {/* Payment Plan Breakdown */}
+        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+        <h3 className="text-white font-semibold text-lg mb-4">Payment Plan</h3>
+        
+        {paymentPlan.type === 'deposit' ? (
+          <div className="space-y-4">
+            <div className="bg-yellow-900/20 border border-yellow-600 rounded-lg p-4">
+              <h4 className="text-yellow-300 font-medium mb-3">Deposit + Final (Two Milestones)</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-300">Deposit ({paymentPlan.percent}%):</span>
+                  <span className="text-white font-medium">{formatCurrency(depositCents)}</span>
+              </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-300">Final Payment:</span>
+                  <span className="text-white font-medium">{formatCurrency(totalCents - depositCents)}</span>
+              </div>
+                <div className="border-t border-yellow-600 pt-2 mt-3">
+                  <div className="flex justify-between font-medium">
+                    <span className="text-yellow-300">Total:</span>
+                    <span className="text-yellow-300">{formatCurrency(totalCents)}</span>
+              </div>
+              </div>
+              </div>
+            </div>
+            <div className="bg-blue-900/20 border border-blue-600 rounded-lg p-3">
+              <div className="text-blue-200 text-xs space-y-1">
+                <p>• <strong>Your deposit is required to place your home into the construction process.</strong></p>
+                <p>• <strong>Final payment must be paid in full before the home can leave the factory.</strong></p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="bg-green-900/20 border border-green-600 rounded-lg p-4">
+              <h4 className="text-green-300 font-medium mb-3">Pay in Full (One Milestone)</h4>
+              <div className="flex justify-between">
+                <span className="text-gray-300">Amount Due:</span>
+                <span className="text-white font-medium text-lg">{formatCurrency(totalCents)}</span>
+        </div>
+          </div>
+            <div className="bg-blue-900/20 border border-blue-600 rounded-lg p-3">
+              <div className="text-blue-200 text-xs">
+                <p><strong>Funds must be received and cleared before release and scheduling.</strong></p>
+        </div>
+          </div>
           </div>
         )}
-
-        {/* Security Information */}
-        <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4">
-          <div className="text-blue-200">
-            <div className="font-semibold text-sm mb-2">🔒 Secure Bank Transfer</div>
-            <ul className="text-xs space-y-1">
-              <li>• Virtual account created specifically for your transaction</li>
-              <li>• Automatic payment matching using your unique reference code</li>
-              <li>• Enterprise-grade security with bank-level encryption</li>
-              <li>• No sensitive banking information stored on our servers</li>
-            </ul>
-          </div>
         </div>
 
-        <div className="flex gap-3">
-          <button 
-            className="btn-primary"
-            onClick={handleProvisionTransfer}
-            disabled={processing}
-          >
-            {processing ? (
-              <span className="flex items-center justify-center">
-                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
-                Setting up...
+      {/* Commitments */}
+      <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+        <h3 className="text-white font-semibold text-lg mb-4">Commitments</h3>
+        <div className="space-y-4">
+          {/* Customer Initiated */}
+          <label className="flex items-start">
+            <input
+              type="checkbox"
+              checked={commitments.customerInitiated}
+              onChange={(e) => setCommitments(prev => ({ ...prev, customerInitiated: e.target.checked }))}
+              className="mt-1 mr-3 h-4 w-4 text-yellow-500 focus:ring-yellow-500 border-gray-600 rounded bg-gray-800"
+            />
+            <div className="flex-1">
+              <span className="text-white text-sm">
+                I understand this is a customer-initiated transfer; after signing, I'll receive instructions to send funds from my bank.
               </span>
-            ) : (
-              'Setup Bank Transfer'
-            )}
-          </button>
-          <button 
-            className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
-            onClick={onBack}
-          >
-            ← Back
-          </button>
+              {validationErrors.customerInitiated && (
+                <p className="mt-1 text-sm text-red-400">{validationErrors.customerInitiated}</p>
+              )}
         </div>
-      </div>
-    )
-  }
+          </label>
 
-  // Step 2: Instructions
-  if (step === 'instructions') {
-    return (
-      <div className="space-y-6">
-        {/* Welcome Section */}
-        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-          <h2 className="text-white font-semibold text-xl mb-3">Bank Transfer Instructions</h2>
-          <p className="text-gray-300 text-sm leading-relaxed">
-            Use the following information to complete your bank transfer. Include the reference code to ensure 
-            automatic matching of your payment.
-          </p>
-        </div>
+          {/* Funds Clearing */}
+          <label className="flex items-start">
+            <input
+              type="checkbox"
+              checked={commitments.fundsClearing}
+              onChange={(e) => setCommitments(prev => ({ ...prev, fundsClearing: e.target.checked }))}
+              className="mt-1 mr-3 h-4 w-4 text-yellow-500 focus:ring-yellow-500 border-gray-600 rounded bg-gray-800"
+            />
+            <div className="flex-1">
+              <span className="text-white text-sm">
+                I acknowledge funds must clear before build initiation, release and delivery scheduling.
+              </span>
+              {validationErrors.fundsClearing && (
+                <p className="mt-1 text-sm text-red-400">{validationErrors.fundsClearing}</p>
+              )}
+          </div>
+          </label>
 
-        {/* Transfer Details */}
-        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-          <h3 className="text-white font-semibold text-lg mb-4">Transfer Information</h3>
-          <div className="space-y-4">
-            <div className="bg-gray-800 p-4 rounded-lg space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-300 text-sm">Beneficiary:</span>
-                <span className="text-white font-mono text-sm">{transferInstructions?.accountName || 'Firefly Tiny Homes'}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-300 text-sm">Bank Name:</span>
-                <span className="text-white font-mono text-sm">{transferInstructions?.bankName || 'Stripe Test Bank'}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-300 text-sm">Routing Number:</span>
-                <span className="text-white font-mono text-sm">{transferInstructions?.routingNumber}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-300 text-sm">Account Number:</span>
-                <span className="text-white font-mono text-sm">{transferInstructions?.accountNumber}</span>
-              </div>
-              <div className="flex justify-between items-center border-t border-gray-600 pt-3">
-                <span className="text-yellow-300 text-sm font-medium">Reference Code:</span>
-                <span className="text-yellow-400 font-mono text-sm font-bold">{transferReference}</span>
-              </div>
+          {/* Storage Fees (only for deposit payments) */}
+          {paymentPlan.type === 'deposit' && (
+            <label className="flex items-start">
+              <input
+                type="checkbox"
+                checked={commitments.storageFeesAcknowledged}
+                onChange={(e) => setCommitments(prev => ({ ...prev, storageFeesAcknowledged: e.target.checked }))}
+                className="mt-1 mr-3 h-4 w-4 text-yellow-500 focus:ring-yellow-500 border-gray-600 rounded bg-gray-800"
+              />
+              <div className="flex-1">
+                <span className="text-white text-sm">
+                  I understand pay in full must occur within 12 days after build completion or storage fees will apply.
+                </span>
+                {validationErrors.storageFeesAcknowledged && (
+                  <p className="mt-1 text-sm text-red-400">{validationErrors.storageFeesAcknowledged}</p>
+                )}
             </div>
-
-            <div className="bg-yellow-900/20 border border-yellow-600 rounded-lg p-3">
-              <div className="text-yellow-200 text-xs">
-                <strong>⚠️ Important:</strong> Include the reference code in your transfer description/memo field 
-                to ensure proper matching. Without it, we may not be able to identify your payment.
-              </div>
-            </div>
+            </label>
+          )}
           </div>
         </div>
 
-        {/* Payment Amount */}
-        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-          <h3 className="text-white font-semibold text-lg mb-4">Payment Amount</h3>
-          <div className="flex justify-between py-3 px-4 bg-yellow-900/20 border border-yellow-600 rounded-lg">
-            <span className="text-yellow-200 font-medium">Transfer Amount:</span>
-            <span className="text-yellow-400 font-bold text-lg">{formatCurrency(currentAmountCents)}</span>
-          </div>
-        </div>
-
-        {/* Processing Information */}
-        <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4">
-          <div className="text-blue-200">
-            <div className="font-semibold text-sm mb-2">📋 Processing Information</div>
-            <ul className="text-xs space-y-1">
-              <li>• Wire transfers typically process within 1-2 business days</li>
-              <li>• ACH transfers typically process within 3-5 business days</li>
-              <li>• We'll automatically match your payment using the reference code</li>
-              <li>• You'll receive email confirmation once payment is received</li>
-            </ul>
-          </div>
-        </div>
-
+      {/* Actions */}
         <div className="flex gap-3">
           <button 
             className="btn-primary"
-            onClick={handleConfirmTransfer}
-          >
-            I've Completed the Transfer
+          onClick={handleSaveAndContinue}
+          disabled={processing}
+        >
+          {processing ? (
+            <span className="flex items-center justify-center">
+              <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+              Saving...
+            </span>
+          ) : (
+            'Save & Continue'
+          )}
           </button>
           <button 
             className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
-            onClick={() => setStep('setup')}
+          onClick={onBack}
           >
-            ← Back to Setup
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // Step 3: Confirmation
-  if (step === 'confirmation') {
-    return (
-      <div className="space-y-6">
-        {/* Success Section */}
-        <div className="bg-green-900/30 border border-green-600 rounded-lg p-6">
-          <div className="flex items-center mb-4">
-            <span className="text-green-400 text-xl mr-3">✓</span>
-            <h2 className="text-white font-semibold text-xl">Transfer Confirmed</h2>
-          </div>
-          <p className="text-green-200 text-sm leading-relaxed">
-            Thank you for confirming your bank transfer. We'll automatically match your payment when it arrives 
-            and notify you via email. You can now proceed to the next step.
-          </p>
-        </div>
-
-        {/* Transfer Summary */}
-        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-          <h3 className="text-white font-semibold text-lg mb-4">Transfer Summary</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between py-2 border-b border-gray-600">
-              <span className="text-gray-300">Amount:</span>
-              <span className="text-white font-medium">{formatCurrency(currentAmountCents)}</span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-gray-600">
-              <span className="text-gray-300">Reference Code:</span>
-              <span className="text-white font-mono">{transferReference}</span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-gray-600">
-              <span className="text-gray-300">Status:</span>
-              <span className="text-yellow-400 font-medium">Pending Confirmation</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Next Steps */}
-        <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4">
-          <div className="text-blue-200">
-            <div className="font-semibold text-sm mb-2">📋 Next Steps</div>
-            <ul className="text-xs space-y-1">
-              <li>• Complete your bank transfer using the provided instructions</li>
-              <li>• We'll automatically match your payment when it arrives</li>
-              <li>• You'll receive email confirmation once payment is confirmed</li>
-              <li>• Proceed to contract signing - we'll verify funds before production</li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <button 
-            className="btn-primary"
-            onClick={onContinue}
-          >
-            Continue to Review
-          </button>
-          <button 
-            className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
-            onClick={handleBackToInstructions}
-          >
-            ← Back to Instructions
+          ← Back
           </button>
         </div>
       </div>
@@ -2615,3 +2828,4 @@ function CardPaymentForm({
     </form>
   )
 }
+

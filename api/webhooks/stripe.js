@@ -39,6 +39,14 @@ export default async function handler(req, res) {
         await handleInboundTransferFailed(event.data.object, db)
         break
       
+      case 'invoice.payment_succeeded':
+        await handleInvoicePaymentSucceeded(event.data.object, db)
+        break
+      
+      case 'invoice.payment_failed':
+        await handleInvoicePaymentFailed(event.data.object, db)
+        break
+      
       default:
         console.log(`Unhandled event type: ${event.type}`)
     }
@@ -130,4 +138,125 @@ async function handleInboundTransferFailed(transfer, db) {
   )
 
   console.log(`Bank transfer failed for order: ${order._id}`)
+}
+
+async function handleInvoicePaymentSucceeded(invoice, db) {
+  const { ObjectId } = await import('mongodb')
+  
+  // Get metadata from invoice
+  const buildId = invoice.metadata?.buildId
+  const milestone = invoice.metadata?.milestone
+  const intentId = invoice.metadata?.intentId
+
+  if (!buildId || !milestone || !intentId) {
+    console.log('Invoice payment succeeded but missing required metadata:', invoice.id)
+    return
+  }
+
+  console.log(`Invoice payment succeeded: ${invoice.id} for build ${buildId}, milestone ${milestone}`)
+
+  try {
+    // Update the bank transfer intent
+    await db.collection('bankTransferIntents').updateOne(
+      { _id: new ObjectId(intentId) },
+      { 
+        $set: {
+          status: 'paid',
+          stripeInvoiceId: invoice.id,
+          paidAmount: invoice.amount_paid,
+          paidAt: new Date(),
+          updatedAt: new Date()
+        }
+      }
+    )
+
+    // Update the build payment status
+    const updateFields = {
+      'payment.lastPaymentAt': new Date(),
+      'payment.updatedAt': new Date()
+    }
+
+    // Set milestone-specific payment flags
+    if (milestone === 'deposit') {
+      updateFields['payment.depositPaid'] = true
+      updateFields['payment.depositPaidAt'] = new Date()
+    } else if (milestone === 'final') {
+      updateFields['payment.finalPaid'] = true
+      updateFields['payment.finalPaidAt'] = new Date()
+    } else if (milestone === 'full') {
+      updateFields['payment.fullPaid'] = true
+      updateFields['payment.fullPaidAt'] = new Date()
+    }
+
+    await db.collection('builds').updateOne(
+      { _id: new ObjectId(buildId) },
+      { $set: updateFields }
+    )
+
+    // Check if all required payments are complete
+    const build = await db.collection('builds').findOne({ _id: new ObjectId(buildId) })
+    if (build?.payment) {
+      const paymentPlan = build.payment.plan?.type
+      let allPaid = false
+
+      if (paymentPlan === 'deposit') {
+        allPaid = build.payment.depositPaid && build.payment.finalPaid
+      } else if (paymentPlan === 'full') {
+        allPaid = build.payment.fullPaid
+      }
+
+      if (allPaid) {
+        await db.collection('builds').updateOne(
+          { _id: new ObjectId(buildId) },
+          { 
+            $set: {
+              'payment.status': 'fully_paid',
+              'payment.fullyPaidAt': new Date()
+            }
+          }
+        )
+        console.log(`Build ${buildId} is now fully paid`)
+      }
+    }
+
+    console.log(`Successfully processed payment for build ${buildId}, milestone ${milestone}`)
+  } catch (error) {
+    console.error(`Error processing invoice payment for build ${buildId}:`, error)
+  }
+}
+
+async function handleInvoicePaymentFailed(invoice, db) {
+  const { ObjectId } = await import('mongodb')
+  
+  // Get metadata from invoice
+  const buildId = invoice.metadata?.buildId
+  const milestone = invoice.metadata?.milestone
+  const intentId = invoice.metadata?.intentId
+
+  if (!buildId || !milestone || !intentId) {
+    console.log('Invoice payment failed but missing required metadata:', invoice.id)
+    return
+  }
+
+  console.log(`Invoice payment failed: ${invoice.id} for build ${buildId}, milestone ${milestone}`)
+
+  try {
+    // Update the bank transfer intent
+    await db.collection('bankTransferIntents').updateOne(
+      { _id: new ObjectId(intentId) },
+      { 
+        $set: {
+          status: 'payment_failed',
+          stripeInvoiceId: invoice.id,
+          lastError: 'Payment failed',
+          failedAt: new Date(),
+          updatedAt: new Date()
+        }
+      }
+    )
+
+    console.log(`Updated intent ${intentId} with payment failure`)
+  } catch (error) {
+    console.error(`Error processing invoice payment failure for build ${buildId}:`, error)
+  }
 }

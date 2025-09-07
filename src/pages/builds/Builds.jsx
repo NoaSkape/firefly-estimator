@@ -4,6 +4,7 @@ import { useUser, useAuth, SignUp, SignIn } from '@clerk/clerk-react'
 import { Helmet } from 'react-helmet-async'
 import CheckoutProgress from '../../components/CheckoutProgress'
 import RenameModal from '../../components/RenameModal'
+import BankTransferInstructions from '../../components/BankTransferInstructions'
 import { useToast } from '../../components/ToastProvider'
 import { calculateTotalPurchasePrice } from '../../utils/calculateTotal'
 import { 
@@ -12,7 +13,9 @@ import {
   HomeIcon,
   ClockIcon,
   CalendarIcon,
-  CurrencyDollarIcon
+  CurrencyDollarIcon,
+  BanknotesIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline'
 
 // Function to get the correct route based on build step
@@ -49,6 +52,7 @@ export default function BuildsDashboard() {
   const [builds, setBuilds] = useState([])
   const [settings, setSettings] = useState(null)
   const [renameModal, setRenameModal] = useState({ isOpen: false, build: null })
+  const [bankTransferModal, setBankTransferModal] = useState({ isOpen: false, build: null, milestone: null })
   const [sortBy, setSortBy] = useState('newest')
   const [showInfoBanner, setShowInfoBanner] = useState(() => {
     // Check sessionStorage to see if banner was dismissed this session
@@ -82,6 +86,91 @@ export default function BuildsDashboard() {
   const dismissInfoBanner = () => {
     setShowInfoBanner(false)
     sessionStorage.setItem('myHomeTipDismissed', 'true')
+  }
+
+  // Get payment status for bank transfer builds
+  const getPaymentStatus = (build) => {
+    if (!build.payment || build.payment.method !== 'bank_transfer') {
+      return null
+    }
+
+    const isContractSigned = build.contract?.signed
+    const paymentPlan = build.payment.plan?.type
+
+    if (!isContractSigned) {
+      return {
+        phase: 'pre_contract',
+        status: 'pending_contract',
+        message: 'Awaiting contract signature',
+        color: 'yellow'
+      }
+    }
+
+    // Post-contract: determine which milestone is active
+    if (paymentPlan === 'deposit') {
+      // Check if deposit is paid
+      const depositPaid = build.payment.depositPaid || false
+      const finalPaid = build.payment.finalPaid || false
+
+      if (!depositPaid) {
+        return {
+          phase: 'post_contract',
+          status: 'deposit_due',
+          milestone: 'deposit',
+          message: 'Deposit payment required to start build',
+          color: 'red',
+          actionRequired: true
+        }
+      } else if (!finalPaid && build.status === 'factory_complete') {
+        return {
+          phase: 'post_contract',
+          status: 'final_due',
+          milestone: 'final',
+          message: 'Final payment required for delivery',
+          color: 'red',
+          actionRequired: true
+        }
+      } else if (!finalPaid) {
+        return {
+          phase: 'post_contract',
+          status: 'deposit_paid',
+          message: 'Deposit paid - build in progress',
+          color: 'green'
+        }
+      } else {
+        return {
+          phase: 'post_contract',
+          status: 'fully_paid',
+          message: 'Fully paid - ready for delivery',
+          color: 'green'
+        }
+      }
+    } else {
+      // Pay in full
+      const fullPaid = build.payment.fullPaid || false
+      
+      if (!fullPaid) {
+        return {
+          phase: 'post_contract',
+          status: 'full_due',
+          milestone: 'full',
+          message: 'Full payment required to start build',
+          color: 'red',
+          actionRequired: true
+        }
+      } else {
+        return {
+          phase: 'post_contract',
+          status: 'fully_paid',
+          message: 'Fully paid - build in progress',
+          color: 'green'
+        }
+      }
+    }
+  }
+
+  const openBankTransferModal = (build, milestone) => {
+    setBankTransferModal({ isOpen: true, build, milestone })
   }
 
   // Load settings and models
@@ -412,11 +501,51 @@ export default function BuildsDashboard() {
                     <div className="text-xs text-gray-500 capitalize mb-4">
                       Status: {build.status}
                     </div>
+
+                    {/* Payment Status for Bank Transfer */}
+                    {(() => {
+                      const paymentStatus = getPaymentStatus(build)
+                      if (!paymentStatus) return null
+
+                      return (
+                        <div className={`text-xs p-2 rounded border mb-3 ${
+                          paymentStatus.color === 'red' ? 'bg-red-900/30 border-red-600 text-red-200' :
+                          paymentStatus.color === 'yellow' ? 'bg-yellow-900/30 border-yellow-600 text-yellow-200' :
+                          'bg-green-900/30 border-green-600 text-green-200'
+                        }`}>
+                          <div className="flex items-center">
+                            {paymentStatus.actionRequired ? (
+                              <ExclamationTriangleIcon className="w-3 h-3 mr-1" />
+                            ) : (
+                              <BanknotesIcon className="w-3 h-3 mr-1" />
+                            )}
+                            <span className="font-medium">Bank Transfer:</span>
+                            <span className="ml-1">{paymentStatus.message}</span>
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </div>
                 </div>
 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap gap-2">
+                  {(() => {
+                    const paymentStatus = getPaymentStatus(build)
+                    if (paymentStatus?.actionRequired) {
+                      return (
+                        <button 
+                          className="bg-red-600 hover:bg-red-500 text-white text-sm px-4 py-2 rounded transition-colors"
+                          onClick={() => openBankTransferModal(build, paymentStatus.milestone)}
+                          title="Complete required payment"
+                        >
+                          Pay Now
+                        </button>
+                      )
+                    }
+                    return null
+                  })()}
+                  
                   <button 
                     className="btn-primary text-sm px-4 py-2"
                     onClick={() => navigate(getBuildStepRoute(build))}
@@ -519,6 +648,38 @@ export default function BuildsDashboard() {
           setBuilds(list => list.map(b => b._id === updatedBuild._id ? updatedBuild : b))
         }}
       />
+
+      {/* Bank Transfer Instructions Modal */}
+      {bankTransferModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-900 rounded-lg border border-gray-700 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-white">
+                  Bank Transfer Payment - {bankTransferModal.build?.modelName || bankTransferModal.build?.modelSlug}
+                </h2>
+                <button 
+                  onClick={() => setBankTransferModal({ isOpen: false, build: null, milestone: null })}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <BankTransferInstructions 
+                buildId={bankTransferModal.build?._id}
+                milestone={bankTransferModal.milestone}
+                onComplete={() => {
+                  setBankTransferModal({ isOpen: false, build: null, milestone: null })
+                  // Refresh builds to update payment status
+                  loadBuilds(true)
+                }}
+                showTitle={false}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
