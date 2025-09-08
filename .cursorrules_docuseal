@@ -1,0 +1,280 @@
+# DocuSeal Template Creation & Integration Rules
+
+## Overview
+This rule documents the complete process for creating and integrating DocuSeal templates in the Firefly Estimator project, based on successful implementation and debugging.
+
+## Environment Setup
+
+### Required Environment Variables (.env)
+```env
+# DocuSeal Configuration
+DOCUSEAL_API_KEY=your_full_43_character_api_key_here
+DOCUSEAL_BASE_URL=https://api.docuseal.co
+DOCUSEAL_FIREFLY_EMAIL=office@fireflytinyhomes.com
+
+# Template IDs (generated after template creation)
+DOCUSEAL_TEMPLATE_ID_AGREEMENT=template_id_here
+DOCUSEAL_TEMPLATE_ID_DELIVERY=template_id_here
+DOCUSEAL_TEMPLATE_ID_FINAL=template_id_here
+```
+
+### Critical Environment Loading Rules
+1. **Dev Server**: Must load .env from project root using `dotenv.config({ path: path.join(__dirname, '..', '.env') })`
+2. **API Routes**: Environment variables must be available before importing DocuSeal modules
+3. **Variable Consistency**: Use `BASE` internally, load from `DOCUSEAL_BASE_URL`
+
+## DocuSeal API Integration Architecture
+
+### 1. Client Configuration (lib/docuseal/client.js)
+```javascript
+// ✅ CORRECT: Load environment variables at module level
+const BASE = process.env.DOCUSEAL_BASE_URL || "https://api.docuseal.co"
+const API_KEY = process.env.DOCUSEAL_API_KEY
+
+// ✅ CORRECT: Headers function
+function hdr(json = true) {
+  return {
+    "X-Auth-Token": API_KEY,  // Use X-Auth-Token, NOT Bearer
+    ...(json ? { "Content-Type": "application/json", "Accept": "application/json" } : {}),
+  }
+}
+
+// ✅ CORRECT: HTML Template Creation (NOT DOCX for HTML content)
+export async function dsCreateTemplateFromHtml(body) {
+  const res = await fetch(`${BASE}/templates/html`, {  // Use /templates/html for HTML
+    method: "POST",
+    headers: hdr(true),
+    body: JSON.stringify(body),
+  })
+  // ... error handling and response parsing
+}
+```
+
+### 2. HTML Template Structure (lib/contracts/html/*.js)
+
+#### Field Tag Syntax Rules
+```html
+<!-- ✅ CORRECT: DocuSeal HTML field tags -->
+{{field_name;type=text;role=buyer;required=true}}
+{{buyer_signature;type=signature;role=buyer;required=true}}
+{{buyer_initials_1;type=initials;role=buyer;required=true}}
+
+<!-- ❌ WRONG: Simple placeholder syntax -->
+{{field_name}}
+[[FIELD_NAME]]
+```
+
+#### Role Naming Convention
+- **buyer**: Primary buyer/customer
+- **cobuyer**: Secondary buyer (optional)
+- **firefly_signer**: Firefly Tiny Homes representative
+
+#### Field Type Mapping
+- `type=text`: Text input fields (names, addresses, prices)
+- `type=signature`: Signature fields
+- `type=initials`: Initial fields (use multiple with different names: buyer_initials_1, buyer_initials_2)
+- `type=date`: Date fields
+
+### 3. Template Builder Pattern (lib/docuseal/builders/*.js)
+```javascript
+export async function buildAgreementTemplate() {
+  // 1. Generate DocuSeal-compatible HTML
+  const html = buildAgreementHtmlForDocuSeal()
+
+  // 2. Create template body for HTML endpoint
+  const templateBody = {
+    name: "Template Name v3",
+    html: html,                    // Direct HTML content
+    size: "Letter",               // Page size
+    external_id: "unique_id",     // For template identification
+    folder_name: "Folder Name",   // Organization
+    shared_link: true             // Allow sharing
+  }
+
+  // 3. Call HTML endpoint (NOT DOCX)
+  const templateId = await dsCreateTemplateFromHtml(templateBody)
+  return templateId
+}
+```
+
+## Development Server Integration
+
+### Dev Server Endpoint Pattern (backend/dev-server.js)
+```javascript
+// Template creation endpoint for development
+app.post('/api/admin/docuseal/init-templates/agreement', async (req, res) => {
+  try {
+    const { buildAgreementTemplate } = await import('../lib/docuseal/builders/agreement.js')
+    const templateId = await buildAgreementTemplate()
+    
+    res.json({
+      success: true,
+      templateId,
+      message: 'Template created successfully',
+      envVariable: 'DOCUSEAL_TEMPLATE_ID_AGREEMENT',
+      instructions: `Add this to your .env file: DOCUSEAL_TEMPLATE_ID_AGREEMENT=${templateId}`
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create template',
+      details: error.message
+    })
+  }
+})
+```
+
+## Data Mapping Rules
+
+### Order-to-Template Field Mapping
+```javascript
+// ✅ CORRECT: Field names must match template exactly
+function buildPackFields(pack, order) {
+  return {
+    // Buyer information - match template field names exactly
+    buyer_full_name: order.buyer.firstName + ' ' + order.buyer.lastName,
+    buyer_email: order.buyer.email,
+    buyer_phone: order.buyer.phone,
+    buyer_address: formatAddress(order.deliveryAddress),
+    
+    // Model information - match template field names exactly  
+    model_brand: order.model.brand,
+    model_code: order.model.model,
+    model_year: order.model.year,
+    dimensions: order.model.dimensions,
+    
+    // Pricing - match template field names exactly
+    price_base: formatCurrency(order.pricing.base),
+    price_options: formatCurrency(order.pricing.options),
+    price_freight_est: formatCurrency(order.pricing.delivery || 0),
+    price_setup: formatCurrency(order.pricing.setup || 0),
+    price_other: formatCurrency(order.pricing.titleFee || 0),
+    price_total: formatCurrency(order.pricing.total),
+    
+    // Co-buyer fields (optional)
+    cobuyer_full_name: order.buyer.coFirstName ? order.buyer.coFirstName + ' ' + order.buyer.coLastName : '',
+    cobuyer_email: order.buyer.coEmail || ''
+  }
+}
+```
+
+### Session Creation Rules
+```javascript
+// ✅ CORRECT: Role names must match template submitters
+const submitters = [
+  {
+    name: order.buyer.firstName + ' ' + order.buyer.lastName,
+    email: order.buyer.email,
+    role: 'buyer'  // Must match template role exactly
+  },
+  // Co-buyer (optional)
+  ...(order.buyer.coFirstName ? [{
+    name: order.buyer.coFirstName + ' ' + order.buyer.coLastName,
+    email: order.buyer.coEmail || order.buyer.email,
+    role: 'cobuyer'  // Must match template role exactly
+  }] : []),
+  {
+    name: 'Firefly Tiny Homes',
+    email: 'office@fireflytinyhomes.com',
+    role: 'firefly_signer'  // Must match template role exactly
+  }
+]
+```
+
+## Common Pitfalls & Solutions
+
+### ❌ WRONG Approaches
+1. **Using /templates/docx for HTML content**: This endpoint expects base64-encoded DOCX files
+2. **Placeholder syntax**: `{{field_name}}` without type/role attributes
+3. **Mismatched field names**: Template expects `buyer_full_name`, session sends `buyer_name`
+4. **Wrong role names**: Template has `buyer`, session sends `Buyer`
+5. **Bearer authentication**: Use `X-Auth-Token` header instead
+6. **Environment loading**: Loading .env from wrong directory in dev server
+
+### ✅ CORRECT Solutions
+1. **Use /templates/html**: For HTML content with field tags
+2. **Full field syntax**: `{{buyer_full_name;type=text;role=buyer;required=true}}`
+3. **Exact field mapping**: Template and session field names must match perfectly
+4. **Consistent roles**: Use lowercase role names consistently
+5. **X-Auth-Token**: Proper DocuSeal authentication header
+6. **Proper .env loading**: Use full path in dev server
+
+## Testing & Debugging Process
+
+### 1. Template Creation Test
+```bash
+# PowerShell command to test template creation
+Invoke-RestMethod -Uri "http://localhost:3001/api/admin/docuseal/init-templates/agreement" -Method POST
+```
+
+### 2. Environment Variable Debug
+```javascript
+// Add to dev server for debugging
+console.log('🔑 DOCUSEAL_API_KEY loaded:', process.env.DOCUSEAL_API_KEY ? 'YES (length: ' + process.env.DOCUSEAL_API_KEY.length + ')' : 'NO')
+console.log('📁 .env path:', path.join(__dirname, '..', '.env'))
+```
+
+### 3. Session Creation Test
+```javascript
+// Test session creation with real order data
+const session = await createPackEnvelope(orderId, 'agreement', order)
+console.log('Signing URL:', session.signingUrl)
+```
+
+## File Structure Requirements
+
+```
+lib/
+├── docuseal/
+│   ├── client.js                 # Unified API client with HTML endpoint
+│   └── builders/
+│       ├── agreement.js          # Agreement template builder
+│       ├── delivery.js           # Delivery template builder  
+│       └── final.js              # Final acknowledgment builder
+├── contracts/
+│   └── html/
+│       ├── agreement.js          # HTML with DocuSeal field tags
+│       ├── delivery.js           # Delivery agreement HTML
+│       └── final.js              # Final acknowledgment HTML
+backend/
+└── dev-server.js                 # Dev server with template endpoints
+```
+
+## Success Criteria
+
+### Template Creation Success
+- ✅ Template ID returned (e.g., 1708433)
+- ✅ Template visible in DocuSeal dashboard
+- ✅ Template shows formatted document (not raw HTML)
+- ✅ Fields are properly mapped and interactive
+
+### Signing Experience Success  
+- ✅ "Open Full View" shows formatted PDF
+- ✅ "Start Signing" shows identical formatted document
+- ✅ All buyer/model/pricing data auto-populated
+- ✅ Signature and initial fields are interactive
+- ✅ Co-buyer fields work when present
+
+## Emergency Troubleshooting
+
+### Common Errors & Solutions
+1. **"DOCUSEAL_API_KEY environment variable is required"**
+   - Check .env file exists and has correct API key
+   - Verify dev server loads .env from project root
+   - Restart dev server after .env changes
+
+2. **"DOCUSEAL_BASE is not defined"**
+   - Check variable naming consistency in client.js
+   - Use `BASE` internally, load from `DOCUSEAL_BASE_URL`
+
+3. **"Failed to execute 'json' on 'Response'"**
+   - API server not running or wrong port
+   - Check Vite proxy configuration
+   - Verify API endpoint exists in dev server
+
+4. **Raw HTML shown in DocuSeal instead of formatted document**
+   - Using wrong endpoint (/templates/docx instead of /templates/html)
+   - Incorrect field tag syntax
+   - Need to recreate template with HTML endpoint
+
+This rule captures the complete DocuSeal integration process that took hours to debug and perfect. Follow these patterns exactly for consistent success.

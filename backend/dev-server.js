@@ -124,7 +124,7 @@ app.all('/ai/test', (req, res) => {
   });
 });
 
-// DocuSeal template creation endpoint for development
+// DocuSeal template creation endpoints for development
 app.post('/api/admin/docuseal/init-templates/agreement', async (req, res) => {
   try {
     console.log('[DEV_SERVER] Creating DocuSeal agreement template...');
@@ -141,6 +141,33 @@ app.post('/api/admin/docuseal/init-templates/agreement', async (req, res) => {
       message: 'Agreement template created successfully via DocuSeal HTML endpoint',
       envVariable: 'DOCUSEAL_TEMPLATE_ID_AGREEMENT',
       instructions: `Add this to your .env file: DOCUSEAL_TEMPLATE_ID_AGREEMENT=${templateId}`
+    });
+  } catch (error) {
+    console.error('[DEV_SERVER] Template creation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create template',
+      details: error.message
+    });
+  }
+});
+
+app.post('/api/admin/docuseal/init-templates/delivery', async (req, res) => {
+  try {
+    console.log('[DEV_SERVER] Creating DocuSeal delivery template...');
+    
+    // Import the template builder
+    const { buildDeliveryTemplate } = await import('../lib/docuseal/builders/pack3_delivery.js');
+    const templateId = await buildDeliveryTemplate();
+    
+    console.log('[DEV_SERVER] Delivery template created:', templateId);
+    
+    res.json({
+      success: true,
+      templateId,
+      message: 'Delivery template created successfully via DocuSeal HTML endpoint',
+      envVariable: 'DOCUSEAL_TEMPLATE_ID_DELIVERY',
+      instructions: `Add this to your .env file: DOCUSEAL_TEMPLATE_ID_DELIVERY=${templateId}`
     });
   } catch (error) {
     console.error('[DEV_SERVER] Template creation error:', error);
