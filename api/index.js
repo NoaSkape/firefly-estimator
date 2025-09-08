@@ -1762,11 +1762,10 @@ app.post(['/api/contracts/:orderId/mark-summary-reviewed', '/contracts/:orderId/
   }
 })
 
-// Placeholder for PDF generation
+// Import PDF generator
 async function generateOrderSummaryPDF(order) {
-  // TODO: Implement actual PDF generation
-  // For now, return a simple placeholder
-  return Buffer.from(`Order Summary for ${order.buyer.firstName} ${order.buyer.lastName}\n\nModel: ${order.model.model}\nTotal: ${order.pricing.total / 100}`)
+  const { generateOrderSummaryPDF: generatePDF } = await import('../lib/pdf/order-summary-generator.js')
+  return generatePDF(order)
 }
 
 // Unified DocuSeal template initialization (v2 templates)
