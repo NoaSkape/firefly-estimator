@@ -1467,9 +1467,376 @@ app.post(['/api/builds/:id/checkout-step', '/builds/:id/checkout-step'], async (
   return res.status(200).json(updated)
 })
 
-// ===== NEW CONTRACT API ENDPOINTS =====
+// ===== FIREFLY CONTRACT API ENDPOINTS =====
+import DocuSealClient from '../lib/docuseal-client.js'
 
-// Create contract submission (for new contract page)
+// Helper function to map build data to Order interface
+function buildToOrder(build) {
+  const buyerInfo = build.buyerInfo || {}
+  const pricing = build.pricing || {}
+  const selections = build.selections || {}
+  
+  return {
+    id: build._id,
+    version: 1,
+    buyer: {
+      firstName: buyerInfo.firstName || '',
+      lastName: buyerInfo.lastName || '',
+      email: buyerInfo.email || '',
+      phone: buyerInfo.phone || '',
+      mailing: buyerInfo.address ? {
+        line1: buyerInfo.address,
+        city: buyerInfo.city || '',
+        state: buyerInfo.state || '',
+        zip: buyerInfo.zip || ''
+      } : undefined
+    },
+    coBuyer: buyerInfo.coBuyer ? {
+      firstName: buyerInfo.coBuyer.firstName || '',
+      lastName: buyerInfo.coBuyer.lastName || '',
+      email: buyerInfo.coBuyer.email || '',
+      phone: buyerInfo.coBuyer.phone || ''
+    } : undefined,
+    deliveryAddress: {
+      line1: buyerInfo.deliveryAddress?.street || buyerInfo.address || '',
+      city: buyerInfo.deliveryAddress?.city || buyerInfo.city || '',
+      state: buyerInfo.deliveryAddress?.state || buyerInfo.state || '',
+      zip: buyerInfo.deliveryAddress?.zip || buyerInfo.zip || ''
+    },
+    model: {
+      brand: build.model?.brand || 'Firefly',
+      model: build.model?.name || build.modelCode || 'Custom Build',
+      year: new Date().getFullYear(),
+      dimensions: build.model?.dimensions || 'TBD'
+    },
+    pricing: {
+      base: pricing.base || selections.basePrice || 0,
+      options: pricing.options || 0,
+      tax: pricing.tax || 0,
+      titleFee: pricing.titleFee || 0,
+      delivery: pricing.delivery || 0,
+      setup: pricing.setup || 0,
+      discounts: pricing.discounts || 0,
+      total: pricing.total || 0,
+      depositDue: pricing.depositDue || 0
+    },
+    options: (selections.options || []).map(opt => ({
+      code: opt.id || opt.code || '',
+      label: opt.name || opt.label || '',
+      value: opt.value || '',
+      qty: opt.quantity || 1,
+      price: opt.price || 0
+    })),
+    paymentMethod: build.payment?.method === 'card' ? 'credit_card' : 
+                   build.payment?.method === 'ach_debit' ? 'cash_ach' :
+                   build.payment?.method === 'bank_transfer' ? 'cash_ach' : 'cash_ach',
+    depositRequired: build.payment?.plan?.type === 'deposit' || false,
+    estimatedFactoryCompletion: build.timeline?.estimatedCompletion || undefined,
+    jurisdiction: {
+      state: buyerInfo.state || 'TX'
+    },
+    status: {
+      step: build.step || 7,
+      contracts: undefined // Will be populated separately
+    }
+  }
+}
+
+// Create DocuSeal session for a specific pack
+app.post(['/api/contracts/:orderId/docuseal/session', '/contracts/:orderId/docuseal/session'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { orderId } = req.params
+    const { pack } = req.body
+
+    if (!pack || !['agreement', 'delivery', 'final'].includes(pack)) {
+      return res.status(400).json({ error: 'Invalid pack. Must be: agreement, delivery, or final' })
+    }
+
+    // Get build data
+    const build = await getBuildById(orderId)
+    if (!build || build.userId !== auth.userId) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    // Convert build to order format
+    const order = buildToOrder(build)
+
+    // Create DocuSeal session
+    const docuseal = new DocuSealClient()
+    const envelope = await docuseal.createPackEnvelope(orderId, pack, order)
+
+    res.json({
+      signingUrl: envelope.signingUrl,
+      envelopeId: envelope.envelopeId,
+      status: envelope.status
+    })
+
+  } catch (error) {
+    console.error('DocuSeal session creation error:', error)
+    res.status(500).json({ 
+      error: 'Failed to create signing session',
+      message: error.message 
+    })
+  }
+})
+
+// Get contract status for all packs
+app.get(['/api/contracts/:orderId/status', '/contracts/:orderId/status'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { orderId } = req.params
+
+    // Get build data
+    const build = await getBuildById(orderId)
+    if (!build || build.userId !== auth.userId) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    // Get contract status from database
+    const db = await getDb()
+    const contract = await db.collection('contracts').findOne({ orderId })
+
+    if (!contract) {
+      return res.json({
+        packs: {
+          summary: 'ready',
+          agreement: 'not_started',
+          delivery: 'not_started',
+          final: 'not_started'
+        }
+      })
+    }
+
+    // Check status of each pack
+    const docuseal = new DocuSealClient()
+    const packStatuses = {}
+
+    for (const pack of ['agreement', 'delivery', 'final']) {
+      try {
+        packStatuses[pack] = await docuseal.getPackStatus(orderId, pack)
+      } catch (error) {
+        console.error(`Failed to get ${pack} status:`, error)
+        packStatuses[pack] = 'error'
+      }
+    }
+
+    res.json({
+      packs: {
+        summary: contract.summaryReviewed ? 'reviewed' : 'ready',
+        ...packStatuses
+      },
+      envelopeIds: contract.envelopeIds || {},
+      combinedPdfUrl: contract.status?.combinedPdfUrl,
+      auditCertUrl: contract.status?.auditCertUrl
+    })
+
+  } catch (error) {
+    console.error('Contract status error:', error)
+    res.status(500).json({ 
+      error: 'Failed to get contract status',
+      message: error.message 
+    })
+  }
+})
+
+// Assemble final contract when all packs are completed
+app.post(['/api/contracts/:orderId/assemble', '/contracts/:orderId/assemble'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { orderId } = req.params
+
+    // Get build data
+    const build = await getBuildById(orderId)
+    if (!build || build.userId !== auth.userId) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    // Check if all packs are completed
+    const docuseal = new DocuSealClient()
+    const allCompleted = await docuseal.checkAllPacksCompleted(orderId)
+
+    if (!allCompleted) {
+      return res.status(400).json({ error: 'Not all packs are completed' })
+    }
+
+    // Assemble contract
+    const pdfUrls = await docuseal.assembleContract(orderId)
+
+    res.json({
+      success: true,
+      combinedPdfUrl: pdfUrls,
+      message: 'Contract assembled successfully'
+    })
+
+  } catch (error) {
+    console.error('Contract assembly error:', error)
+    res.status(500).json({ 
+      error: 'Failed to assemble contract',
+      message: error.message 
+    })
+  }
+})
+
+// Generate Order Summary PDF (Pack 1)
+app.get(['/api/contracts/:orderId/summary-pdf', '/contracts/:orderId/summary-pdf'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { orderId } = req.params
+
+    // Get build data
+    const build = await getBuildById(orderId)
+    if (!build || build.userId !== auth.userId) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    // Convert build to order format
+    const order = buildToOrder(build)
+
+    // Generate PDF (placeholder for now)
+    // TODO: Implement actual PDF generation using puppeteer or similar
+    const pdfBuffer = await generateOrderSummaryPDF(order)
+
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="order-summary-${orderId}.pdf"`)
+    res.send(pdfBuffer)
+
+  } catch (error) {
+    console.error('Order summary PDF error:', error)
+    res.status(500).json({ 
+      error: 'Failed to generate order summary PDF',
+      message: error.message 
+    })
+  }
+})
+
+// Mark Pack 1 (Order Summary) as reviewed
+app.post(['/api/contracts/:orderId/mark-summary-reviewed', '/contracts/:orderId/mark-summary-reviewed'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { orderId } = req.params
+
+    // Get build data
+    const build = await getBuildById(orderId)
+    if (!build || build.userId !== auth.userId) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    // Update contract record
+    const db = await getDb()
+    await db.collection('contracts').updateOne(
+      { orderId },
+      {
+        $set: {
+          summaryReviewed: true,
+          summaryReviewedAt: new Date(),
+          updatedAt: new Date()
+        },
+        $setOnInsert: {
+          orderId,
+          createdAt: new Date(),
+          version: 1
+        }
+      },
+      { upsert: true }
+    )
+
+    res.json({ success: true })
+
+  } catch (error) {
+    console.error('Mark summary reviewed error:', error)
+    res.status(500).json({ 
+      error: 'Failed to mark summary as reviewed',
+      message: error.message 
+    })
+  }
+})
+
+// Placeholder for PDF generation
+async function generateOrderSummaryPDF(order) {
+  // TODO: Implement actual PDF generation
+  // For now, return a simple placeholder
+  return Buffer.from(`Order Summary for ${order.buyer.firstName} ${order.buyer.lastName}\n\nModel: ${order.model.model}\nTotal: ${order.pricing.total / 100}`)
+}
+
+// Initialize DocuSeal templates
+app.post(['/api/admin/docuseal/init-templates', '/admin/docuseal/init-templates'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    // Basic admin check (you may want to implement proper admin role checking)
+    console.log('[TEMPLATE_INIT] Initializing DocuSeal templates for Firefly contracts')
+
+    const { ensureTemplatesExist } = await import('../lib/docuseal-templates.js')
+    const templates = await ensureTemplatesExist()
+
+    // Update environment variables with template IDs (for reference)
+    const envUpdates = {
+      DOCUSEAL_TEMPLATE_ID_AGREEMENT: templates.agreement?.id,
+      DOCUSEAL_TEMPLATE_ID_DELIVERY: templates.delivery?.id,
+      DOCUSEAL_TEMPLATE_ID_FINAL: templates.final?.id
+    }
+
+    console.log('[TEMPLATE_INIT] Templates initialized:', envUpdates)
+
+    res.json({
+      success: true,
+      templates,
+      envUpdates,
+      message: 'DocuSeal templates initialized successfully. Update your environment variables with the template IDs.'
+    })
+
+  } catch (error) {
+    console.error('Template initialization error:', error)
+    res.status(500).json({ 
+      error: 'Failed to initialize templates',
+      message: error.message 
+    })
+  }
+})
+
+// Get DocuSeal template status
+app.get(['/api/admin/docuseal/templates', '/admin/docuseal/templates'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { getExistingTemplates } = await import('../lib/docuseal-templates.js')
+    const templates = await getExistingTemplates()
+
+    const status = {
+      agreement: process.env.DOCUSEAL_TEMPLATE_ID_AGREEMENT || null,
+      delivery: process.env.DOCUSEAL_TEMPLATE_ID_DELIVERY || null,
+      final: process.env.DOCUSEAL_TEMPLATE_ID_FINAL || null
+    }
+
+    res.json({
+      existing: templates,
+      configured: status,
+      ready: Object.values(status).every(id => id !== null)
+    })
+
+  } catch (error) {
+    console.error('Template status error:', error)
+    res.status(500).json({ 
+      error: 'Failed to get template status',
+      message: error.message 
+    })
+  }
+})
+
+// Legacy contract creation endpoint (for backward compatibility)
 app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
   try {
     const auth = await requireAuth(req, res, false)

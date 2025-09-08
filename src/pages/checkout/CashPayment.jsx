@@ -78,20 +78,16 @@ export default function CashPayment() {
 
   // Route-based step management for proper browser navigation
   useEffect(() => {
-    // Only set step from URL if build data hasn't been loaded yet
-    // Once build data loads, step will be determined by loadBuild()
-    if (!build) {
-      const pathParts = location.pathname.split('/')
-      const urlStep = pathParts[pathParts.length - 1]
-      
-      if (['choose', 'details', 'review'].includes(urlStep)) {
-        setCurrentStep(urlStep)
-      } else {
-        // Default to 'choose' if no valid step in URL
-        setCurrentStep('choose')
-      }
+    const pathParts = location.pathname.split('/')
+    const urlStep = pathParts[pathParts.length - 1]
+    
+    if (['choose', 'details', 'review'].includes(urlStep)) {
+      setCurrentStep(urlStep)
+    } else {
+      // Default to 'choose' if no valid step in URL
+      setCurrentStep('choose')
     }
-  }, [location.pathname, build])
+  }, [location.pathname])
 
   useEffect(() => {
     loadBuild()
@@ -139,29 +135,19 @@ export default function CashPayment() {
             setTransferReference(orderData.payment.transferReference)
           }
 
-          // Set step based on both URL and payment progress
+          // Check for inconsistent state and redirect if necessary
           const pathParts = location.pathname.split('/')
           const urlStep = pathParts[pathParts.length - 1]
           
           if (['choose', 'details', 'review'].includes(urlStep)) {
-            // Use URL step if valid, but ensure it's consistent with payment state
+            // Redirect if URL step is inconsistent with payment state
             if (urlStep === 'details' && !orderData.payment?.method) {
-              // User is on details but no payment method selected, go to choose
-              setCurrentStep('choose')
+              // User is on details but no payment method selected, redirect to choose
+              navigate(`/checkout/${buildId}/cash-payment/choose`, { replace: true })
             } else if (urlStep === 'review' && !orderData.payment?.ready) {
-              // User is on review but payment not ready, go to appropriate step
-              setCurrentStep(orderData.payment?.method ? 'details' : 'choose')
-            } else {
-              setCurrentStep(urlStep)
-            }
-          } else {
-            // No valid step in URL, determine from payment state
-            if (orderData.payment?.ready) {
-              setCurrentStep('review')
-            } else if (orderData.payment?.method) {
-              setCurrentStep('details')
-            } else {
-              setCurrentStep('choose')
+              // User is on review but payment not ready, redirect to appropriate step
+              const targetStep = orderData.payment?.method ? 'details' : 'choose'
+              navigate(`/checkout/${buildId}/cash-payment/${targetStep}`, { replace: true })
             }
           }
           
@@ -215,10 +201,19 @@ export default function CashPayment() {
           setTransferReference(buildData.payment.transferReference)
         }
 
-        if (buildData.payment?.ready) {
-          setCurrentStep('review')
-        } else if (buildData.payment?.method) {
-          setCurrentStep('details')
+        // Let the URL-based useEffect handle step management
+        // Only redirect if there's an inconsistency between URL and data state
+        const pathParts = location.pathname.split('/')
+        const urlStep = pathParts[pathParts.length - 1]
+        
+        if (['choose', 'details', 'review'].includes(urlStep)) {
+          // Redirect if URL step is inconsistent with payment state
+          if (urlStep === 'details' && !buildData.payment?.method) {
+            navigate(`/checkout/${buildId}/cash-payment/choose`, { replace: true })
+          } else if (urlStep === 'review' && !buildData.payment?.ready) {
+            const targetStep = buildData.payment?.method ? 'details' : 'choose'
+            navigate(`/checkout/${buildId}/cash-payment/${targetStep}`, { replace: true })
+          }
         }
         
 
@@ -1116,7 +1111,7 @@ export default function CashPayment() {
               <button 
                 className="btn-primary"
                 onClick={continueToContract}
-                disabled={saving || (paymentMethod === 'card' && build?.payment?.status !== 'succeeded')}
+                disabled={saving || (paymentMethod === 'card' && !build?.payment?.ready)}
               >
                 {saving ? 'Saving...' : 'Continue to Contract'}
               </button>
