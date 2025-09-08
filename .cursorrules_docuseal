@@ -1,7 +1,7 @@
 # DocuSeal Template Creation & Integration Rules
 
 ## Overview
-This rule documents the complete process for creating and integrating DocuSeal templates in the Firefly Estimator project, based on successful implementation and debugging.
+This rule documents the complete process for creating and integrating DocuSeal templates in the Firefly Estimator project, based on successful implementation and debugging. **CRITICAL**: This rule contains the FINAL WORKING SOLUTION that resolves the persistent "Template does not contain fields" error.
 
 ## Environment Setup
 
@@ -13,8 +13,9 @@ DOCUSEAL_BASE_URL=https://api.docuseal.co
 DOCUSEAL_FIREFLY_EMAIL=office@fireflytinyhomes.com
 
 # Template IDs (generated after template creation)
-DOCUSEAL_TEMPLATE_ID_AGREEMENT=template_id_here
-DOCUSEAL_TEMPLATE_ID_DELIVERY=template_id_here
+# ✅ WORKING TEMPLATES (as of 2025-09-08):
+DOCUSEAL_TEMPLATE_ID_AGREEMENT=1710241
+DOCUSEAL_TEMPLATE_ID_DELIVERY=1710288
 DOCUSEAL_TEMPLATE_ID_FINAL=template_id_here
 ```
 
@@ -52,17 +53,88 @@ export async function dsCreateTemplateFromHtml(body) {
 
 ### 2. HTML Template Structure (lib/contracts/html/*.js)
 
-#### Field Tag Syntax Rules
+#### 🚨 CRITICAL: Field Tag Syntax Rules
+**ROOT CAUSE IDENTIFIED**: DocuSeal's HTML API (`/templates/html`) requires **HTML element syntax**, not curly brace syntax!
+
 ```html
-<!-- ✅ CORRECT: DocuSeal HTML field tags -->
+<!-- ✅ CORRECT: HTML element syntax for /templates/html endpoint -->
+<text-field name="buyer_full_name" role="buyer" required="true" style="display: inline-block; border: 1px solid #ccc; padding: 4px; width: 200px; height: 20px;"></text-field>
+<signature-field name="buyer_signature" role="buyer" required="true" style="display: inline-block; border: 1px solid #ccc; padding: 4px; width: 200px; height: 50px;"></signature-field>
+<initials-field name="buyer_initials_1" role="buyer" required="true" style="display: inline-block; border: 1px solid #ccc; padding: 4px; width: 60px; height: 30px;"></initials-field>
+
+<!-- ❌ WRONG: Curly brace syntax (only works for PDF templates) -->
 {{field_name;type=text;role=buyer;required=true}}
 {{buyer_signature;type=signature;role=buyer;required=true}}
-{{buyer_initials_1;type=initials;role=buyer;required=true}}
 
 <!-- ❌ WRONG: Simple placeholder syntax -->
 {{field_name}}
 [[FIELD_NAME]]
 ```
+
+#### Field Conversion Process
+Use `lib/contracts/html/field-converter.js` to convert curly brace syntax to HTML elements:
+
+```javascript
+// 1. Generate HTML with curly brace field tags
+const htmlWithFieldTags = `<!doctype html>
+<html>
+<body>
+  <p>Buyer Name: {{buyer_full_name;type=text;role=buyer;required=true}}</p>
+  <p>Signature: {{buyer_signature;type=signature;role=buyer;required=true}}</p>
+</body>
+</html>`
+
+// 2. Convert to HTML elements for DocuSeal HTML API
+import { convertFieldTagsToHtmlElements } from './field-converter.js'
+const finalHtml = convertFieldTagsToHtmlElements(htmlWithFieldTags)
+```
+
+#### Field Converter Implementation
+The `field-converter.js` utility is the **CRITICAL BREAKTHROUGH** that resolves the "Template does not contain fields" error:
+
+```javascript
+// lib/contracts/html/field-converter.js
+export function convertFieldTagsToHtmlElements(htmlContent) {
+  return htmlContent.replace(/\{\{([^;]+);type=([^;]+);role=([^;]+);required=(true|false)([^}]+)?\}\}/g, 
+    (match, name, type, role, required, rest) => {
+      const style = "display: inline-block; border: 1px solid #ccc; padding: 4px;"
+      let width = "200px";
+      let height = "20px";
+      
+      // Adjust size based on type
+      if (type === 'signature') {
+        height = "50px";
+      } else if (type === 'initials') {
+        width = "60px";
+        height = "30px";
+      }
+
+      const attributes = [
+        `name="${name}"`,
+        `role="${role}"`,
+        `required="${required}"`,
+        `style="${style}width: ${width}; height: ${height};"`
+      ].join(' ');
+
+      switch (type) {
+        case 'text':
+          return `<text-field ${attributes}></text-field>`;
+        case 'signature':
+          return `<signature-field ${attributes}></signature-field>`;
+        case 'initials':
+          return `<initials-field ${attributes}></initials-field>`;
+        case 'date':
+          return `<date-field ${attributes}></date-field>`;
+        default:
+          return `<text-field ${attributes}></text-field>`;
+      }
+    });
+}
+```
+
+**This converter transforms:**
+- `{{buyer_full_name;type=text;role=buyer;required=true}}` 
+- **→** `<text-field name="buyer_full_name" role="buyer" required="true" style="..."></text-field>`
 
 #### Role Naming Convention
 - **buyer**: Primary buyer/customer
@@ -78,17 +150,19 @@ export async function dsCreateTemplateFromHtml(body) {
 ### 3. Template Builder Pattern (lib/docuseal/builders/*.js)
 ```javascript
 export async function buildAgreementTemplate() {
-  // 1. Generate DocuSeal-compatible HTML
+  // 1. Generate HTML with curly brace field tags
   const html = buildAgreementHtmlForDocuSeal()
 
   // 2. Create template body for HTML endpoint
   const templateBody = {
-    name: "Template Name v3",
-    html: html,                    // Direct HTML content
+    name: "Firefly – Master Retail Purchase Agreement (Cash Sale) v4 FIXED",
+    html: html,                    // HTML content with field elements
     size: "Letter",               // Page size
-    external_id: "unique_id",     // For template identification
-    folder_name: "Folder Name",   // Organization
-    shared_link: true             // Allow sharing
+    external_id: "firefly_agreement_v4_fixed",     // Unique identifier
+    folder_name: "Firefly Templates",   // Organization
+    shared_link: true,            // Allow sharing
+    // 🚨 CRITICAL: Explicitly define roles for multi-party signing
+    roles: ['buyer', 'cobuyer', 'firefly_signer']
   }
 
   // 3. Call HTML endpoint (NOT DOCX)
@@ -160,23 +234,26 @@ function buildPackFields(pack, order) {
 
 ### Session Creation Rules
 ```javascript
-// ✅ CORRECT: Role names must match template submitters
+// ✅ CORRECT: Role names must match template submitters + proper order
 const submitters = [
   {
     name: order.buyer.firstName + ' ' + order.buyer.lastName,
     email: order.buyer.email,
-    role: 'buyer'  // Must match template role exactly
+    role: 'buyer',  // Must match template role exactly
+    order: 0        // 🚨 CRITICAL: Parallel signing (buyer + co-buyer)
   },
   // Co-buyer (optional)
-  ...(order.buyer.coFirstName ? [{
-    name: order.buyer.coFirstName + ' ' + order.buyer.coLastName,
-    email: order.buyer.coEmail || order.buyer.email,
-    role: 'cobuyer'  // Must match template role exactly
+  ...(order.coBuyer.firstName ? [{
+    name: order.coBuyer.firstName + ' ' + order.coBuyer.lastName,
+    email: order.coBuyer.email || order.buyer.email,
+    role: 'cobuyer',  // Must match template role exactly
+    order: 0          // 🚨 CRITICAL: Parallel signing (buyer + co-buyer)
   }] : []),
   {
     name: 'Firefly Tiny Homes',
     email: 'office@fireflytinyhomes.com',
-    role: 'firefly_signer'  // Must match template role exactly
+    role: 'firefly_signer',  // Must match template role exactly
+    order: 1                 // 🚨 CRITICAL: Sequential signing (after buyer/co-buyer)
   }
 ]
 ```
@@ -185,19 +262,25 @@ const submitters = [
 
 ### ❌ WRONG Approaches
 1. **Using /templates/docx for HTML content**: This endpoint expects base64-encoded DOCX files
-2. **Placeholder syntax**: `{{field_name}}` without type/role attributes
-3. **Mismatched field names**: Template expects `buyer_full_name`, session sends `buyer_name`
-4. **Wrong role names**: Template has `buyer`, session sends `Buyer`
-5. **Bearer authentication**: Use `X-Auth-Token` header instead
-6. **Environment loading**: Loading .env from wrong directory in dev server
+2. **Curly brace syntax for HTML API**: `{{field_name;type=text}}` only works for PDF templates
+3. **Missing field conversion**: Not converting curly braces to HTML elements
+4. **Missing roles in template**: Not defining `roles: ['buyer', 'cobuyer', 'firefly_signer']`
+5. **Missing order in submitters**: Not setting `order: 0` for parallel, `order: 1` for sequential
+6. **Mismatched field names**: Template expects `buyer_full_name`, session sends `buyer_name`
+7. **Wrong role names**: Template has `buyer`, session sends `Buyer`
+8. **Bearer authentication**: Use `X-Auth-Token` header instead
+9. **Environment loading**: Loading .env from wrong directory in dev server
 
 ### ✅ CORRECT Solutions
-1. **Use /templates/html**: For HTML content with field tags
-2. **Full field syntax**: `{{buyer_full_name;type=text;role=buyer;required=true}}`
-3. **Exact field mapping**: Template and session field names must match perfectly
-4. **Consistent roles**: Use lowercase role names consistently
-5. **X-Auth-Token**: Proper DocuSeal authentication header
-6. **Proper .env loading**: Use full path in dev server
+1. **Use /templates/html**: For HTML content with field elements
+2. **HTML element syntax**: `<text-field name="buyer_full_name" role="buyer">`
+3. **Field conversion**: Use `convertFieldTagsToHtmlElements()` to convert curly braces
+4. **Explicit roles**: Always include `roles: ['buyer', 'cobuyer', 'firefly_signer']` in template
+5. **Proper order**: Set `order: 0` for parallel signing, `order: 1` for sequential
+6. **Exact field mapping**: Template and session field names must match perfectly
+7. **Consistent roles**: Use lowercase role names consistently
+8. **X-Auth-Token**: Proper DocuSeal authentication header
+9. **Proper .env loading**: Use full path in dev server
 
 ## Testing & Debugging Process
 
@@ -235,7 +318,8 @@ lib/
 │   └── html/
 │       ├── agreement.js          # HTML with DocuSeal field tags
 │       ├── delivery.js           # Delivery agreement HTML
-│       └── final.js              # Final acknowledgment HTML
+│       ├── final.js              # Final acknowledgment HTML
+│       └── field-converter.js    # 🚨 CRITICAL: Converts {{}} to HTML elements
 backend/
 └── dev-server.js                 # Dev server with template endpoints
 ```
@@ -243,10 +327,12 @@ backend/
 ## Success Criteria
 
 ### Template Creation Success
-- ✅ Template ID returned (e.g., 1708433)
+- ✅ Template ID returned (e.g., 1710241, 1710288)
 - ✅ Template visible in DocuSeal dashboard
 - ✅ Template shows formatted document (not raw HTML)
 - ✅ Fields are properly mapped and interactive
+- ✅ **CRITICAL**: Template has `fields` array with parsed field elements
+- ✅ **CRITICAL**: Template has `submitters` array with correct roles
 
 ### Signing Experience Success  
 - ✅ "Open Full View" shows formatted PDF
@@ -276,5 +362,29 @@ backend/
    - Using wrong endpoint (/templates/docx instead of /templates/html)
    - Incorrect field tag syntax
    - Need to recreate template with HTML endpoint
+
+5. **"422 Template does not contain fields" error**
+   - **ROOT CAUSE**: Using curly brace syntax `{{field}}` with HTML API
+   - **SOLUTION**: Use HTML element syntax `<text-field name="field">`
+   - **FIX**: Implement `convertFieldTagsToHtmlElements()` function
+   - **VERIFY**: Check template has populated `fields` array
+
+6. **"500 Internal Server Error" during session creation**
+   - Missing `roles` array in template creation
+   - Missing `order` field in submitters array
+   - Incorrect signing URL extraction logic
+   - **FIX**: Add `roles: ['buyer', 'cobuyer', 'firefly_signer']` to template
+   - **FIX**: Add `order: 0` for parallel, `order: 1` for sequential signing
+
+## 🚨 FINAL WORKING SOLUTION SUMMARY
+
+**The complete solution that resolves all DocuSeal integration issues:**
+
+1. **Field Conversion**: Use `lib/contracts/html/field-converter.js` to convert `{{field}}` → `<text-field>`
+2. **HTML API**: Use `/templates/html` endpoint with HTML element syntax
+3. **Template Roles**: Always include `roles: ['buyer', 'cobuyer', 'firefly_signer']`
+4. **Submitter Order**: Use `order: 0` for parallel, `order: 1` for sequential signing
+5. **Exact Field Names**: Match template field names exactly in session data
+6. **Working Templates**: Use IDs `1710241` (agreement) and `1710288` (delivery)
 
 This rule captures the complete DocuSeal integration process that took hours to debug and perfect. Follow these patterns exactly for consistent success.
