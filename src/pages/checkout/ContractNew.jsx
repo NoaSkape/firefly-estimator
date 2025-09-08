@@ -608,6 +608,7 @@ export default function ContractNew() {
                   signingUrl={signingUrl}
                   onStartSigning={() => startPackSigning(currentPack)}
                   loadingPack={loadingPack}
+                  buildId={buildId}
                 />
               )}
             </div>
@@ -775,33 +776,108 @@ function SummaryPackContent({ build, summaryPdfUrl, onLoadPdf, onMarkReviewed, o
 }
 
 // Signing Pack Component
-function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingPack }) {
+function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingPack, buildId }) {
+  const [packPdfUrl, setPackPdfUrl] = useState('')
+
+  // Load PDF preview for this pack
+  useEffect(() => {
+    async function loadPackPdf() {
+      try {
+        // For now, use a mock PDF URL - in the future this could be pack-specific
+        const url = `/api/contracts/${buildId}/summary-pdf`
+        setPackPdfUrl(url)
+      } catch (error) {
+        console.error('Failed to load pack PDF:', error)
+      }
+    }
+    
+    if (buildId && status !== 'in_progress') {
+      loadPackPdf()
+    }
+  }, [buildId, pack.id, status])
+
   return (
     <div className="space-y-6">
+      {/* PDF Preview Section */}
       {status === 'not_started' && (
-        <div className="text-center py-12">
-          <DocumentTextIcon className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-white mb-2">Ready to Sign</h3>
-          <p className="text-gray-300 mb-6 max-w-md mx-auto">
-            Click the button below to start signing {pack.title.toLowerCase()}. 
-            The signing process will open in a secure DocuSeal window.
-          </p>
-          <button
-            onClick={onStartSigning}
-            disabled={loadingPack}
-            className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 rounded-lg text-white font-medium"
-          >
-            {loadingPack ? 'Preparing...' : `Start Signing ${pack.title}`}
-          </button>
+        <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-white">{pack.title} Preview</h3>
+            <p className="text-sm text-gray-400">Review before signing</p>
+          </div>
+          
+          {packPdfUrl ? (
+            <div className="border border-gray-600 rounded-lg overflow-hidden bg-white" style={{ height: 'calc(100vh - 400px)', minHeight: '500px' }}>
+              <div className="relative w-full h-full">
+                <iframe 
+                  src={`${packPdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
+                  className="w-full h-full border-0 pdf-viewer"
+                  title={`${pack.title} Preview`}
+                  style={{ 
+                    backgroundColor: '#ffffff',
+                    overflow: 'hidden',
+                    border: 'none'
+                  }}
+                  sandbox="allow-same-origin allow-scripts"
+                />
+                
+                <style jsx>{`
+                  .pdf-viewer {
+                    border: none !important;
+                  }
+                  .pdf-viewer::-webkit-scrollbar {
+                    display: none;
+                  }
+                `}</style>
+                
+                {/* Custom PDF Controls */}
+                <div className="absolute top-2 right-2 flex space-x-2 z-10">
+                  <button 
+                    onClick={() => window.open(packPdfUrl, '_blank')}
+                    className="px-3 py-1 bg-gray-800 text-white text-sm rounded hover:bg-gray-700"
+                  >
+                    Open Full View
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto mb-4"></div>
+                <p className="text-gray-300">Loading document preview...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Ready to Sign Section */}
+          <div className="text-center py-8 border-t border-gray-600 mt-6">
+            <DocumentTextIcon className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-white mb-2">Ready to Sign</h3>
+            <p className="text-gray-300 mb-6 max-w-md mx-auto">
+              Click the button below to start signing {pack.title.toLowerCase()}. 
+              The signing process will open in a secure DocuSeal window.
+            </p>
+            <button
+              onClick={onStartSigning}
+              disabled={loadingPack}
+              className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 rounded-lg text-white font-medium"
+            >
+              {loadingPack ? 'Preparing...' : `Start Signing ${pack.title}`}
+            </button>
+          </div>
         </div>
       )}
 
       {(status === 'in_progress' || status === 'completed') && signingUrl && (
-        <div className="border border-gray-600 rounded-lg overflow-hidden" style={{ height: '600px' }}>
+        <div className="border border-gray-600 rounded-lg overflow-hidden bg-white" style={{ height: 'calc(100vh - 280px)', minHeight: '700px' }}>
           <iframe 
             src={signingUrl}
-            className="w-full h-full"
+            className="w-full h-full border-0"
             title={`${pack.title} Signing`}
+            style={{ 
+              backgroundColor: '#ffffff'
+            }}
           />
         </div>
       )}

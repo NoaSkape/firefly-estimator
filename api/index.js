@@ -1779,8 +1779,16 @@ app.get(['/api/contracts/:orderId/summary-pdf', '/contracts/:orderId/summary-pdf
     if (Buffer.isBuffer(result) && result.length > 100) {
       // We have a valid PDF
       console.log('[PDF_ENDPOINT] Serving PDF for order:', orderId, 'size:', Math.round(result.length / 1024), 'KB')
+      
+      // Set CORS headers to prevent blocking
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Access-Control-Allow-Methods', 'GET')
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
       res.setHeader('Content-Type', 'application/pdf')
       res.setHeader('Content-Disposition', `inline; filename="order-summary-${orderId}.pdf"`)
+      res.setHeader('X-Content-Type-Options', 'nosniff')
+      res.setHeader('Cache-Control', 'public, max-age=300')
+      
       res.send(result)
     } else {
       // Fallback to text content
