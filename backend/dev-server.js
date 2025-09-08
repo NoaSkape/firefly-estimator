@@ -7,7 +7,12 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config();
+// Load .env from project root, not backend directory
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
+// Debug: Check if environment variables are loaded
+console.log('🔑 DOCUSEAL_API_KEY loaded:', process.env.DOCUSEAL_API_KEY ? 'YES (length: ' + process.env.DOCUSEAL_API_KEY.length + ')' : 'NO');
+console.log('📁 .env path:', path.join(__dirname, '..', '.env'));
 
 const app = express();
 const PORT = 3001;
