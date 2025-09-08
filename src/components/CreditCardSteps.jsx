@@ -15,7 +15,6 @@ export default function CreditCardSteps({
   depositCents,
   build
 }) {
-  const [step, setStep] = useState('connect') // 'connect', 'confirm'
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState(null)
   const [validationErrors, setValidationErrors] = useState({})
@@ -25,7 +24,7 @@ export default function CreditCardSteps({
   const stripe = useStripe()
   const elements = useElements()
 
-  // Step 2 - Card verification state
+  // Card verification state
   const [cardholderName, setCardholderName] = useState('')
   const [billingAddress, setBillingAddress] = useState({
     street: '',
@@ -39,16 +38,9 @@ export default function CreditCardSteps({
     processingFees: false
   })
 
-  // Step 3 - Authorization state  
-  const [authorizations, setAuthorizations] = useState({
-    chargeAuthorization: false,
-    nonRefundable: false,
-    highValueTransaction: false
-  })
-
   // Auto-populate billing address from build data
   useEffect(() => {
-    if (build?.buyerInfo && step === 'connect') {
+    if (build?.buyerInfo) {
       setCardholderName(`${build.buyerInfo.firstName} ${build.buyerInfo.lastName}`)
       setBillingAddress({
         street: build.buyerInfo.address || '',
@@ -167,21 +159,46 @@ export default function CreditCardSteps({
         exp_year: paymentMethod.card.exp_year
       })
 
+      // Auto-save payment method since user already provided authorizations in Step 2
+      const saveRes = await fetch('/api/payments/save-card-method', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          buildId,
+          paymentMethodId: paymentMethod.id,
+          paymentPlan,
+          cardholderName,
+          billingAddress,
+          cardDetails: {
+            brand: paymentMethod.card.brand,
+            last4: paymentMethod.card.last4,
+            exp_month: paymentMethod.card.exp_month,
+            exp_year: paymentMethod.card.exp_year
+          },
+          authorizations: {
+            chargeAuthorization: true,
+            nonRefundable: true,
+            highValueTransaction: true
+          }
+        })
+      })
+
+      if (!saveRes.ok) {
+        const errorData = await saveRes.json()
+        throw new Error(errorData.error || 'Failed to save payment method')
+      }
+
       addToast({
         type: 'success',
-        title: 'Card Verified',
-        message: 'Your credit card has been successfully verified.'
+        title: 'Card Verified & Saved',
+        message: 'Your credit card has been successfully verified and saved. You can now proceed to review.'
       })
 
-      // Auto-check authorizations since user already agreed to disclosures in Step 2
-      setAuthorizations({
-        chargeAuthorization: true,
-        nonRefundable: true,
-        highValueTransaction: true
-      })
-
-      // Move to Step 3
-      setStep('confirm')
+      // Proceed directly to review step (Step 3 of the payment wizard)
+      onContinue()
       
     } catch (error) {
       console.error('Card verification error:', error)
@@ -196,80 +213,8 @@ export default function CreditCardSteps({
     }
   }
 
-  // Validate Step 3 form
-  const validateStep3 = () => {
-    const errors = {}
-    
-    if (!authorizations.chargeAuthorization) {
-      errors.chargeAuthorization = 'This authorization is required'
-    }
-    
-    if (!authorizations.nonRefundable) {
-      errors.nonRefundable = 'This acknowledgment is required'
-    }
-    
-    if (!authorizations.highValueTransaction) {
-      errors.highValueTransaction = 'This acknowledgment is required'
-    }
-    
-    setValidationErrors(errors)
-    return Object.keys(errors).length === 0
-  }
-
-  // Step 3: Confirm authorization and save payment method
-  async function confirmAuthorization() {
-    if (!validateStep3()) return
-
-    setProcessing(true)
-    setError(null)
-    
-    try {
-      const token = await getToken()
-      const res = await fetch('/api/payments/save-card-method', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({
-          buildId,
-          paymentMethodId,
-          paymentPlan,
-          cardholderName,
-          billingAddress,
-          cardDetails,
-          authorizations
-        })
-      })
-
-      if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.error || 'Failed to save payment method')
-      }
-
-      const data = await res.json()
-
-      addToast({
-        type: 'success',
-        title: 'Authorization Confirmed',
-        message: 'Your credit card has been securely validated and saved. After your contract is signed, you will be able to confirm and complete your payment.'
-      })
-
-      // Continue to review step
-      onContinue()
-      
-    } catch (error) {
-      console.error('Save card method error:', error)
-      setError(error.message)
-      addToast({
-        type: 'error',
-        title: 'Save Failed',
-        message: error.message || 'Unable to save payment method. Please try again.'
-      })
-    } finally {
-      setProcessing(false)
-    }
-  }
+  // Note: validateStep3 and confirmAuthorization functions removed since 
+  // authorization is now handled automatically in verifyCard()
 
   // Reset and retry
   function resetAndRetry() {
@@ -277,12 +222,10 @@ export default function CreditCardSteps({
     setValidationErrors({})
     setPaymentMethodId(null)
     setCardDetails(null)
-    setStep('connect')
   }
 
-  // Step 2: Connect & Verify Credit Card
-  if (step === 'connect') {
-    return (
+  // Connect & Verify Credit Card
+  return (
       <div className="space-y-6">
         {/* Header */}
         <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
@@ -500,151 +443,4 @@ export default function CreditCardSteps({
         </div>
       </div>
     )
-  }
-
-  // Step 3: Confirm Authorization & Commitments
-  if (step === 'confirm') {
-    return (
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-          <h2 className="text-white font-semibold text-xl mb-3">Confirm Credit Card Authorization</h2>
-          <p className="text-gray-300 text-sm leading-relaxed">
-            Review your payment plan and authorize the use of your verified credit card for future payments.
-          </p>
-        </div>
-
-        {/* Payment Plan Summary */}
-        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-          <h3 className="text-white font-semibold text-lg mb-4">Payment Plan</h3>
-          
-          {paymentPlan.type === 'deposit' ? (
-            <div className="space-y-4">
-              <div className="bg-yellow-900/20 border border-yellow-600 rounded-lg p-4">
-                <h4 className="text-yellow-300 font-medium mb-3">Deposit + Final (Two Payments)</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-300">Deposit ({paymentPlan.percent}%):</span>
-                    <span className="text-white font-medium">{formatCurrency(depositCents)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-300">Final Payment:</span>
-                    <span className="text-white font-medium">{formatCurrency(totalCents - depositCents)}</span>
-                  </div>
-                  <div className="border-t border-yellow-600 pt-2 mt-3">
-                    <div className="flex justify-between font-medium">
-                      <span className="text-yellow-300">Total:</span>
-                      <span className="text-yellow-300">{formatCurrency(totalCents)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-green-900/20 border border-green-600 rounded-lg p-4">
-              <h4 className="text-green-300 font-medium mb-3">Pay in Full (One Payment)</h4>
-              <div className="flex justify-between">
-                <span className="text-gray-300">Total Amount:</span>
-                <span className="text-white font-medium text-lg">{formatCurrency(totalCents)}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Card Details */}
-          <div className="mt-4 p-4 bg-gray-800 rounded-lg">
-            <div className="flex items-center">
-              <span className="text-gray-300 text-sm">Card ending in</span>
-              <span className="text-white font-mono ml-2">****{cardDetails?.last4}</span>
-              <span className="text-gray-400 ml-2 text-sm">
-                ({cardDetails?.brand?.toUpperCase()} • {cardDetails?.exp_month}/{cardDetails?.exp_year})
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Authorization Disclosures */}
-        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-          <h3 className="text-white font-semibold text-lg mb-4">Authorization & Commitments</h3>
-          <div className="space-y-4">
-            <label className="flex items-start">
-              <input
-                type="checkbox"
-                checked={authorizations.chargeAuthorization}
-                onChange={(e) => setAuthorizations(prev => ({ ...prev, chargeAuthorization: e.target.checked }))}
-                className="mt-1 mr-3 h-4 w-4 text-yellow-500 focus:ring-yellow-500 border-gray-600 rounded bg-gray-800"
-              />
-              <div className="flex-1">
-                <span className="text-white text-sm">
-                  I authorize Firefly Tiny Homes to charge the above card for the agreed payment amounts once I have signed the contract and the payment milestone becomes due.
-                </span>
-                {validationErrors.chargeAuthorization && (
-                  <p className="mt-1 text-sm text-red-400">{validationErrors.chargeAuthorization}</p>
-                )}
-              </div>
-            </label>
-
-            <label className="flex items-start">
-              <input
-                type="checkbox"
-                checked={authorizations.nonRefundable}
-                onChange={(e) => setAuthorizations(prev => ({ ...prev, nonRefundable: e.target.checked }))}
-                className="mt-1 mr-3 h-4 w-4 text-yellow-500 focus:ring-yellow-500 border-gray-600 rounded bg-gray-800"
-              />
-              <div className="flex-1">
-                <span className="text-white text-sm">
-                  I understand that deposits are non-refundable and final payment must be made in full before release.
-                </span>
-                {validationErrors.nonRefundable && (
-                  <p className="mt-1 text-sm text-red-400">{validationErrors.nonRefundable}</p>
-                )}
-              </div>
-            </label>
-
-            <label className="flex items-start">
-              <input
-                type="checkbox"
-                checked={authorizations.highValueTransaction}
-                onChange={(e) => setAuthorizations(prev => ({ ...prev, highValueTransaction: e.target.checked }))}
-                className="mt-1 mr-3 h-4 w-4 text-yellow-500 focus:ring-yellow-500 border-gray-600 rounded bg-gray-800"
-              />
-              <div className="flex-1">
-                <span className="text-white text-sm">
-                  I understand this is a high-value transaction and funds must successfully settle before the build order will be placed.
-                </span>
-                {validationErrors.highValueTransaction && (
-                  <p className="mt-1 text-sm text-red-400">{validationErrors.highValueTransaction}</p>
-                )}
-              </div>
-            </label>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3">
-          <button 
-            className="btn-primary"
-            onClick={confirmAuthorization}
-            disabled={processing}
-          >
-            {processing ? (
-              <span className="flex items-center justify-center">
-                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
-                Confirming...
-              </span>
-            ) : (
-              'Confirm Authorization'
-            )}
-          </button>
-          <button 
-            className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
-            onClick={() => setStep('connect')}
-          >
-            ← Back to Card Details
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  return null
 }
