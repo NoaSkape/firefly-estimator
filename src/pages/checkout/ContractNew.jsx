@@ -699,25 +699,13 @@ function SummaryPackContent({ build, summaryPdfUrl, onLoadPdf, onMarkReviewed, o
             {/* PDF Viewer with Custom Controls */}
             <div className="relative w-full h-full">
               <iframe 
-                src={`${summaryPdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
-                className="w-full h-full border-0 pdf-viewer"
+                src={summaryPdfUrl}
+                className="w-full h-full border-0"
                 title="Order Summary PDF"
                 style={{ 
-                  backgroundColor: '#ffffff',
-                  overflow: 'hidden',
-                  border: 'none'
+                  backgroundColor: '#ffffff'
                 }}
-                sandbox="allow-same-origin allow-scripts"
               />
-              
-              <style jsx>{`
-                .pdf-viewer {
-                  border: none !important;
-                }
-                .pdf-viewer::-webkit-scrollbar {
-                  display: none;
-                }
-              `}</style>
               
               {/* Custom PDF Controls */}
               <div className="absolute top-2 right-2 flex space-x-2 z-10">
@@ -783,8 +771,22 @@ function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingP
   useEffect(() => {
     async function loadPackPdf() {
       try {
-        // For now, use a mock PDF URL - in the future this could be pack-specific
-        const url = `/api/contracts/${buildId}/summary-pdf`
+        // Use pack-specific PDF URLs
+        let url = ''
+        switch (pack.id) {
+          case 'agreement':
+            // For now, use the existing HTML content to generate PDF
+            url = `/api/contracts/${buildId}/pack-pdf?pack=agreement`
+            break
+          case 'delivery':
+            url = `/api/contracts/${buildId}/pack-pdf?pack=delivery`
+            break
+          case 'final':
+            url = `/api/contracts/${buildId}/pack-pdf?pack=final`
+            break
+          default:
+            url = `/api/contracts/${buildId}/summary-pdf`
+        }
         setPackPdfUrl(url)
       } catch (error) {
         console.error('Failed to load pack PDF:', error)
@@ -810,25 +812,13 @@ function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingP
             <div className="border border-gray-600 rounded-lg overflow-hidden bg-white" style={{ height: 'calc(100vh - 400px)', minHeight: '500px' }}>
               <div className="relative w-full h-full">
                 <iframe 
-                  src={`${packPdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
-                  className="w-full h-full border-0 pdf-viewer"
+                  src={packPdfUrl}
+                  className="w-full h-full border-0"
                   title={`${pack.title} Preview`}
                   style={{ 
-                    backgroundColor: '#ffffff',
-                    overflow: 'hidden',
-                    border: 'none'
+                    backgroundColor: '#ffffff'
                   }}
-                  sandbox="allow-same-origin allow-scripts"
                 />
-                
-                <style jsx>{`
-                  .pdf-viewer {
-                    border: none !important;
-                  }
-                  .pdf-viewer::-webkit-scrollbar {
-                    display: none;
-                  }
-                `}</style>
                 
                 {/* Custom PDF Controls */}
                 <div className="absolute top-2 right-2 flex space-x-2 z-10">

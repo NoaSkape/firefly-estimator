@@ -1810,6 +1810,252 @@ app.get(['/api/contracts/:orderId/summary-pdf', '/contracts/:orderId/summary-pdf
   }
 })
 
+// Pack-specific PDF generation endpoint
+app.get(['/api/contracts/:orderId/pack-pdf', '/contracts/:orderId/pack-pdf'], async (req, res) => {
+  try {
+    const { orderId } = req.params
+    const { pack } = req.query
+    console.log('[PACK_PDF_ENDPOINT] Generating pack PDF for order:', orderId, 'pack:', pack)
+
+    if (!pack || !['agreement', 'delivery', 'final'].includes(pack)) {
+      return res.status(400).json({ error: 'Invalid pack parameter. Must be: agreement, delivery, or final' })
+    }
+
+    // Get build data
+    const build = await getBuildById(orderId)
+    if (!build) {
+      console.error('[PACK_PDF_ENDPOINT] Build not found:', orderId)
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    // Convert build to order format
+    const order = buildToOrder(build)
+    console.log('[PACK_PDF_ENDPOINT] Order data prepared for:', order.id)
+
+    // For now, generate the agreement HTML and convert to PDF
+    let htmlContent = ''
+    
+    if (pack === 'agreement') {
+      // Use the existing agreement HTML builder
+      const { buildAgreementHtml } = await import('../lib/contracts/html/agreement.js')
+      htmlContent = buildAgreementHtml(order)
+    } else {
+      // For delivery and final packs, use placeholder content for now
+      htmlContent = generatePackHTML(pack, order)
+    }
+
+    // Generate PDF from HTML using the same PDF generator
+    const { generateOrderSummaryPDF } = await import('../lib/pdf/order-summary-generator.js')
+    
+    // Create a custom PDF using the HTML content
+    const pdfResult = await generatePDFFromHTML(htmlContent)
+    
+    // Check if we got a valid PDF buffer
+    if (Buffer.isBuffer(pdfResult) && pdfResult.length > 100) {
+      console.log('[PACK_PDF_ENDPOINT] Serving pack PDF:', pack, 'size:', Math.round(pdfResult.length / 1024), 'KB')
+      
+      // Set CORS headers to prevent blocking
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Access-Control-Allow-Methods', 'GET')
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Disposition', `inline; filename="${pack}-${orderId}.pdf"`)
+      res.setHeader('X-Content-Type-Options', 'nosniff')
+      res.setHeader('Cache-Control', 'public, max-age=300')
+      
+      res.send(pdfResult)
+    } else {
+      // Fallback to text content
+      console.log('[PACK_PDF_ENDPOINT] Serving text fallback for pack:', pack)
+      const textContent = typeof pdfResult === 'string' ? pdfResult : 
+                         `${pack} document content for order ${orderId}`
+      
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.setHeader('Content-Disposition', `inline; filename="${pack}-${orderId}.txt"`)
+      res.send(textContent)
+    }
+
+  } catch (error) {
+    console.error('Pack PDF error:', error)
+    res.status(500).json({ 
+      error: 'Failed to generate pack PDF',
+      message: error.message 
+    })
+  }
+})
+
+// Helper function to generate pack-specific HTML content
+function generatePackHTML(pack, order) {
+  const formatCurrency = (amount) => {
+    if (typeof amount !== 'number') return '$0'
+    return '$' + (amount / 100).toLocaleString()
+  }
+
+  if (pack === 'delivery') {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Site & Delivery Agreement</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 2rem; line-height: 1.6; }
+          h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
+          h2 { color: #555; margin-top: 2rem; }
+          .section { margin: 2rem 0; }
+          .info-table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+          .info-table td { padding: 8px; border-bottom: 1px solid #ddd; }
+          .info-table td:first-child { font-weight: bold; width: 30%; }
+        </style>
+      </head>
+      <body>
+        <h1>Site & Delivery Agreement</h1>
+        
+        <div class="section">
+          <h2>Order Information</h2>
+          <table class="info-table">
+            <tr><td>Order ID:</td><td>${order.id}</td></tr>
+            <tr><td>Customer:</td><td>${order.buyer.firstName} ${order.buyer.lastName}</td></tr>
+            <tr><td>Email:</td><td>${order.buyer.email}</td></tr>
+            <tr><td>Phone:</td><td>${order.buyer.phone}</td></tr>
+            <tr><td>Model:</td><td>${order.model.brand} ${order.model.model}</td></tr>
+            <tr><td>Year:</td><td>${order.model.year}</td></tr>
+            <tr><td>Total:</td><td>${formatCurrency(order.pricing.total)}</td></tr>
+          </table>
+        </div>
+
+        <div class="section">
+          <h2>Delivery Information</h2>
+          <table class="info-table">
+            <tr><td>Delivery Address:</td><td>${order.deliveryAddress?.line1 || 'TBD'}<br>${order.deliveryAddress?.city || ''}, ${order.deliveryAddress?.state || ''} ${order.deliveryAddress?.zip || ''}</td></tr>
+            <tr><td>Delivery Fee:</td><td>${formatCurrency(order.pricing.delivery || 0)}</td></tr>
+            <tr><td>Setup Fee:</td><td>${formatCurrency(order.pricing.setup || 0)}</td></tr>
+          </table>
+        </div>
+
+        <div class="section">
+          <h2>Terms & Conditions</h2>
+          <p>This document contains the site preparation requirements and delivery terms for your tiny home purchase.</p>
+          <p><strong>Note:</strong> This is a preview document. The actual signing will occur through DocuSeal.</p>
+        </div>
+      </body>
+      </html>
+    `
+  } else if (pack === 'final') {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Final Acknowledgments & Variations</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 2rem; line-height: 1.6; }
+          h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
+          h2 { color: #555; margin-top: 2rem; }
+          .section { margin: 2rem 0; }
+          .info-table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+          .info-table td { padding: 8px; border-bottom: 1px solid #ddd; }
+          .info-table td:first-child { font-weight: bold; width: 30%; }
+        </style>
+      </head>
+      <body>
+        <h1>Final Acknowledgments & Variations</h1>
+        
+        <div class="section">
+          <h2>Order Summary</h2>
+          <table class="info-table">
+            <tr><td>Order ID:</td><td>${order.id}</td></tr>
+            <tr><td>Customer:</td><td>${order.buyer.firstName} ${order.buyer.lastName}</td></tr>
+            <tr><td>Model:</td><td>${order.model.brand} ${order.model.model}</td></tr>
+            <tr><td>Final Total:</td><td>${formatCurrency(order.pricing.total)}</td></tr>
+          </table>
+        </div>
+
+        <div class="section">
+          <h2>Final Acknowledgments</h2>
+          <p>This document contains the final acknowledgments and any variations to the original purchase agreement.</p>
+          <p><strong>Note:</strong> This is a preview document. The actual signing will occur through DocuSeal.</p>
+        </div>
+
+        <div class="section">
+          <h2>Completion & Delivery</h2>
+          <p>By signing this document, you acknowledge receipt of all required documentation and confirm the completion of your tiny home purchase.</p>
+        </div>
+      </body>
+      </html>
+    `
+  }
+  
+  return '<html><body><h1>Document Preview</h1><p>Content loading...</p></body></html>'
+}
+
+// Helper function to generate PDF from HTML
+async function generatePDFFromHTML(html) {
+  try {
+    // Check if we're in a serverless environment
+    const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+    
+    if (isServerless) {
+      console.log('[PDF_GENERATOR] Serverless environment detected, using @sparticuz/chromium')
+      
+      const chromium = await import('@sparticuz/chromium')
+      const puppeteer = await import('puppeteer-core')
+      
+      const browser = await puppeteer.default.launch({
+        args: chromium.default.args,
+        defaultViewport: chromium.default.defaultViewport,
+        executablePath: await chromium.default.executablePath(),
+        headless: chromium.default.headless,
+      })
+      
+      const page = await browser.newPage()
+      await page.setContent(html, { waitUntil: 'networkidle0' })
+      
+      const pdfBuffer = await page.pdf({
+        format: 'Letter',
+        margin: {
+          top: '1in',
+          right: '1in', 
+          bottom: '1in',
+          left: '1in'
+        },
+        printBackground: true
+      })
+      
+      await browser.close()
+      return Buffer.from(pdfBuffer)
+      
+    } else {
+      console.log('[PDF_GENERATOR] Local environment detected, using regular puppeteer')
+      
+      const puppeteer = await import('puppeteer')
+      const browser = await puppeteer.default.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      })
+      
+      const page = await browser.newPage()
+      await page.setContent(html, { waitUntil: 'networkidle0' })
+      
+      const pdfBuffer = await page.pdf({
+        format: 'Letter',
+        margin: {
+          top: '1in',
+          right: '1in',
+          bottom: '1in', 
+          left: '1in'
+        },
+        printBackground: true
+      })
+      
+      await browser.close()
+      return Buffer.from(pdfBuffer)
+    }
+    
+  } catch (error) {
+    console.error('[PDF_GENERATOR] Pack PDF generation failed:', error)
+    return `Failed to generate PDF: ${error.message}`
+  }
+}
+
 // Mark Pack 1 (Order Summary) as reviewed
 app.post(['/api/contracts/:orderId/mark-summary-reviewed', '/contracts/:orderId/mark-summary-reviewed'], async (req, res) => {
   try {
