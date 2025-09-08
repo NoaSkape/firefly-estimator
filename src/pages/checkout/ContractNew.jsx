@@ -503,7 +503,7 @@ export default function ContractNew() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className={`grid grid-cols-1 gap-8 ${currentPack === 'summary' ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
         {/* Left Sidebar - 4-Pack Checklist */}
         <div className="lg:col-span-1">
           <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6 sticky top-8">
@@ -571,7 +571,7 @@ export default function ContractNew() {
         </div>
 
         {/* Right Pane - Content */}
-        <div className="lg:col-span-3">
+        <div className={`${currentPack === 'summary' ? 'lg:col-span-4' : 'lg:col-span-3'}`}>
           <div className="bg-gray-900/50 border border-gray-700 rounded-lg">
             {/* Pack Header */}
             <div className="border-b border-gray-700 p-6">
@@ -686,16 +686,23 @@ function SummaryPackContent({ build, summaryPdfUrl, onLoadPdf, onMarkReviewed, o
 
   return (
     <div className="space-y-6">
-      {/* Order Summary Display */}
-      <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
-        <h3 className="text-lg font-medium text-white mb-4">Order Summary</h3>
+      {/* Order Summary Display - Full Height */}
+      <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-medium text-white">Order Summary</h3>
+          <p className="text-sm text-gray-400">Review your order details and pricing</p>
+        </div>
         
         {summaryPdfUrl ? (
-          <div className="border border-gray-600 rounded-lg overflow-hidden" style={{ height: '500px' }}>
+          <div className="border border-gray-600 rounded-lg overflow-hidden bg-white" style={{ height: 'calc(100vh - 320px)', minHeight: '600px' }}>
             <iframe 
               src={summaryPdfUrl}
-              className="w-full h-full"
+              className="w-full h-full border-0"
               title="Order Summary PDF"
+              style={{ 
+                backgroundColor: '#ffffff',
+                borderRadius: '8px'
+              }}
             />
           </div>
         ) : (

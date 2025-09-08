@@ -1584,8 +1584,8 @@ app.post(['/api/contracts/:orderId/docuseal/session', '/contracts/:orderId/docus
     })
 
     // Create DocuSeal session
-    const docuseal = new DocuSealClient()
-    const envelope = await docuseal.createPackEnvelope(orderId, pack, order)
+    const { createPackEnvelope } = await import('../lib/docuseal/client.js')
+    const envelope = await createPackEnvelope(orderId, pack, order)
 
     console.log('[DOCUSEAL_SESSION] Envelope created:', envelope.envelopeId)
 
