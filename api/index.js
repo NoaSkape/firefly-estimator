@@ -1768,12 +1768,47 @@ app.get(['/api/contracts/:orderId/summary-pdf', '/contracts/:orderId/summary-pdf
       return res.status(404).json({ error: 'Build not found' })
     }
 
-    // Convert build to order format
-    const order = buildToOrder(build)
-    console.log('[PDF_ENDPOINT] Order data prepared for:', order.id)
+    // Load settings to calculate proper pricing (same as Step 5)
+    const settings = await getOrgSettings()
+    
+    // Calculate pricing the same way as Step 5
+    const basePrice = Number(build?.selections?.basePrice || 0)
+    const options = build?.selections?.options || []
+    const optionsSubtotal = options.reduce((sum, opt) => sum + Number(opt.price || 0) * (opt.quantity || 1), 0)
+    
+    // Get fees from settings
+    const deliveryFee = Number(build?.pricing?.delivery || 0)
+    const titleFee = Number(settings?.pricing?.title_fee_default || 500)
+    const setupFee = Number(settings?.pricing?.setup_fee_default || 3000)
+    const taxRate = Number(settings?.pricing?.tax_rate_percent || 6.25) / 100
+    
+    // Calculate totals
+    const subtotalBeforeFees = basePrice + optionsSubtotal
+    const feesSubtotal = deliveryFee + titleFee + setupFee
+    const subtotalBeforeTax = subtotalBeforeFees + feesSubtotal
+    const salesTax = subtotalBeforeTax * taxRate
+    const total = subtotalBeforeTax + salesTax
+    
+    // Prepare order data the same way as Step 5
+    const orderData = {
+      build,
+      settings,
+      pricing: {
+        basePrice,
+        optionsSubtotal,
+        deliveryFee,
+        titleFee,
+        setupFee,
+        taxRate,
+        salesTax,
+        total
+      }
+    }
+    
+    console.log('[PDF_ENDPOINT] Order data prepared using Step 5 method for:', build._id)
 
-    // Generate PDF
-    const result = await generateOrderSummaryPDF(order)
+    // Generate PDF using Step 5 method - create HTML and convert to PDF
+    const result = await generatePDFFromOrderData(orderData)
     
     // Check if we got a valid PDF buffer or text fallback
     if (Buffer.isBuffer(result) && result.length > 100) {
@@ -1862,6 +1897,8 @@ app.get(['/api/contracts/:orderId/pack-pdf', '/contracts/:orderId/pack-pdf'], as
       res.setHeader('Content-Disposition', `inline; filename="${pack}-${orderId}.pdf"`)
       res.setHeader('X-Content-Type-Options', 'nosniff')
       res.setHeader('Cache-Control', 'public, max-age=300')
+      res.setHeader('X-Frame-Options', 'SAMEORIGIN')
+      res.setHeader('Content-Security-Policy', "frame-ancestors 'self'")
       
       res.send(pdfResult)
     } else {
@@ -2053,6 +2090,172 @@ async function generatePDFFromHTML(html) {
   } catch (error) {
     console.error('[PDF_GENERATOR] Pack PDF generation failed:', error)
     return `Failed to generate PDF: ${error.message}`
+  }
+}
+
+// Helper function to generate PDF from order data (same as Step 5)
+async function generatePDFFromOrderData(orderData) {
+  try {
+    const { build, settings, pricing } = orderData
+    
+    // Group options by category (same as Step 5)
+    const optionsByCategory = (build.selections?.options || []).reduce((acc, option) => {
+      const category = option.category || 'Other'
+      if (!acc[category]) acc[category] = []
+      acc[category].push(option)
+      return acc
+    }, {})
+    
+    // Helper function to format currency (same as Step 5)
+    const formatCurrency = (amount) => {
+      if (amount === null || amount === undefined || isNaN(amount)) {
+        return '$0.00'
+      }
+      const numAmount = Number(amount)
+      const formatted = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(numAmount)
+      return `$${formatted}`
+    }
+    
+    // Build HTML content using the same structure as Step 5 PDF
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Order Summary</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 2rem; line-height: 1.6; }
+          h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
+          h2 { color: #555; margin-top: 2rem; }
+          .section { margin: 2rem 0; }
+          .info-table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+          .info-table td { padding: 8px; border-bottom: 1px solid #ddd; }
+          .info-table td:first-child { font-weight: bold; width: 30%; }
+          .summary-row { display: flex; justify-content: space-between; margin: 8px 0; padding: 8px; }
+          .summary-row.total { border-top: 2px solid #333; font-weight: bold; font-size: 18px; }
+          .options-list { background: #f9f9f9; padding: 15px; border-radius: 4px; }
+        </style>
+      </head>
+      <body>
+        <h1>ORDER SUMMARY</h1>
+        
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h2>Firefly Tiny Homes</h2>
+          <p>6150 TX-16, Pipe Creek, TX 78063 | 830-328-6109</p>
+          <p>Order ID: ${build._id}</p>
+        </div>
+
+        <hr>
+
+        <div style="display: flex; justify-content: space-between; margin: 20px 0;">
+          <div style="width: 48%;">
+            <h3>Buyer Information</h3>
+            <table class="info-table">
+              <tr><td>Name:</td><td>${build.buyerInfo?.firstName || ''} ${build.buyerInfo?.lastName || ''}</td></tr>
+              <tr><td>Email:</td><td>${build.buyerInfo?.email || ''}</td></tr>
+              <tr><td>Phone:</td><td>${build.buyerInfo?.phone || ''}</td></tr>
+            </table>
+          </div>
+          <div style="width: 48%;">
+            <h3>Delivery Information</h3>
+            <table class="info-table">
+              <tr><td>Address:</td><td>${build.buyerInfo?.deliveryAddress || [build.buyerInfo?.address, build.buyerInfo?.city, build.buyerInfo?.state, build.buyerInfo?.zip].filter(Boolean).join(', ') || 'TBD'}</td></tr>
+              <tr><td>City:</td><td>${build.buyerInfo?.city || ''}</td></tr>
+              <tr><td>Est. Completion:</td><td>TBD</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Selected Model</h3>
+          <table class="info-table">
+            <tr><td>Brand:</td><td>Firefly</td></tr>
+            <tr><td>Model:</td><td>${build.modelName || build.modelCode || 'Custom Build'}</td></tr>
+            <tr><td>Year:</td><td>${new Date().getFullYear()}</td></tr>
+            <tr><td>Dimensions:</td><td>TBD</td></tr>
+          </table>
+        </div>
+
+        ${Object.keys(optionsByCategory).length > 0 ? `
+        <div class="section">
+          <h3>Selected Options</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr style="background: #f5f5f5; font-weight: bold;">
+              <td style="padding: 8px; border: 1px solid #ddd;">Option</td>
+              <td style="padding: 8px; border: 1px solid #ddd;">Description</td>
+              <td style="padding: 8px; border: 1px solid #ddd;">Qty</td>
+              <td style="padding: 8px; border: 1px solid #ddd;">Price</td>
+            </tr>
+            ${Object.entries(optionsByCategory).map(([category, categoryOptions]) => `
+              ${categoryOptions.map(option => `
+                <tr>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${option.name || option.code}</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${option.description || ''}</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${option.quantity || 1}</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${formatCurrency(Number(option.price || 0) * (option.quantity || 1))}</td>
+                </tr>
+              `).join('')}
+            `).join('')}
+          </table>
+        </div>
+        ` : ''}
+
+        <div class="section" style="background: #fff8dc; padding: 15px; border-radius: 4px;">
+          <h3>Pricing Summary</h3>
+          <div class="summary-row">
+            <span>Base Price:</span>
+            <span>${formatCurrency(pricing.basePrice)}</span>
+          </div>
+          <div class="summary-row">
+            <span>Options:</span>
+            <span>${formatCurrency(pricing.optionsSubtotal)}</span>
+          </div>
+          <div class="summary-row">
+            <span>Tax:</span>
+            <span>${formatCurrency(pricing.salesTax)}</span>
+          </div>
+          <div class="summary-row">
+            <span>Title Fee:</span>
+            <span>${formatCurrency(pricing.titleFee)}</span>
+          </div>
+          <div class="summary-row">
+            <span>Delivery:</span>
+            <span>${formatCurrency(pricing.deliveryFee)}</span>
+          </div>
+          <div class="summary-row">
+            <span>Setup:</span>
+            <span>${formatCurrency(pricing.setupFee)}</span>
+          </div>
+          <div class="summary-row total">
+            <span>TOTAL:</span>
+            <span>${formatCurrency(pricing.total)}</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Payment Method</h3>
+          <table class="info-table">
+            <tr><td>Payment Type:</td><td>${build.financing?.method === 'bank_transfer' ? 'Bank Transfer (ACH/Wire)' : build.financing?.method || 'TBD'}</td></tr>
+          </table>
+        </div>
+
+        <div style="margin-top: 40px; text-align: center; font-size: 12px; color: #666;">
+          <p>This order summary is for review purposes. All details are subject to the terms and conditions in the Purchase Agreement.</p>
+          <p>Questions? Contact us at office@fireflytinyhomes.com or 830-328-6109</p>
+          <p>Generated: ${new Date().toLocaleString()}</p>
+        </div>
+      </body>
+      </html>
+    `
+    
+    // Generate PDF from HTML using the same method as pack PDFs
+    return await generatePDFFromHTML(htmlContent)
+    
+  } catch (error) {
+    console.error('[generatePDFFromOrderData] Error:', error)
+    return `Order Summary generation failed: ${error.message}`
   }
 }
 
