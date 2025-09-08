@@ -1545,28 +1545,49 @@ function buildToOrder(build) {
 // Create DocuSeal session for a specific pack
 app.post(['/api/contracts/:orderId/docuseal/session', '/contracts/:orderId/docuseal/session'], async (req, res) => {
   try {
+    console.log('[DOCUSEAL_SESSION] Creating session for order:', req.params.orderId, 'pack:', req.body.pack)
+    
     const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) return
+    if (!auth?.userId) {
+      console.error('[DOCUSEAL_SESSION] Authentication failed')
+      return
+    }
 
     const { orderId } = req.params
     const { pack } = req.body
 
+    console.log('[DOCUSEAL_SESSION] Request params:', { orderId, pack, userId: auth.userId })
+
     if (!pack || !['agreement', 'delivery', 'final'].includes(pack)) {
+      console.error('[DOCUSEAL_SESSION] Invalid pack:', pack)
       return res.status(400).json({ error: 'Invalid pack. Must be: agreement, delivery, or final' })
     }
 
     // Get build data
     const build = await getBuildById(orderId)
+    console.log('[DOCUSEAL_SESSION] Build found:', !!build, 'userId match:', build?.userId === auth.userId)
+    
     if (!build || build.userId !== auth.userId) {
+      console.error('[DOCUSEAL_SESSION] Build not found or unauthorized:', orderId, !!build, build?.userId, auth.userId)
       return res.status(404).json({ error: 'Build not found' })
     }
 
     // Convert build to order format
     const order = buildToOrder(build)
+    console.log('[DOCUSEAL_SESSION] Order prepared:', order.id)
+
+    // Check environment variables
+    console.log('[DOCUSEAL_SESSION] Environment check:', {
+      hasApiKey: !!process.env.DOCUSEAL_API_KEY,
+      agreementTemplateId: process.env.DOCUSEAL_TEMPLATE_ID_AGREEMENT,
+      deliveryTemplateId: process.env.DOCUSEAL_TEMPLATE_ID_DELIVERY
+    })
 
     // Create DocuSeal session
     const docuseal = new DocuSealClient()
     const envelope = await docuseal.createPackEnvelope(orderId, pack, order)
+
+    console.log('[DOCUSEAL_SESSION] Envelope created:', envelope.envelopeId)
 
     res.json({
       signingUrl: envelope.signingUrl,
@@ -1575,10 +1596,56 @@ app.post(['/api/contracts/:orderId/docuseal/session', '/contracts/:orderId/docus
     })
 
   } catch (error) {
-    console.error('DocuSeal session creation error:', error)
+    console.error('[DOCUSEAL_SESSION] Session creation error:', error)
     res.status(500).json({ 
       error: 'Failed to create signing session',
-      message: error.message 
+      message: error.message,
+      stack: error.stack
+    })
+  }
+})
+
+// Test DocuSeal configuration
+app.get(['/api/admin/docuseal/test', '/admin/docuseal/test'], async (req, res) => {
+  try {
+    console.log('[DOCUSEAL_TEST] Testing DocuSeal configuration...')
+    
+    const config = {
+      hasApiKey: !!process.env.DOCUSEAL_API_KEY,
+      baseUrl: process.env.DOCUSEAL_BASE_URL || 'https://api.docuseal.co',
+      templates: {
+        agreement: process.env.DOCUSEAL_TEMPLATE_ID_AGREEMENT,
+        delivery: process.env.DOCUSEAL_TEMPLATE_ID_DELIVERY,
+        final: process.env.DOCUSEAL_TEMPLATE_ID_FINAL
+      }
+    }
+    
+    // Test API connection
+    const testResponse = await fetch(`${config.baseUrl}/templates`, {
+      method: 'GET',
+      headers: {
+        'X-Auth-Token': process.env.DOCUSEAL_API_KEY,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    const templates = testResponse.ok ? await testResponse.json() : null
+    
+    res.json({
+      config,
+      apiTest: {
+        status: testResponse.status,
+        ok: testResponse.ok,
+        templatesCount: templates?.length || 0
+      },
+      templates: templates?.slice(0, 5) || [] // First 5 templates for debugging
+    })
+    
+  } catch (error) {
+    console.error('[DOCUSEAL_TEST] Test failed:', error)
+    res.status(500).json({
+      error: 'DocuSeal test failed',
+      message: error.message
     })
   }
 })
@@ -1691,23 +1758,40 @@ app.get(['/api/contracts/:orderId/summary-pdf', '/contracts/:orderId/summary-pdf
     if (!auth?.userId) return
 
     const { orderId } = req.params
+    
+    console.log('[PDF_ENDPOINT] Generating summary PDF for order:', orderId)
 
     // Get build data
     const build = await getBuildById(orderId)
     if (!build || build.userId !== auth.userId) {
+      console.error('[PDF_ENDPOINT] Build not found or unauthorized:', orderId, !!build, build?.userId, auth.userId)
       return res.status(404).json({ error: 'Build not found' })
     }
 
     // Convert build to order format
     const order = buildToOrder(build)
+    console.log('[PDF_ENDPOINT] Order data prepared for:', order.id)
 
-    // Generate PDF (placeholder for now)
-    // TODO: Implement actual PDF generation using puppeteer or similar
-    const pdfBuffer = await generateOrderSummaryPDF(order)
-
-    res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', `attachment; filename="order-summary-${orderId}.pdf"`)
-    res.send(pdfBuffer)
+    // Generate PDF
+    const result = await generateOrderSummaryPDF(order)
+    
+    // Check if we got a valid PDF buffer or text fallback
+    if (Buffer.isBuffer(result) && result.length > 100) {
+      // We have a valid PDF
+      console.log('[PDF_ENDPOINT] Serving PDF for order:', orderId, 'size:', Math.round(result.length / 1024), 'KB')
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Disposition', `inline; filename="order-summary-${orderId}.pdf"`)
+      res.send(result)
+    } else {
+      // Fallback to text content
+      console.log('[PDF_ENDPOINT] Serving text fallback for order:', orderId)
+      const textContent = typeof result === 'string' ? result : 
+                         (result?.content || result?.toString() || 'Order summary generation failed')
+      
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.setHeader('Content-Disposition', `inline; filename="order-summary-${orderId}.txt"`)
+      res.send(textContent)
+    }
 
   } catch (error) {
     console.error('Order summary PDF error:', error)

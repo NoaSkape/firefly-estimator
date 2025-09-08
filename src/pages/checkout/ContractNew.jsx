@@ -47,6 +47,67 @@ export default function ContractNew() {
   
   const iframeRef = useRef(null)
   const statusPollRef = useRef(null)
+  
+  // Helper function to get pack title
+  function getPackTitle(packId) {
+    const pack = packs.find(p => p.id === packId)
+    return pack ? pack.title : packId
+  }
+  
+  // Start polling for pack completion status
+  function startStatusPolling(packId) {
+    if (statusPollRef.current) {
+      clearInterval(statusPollRef.current)
+    }
+    
+    statusPollRef.current = setInterval(async () => {
+      try {
+        const token = await getToken()
+        const response = await fetch(`/api/contracts/${buildId}/status`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        })
+        
+        if (response.ok) {
+          const status = await response.json()
+          
+          // Check if the pack is completed
+          if (status.packs?.[packId] === 'signed') {
+            clearInterval(statusPollRef.current)
+            
+            setContractStatus(prev => ({
+              ...prev,
+              packs: {
+                ...prev.packs,
+                [packId]: 'signed'
+              }
+            }))
+            
+            addToast(`${getPackTitle(packId)} completed successfully!`, 'success')
+            
+            // Auto-advance to next pack if available
+            const currentPackIndex = packs.findIndex(p => p.id === packId)
+            const nextPack = packs[currentPackIndex + 1]
+            if (nextPack && nextPack.type === 'signature') {
+              setCurrentPack(nextPack.id)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Status polling error:', error)
+      }
+    }, 5000) // Poll every 5 seconds
+  }
+  
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (statusPollRef.current) {
+        clearInterval(statusPollRef.current)
+      }
+    }
+  }, [])
 
   // Pack definitions
   const packs = [
@@ -310,16 +371,27 @@ export default function ContractNew() {
       
       if (response.ok) {
         const session = await response.json()
-        setSigningUrl(session.signingUrl)
         
-        // Update status to in_progress
-        setContractStatus(prev => ({
-          ...prev,
-          packs: {
-            ...prev.packs,
-            [packId]: 'in_progress'
-          }
-        }))
+        // Open DocuSeal in a new tab to avoid X-Frame-Options issues
+        const newWindow = window.open(session.signingUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes')
+        
+        if (newWindow) {
+          // Update status to in_progress
+          setContractStatus(prev => ({
+            ...prev,
+            packs: {
+              ...prev.packs,
+              [packId]: 'in_progress'
+            }
+          }))
+          
+          addToast(`${getPackTitle(packId)} opened in new tab. Please complete signing and return here.`, 'success')
+          
+          // Start polling for completion
+          startStatusPolling(packId)
+        } else {
+          addToast('Please allow popups for this site to open the signing document', 'error')
+        }
       } else {
         const error = await response.json()
         throw new Error(error.message || 'Failed to create signing session')
