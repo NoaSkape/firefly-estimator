@@ -699,7 +699,7 @@ function SummaryPackContent({ build, summaryPdfUrl, onLoadPdf, onMarkReviewed, o
             {/* PDF Viewer with Custom Controls */}
             <div className="relative w-full h-full">
               <iframe 
-                src={summaryPdfUrl}
+                src={`${summaryPdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH&zoom=95`}
                 className="w-full h-full border-0"
                 title="Order Summary PDF"
                 style={{ 
@@ -710,7 +710,7 @@ function SummaryPackContent({ build, summaryPdfUrl, onLoadPdf, onMarkReviewed, o
               {/* Custom PDF Controls */}
               <div className="absolute top-2 right-2 flex space-x-2 z-10">
                 <button 
-                  onClick={() => window.open(summaryPdfUrl, '_blank')}
+                  onClick={() => window.open(`${summaryPdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH&zoom=95`, '_blank')}
                   className="px-3 py-1 bg-gray-800 text-white text-sm rounded hover:bg-gray-700"
                 >
                   Open Full View
