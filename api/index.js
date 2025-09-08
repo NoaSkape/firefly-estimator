@@ -34,6 +34,9 @@ import { validateRequest } from '../lib/requestValidation.js'
 
 const app = express()
 
+// Export runtime for Vercel
+export const runtime = 'nodejs'
+
 // Security headers and middleware
 app.disable('x-powered-by')
 app.use(express.json({ limit: '2mb' }))
@@ -104,6 +107,33 @@ app.all('/ai/test', (req, res) => {
     timestamp: new Date().toISOString(),
     message: 'AI route test endpoint working'
   })
+})
+
+// Health check endpoint for monitoring database connectivity
+app.get('/health', async (req, res) => {
+  try {
+    const { healthCheck } = await import('../lib/db.js')
+    const dbHealthy = await healthCheck()
+    
+    const health = {
+      status: dbHealthy ? 'healthy' : 'unhealthy',
+      timestamp: new Date().toISOString(),
+      database: dbHealthy ? 'connected' : 'disconnected',
+      nodeVersion: process.version,
+      environment: process.env.NODE_ENV || 'unknown'
+    }
+    
+    res.status(dbHealthy ? 200 : 503).json(health)
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      database: 'error',
+      error: error.message,
+      nodeVersion: process.version,
+      environment: process.env.NODE_ENV || 'unknown'
+    })
+  }
 })
 
 // AI Content Generation Endpoint with comprehensive error handling
@@ -2168,9 +2198,9 @@ app.post(['/api/analytics/event', '/analytics/event'], async (req, res) => {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
     const { event, sessionId, timestamp, url, properties } = body
     
-    // Store analytics event in database
+    // Store analytics event in database with enhanced error handling
     const db = await getDb()
-    const analyticsCol = db.collection('Analytics')
+    let analyticsCol = db.collection('Analytics')
     
     const analyticsEvent = {
       event,
@@ -2183,11 +2213,52 @@ app.post(['/api/analytics/event', '/analytics/event'], async (req, res) => {
       createdAt: new Date()
     }
     
-    await analyticsCol.insertOne(analyticsEvent)
+    // Add retry logic for database operations
+    let insertAttempt = 0;
+    const maxRetries = 3;
+    
+    while (insertAttempt < maxRetries) {
+      try {
+        await analyticsCol.insertOne(analyticsEvent)
+        break;
+      } catch (insertError) {
+        insertAttempt++;
+        console.warn(`Analytics insert attempt ${insertAttempt} failed:`, insertError.message);
+        
+        if (insertAttempt >= maxRetries) {
+          throw insertError;
+        }
+        
+        // Wait before retry (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, insertAttempt) * 500));
+        
+        // Try to get a fresh database connection
+        const { closeConnection } = await import('../lib/db.js')
+        await closeConnection();
+        const freshDb = await getDb();
+        analyticsCol = freshDb.collection('Analytics');  // Use fresh collection reference
+      }
+    }
     
     return res.status(200).json({ ok: true })
   } catch (error) {
-    console.error('Analytics event error:', error)
+    console.error('Analytics event error:', {
+      message: error?.message || error,
+      code: error?.code,
+      name: error?.name,
+      stack: process.env.DEBUG_ADMIN === 'true' ? error?.stack : undefined
+    })
+    
+    // Check if this is a database connection error
+    if (error?.message?.includes('tlsv1 alert internal error') || 
+        error?.message?.includes('MongoServerSelectionError') || 
+        error?.message?.includes('MongoNetworkError')) {
+      return res.status(503).json({ 
+        error: 'database_unavailable', 
+        message: 'Database connection failed. Please try again later.' 
+      })
+    }
+    
     return res.status(500).json({ error: 'analytics_failed' })
   }
 })
