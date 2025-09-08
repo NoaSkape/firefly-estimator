@@ -1769,50 +1769,69 @@ async function generateOrderSummaryPDF(order) {
   return Buffer.from(`Order Summary for ${order.buyer.firstName} ${order.buyer.lastName}\n\nModel: ${order.model.model}\nTotal: ${order.pricing.total / 100}`)
 }
 
-// Initialize DocuSeal templates (legacy placeholder approach)
+// Unified DocuSeal template initialization (v2 templates)
 app.post(['/api/admin/docuseal/init-templates', '/admin/docuseal/init-templates'], async (req, res) => {
   try {
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
-    // Basic admin check (you may want to implement proper admin role checking)
-    console.log('[TEMPLATE_INIT] Initializing DocuSeal templates for Firefly contracts')
-
-    const { ensureTemplatesExist } = await import('../lib/docuseal-templates.js')
-    const templates = await ensureTemplatesExist()
-
-    // Update environment variables with template IDs (for reference)
-    const envUpdates = {
-      DOCUSEAL_TEMPLATE_ID_AGREEMENT: templates.agreement?.id,
-      DOCUSEAL_TEMPLATE_ID_DELIVERY: templates.delivery?.id,
-      DOCUSEAL_TEMPLATE_ID_FINAL: templates.final?.id
+    console.info("[TEMPLATE_INIT] Starting unified template initialization...")
+    
+    // Check environment variables
+    if (!process.env.DOCUSEAL_API_KEY) {
+      throw new Error('DOCUSEAL_API_KEY environment variable is required')
     }
 
-    console.log('[TEMPLATE_INIT] Templates initialized:', envUpdates)
-
-    res.json({
+    const results = {}
+    
+    console.info("[TEMPLATE_INIT] Creating Agreement v2...")
+    const { buildAgreementTemplate } = await import('../lib/docuseal/builders/agreement.js')
+    results["Agreement v2"] = await buildAgreementTemplate()
+    
+    console.info("[TEMPLATE_INIT] Creating Delivery/Site Readiness v2...")
+    const { buildDeliveryTemplate } = await import('../lib/docuseal/builders/pack3_delivery.js')
+    results["Delivery/Site Readiness v2"] = await buildDeliveryTemplate()
+    
+    console.info("[TEMPLATE_INIT] All templates created successfully:", results)
+    
+    const envInstructions = [
+      `DOCUSEAL_TEMPLATE_ID_AGREEMENT=${results["Agreement v2"]}`,
+      `DOCUSEAL_TEMPLATE_ID_DELIVERY=${results["Delivery/Site Readiness v2"]}`
+    ]
+    
+    res.json({ 
+      ok: true, 
       success: true,
-      templates,
-      envUpdates,
-      message: 'DocuSeal templates initialized successfully. Update your environment variables with the template IDs.'
+      templates: results,
+      message: "All templates created successfully with v2 versions",
+      envInstructions: envInstructions,
+      dashboardUrl: "https://docuseal.com/templates",
+      nextSteps: [
+        "1. Update your .env file with the new template IDs above",
+        "2. Verify templates in DocuSeal dashboard have readable content",
+        "3. Archive or delete the old v1 templates to avoid confusion",
+        "4. Test Step 7 contract flow with new template IDs"
+      ]
     })
 
   } catch (error) {
-    console.error('Template initialization error:', error)
+    console.error('[TEMPLATE_INIT] Init templates failed:', error)
     res.status(500).json({ 
+      ok: false,
       error: 'Failed to initialize templates',
-      message: error.message 
+      message: error.message,
+      details: error.stack
     })
   }
 })
 
-// Initialize Agreement Template with full PDF generation
+// Initialize Agreement Template with DOCX endpoint
 app.post(['/api/admin/docuseal/init-templates/agreement', '/admin/docuseal/init-templates/agreement'], async (req, res) => {
   try {
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
-    console.log('[AGREEMENT_TEMPLATE] Creating full PDF-based agreement template...')
+    console.log('[AGREEMENT_TEMPLATE] Creating DOCX-based agreement template...')
 
     const { buildAgreementTemplate } = await import('../lib/docuseal/builders/agreement.js')
     const templateId = await buildAgreementTemplate()
@@ -1822,8 +1841,9 @@ app.post(['/api/admin/docuseal/init-templates/agreement', '/admin/docuseal/init-
     res.json({
       success: true,
       templateId,
-      message: 'Agreement template created successfully with full PDF and field mapping',
-      envVariable: 'DOCUSEAL_TEMPLATE_ID_AGREEMENT'
+      message: 'Agreement template created successfully via DocuSeal DOCX endpoint',
+      envVariable: 'DOCUSEAL_TEMPLATE_ID_AGREEMENT',
+      instructions: `Add this to your .env file: DOCUSEAL_TEMPLATE_ID_AGREEMENT=${templateId}`
     })
 
   } catch (error) {
@@ -1831,6 +1851,39 @@ app.post(['/api/admin/docuseal/init-templates/agreement', '/admin/docuseal/init-
     res.status(500).json({ 
       error: 'Failed to create agreement template',
       message: error.message 
+    })
+  }
+})
+
+// Initialize Delivery Template with DOCX endpoint
+app.post(['/api/admin/docuseal/init-templates/pack3_delivery', '/admin/docuseal/init-templates/pack3_delivery'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    console.log('[DELIVERY_TEMPLATE] Creating DOCX-based delivery template...')
+
+    const { buildDeliveryTemplate } = await import('../lib/docuseal/builders/pack3_delivery.js')
+    const templateId = await buildDeliveryTemplate()
+
+    console.log('[DELIVERY_TEMPLATE] Delivery template created:', templateId)
+
+    res.json({
+      success: true,
+      templateId,
+      templateName: "Firefly – Delivery, Set & Site Readiness Agreement v1",
+      message: 'Delivery template created successfully via DocuSeal DOCX endpoint',
+      envVariable: 'DOCUSEAL_TEMPLATE_ID_DELIVERY',
+      instructions: `Add this to your .env file: DOCUSEAL_TEMPLATE_ID_DELIVERY=${templateId}`,
+      dashboardUrl: "https://docuseal.com/templates"
+    })
+
+  } catch (error) {
+    console.error('Delivery template creation error:', error)
+    res.status(500).json({ 
+      error: 'Failed to create delivery template',
+      message: error.message,
+      details: error.stack
     })
   }
 })

@@ -1,6 +1,6 @@
 /**
  * Admin API Route: Initialize DocuSeal Agreement Template
- * Creates the Master Retail Purchase Agreement template in DocuSeal
+ * Creates the Master Retail Purchase Agreement template in DocuSeal using DOCX endpoint
  */
 
 import { buildAgreementTemplate } from '../../../../../lib/docuseal/builders/agreement.js'
@@ -14,9 +14,9 @@ export default async function handler(req, res) {
   try {
     // TODO: Add proper admin authentication here
     // For now, we'll proceed without auth check
-    console.log('[API] Agreement template initialization requested')
+    console.log('[API] Agreement template initialization requested (DOCX endpoint)')
 
-    // Build the template
+    // Build the template using DOCX endpoint
     const templateId = await buildAgreementTemplate()
 
     // Log success and return template ID
@@ -25,8 +25,9 @@ export default async function handler(req, res) {
     res.status(200).json({ 
       success: true,
       templateId,
-      message: 'Agreement template created successfully',
-      envVariable: 'DOCUSEAL_TEMPLATE_ID_AGREEMENT'
+      message: 'Agreement template created successfully via DOCX endpoint',
+      envVariable: 'DOCUSEAL_TEMPLATE_ID_AGREEMENT',
+      instructions: `Add this to your .env file: DOCUSEAL_TEMPLATE_ID_AGREEMENT=${templateId}`
     })
 
   } catch (error) {
@@ -40,12 +41,12 @@ export default async function handler(req, res) {
   }
 }
 
-// Increase timeout for Puppeteer operations
+// Simplified config for DOCX endpoint (no Puppeteer needed)
 export const config = {
   api: {
     externalResolver: true,
     bodyParser: {
-      sizeLimit: '10mb'
+      sizeLimit: '5mb'
     }
   }
 }
