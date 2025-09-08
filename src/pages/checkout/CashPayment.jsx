@@ -978,10 +978,29 @@ export default function CashPayment() {
             {/* Welcome Section */}
             <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
               <h2 className="text-white font-semibold text-xl mb-3">Review and Continue</h2>
-              <p className="text-gray-300 text-sm leading-relaxed">
-                Please review your payment configuration below. Your payment method has been securely saved 
-                and will be charged after you sign the purchase agreement.
-              </p>
+              {paymentMethod === 'bank_transfer' ? (
+                <div className="text-gray-300 text-sm leading-relaxed space-y-3">
+                  <p>
+                    Please review your payment configuration below. Since you have chosen Bank Transfer (Wire/ACH Credit), 
+                    no funds will be automatically charged at this step. After signing your purchase agreement, you will 
+                    receive detailed instructions with our bank information. You will then need to initiate the transfer 
+                    directly from your bank.
+                  </p>
+                  <div className="bg-blue-900/20 border border-blue-600 rounded-lg p-4">
+                    <div className="font-medium text-blue-200 mb-2">Important Payment Timeline:</div>
+                    <ul className="space-y-1 text-blue-100 text-sm">
+                      <li>• Your <strong>deposit must be transferred before we can begin construction</strong></li>
+                      <li>• Your <strong>final balance must be transferred and cleared before your home can leave the factory</strong></li>
+                      <li>• You will have <strong>12 days after factory completion to schedule delivery before storage fees apply</strong></li>
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-300 text-sm leading-relaxed">
+                  Please review your payment configuration below. Your payment method has been securely saved 
+                  and will be charged after you sign the purchase agreement.
+                </p>
+              )}
             </div>
 
             {/* Card Payment Warning */}
