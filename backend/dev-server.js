@@ -119,6 +119,34 @@ app.all('/ai/test', (req, res) => {
   });
 });
 
+// DocuSeal template creation endpoint for development
+app.post('/api/admin/docuseal/init-templates/agreement', async (req, res) => {
+  try {
+    console.log('[DEV_SERVER] Creating DocuSeal agreement template...');
+    
+    // Import the template builder
+    const { buildAgreementTemplate } = await import('../lib/docuseal/builders/agreement.js');
+    const templateId = await buildAgreementTemplate();
+    
+    console.log('[DEV_SERVER] Agreement template created:', templateId);
+    
+    res.json({
+      success: true,
+      templateId,
+      message: 'Agreement template created successfully via DocuSeal HTML endpoint',
+      envVariable: 'DOCUSEAL_TEMPLATE_ID_AGREEMENT',
+      instructions: `Add this to your .env file: DOCUSEAL_TEMPLATE_ID_AGREEMENT=${templateId}`
+    });
+  } catch (error) {
+    console.error('[DEV_SERVER] Template creation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create template',
+      details: error.message
+    });
+  }
+});
+
 // Catch-all for unmatched API routes
 app.all('/api/*', (req, res) => {
   res.status(404).json({ 
