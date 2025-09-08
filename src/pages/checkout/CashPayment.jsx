@@ -78,17 +78,20 @@ export default function CashPayment() {
 
   // Route-based step management for proper browser navigation
   useEffect(() => {
-    // Get current step from URL path
-    const pathParts = location.pathname.split('/')
-    const urlStep = pathParts[pathParts.length - 1]
-    
-    if (['choose', 'details', 'review'].includes(urlStep)) {
-      setCurrentStep(urlStep)
-    } else {
-      // Default to 'choose' if no valid step in URL
-      setCurrentStep('choose')
+    // Only set step from URL if build data hasn't been loaded yet
+    // Once build data loads, step will be determined by loadBuild()
+    if (!build) {
+      const pathParts = location.pathname.split('/')
+      const urlStep = pathParts[pathParts.length - 1]
+      
+      if (['choose', 'details', 'review'].includes(urlStep)) {
+        setCurrentStep(urlStep)
+      } else {
+        // Default to 'choose' if no valid step in URL
+        setCurrentStep('choose')
+      }
     }
-  }, [location.pathname])
+  }, [location.pathname, build])
 
   useEffect(() => {
     loadBuild()
@@ -136,10 +139,30 @@ export default function CashPayment() {
             setTransferReference(orderData.payment.transferReference)
           }
 
-          if (orderData.payment?.ready) {
-            setCurrentStep('review')
-          } else if (orderData.payment?.method) {
-            setCurrentStep('details')
+          // Set step based on both URL and payment progress
+          const pathParts = location.pathname.split('/')
+          const urlStep = pathParts[pathParts.length - 1]
+          
+          if (['choose', 'details', 'review'].includes(urlStep)) {
+            // Use URL step if valid, but ensure it's consistent with payment state
+            if (urlStep === 'details' && !orderData.payment?.method) {
+              // User is on details but no payment method selected, go to choose
+              setCurrentStep('choose')
+            } else if (urlStep === 'review' && !orderData.payment?.ready) {
+              // User is on review but payment not ready, go to appropriate step
+              setCurrentStep(orderData.payment?.method ? 'details' : 'choose')
+            } else {
+              setCurrentStep(urlStep)
+            }
+          } else {
+            // No valid step in URL, determine from payment state
+            if (orderData.payment?.ready) {
+              setCurrentStep('review')
+            } else if (orderData.payment?.method) {
+              setCurrentStep('details')
+            } else {
+              setCurrentStep('choose')
+            }
           }
           
 

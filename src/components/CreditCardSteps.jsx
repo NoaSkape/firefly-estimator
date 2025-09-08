@@ -49,7 +49,7 @@ export default function CreditCardSteps({
         zip: build.buyerInfo.zip || ''
       })
     }
-  }, [build?.buyerInfo, step])
+  }, [build?.buyerInfo])
 
   // Validate Step 2 form
   const validateStep2 = () => {
