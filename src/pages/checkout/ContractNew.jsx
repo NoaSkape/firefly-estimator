@@ -415,7 +415,9 @@ export default function ContractNew() {
       {/* Header */}
       <div className="mb-8">
         <FunnelProgress 
+          current="Contract"
           buildId={buildId}
+          build={build}
           onNavigate={(stepName, stepIndex) => {
             // Handle navigation if needed
           }}
