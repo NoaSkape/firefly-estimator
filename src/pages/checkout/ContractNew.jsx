@@ -694,16 +694,40 @@ function SummaryPackContent({ build, summaryPdfUrl, onLoadPdf, onMarkReviewed, o
         </div>
         
         {summaryPdfUrl ? (
-          <div className="border border-gray-600 rounded-lg overflow-hidden bg-white" style={{ height: 'calc(100vh - 320px)', minHeight: '600px' }}>
-            <iframe 
-              src={summaryPdfUrl}
-              className="w-full h-full border-0"
-              title="Order Summary PDF"
-              style={{ 
-                backgroundColor: '#ffffff',
-                borderRadius: '8px'
-              }}
-            />
+          <div className="border border-gray-600 rounded-lg overflow-hidden bg-white" style={{ height: 'calc(100vh - 280px)', minHeight: '700px' }}>
+            {/* PDF Viewer with Custom Controls */}
+            <div className="relative w-full h-full">
+              <iframe 
+                src={`${summaryPdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
+                className="w-full h-full border-0 pdf-viewer"
+                title="Order Summary PDF"
+                style={{ 
+                  backgroundColor: '#ffffff',
+                  overflow: 'hidden',
+                  border: 'none'
+                }}
+                sandbox="allow-same-origin allow-scripts"
+              />
+              
+              <style jsx>{`
+                .pdf-viewer {
+                  border: none !important;
+                }
+                .pdf-viewer::-webkit-scrollbar {
+                  display: none;
+                }
+              `}</style>
+              
+              {/* Custom PDF Controls */}
+              <div className="absolute top-2 right-2 flex space-x-2 z-10">
+                <button 
+                  onClick={() => window.open(summaryPdfUrl, '_blank')}
+                  className="px-3 py-1 bg-gray-800 text-white text-sm rounded hover:bg-gray-700"
+                >
+                  Open Full View
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="flex items-center justify-center py-12">
