@@ -1769,7 +1769,7 @@ async function generateOrderSummaryPDF(order) {
   return Buffer.from(`Order Summary for ${order.buyer.firstName} ${order.buyer.lastName}\n\nModel: ${order.model.model}\nTotal: ${order.pricing.total / 100}`)
 }
 
-// Initialize DocuSeal templates
+// Initialize DocuSeal templates (legacy placeholder approach)
 app.post(['/api/admin/docuseal/init-templates', '/admin/docuseal/init-templates'], async (req, res) => {
   try {
     const auth = await requireAuth(req, res, false)
@@ -1801,6 +1801,35 @@ app.post(['/api/admin/docuseal/init-templates', '/admin/docuseal/init-templates'
     console.error('Template initialization error:', error)
     res.status(500).json({ 
       error: 'Failed to initialize templates',
+      message: error.message 
+    })
+  }
+})
+
+// Initialize Agreement Template with full PDF generation
+app.post(['/api/admin/docuseal/init-templates/agreement', '/admin/docuseal/init-templates/agreement'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    console.log('[AGREEMENT_TEMPLATE] Creating full PDF-based agreement template...')
+
+    const { buildAgreementTemplate } = await import('../lib/docuseal/builders/agreement.js')
+    const templateId = await buildAgreementTemplate()
+
+    console.log('[AGREEMENT_TEMPLATE] Agreement template created:', templateId)
+
+    res.json({
+      success: true,
+      templateId,
+      message: 'Agreement template created successfully with full PDF and field mapping',
+      envVariable: 'DOCUSEAL_TEMPLATE_ID_AGREEMENT'
+    })
+
+  } catch (error) {
+    console.error('Agreement template creation error:', error)
+    res.status(500).json({ 
+      error: 'Failed to create agreement template',
       message: error.message 
     })
   }
