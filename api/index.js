@@ -2455,7 +2455,7 @@ app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
     }
 
     // Build prefill data from build
-    const prefill = buildContractPrefill(build, settings)
+    const prefill = await buildContractPrefill(build, settings)
 
     // Create DocuSeal submissions for all templates
     const buyerInfo = build.buyerInfo || {}
@@ -2855,30 +2855,92 @@ function mapDocuSealStatus(docusealStatus) {
 }
 
 // Helper function to build prefill data for DocuSeal
-function buildContractPrefill(build, settings) {
+async function buildContractPrefill(build, settings) {
   console.log('[CONTRACT_CREATE] Building prefill data for build:', build._id)
   
+  const selections = build.selections || {}
   const pricing = build.pricing || {}
   const buyerInfo = build.buyerInfo || {}
+  const financing = build.financing || {}
   const delivery = build.delivery || {}
-  const payment = build.payment || {}
   
   console.log('[CONTRACT_CREATE] Build data sections:', {
+    hasSelections: !!selections,
     hasPricing: !!pricing,
     hasBuyerInfo: !!buyerInfo,
+    hasFinancing: !!financing,
     hasDelivery: !!delivery,
-    hasPayment: !!payment,
+    selectionsKeys: Object.keys(selections),
     pricingKeys: Object.keys(pricing),
     buyerInfoKeys: Object.keys(buyerInfo),
-    deliveryKeys: Object.keys(delivery),
-    paymentKeys: Object.keys(payment)
+    financingKeys: Object.keys(financing),
+    deliveryKeys: Object.keys(delivery)
   })
   
-  // Calculate key amounts
-  const totalPurchasePrice = pricing.total || 0
-  const depositPercent = payment.plan?.percent || 25
+  // Calculate key amounts from the correct data structure
+  const basePrice = selections.basePrice || 0
+  const optionsTotal = pricing.optionsTotal || 0
+  const deliveryEstimate = pricing.deliveryEstimate || 0
+  const titleFee = pricing.titleFee || 0
+  const setupFee = pricing.setupFee || 0
+  const taxes = pricing.taxes || 0
+  const totalPurchasePrice = pricing.total || (basePrice + optionsTotal + deliveryEstimate + titleFee + setupFee + taxes)
+  
+  // Calculate deposit (default to 25% if not specified)
+  const depositPercent = 25 // Default deposit percentage
   const depositAmount = Math.round(totalPurchasePrice * depositPercent / 100)
   const balanceAmount = totalPurchasePrice - depositAmount
+
+  // Get model information
+  const modelName = build.modelName || 'Unknown Model'
+  const modelSlug = build.modelSlug || ''
+  
+  // Get model code from slug if available
+  let modelCode = ''
+  let modelDimensions = ''
+  
+  if (modelSlug) {
+    // Convert slug to model code (e.g., 'magnolia' -> 'APS-630')
+    const modelMapping = {
+      'magnolia': 'APS-630',
+      'oak': 'APS-520',
+      'cedar': 'APS-720',
+      'pine': 'APS-820',
+      'bluebonnet': 'APS-601',
+      'nest': 'APS-520MS',
+      'azul': 'APS-523',
+      'meadow': 'APS-528'
+    }
+    modelCode = modelMapping[modelSlug] || modelSlug.toUpperCase()
+    
+    // Get dimensions from model data if available
+    try {
+      const { findModelById } = await import('../lib/model-utils.js')
+      const modelData = await findModelById(modelSlug)
+      if (modelData && modelData.length && modelData.width && modelData.height) {
+        modelDimensions = `${modelData.length} x ${modelData.width} x ${modelData.height}`
+      }
+    } catch (error) {
+      console.log('[CONTRACT_CREATE] Could not fetch model dimensions:', error.message)
+    }
+  }
+
+  // Format payment method with detailed information
+  const getPaymentMethodDisplay = () => {
+    const paymentMethod = financing.method
+    
+    if (paymentMethod === 'ach_debit') {
+      return 'ACH Debit (Bank Account)'
+    } else if (paymentMethod === 'bank_transfer') {
+      return 'Bank Transfer (Wire/ACH Credit)'
+    } else if (paymentMethod === 'credit_card') {
+      return 'Credit Card'
+    } else if (paymentMethod === 'financing') {
+      return `Financing (${financing.lender || 'Third Party Lender'})`
+    } else {
+      return 'Cash'
+    }
+  }
 
   const prefill = {
     // Order Information
@@ -2904,25 +2966,25 @@ function buildContractPrefill(build, settings) {
     
     // Unit Information  
     unit_brand: "Athens Park Select",
-    unit_model: build.modelName || build.modelCode || '',
+    unit_model: `${modelName}${modelCode ? ` (${modelCode})` : ''}`,
     unit_year: new Date().getFullYear().toString(),
-    unit_dimensions: build.model?.dimensions || '',
+    unit_dimensions: modelDimensions,
     unit_serial: '', // Will be assigned later
     
-    // Pricing
-    base_price: formatCurrency(pricing.basePrice || 0),
-    options_total: formatCurrency(pricing.optionsTotal || 0),
-    delivery_estimate: formatCurrency(pricing.deliveryEstimate || 0),
-    title_fee: formatCurrency(pricing.titleFee || 0),
-    setup_fee: formatCurrency(pricing.setupFee || 0),
-    taxes: formatCurrency(pricing.taxes || 0),
+    // Pricing (format as numbers without currency symbols for DocuSeal)
+    base_price: formatCurrency(basePrice),
+    options_total: formatCurrency(optionsTotal),
+    delivery_estimate: formatCurrency(deliveryEstimate),
+    title_fee: formatCurrency(titleFee),
+    setup_fee: formatCurrency(setupFee),
+    taxes: formatCurrency(taxes),
     total_price: formatCurrency(totalPurchasePrice),
     
     // Payment Terms
     deposit_percent: `${depositPercent}%`,
     deposit_amount: formatCurrency(depositAmount),
     balance_amount: formatCurrency(balanceAmount),
-    payment_method: payment.method === 'ach_debit' ? 'ACH/Bank Transfer' : 'Cash',
+    payment_method: getPaymentMethodDisplay(),
     
     // Delivery Information
     delivery_address: delivery.address || buyerInfo.address || '',
@@ -2942,6 +3004,7 @@ function buildContractPrefill(build, settings) {
     sampleValues: {
       order_id: prefill.order_id,
       buyer_name: prefill.buyer_name,
+      unit_model: prefill.unit_model,
       total_price: prefill.total_price,
       payment_method: prefill.payment_method
     }
