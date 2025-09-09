@@ -2400,10 +2400,9 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
 
     console.log('[CONTRACT_START] Starting contract for template:', templateKey, 'build:', buildId)
 
-    // Import the new modules
-    const { createSubmission } = await import('../lib/docuseal/client.js')
+    // Import the existing working modules
+    const { createSubmission } = await import('../lib/docuseal.js')
     const { getTemplate } = await import('../lib/docuseal/templates.js')
-    const { buildFieldsArray } = await import('../lib/docuseal/fieldMaps.js')
 
     // Get template configuration
     const template = getTemplate(templateKey)
@@ -2419,17 +2418,12 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
     const prefillData = await buildContractPrefill(build, settings)
     console.log('[CONTRACT_START] Prefill data keys:', Object.keys(prefillData))
 
-    // Build fields array for DocuSeal
-    const fields = buildFieldsArray(prefillData, template.fieldMap)
-    console.log('[CONTRACT_START] Fields being sent:', fields.map(f => ({ name: f.name, readonly: f.readonly })))
-
-    // Build submitters array
+    // Build submitters array (without fields - the existing function will add them)
     const buyerInfo = build.buyerInfo || {}
     const submitters = [{
       name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
       email: buyerInfo.email || '',
-      role: 'Buyer',
-      fields: fields
+      role: 'Buyer'
     }]
 
     // Add co-buyer if enabled and data exists
@@ -2437,14 +2431,14 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
       submitters.push({
         name: `${buyerInfo.coBuyerFirstName || ''} ${buyerInfo.coBuyerLastName || ''}`.trim(),
         email: buyerInfo.coBuyerEmail,
-        role: 'Co-Buyer',
-        fields: fields
+        role: 'Co-Buyer'
       })
     }
 
-    // Create submission
+    // Create submission using the existing working function
     const submission = await createSubmission({
       templateId: template.id,
+      prefill: prefillData,
       submitters,
       sendEmail: false,
       completedRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/confirm`,
@@ -2453,16 +2447,16 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
 
     console.log('[CONTRACT_START] Submission created:', submission.id)
 
-    // Return submitter URLs
+    // Return submitter URLs (using the existing function's return format)
     const result = {
-      submissionId: submission.id,
-      embedUrl: submission.submitters?.[0]?.url || submission.invite_links?.[0]?.url,
+      submissionId: submission.submissionId,
+      embedUrl: submission.signerUrl,
       templateName: template.name
     }
 
     // Add co-buyer URL if applicable
-    if (coBuyerEnabled && buyerInfo.coBuyerEmail && submission.submitters?.[1]) {
-      result.coBuyerEmbedUrl = submission.submitters[1].url
+    if (coBuyerEnabled && buyerInfo.coBuyerEmail && submission.raw?.submitters?.[1]) {
+      result.coBuyerEmbedUrl = submission.raw.submitters[1].url
     }
 
     res.json(result)
