@@ -2386,7 +2386,7 @@ app.get(['/api/admin/docuseal/templates', '/admin/docuseal/templates'], async (r
 })
 
 // New contract submission endpoint that returns submitter URLs
-app.post('/api/contracts/:templateKey/start', async (req, res) => {
+app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'], async (req, res) => {
   try {
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
