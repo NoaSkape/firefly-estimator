@@ -3069,13 +3069,19 @@ async function buildContractPrefill(build, settings) {
     buyer_phone: buyerInfo.phone || '',
     buyer_email: buyerInfo.email || '',
     
+    // Co-Buyer Information (if available)
+    cobuyer_full_name: buyerInfo.coBuyerFirstName && buyerInfo.coBuyerLastName ? 
+      `${buyerInfo.coBuyerFirstName} ${buyerInfo.coBuyerLastName}`.trim() : '',
+    cobuyer_email: buyerInfo.coBuyerEmail || '',
+    
     // Additional variations that might match the template
     "Buyer Full Name": `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
     "Buyer Email": buyerInfo.email || '',
     "Buyer Address": buyerInfo.address || '',
     "Buyer Phone": buyerInfo.phone || '',
-    "Co-Buyer Name": '', // Empty for now
-    "Co-Buyer Email": '', // Empty for now
+    "Co-Buyer Name": buyerInfo.coBuyerFirstName && buyerInfo.coBuyerLastName ? 
+      `${buyerInfo.coBuyerFirstName} ${buyerInfo.coBuyerLastName}`.trim() : '',
+    "Co-Buyer Email": buyerInfo.coBuyerEmail || '',
     
     // Unit Information - Exact field names from DocuSeal template
     model_brand: "Athens Park Select",
@@ -3103,12 +3109,19 @@ async function buildContractPrefill(build, settings) {
     balance_amount: formatCurrency(balanceAmount),
     payment_method: getPaymentMethodDisplay(),
     
-    // Delivery Information
-    delivery_address: delivery.address || buyerInfo.address || '',
+    // Delivery Information - Format for DocuSeal template
+    delivery_address: [delivery.address || buyerInfo.address || '', delivery.city || buyerInfo.city || '', delivery.state || buyerInfo.state || '', delivery.zip || buyerInfo.zip || ''].filter(Boolean).join(', '),
     delivery_city: delivery.city || buyerInfo.city || '',
     delivery_state: delivery.state || buyerInfo.state || '',
     delivery_zip: delivery.zip || buyerInfo.zip || '',
     delivery_notes: delivery.notes || '',
+    
+    // Estimated completion date (8-12 weeks from now)
+    est_completion_date: new Date(Date.now() + (10 * 7 * 24 * 60 * 60 * 1000)).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    }),
     
     // Legal/Compliance
     state_classification: "Travel Trailer (park model RV)",
@@ -3117,6 +3130,10 @@ async function buildContractPrefill(build, settings) {
     
     // Buyer Initials for all templates
     buyer_initials: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    
+    // Co-Buyer Initials (if available)
+    cobuyer_initials: buyerInfo.coBuyerFirstName && buyerInfo.coBuyerLastName ? 
+      `${buyerInfo.coBuyerFirstName.charAt(0)}${buyerInfo.coBuyerLastName.charAt(0)}`.toUpperCase() : '',
     
     // Delivery Agreement Specific Fields
     site_initials_1: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
@@ -3136,7 +3153,14 @@ async function buildContractPrefill(build, settings) {
     insurance_initials: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
     storage_initials: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
     indemnification_initials: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
-    buyer_page_initials: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase()
+    buyer_page_initials: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    cobuyer_page_initials: buyerInfo.coBuyerFirstName && buyerInfo.coBuyerLastName ? 
+      `${buyerInfo.coBuyerFirstName.charAt(0)}${buyerInfo.coBuyerLastName.charAt(0)}`.toUpperCase() : '',
+    
+    // Signature fields (these will be filled by DocuSeal during signing)
+    buyer_signature: '', // Will be filled during signing
+    cobuyer_signature: '', // Will be filled during signing (if co-buyer exists)
+    firefly_signature: '' // Will be filled by Firefly representative
   }
 
   console.log('[CONTRACT_CREATE] Generated prefill data:', {
