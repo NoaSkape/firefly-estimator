@@ -94,20 +94,11 @@ export default function CashPayment() {
     loadSettings()
   }, [buildId])
 
-  // CRITICAL FIX: Reload build data when navigating between steps
-  // This ensures we have fresh data after payment operations
-  useEffect(() => {
-    if (buildId && !loading) {
-      // Only reload if we're navigating to review step (where payment data is critical)
-      const pathParts = location.pathname.split('/')
-      const urlStep = pathParts[pathParts.length - 1]
-      
-      if (urlStep === 'review') {
-        console.log('Navigating to review step - refreshing payment data')
-        loadBuild()
-      }
-    }
-  }, [location.pathname, buildId])
+  // Manual data refresh function for when needed
+  const refreshPaymentData = async () => {
+    console.log('Manually refreshing payment data')
+    await loadBuild()
+  }
 
   async function loadBuild() {
     try {
@@ -1073,6 +1064,31 @@ export default function CashPayment() {
                       after you sign the purchase agreement. You can continue to the contract now.
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Data Refresh Button - only show if button is disabled due to stale data */}
+            {paymentMethod === 'card' && !build?.payment?.ready && !loading && (
+              <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4 mb-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <span className="text-blue-400 text-xl mr-3">🔄</span>
+                    <div>
+                      <div className="font-medium text-blue-200 mb-1">
+                        Payment Data Needs Refresh
+                      </div>
+                      <div className="text-blue-100 text-sm">
+                        If the Continue button is disabled, click below to refresh your payment data.
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={refreshPaymentData}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded transition-colors"
+                  >
+                    Refresh Data
+                  </button>
                 </div>
               </div>
             )}
