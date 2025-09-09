@@ -94,9 +94,27 @@ export default function CashPayment() {
     loadSettings()
   }, [buildId])
 
+  // CRITICAL FIX: Reload build data when navigating between steps
+  // This ensures we have fresh data after payment operations
+  useEffect(() => {
+    if (buildId && !loading) {
+      // Only reload if we're navigating to review step (where payment data is critical)
+      const pathParts = location.pathname.split('/')
+      const urlStep = pathParts[pathParts.length - 1]
+      
+      if (urlStep === 'review') {
+        console.log('Navigating to review step - refreshing payment data')
+        loadBuild()
+      }
+    }
+  }, [location.pathname, buildId])
+
   async function loadBuild() {
     try {
+      setLoading(true)
       const token = await getToken()
+      
+      console.log('Loading build data for:', buildId)
       
       // Get all orders for the user and find the one matching this buildId
       let res = await fetch(`/api/orders`, { 
@@ -108,10 +126,12 @@ export default function CashPayment() {
         // Find the order that matches this buildId
         const orderData = orders.find(order => order.buildId === buildId)
         
-                 if (orderData) {
-           console.log('Order data loaded:', orderData)
-           console.log('Order pricing total:', orderData.pricing?.total)
-           setBuild(orderData)
+        if (orderData) {
+          console.log('Order data loaded:', orderData)
+          console.log('Payment status:', orderData.payment?.status)
+          console.log('Payment ready:', orderData.payment?.ready)
+          console.log('Payment method:', orderData.payment?.method)
+          setBuild(orderData)
           
           // Load existing payment info if available
           if (orderData.payment?.plan) {
@@ -154,10 +174,12 @@ export default function CashPayment() {
 
         } else {
           // No order found, try build data
+          console.log('No order found, falling back to build data')
           await loadBuildData()
         }
       } else {
         // Fallback to build data
+        console.log('Orders API failed, falling back to build data')
         await loadBuildData()
       }
     } catch (error) {
@@ -177,6 +199,10 @@ export default function CashPayment() {
       })
       if (res.ok) {
         const buildData = await res.json()
+        console.log('Build data loaded:', buildData)
+        console.log('Build payment status:', buildData.payment?.status)
+        console.log('Build payment ready:', buildData.payment?.ready)
+        console.log('Build payment method:', buildData.payment?.method)
         setBuild(buildData)
         
         // Load existing payment info if available
@@ -1021,8 +1047,20 @@ export default function CashPayment() {
               )}
             </div>
 
+            {/* Data Loading Indicator */}
+            {loading && (
+              <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4 mb-6">
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400 mr-3"></div>
+                  <div className="text-blue-200 text-sm">
+                    Refreshing payment data...
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Card Payment Warning */}
-            {paymentMethod === 'card' && build?.payment?.status !== 'succeeded' && (
+            {paymentMethod === 'card' && build?.payment?.status !== 'succeeded' && !loading && (
               <div className="bg-yellow-900/30 border border-yellow-600 rounded-lg p-4 mb-6">
                 <div className="flex items-start">
                   <span className="text-yellow-400 text-xl mr-3">⚠️</span>
@@ -1111,14 +1149,14 @@ export default function CashPayment() {
               <button 
                 className="btn-primary"
                 onClick={continueToContract}
-                disabled={saving || (paymentMethod === 'card' && !build?.payment?.ready)}
+                disabled={saving || loading || (paymentMethod === 'card' && !build?.payment?.ready)}
               >
-                {saving ? 'Saving...' : 'Continue to Contract'}
+                {saving ? 'Saving...' : loading ? 'Loading...' : 'Continue to Contract'}
               </button>
               <button 
                 className="px-4 py-2 rounded border border-gray-700 text-white hover:bg-white/10"
                 onClick={saveAndContinueLater}
-                disabled={saving}
+                disabled={saving || loading}
               >
                 Save & Continue Later
               </button>
