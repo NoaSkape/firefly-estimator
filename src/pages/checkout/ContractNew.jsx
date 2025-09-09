@@ -806,10 +806,12 @@ function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingP
         }
         
         // Get the preview URL from our contract start endpoint
+        const token = await getToken()
         const response = await fetch(`/api/contracts/${templateKey}/preview`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
           },
           body: JSON.stringify({ buildId, preview: true })
         })
