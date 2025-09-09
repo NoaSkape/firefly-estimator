@@ -124,7 +124,10 @@ export default function CashPayment() {
             setPaymentPlan(orderData.payment.plan)
           }
           if (orderData.payment?.method) {
+            console.log('Setting payment method from order data:', orderData.payment.method)
             setPaymentMethod(orderData.payment.method)
+          } else {
+            console.log('No payment method found in order data, keeping current:', paymentMethod)
           }
           // Load mandate acceptance status
           if (orderData.payment?.mandateAccepted !== undefined) {
@@ -196,7 +199,10 @@ export default function CashPayment() {
           setPaymentPlan(buildData.payment.plan)
         }
         if (buildData.payment?.method) {
+          console.log('Setting payment method from build data:', buildData.payment.method)
           setPaymentMethod(buildData.payment.method)
+        } else {
+          console.log('No payment method found in build data, keeping current:', paymentMethod)
         }
         // Load mandate acceptance status
         if (buildData.payment?.mandateAccepted !== undefined) {
@@ -1097,6 +1103,10 @@ export default function CashPayment() {
                     {paymentMethod === 'ach_debit' && 'Bank Account (ACH Debit)'}
                     {paymentMethod === 'bank_transfer' && 'Bank Transfer (Wire/ACH Credit)'}
                     {paymentMethod === 'card' && 'Credit/Debit Card'}
+                    {/* Debug info */}
+                    {process.env.NODE_ENV === 'development' && (
+                      <span className="text-xs text-gray-500 ml-2">(debug: {paymentMethod})</span>
+                    )}
                   </span>
                 </div>
 
