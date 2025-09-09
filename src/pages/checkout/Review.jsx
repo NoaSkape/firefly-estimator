@@ -14,6 +14,7 @@ export default function Review() {
   const { buildId } = useParams()
   const navigate = useNavigate()
   const { getToken, userId } = useAuth()
+  const { user } = useUser()
   const { addToast } = useToast()
   
   // Function to calculate delivery cost if missing
@@ -88,7 +89,9 @@ export default function Review() {
       try {
         setSettingsLoading(true)
         const token = await getToken()
-        const url = token ? '/api/admin/settings' : '/api/settings'
+        // Decide endpoint based on admin role, not token presence
+        const admin = !!(user && user.publicMetadata?.role === 'admin')
+        const url = admin ? '/api/admin/settings' : '/api/settings'
         const headers = token ? { Authorization: `Bearer ${token}` } : {}
         const settingsRes = await fetch(url, { headers })
         if (settingsRes.ok) {

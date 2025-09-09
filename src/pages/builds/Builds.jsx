@@ -185,8 +185,9 @@ export default function BuildsDashboard() {
       try {
         const token = await getToken()
         const headers = token ? { Authorization: `Bearer ${token}` } : {}
-        
-        const settingsRes = await fetch('/api/admin/settings', { headers })
+        const admin = !!(window.Clerk?.user && window.Clerk.user.publicMetadata?.role === 'admin')
+        const endpoint = admin ? '/api/admin/settings' : '/api/settings'
+        const settingsRes = await fetch(endpoint, { headers })
         if (settingsRes.ok) {
           setSettings(await settingsRes.json())
         }
@@ -723,5 +724,4 @@ export default function BuildsDashboard() {
     </>
   )
 }
-
 

@@ -249,7 +249,9 @@ export default function CashPayment() {
   async function loadSettings() {
     try {
       const token = await getToken()
-      const url = token ? '/api/admin/settings' : '/api/settings'
+      // Only use admin endpoint if user has admin role
+      const admin = !!(window.Clerk?.user && window.Clerk.user.publicMetadata?.role === 'admin')
+      const url = admin ? '/api/admin/settings' : '/api/settings'
       const res = await fetch(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       })
@@ -2467,4 +2469,3 @@ function CardPaymentForm({
     </form>
   )
 }
-

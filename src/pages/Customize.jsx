@@ -665,7 +665,9 @@ const Customize = () => {
   const loadSettings = async () => {
     try {
       const token = await getToken()
-      const url = token ? '/api/admin/settings' : '/api/settings'
+      // Only use admin endpoint if user has admin role
+      const admin = !!(user && user.publicMetadata?.role === 'admin')
+      const url = admin ? '/api/admin/settings' : '/api/settings'
       const headers = token ? { Authorization: `Bearer ${token}` } : {}
       const res = await fetch(url, { headers })
       if (res.ok) {

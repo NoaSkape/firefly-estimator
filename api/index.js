@@ -29,6 +29,7 @@ import {
 } from '../lib/user-profile.js'
 import { z } from 'zod'
 import { createRateLimiter } from '../lib/rateLimiter.js'
+import { isAdmin as isAdminServer } from '../lib/canEditModels.js'
 import { validateRequest } from '../lib/requestValidation.js'
 // import { Webhook } from 'svix' // Temporarily disabled - causing deployment crashes
 
@@ -276,9 +277,11 @@ const authRateLimiter = createRateLimiter({
 // Simple admin status endpoint for client-side checks
 app.get(['/api/admin/is-admin', '/admin/is-admin'], async (req, res) => {
   try {
-    const auth = await requireAuth(req, res, true)
+    // Authenticate user, do not enforce admin; compute admin explicitly
+    const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
-    res.json({ isAdmin: true, userId: auth.userId })
+    const admin = await isAdminServer(auth.userId)
+    res.json({ isAdmin: !!admin, userId: auth.userId })
   } catch (error) {
     console.error('is-admin error:', error)
     res.status(500).json({ error: 'internal_error' })
