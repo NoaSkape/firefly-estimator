@@ -3094,50 +3094,22 @@ async function buildContractPrefill(build, settings) {
     }
   }
 
+  // CRITICAL: Use ONLY the exact field names from FIELD_MAPS
+  // This ensures perfect matching with DocuSeal template fields
   const prefill = {
-    // Order Information
-    order_id: build._id || '',
-    order_date: new Date().toLocaleDateString(),
-    
-    // Dealer Information
-    dealer_name: "Firefly Tiny Homes LLC",
-    dealer_address: "6150 TX-16, Pipe Creek, TX 78063", 
-    dealer_phone: "830-328-6109",
-    dealer_rep: "Firefly Representative",
-    
-    // Buyer Information - Exact field names from DocuSeal template
+    // Buyer Information - EXACT field names from FIELD_MAPS.masterRetail
     buyer_full_name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
+    buyer_email: buyerInfo.email || '',
     buyer_address: buyerInfo.address || '',
     buyer_phone: buyerInfo.phone || '',
-    buyer_email: buyerInfo.email || '',
     
-    // Co-Buyer Information (if available)
-    cobuyer_full_name: buyerInfo.coBuyerFirstName && buyerInfo.coBuyerLastName ? 
-      `${buyerInfo.coBuyerFirstName} ${buyerInfo.coBuyerLastName}`.trim() : '',
-    cobuyer_email: buyerInfo.coBuyerEmail || '',
-    
-    // Additional variations that might match the template
-    "Buyer Full Name": `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
-    "Buyer Email": buyerInfo.email || '',
-    "Buyer Address": buyerInfo.address || '',
-    "Buyer Phone": buyerInfo.phone || '',
-    "Co-Buyer Name": buyerInfo.coBuyerFirstName && buyerInfo.coBuyerLastName ? 
-      `${buyerInfo.coBuyerFirstName} ${buyerInfo.coBuyerLastName}`.trim() : '',
-    "Co-Buyer Email": buyerInfo.coBuyerEmail || '',
-    
-    // Unit Information - Exact field names from DocuSeal template
+    // Unit Information - EXACT field names from FIELD_MAPS.masterRetail
     model_brand: "Athens Park Select",
     model_code: modelCode || '',
     model_year: new Date().getFullYear().toString(),
     dimensions: modelDimensions,
     
-    // Additional variations for unit information
-    "Brand": "Athens Park Select",
-    "Model": `${modelName}${modelCode ? ` (${modelCode})` : ''}`,
-    "Year": new Date().getFullYear().toString(),
-    "Dimensions": modelDimensions,
-    
-    // Pricing - Exact field names from DocuSeal template
+    // Pricing Information - EXACT field names from FIELD_MAPS.masterRetail
     price_base: formatCurrency(basePrice),
     price_options: formatCurrency(optionsTotal),
     price_freight_est: formatCurrency(deliveryEstimate),
