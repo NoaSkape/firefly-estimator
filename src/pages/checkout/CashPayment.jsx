@@ -558,9 +558,9 @@ export default function CashPayment() {
   }
 
   async function continueToContract() {
-    // For card payments, check if payment was already processed
-    if (paymentMethod === 'card' && build?.payment?.status === 'succeeded') {
-      // Card payment already processed, proceed to contract
+    // For card payments, proceed to contract if payment is ready (regardless of processing status)
+    if (paymentMethod === 'card' && build?.payment?.ready) {
+      // Card payment is set up and ready, proceed to contract
       await updateBuildStep(buildId, 7, await getToken())
       analytics.stepChanged(buildId, 6, 7)
       navigate(`/checkout/${buildId}/agreement`)
@@ -578,9 +578,9 @@ export default function CashPayment() {
   }
 
   async function saveAndContinueLater() {
-    // For card payments, check if payment was already processed
-    if (paymentMethod === 'card' && build?.payment?.status === 'succeeded') {
-      // Card payment already processed, proceed to builds page
+    // For card payments, proceed if payment is ready (regardless of processing status)
+    if (paymentMethod === 'card' && build?.payment?.ready) {
+      // Card payment is set up and ready, proceed to builds page
       await updateBuildStep(buildId, 7, await getToken())
       analytics.stepChanged(buildId, 6, 7)
       navigate('/builds')
@@ -1031,8 +1031,8 @@ export default function CashPayment() {
                       Payment Not Yet Processed
                     </div>
                     <div className="text-yellow-100 text-sm">
-                      Your card payment has been set up but not yet processed. You'll need to complete the payment 
-                      before proceeding to the contract. Please go back to the payment details to complete your card payment.
+                      Your card payment has been set up but not yet processed. The payment will be processed 
+                      after you sign the purchase agreement. You can continue to the contract now.
                     </div>
                   </div>
                 </div>
