@@ -2475,15 +2475,8 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
       rawResponse: submission.raw
     })
 
-    // Extract signing URL from various possible locations in the response
-    let signingUrl = submission.signerUrl
-    if (!signingUrl && submission.raw) {
-      // Try different possible locations for the signing URL
-      signingUrl = submission.raw.invite_links?.[0]?.url || 
-                   submission.raw.submitters?.[0]?.url ||
-                   submission.raw.submitters?.[0]?.signing_url ||
-                   submission.raw.url
-    }
+    // Use the signing URL extracted by the createSubmission function
+    const signingUrl = submission.signerUrl
 
     console.log('[CONTRACT_START] Extracted signing URL:', signingUrl)
 
