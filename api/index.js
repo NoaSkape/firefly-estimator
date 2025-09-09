@@ -2420,25 +2420,8 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
     // Build prefill data
     const prefillData = await buildContractPrefill(build, settings)
 
-    // Get template information to filter prefill data to only valid fields
-    const templateInfo = await getTemplate(templateId)
-    const validFieldNames = new Set(templateInfo.fields.map(f => f.name))
-    
-    console.log('[CONTRACT_START] Template field validation:', {
-      templateId,
-      totalFields: templateInfo.fields.length,
-      validFieldNames: Array.from(validFieldNames),
-      prefillKeys: Object.keys(prefillData),
-      invalidFields: Object.keys(prefillData).filter(key => !validFieldNames.has(key))
-    })
-
-    // Filter prefill data to only include fields that exist in the template
-    const filteredPrefillData = {}
-    for (const [key, value] of Object.entries(prefillData)) {
-      if (validFieldNames.has(key)) {
-        filteredPrefillData[key] = value
-      }
-    }
+    // Use prefill data directly - field validation is handled by DocuSeal
+    const filteredPrefillData = prefillData
     console.log('[CONTRACT_START] Prefill data keys:', Object.keys(prefillData))
 
     // Build submitters array (without fields - the existing function will add them)
