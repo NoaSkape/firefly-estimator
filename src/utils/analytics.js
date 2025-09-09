@@ -16,11 +16,121 @@ class Analytics {
       'order_placed': 9
     }
     
+    // Circuit breaker for analytics failures
+    this.circuitBreaker = {
+      failures: 0,
+      lastFailureTime: 0,
+      isOpen: false,
+      threshold: 5, // Open circuit after 5 failures
+      timeout: 60000, // 1 minute timeout
+      halfOpenMaxRequests: 3 // Allow 3 requests in half-open state
+    }
+    
+    // Rate limiting for analytics
+    this.rateLimiter = {
+      requests: [],
+      maxRequests: 10, // Max 10 requests per minute
+      windowMs: 60000 // 1 minute window
+    }
+    
     this.initializeSession()
   }
 
   generateSessionId() {
     return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+  }
+
+  // Circuit breaker methods
+  isCircuitOpen() {
+    const now = Date.now()
+    const { isOpen, lastFailureTime, timeout } = this.circuitBreaker
+    
+    if (isOpen && (now - lastFailureTime) > timeout) {
+      // Move to half-open state
+      this.circuitBreaker.isOpen = false
+      this.circuitBreaker.halfOpenRequests = 0
+      
+      // Retry stored events when circuit breaker reopens
+      setTimeout(() => this.retryStoredEvents(), 1000)
+      
+      return false
+    }
+    
+    return isOpen
+  }
+
+  recordFailure() {
+    this.circuitBreaker.failures++
+    this.circuitBreaker.lastFailureTime = Date.now()
+    
+    if (this.circuitBreaker.failures >= this.circuitBreaker.threshold) {
+      this.circuitBreaker.isOpen = true
+      console.warn('Analytics circuit breaker opened due to failures')
+    }
+  }
+
+  recordSuccess() {
+    this.circuitBreaker.failures = 0
+    this.circuitBreaker.isOpen = false
+  }
+
+  // Rate limiting methods
+  isRateLimited() {
+    const now = Date.now()
+    const { requests, maxRequests, windowMs } = this.rateLimiter
+    
+    // Remove old requests outside the window
+    this.rateLimiter.requests = requests.filter(time => (now - time) < windowMs)
+    
+    return this.rateLimiter.requests.length >= maxRequests
+  }
+
+  recordRequest() {
+    this.rateLimiter.requests.push(Date.now())
+  }
+
+  // Retry stored events when circuit breaker reopens
+  async retryStoredEvents() {
+    if (this.isCircuitOpen() || this.isRateLimited()) {
+      return
+    }
+
+    try {
+      const stored = localStorage.getItem('ff_analytics_events')
+      if (!stored) return
+
+      const events = JSON.parse(stored)
+      if (events.length === 0) return
+
+      console.log(`Retrying ${events.length} stored analytics events`)
+
+      // Retry events in batches to avoid overwhelming the server
+      const batchSize = 5
+      for (let i = 0; i < events.length; i += batchSize) {
+        const batch = events.slice(i, i + batchSize)
+        
+        for (const event of batch) {
+          if (this.isCircuitOpen() || this.isRateLimited()) {
+            break
+          }
+          
+          await this.sendToAnalytics(event)
+          // Small delay between events
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
+        
+        // Delay between batches
+        if (i + batchSize < events.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+      }
+
+      // Clear successfully sent events
+      localStorage.removeItem('ff_analytics_events')
+      console.log('Successfully retried stored analytics events')
+    } catch (error) {
+      console.warn('Failed to retry stored analytics events:', error)
+    }
   }
 
   initializeSession() {
@@ -32,6 +142,11 @@ class Analytics {
       referrer: document.referrer,
       url: window.location.href
     })
+
+    // Set up periodic retry of stored events (every 5 minutes)
+    setInterval(() => {
+      this.retryStoredEvents()
+    }, 5 * 60 * 1000)
   }
 
   trackEvent(eventName, properties = {}) {
@@ -58,14 +173,47 @@ class Analytics {
   }
 
   async sendToAnalytics(event) {
+    // Check circuit breaker
+    if (this.isCircuitOpen()) {
+      console.warn('Analytics circuit breaker is open, storing event locally')
+      this.storeEventLocally(event)
+      return
+    }
+
+    // Check rate limiting
+    if (this.isRateLimited()) {
+      console.warn('Analytics rate limited, storing event locally')
+      this.storeEventLocally(event)
+      return
+    }
+
     try {
+      this.recordRequest()
+      
       // Send to internal analytics endpoint
-      await fetch('/api/analytics/event', {
+      const response = await fetch('/api/analytics/event', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(event)
       })
+
+      if (response.ok) {
+        this.recordSuccess()
+      } else if (response.status === 429) {
+        // Rate limited by server
+        console.warn('Server rate limited analytics request')
+        this.storeEventLocally(event)
+      } else if (response.status >= 500) {
+        // Server error
+        this.recordFailure()
+        this.storeEventLocally(event)
+      } else {
+        // Other client errors
+        this.storeEventLocally(event)
+      }
     } catch (error) {
+      this.recordFailure()
+      console.warn('Analytics request failed:', error.message)
       // Store locally if network fails
       this.storeEventLocally(event)
     }

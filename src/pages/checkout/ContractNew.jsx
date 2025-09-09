@@ -399,7 +399,6 @@ export default function ContractNew() {
             }
           }))
           
-          addToast(`${getPackTitle(packId)} opened in new tab. Please complete signing and return here.`, 'success')
           
           // Start polling for completion
           startStatusPolling(packId)

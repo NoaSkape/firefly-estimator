@@ -101,27 +101,41 @@ class PerformanceMonitor {
   }
 
   trackUserInteractions() {
-    // Track button clicks and form interactions
+    // Throttle interaction tracking to prevent excessive events
+    let interactionCount = 0
+    const maxInteractionsPerMinute = 20
+    
+    // Track button clicks and form interactions (throttled)
     document.addEventListener('click', (event) => {
       const target = event.target
       if (target.tagName === 'BUTTON' || target.tagName === 'A') {
+        // Only track every 5th interaction to reduce noise
+        if (interactionCount % 5 !== 0) {
+          interactionCount++
+          return
+        }
+        
         const startTime = performance.now()
         
         const trackInteraction = () => {
           const duration = performance.now() - startTime
-          analytics.trackPerformance('interaction_response', duration, null, {
-            element: target.tagName,
-            text: target.textContent?.slice(0, 50),
-            url: window.location.href
-          })
+          // Only track slow interactions (>100ms)
+          if (duration > 100) {
+            analytics.trackPerformance('interaction_response', duration, null, {
+              element: target.tagName,
+              text: target.textContent?.slice(0, 50),
+              url: window.location.href
+            })
+          }
         }
         
         // Track response time after a short delay
         setTimeout(trackInteraction, 100)
+        interactionCount++
       }
     })
 
-    // Track form submissions
+    // Track form submissions (always track these as they're important)
     document.addEventListener('submit', (event) => {
       const startTime = performance.now()
       const form = event.target
@@ -139,19 +153,20 @@ class PerformanceMonitor {
   }
 
   trackResourceLoading() {
-    // Track image loading performance
+    // Track image loading performance (only slow loads)
     const imageObserver = new PerformanceObserver((list) => {
       const entries = list.getEntries()
       entries.forEach((entry) => {
         if (entry.initiatorType === 'img') {
           const duration = entry.responseEnd - entry.startTime
-          analytics.trackPerformance('image_load', duration, null, {
-            url: entry.name,
-            size: entry.transferSize || 0
-          })
           
-          // Track slow image loads
+          // Only track slow image loads (>2 seconds) to reduce noise
           if (duration > 2000) {
+            analytics.trackPerformance('image_load', duration, null, {
+              url: entry.name,
+              size: entry.transferSize || 0
+            })
+            
             analytics.trackError('slow_image_load', `Image took ${duration}ms to load: ${entry.name}`, null)
           }
         }
