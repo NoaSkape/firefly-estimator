@@ -198,3 +198,18 @@ node scripts/test-api.js
 - Frontend continues to work with existing quote builder functionality
 - No breaking changes to existing features
 - Admin features are additive and don't affect regular user experience 
+## 2025-09-09: Security/env hardening and Stripe webhook
+
+- Server envs renamed to avoid leaking into client bundle:
+  - `VITE_AI_API_KEY` -> `AI_API_KEY`
+  - `VITE_AI_API_URL` -> `AI_API_URL`
+  - `VITE_AI_MODEL` -> `AI_MODEL`
+  - `VITE_ADMIN_EMAILS` -> `ADMIN_EMAILS`
+
+- Client no longer reads AI env values. Secrets are managed server-side.
+
+- Added Stripe webhook endpoint at `/api/webhooks/stripe` with raw body verification. Configure `STRIPE_WEBHOOK_SECRET` in your environment and point Stripe to `https://<domain>/api/webhooks/stripe`.
+
+Action items:
+- Set `AI_API_KEY`, `AI_API_URL` (optional), `AI_MODEL` (optional), `ADMIN_EMAILS`, and `STRIPE_WEBHOOK_SECRET` in Vercel/your host.
+- If you previously relied on `VITE_*` server envs, update them accordingly.

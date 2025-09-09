@@ -1,23 +1,13 @@
 class AIService {
   constructor() {
-    this.baseURL = '/ai' // Use our backend proxy (Vercel strips /api prefix)
-    this.apiKey = import.meta.env.VITE_AI_API_KEY
-    this.model = import.meta.env.VITE_AI_MODEL || 'claude-3-5-sonnet-20241022'
+    this.baseURL = '/ai' // Use backend route; server holds secrets
     this.maxTokens = 2000
   }
 
   // Initialize AI service (no authentication required for this service)
   async initialize() {
-    try {
-      // Check if API key is configured
-      if (!this.apiKey) {
-        throw new Error('AI API key not configured')
-      }
-      return true
-    } catch (error) {
-      console.error('AI Service initialization failed:', error)
-      return false
-    }
+    // No client-side secret checks; server enforces configuration
+    return true
   }
 
   // Generate blog post content using AI

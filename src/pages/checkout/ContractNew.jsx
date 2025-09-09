@@ -870,24 +870,24 @@ function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingP
             </div>
           )}
         </div>
-          )}
+      )}
 
-          {/* Ready to Sign Section */}
-          <div className="text-center py-8 border-t border-gray-600 mt-6">
-            <DocumentTextIcon className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-white mb-2">Ready to Sign</h3>
-            <p className="text-gray-300 mb-6 max-w-md mx-auto">
-              Click the button below to start signing {pack.title.toLowerCase()}. 
-              The signing process will open in a secure DocuSeal window.
-            </p>
-            <button
-              onClick={onStartSigning}
-              disabled={loadingPack}
-              className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 rounded-lg text-white font-medium"
-            >
-              {loadingPack ? 'Preparing...' : `Start Signing ${pack.title}`}
-            </button>
-          </div>
+      {/* Ready to Sign Section */}
+      {status === 'not_started' && (
+        <div className="text-center py-8 border-t border-gray-600 mt-6">
+          <DocumentTextIcon className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-white mb-2">Ready to Sign</h3>
+          <p className="text-gray-300 mb-6 max-w-md mx-auto">
+            Click the button below to start signing {pack.title.toLowerCase()}. 
+            The signing process will open in a secure DocuSeal window.
+          </p>
+          <button
+            onClick={onStartSigning}
+            disabled={loadingPack}
+            className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 rounded-lg text-white font-medium"
+          >
+            {loadingPack ? 'Preparing...' : `Start Signing ${pack.title}`}
+          </button>
         </div>
       )}
 

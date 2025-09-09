@@ -453,46 +453,18 @@ export default function AIContentManager() {
         
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            {import.meta.env.VITE_AI_API_KEY ? (
-              <CheckIcon className="w-5 h-5 text-green-600" />
-            ) : (
-              <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600" />
-            )}
-            <span className="text-sm">
-              API Key: {import.meta.env.VITE_AI_API_KEY ? 'Configured' : 'Missing'}
-            </span>
+            <CheckIcon className="w-5 h-5 text-green-600" />
+            <span className="text-sm">API Key: Managed on server</span>
           </div>
-          
-          <div className="flex items-center gap-2">
-            {import.meta.env.VITE_AI_API_URL ? (
-              <CheckIcon className="w-5 h-5 text-green-600" />
-            ) : (
-              <CheckIcon className="w-5 h-5 text-green-600" />
-            )}
-            <span className="text-sm">
-              API URL: {import.meta.env.VITE_AI_API_URL || 'Using default (OpenAI)'}
-            </span>
-          </div>
-          
           <div className="flex items-center gap-2">
             <CheckIcon className="w-5 h-5 text-green-600" />
-            <span className="text-sm">
-              Model: {import.meta.env.VITE_AI_MODEL || 'gpt-4'}
-            </span>
+            <span className="text-sm">API URL: Managed on server</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <CheckIcon className="w-5 h-5 text-green-600" />
+            <span className="text-sm">Model: Managed on server</span>
           </div>
         </div>
-
-        {!import.meta.env.VITE_AI_API_KEY && (
-          <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600" />
-              <span className="font-medium text-yellow-800 dark:text-yellow-200">Configuration Required</span>
-            </div>
-            <p className="text-sm text-yellow-700 dark:text-yellow-300">
-              Please set your AI API key in the environment variables to enable content generation.
-            </p>
-          </div>
-        )}
       </div>
     </div>
   )

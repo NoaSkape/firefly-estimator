@@ -39,6 +39,43 @@ export const runtime = 'nodejs'
 
 // Security headers and middleware
 app.disable('x-powered-by')
+
+// Stripe webhook must receive the raw body for signature verification.
+// Register this BEFORE express.json() so req.body is a Buffer here.
+const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const sig = req.headers['stripe-signature']
+    if (!sig || !stripeWebhookSecret) {
+      return res.status(400).send('Missing webhook signature or secret not configured')
+    }
+    let event
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, stripeWebhookSecret)
+    } catch (err) {
+      console.error('Stripe webhook verification failed:', err?.message || err)
+      return res.status(400).send(`Webhook Error: ${err.message}`)
+    }
+
+    // Minimal handler: log and acknowledge. Extend with business logic as needed.
+    try {
+      const type = event.type
+      const id = event.id
+      console.log('Stripe webhook received:', { type, id })
+      // TODO: handle events such as payment_intent.succeeded, invoice.payment_succeeded, etc.
+    } catch (handleErr) {
+      console.error('Stripe webhook handler error:', handleErr)
+      return res.status(500).json({ error: 'Webhook handler failed' })
+    }
+
+    return res.status(200).json({ received: true })
+  } catch (error) {
+    console.error('Stripe webhook route error:', error)
+    return res.status(500).json({ error: 'Internal error' })
+  }
+})
+
+// JSON body parser comes after webhook to preserve raw body for that route
 app.use(express.json({ limit: '2mb' }))
 
 // Security headers middleware
@@ -174,9 +211,9 @@ app.post('/ai/generate-content', async (req, res) => {
     const safeSections = Array.isArray(sections) ? sections : []
 
     // Check if API key is configured
-    const apiKey = process.env.VITE_AI_API_KEY
-    const apiUrl = process.env.VITE_AI_API_URL || 'https://api.anthropic.com/v1'
-    const model = process.env.VITE_AI_MODEL || 'claude-sonnet-4-20250514'
+    const apiKey = process.env.AI_API_KEY
+    const apiUrl = process.env.AI_API_URL || 'https://api.anthropic.com/v1'
+    const model = process.env.AI_MODEL || 'claude-sonnet-4-20250514'
 
     if (!apiKey) {
       return res.status(500).json({ error: 'AI API key not configured' })
@@ -624,7 +661,7 @@ app.get(['/api/debug/ai-test', '/debug/ai-test'], (req, res) => {
     return res.json({
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'unknown',
-      aiApiKey: process.env.VITE_AI_API_KEY ? `${process.env.VITE_AI_API_KEY.slice(0, 10)}...` : 'MISSING',
+      aiApiKey: process.env.AI_API_KEY ? `${process.env.AI_API_KEY.slice(0, 10)}...` : 'MISSING',
       endpointTests: aiEndpointTests,
       requestDetails: {
         method: req.method,
@@ -722,9 +759,9 @@ Generate topics that would perform well against competitors like Athens Park Mod
     console.log('[DEBUG_ADMIN] Sending prompt to AI (first 500 chars):', prompt.substring(0, 500) + '...')
 
     // Call AI service
-    const apiKey = process.env.VITE_AI_API_KEY
-    const apiUrl = process.env.VITE_AI_API_URL || 'https://api.anthropic.com/v1'
-    const model = process.env.VITE_AI_MODEL || 'claude-sonnet-4-20250514'
+    const apiKey = process.env.AI_API_KEY
+    const apiUrl = process.env.AI_API_URL || 'https://api.anthropic.com/v1'
+    const model = process.env.AI_MODEL || 'claude-sonnet-4-20250514'
 
     if (!apiKey) {
       throw new Error('AI API key not configured')
