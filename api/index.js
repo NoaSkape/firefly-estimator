@@ -3011,7 +3011,30 @@ async function buildContractPrefill(build, settings) {
     // Legal/Compliance
     state_classification: "Travel Trailer (park model RV)",
     completion_estimate: "8-12 weeks from contract signing",
-    storage_policy: "Delivery within 12 days after factory completion; storage charges may apply"
+    storage_policy: "Delivery within 12 days after factory completion; storage charges may apply",
+    
+    // Buyer Initials for all templates
+    buyer_initials: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    
+    // Delivery Agreement Specific Fields
+    site_initials_1: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    site_initials_2: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    site_initials_3: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    site_initials_4: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    site_initials_5: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    site_initials_6: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    delivery_initials_1: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    delivery_initials_2: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    delivery_initials_3: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    fees_initials_1: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    fees_initials_2: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    fees_initials_3: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    risk_initials_1: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    risk_initials_2: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    insurance_initials: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    storage_initials: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    indemnification_initials: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase(),
+    buyer_page_initials: `${buyerInfo.firstName?.charAt(0) || ''}${buyerInfo.lastName?.charAt(0) || ''}`.toUpperCase()
   }
 
   console.log('[CONTRACT_CREATE] Generated prefill data:', {
