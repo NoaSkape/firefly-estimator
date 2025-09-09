@@ -173,13 +173,13 @@ export default function Agreement() {
       const requestBody = { buildId }
       console.log('[AGREEMENT_DEBUG] Creating contract with body:', requestBody)
       
-      const res = await fetch('/api/contracts/create', {
+      const res = await fetch('/api/contracts/masterRetail/start', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({ buildId, coBuyerEnabled: false })
       })
       
       console.log('[AGREEMENT_DEBUG] Create response:', {
@@ -190,23 +190,25 @@ export default function Agreement() {
       
       if (res.ok) {
         const contractData = await res.json()
-        setContract(contractData)
-        setContractStatus(contractData.status || 'ready')
+        console.log('[AGREEMENT_DEBUG] Contract data received:', contractData)
         
-        // Handle multiple submissions
-        if (contractData.submissions && contractData.submissions.length > 0) {
-          // Set primary submission (Purchase Agreement) as default
-          const primarySubmission = contractData.submissions.find(s => s.name === 'purchase_agreement') || contractData.submissions[0]
-          setSelectedSubmission(primarySubmission)
-          setSignerUrl(primarySubmission.signerUrl || '')
-        } else {
-          // Fallback for single submission (backward compatibility)
-          setSignerUrl(contractData.signerUrl || '')
-        }
+        // Set the contract data
+        setContract({
+          submissionId: contractData.submissionId,
+          templateName: contractData.templateName,
+          status: 'ready'
+        })
+        setContractStatus('ready')
         
+        // Use the embedUrl (submitter URL) instead of template URL
+        setSignerUrl(contractData.embedUrl || '')
         setSigningState('ready')
+        
+        console.log('[AGREEMENT_DEBUG] Set signer URL:', contractData.embedUrl)
       } else {
-        throw new Error('Failed to create contract')
+        const errorData = await res.json()
+        console.error('[AGREEMENT_DEBUG] Error response:', errorData)
+        throw new Error(errorData.message || 'Failed to create contract')
       }
     } catch (error) {
       console.error('Failed to create contract:', error)

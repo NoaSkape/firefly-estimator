@@ -2385,6 +2385,97 @@ app.get(['/api/admin/docuseal/templates', '/admin/docuseal/templates'], async (r
   }
 })
 
+// New contract submission endpoint that returns submitter URLs
+app.post('/api/contracts/:templateKey/start', async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { templateKey } = req.params
+    const { buildId, coBuyerEnabled = false } = req.body
+
+    if (!buildId) {
+      return res.status(400).json({ error: 'Build ID is required' })
+    }
+
+    console.log('[CONTRACT_START] Starting contract for template:', templateKey, 'build:', buildId)
+
+    // Import the new modules
+    const { createSubmission } = await import('../lib/docuseal/client.js')
+    const { getTemplate } = await import('../lib/docuseal/templates.js')
+    const { buildFieldsArray } = await import('../lib/docuseal/fieldMaps.js')
+
+    // Get template configuration
+    const template = getTemplate(templateKey)
+    console.log('[CONTRACT_START] Using template:', template.name, 'ID:', template.id)
+
+    // Get build data
+    const build = await getBuildById(buildId)
+    if (!build) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    // Build prefill data
+    const prefillData = await buildContractPrefill(build, settings)
+    console.log('[CONTRACT_START] Prefill data keys:', Object.keys(prefillData))
+
+    // Build fields array for DocuSeal
+    const fields = buildFieldsArray(prefillData, template.fieldMap)
+    console.log('[CONTRACT_START] Fields being sent:', fields.map(f => ({ name: f.name, readonly: f.readonly })))
+
+    // Build submitters array
+    const buyerInfo = build.buyerInfo || {}
+    const submitters = [{
+      name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
+      email: buyerInfo.email || '',
+      role: 'Buyer',
+      fields: fields
+    }]
+
+    // Add co-buyer if enabled and data exists
+    if (coBuyerEnabled && buyerInfo.coBuyerEmail) {
+      submitters.push({
+        name: `${buyerInfo.coBuyerFirstName || ''} ${buyerInfo.coBuyerLastName || ''}`.trim(),
+        email: buyerInfo.coBuyerEmail,
+        role: 'Co-Buyer',
+        fields: fields
+      })
+    }
+
+    // Create submission
+    const submission = await createSubmission({
+      templateId: template.id,
+      submitters,
+      sendEmail: false,
+      completedRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/confirm`,
+      cancelRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/agreement`
+    })
+
+    console.log('[CONTRACT_START] Submission created:', submission.id)
+
+    // Return submitter URLs
+    const result = {
+      submissionId: submission.id,
+      embedUrl: submission.submitters?.[0]?.url || submission.invite_links?.[0]?.url,
+      templateName: template.name
+    }
+
+    // Add co-buyer URL if applicable
+    if (coBuyerEnabled && buyerInfo.coBuyerEmail && submission.submitters?.[1]) {
+      result.coBuyerEmbedUrl = submission.submitters[1].url
+    }
+
+    res.json(result)
+
+  } catch (error) {
+    console.error('[CONTRACT_START] Error:', error)
+    res.status(500).json({ 
+      error: 'Failed to start contract signing',
+      message: error.message 
+    })
+  }
+})
+
 // Legacy contract creation endpoint (for backward compatibility)
 app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
   try {
