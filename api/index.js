@@ -2385,6 +2385,96 @@ app.get(['/api/admin/docuseal/templates', '/admin/docuseal/templates'], async (r
   }
 })
 
+// Create DocuSeal preview for a specific template
+app.post(['/api/contracts/:templateKey/preview', '/contracts/:templateKey/preview'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { templateKey } = req.params
+    const { buildId, preview = false } = req.body
+
+    console.log('[CONTRACT_PREVIEW] Creating preview for template:', templateKey, 'build:', buildId)
+
+    // Get build data
+    const build = await getBuildById(buildId)
+    if (!build || build.userId !== auth.userId) {
+      console.error('[CONTRACT_PREVIEW] Build not found or unauthorized:', buildId)
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    // Get template configuration
+    const { getTemplate } = await import('../lib/docuseal/templates.js')
+    const template = getTemplate(templateKey)
+    
+    if (!template) {
+      console.error('[CONTRACT_PREVIEW] Template not found:', templateKey)
+      return res.status(404).json({ error: 'Template not found' })
+    }
+
+    console.log('[CONTRACT_PREVIEW] Using template:', template.name, 'ID:', template.id)
+
+    // Build prefill data
+    const settings = await getOrgSettings()
+    const prefill = await buildContractPrefill(build, settings)
+
+    // Filter prefill data to only include valid fields for this template
+    const fieldMap = template.fieldMap || {}
+    const validFields = Object.keys(fieldMap)
+    const filteredPrefill = {}
+    
+    for (const [key, value] of Object.entries(prefill)) {
+      if (validFields.includes(key)) {
+        filteredPrefill[key] = value
+      }
+    }
+
+    console.log('[CONTRACT_PREVIEW] Template field validation:', {
+      templateKey,
+      totalPrefillFields: Object.keys(prefill).length,
+      validTemplateFields: validFields,
+      filteredFields: Object.keys(filteredPrefill),
+      invalidFields: Object.keys(prefill).filter(key => !validFields.includes(key))
+    })
+
+    // Create DocuSeal submission for preview
+    const { createSubmission } = await import('../lib/docuseal.js')
+    
+    const submitters = [{
+      name: `${build.buyerInfo?.firstName || ''} ${build.buyerInfo?.lastName || ''}`.trim(),
+      email: build.buyerInfo?.email || 'preview@example.com',
+      role: 'buyer'
+    }]
+
+    const submission = await createSubmission({
+      templateId: template.id,
+      prefill: filteredPrefill,
+      submitters,
+      sendEmail: false,
+      order: 'preserved',
+      completedRedirectUrl: `${process.env.FRONTEND_URL || 'https://fireflyestimator.com'}/checkout/${buildId}/confirm`,
+      cancelRedirectUrl: `${process.env.FRONTEND_URL || 'https://fireflyestimator.com'}/checkout/${buildId}/agreement`
+    })
+
+    console.log('[CONTRACT_PREVIEW] Preview submission created:', submission.submissionId)
+
+    // Return the preview URL (this is the same as signing URL but for preview purposes)
+    res.json({
+      success: true,
+      previewUrl: submission.signerUrl,
+      submissionId: submission.submissionId,
+      templateName: template.name
+    })
+
+  } catch (error) {
+    console.error('[CONTRACT_PREVIEW] Preview creation failed:', error)
+    res.status(500).json({
+      error: 'Failed to create document preview',
+      message: error.message
+    })
+  }
+})
+
 // New contract submission endpoint that returns submitter URLs
 app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'], async (req, res) => {
   try {
