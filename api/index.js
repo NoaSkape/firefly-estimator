@@ -2426,7 +2426,7 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
     const submitters = [{
       name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
       email: buyerInfo.email || '',
-      role: 'Buyer'
+      role: 'buyer' // Match DocuSeal template role names
     }]
 
     // Add co-buyer if enabled and data exists
@@ -2434,7 +2434,7 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
       submitters.push({
         name: `${buyerInfo.coBuyerFirstName || ''} ${buyerInfo.coBuyerLastName || ''}`.trim(),
         email: buyerInfo.coBuyerEmail,
-        role: 'Co-Buyer'
+        role: 'cobuyer' // Match DocuSeal template role names
       })
     }
 
