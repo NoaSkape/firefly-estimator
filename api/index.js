@@ -2468,10 +2468,40 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
 
     console.log('[CONTRACT_START] Submission created:', submission.id)
 
+    // Debug: Log the full submission response
+    console.log('[CONTRACT_START] Full submission response:', {
+      submissionId: submission.submissionId,
+      signerUrl: submission.signerUrl,
+      rawResponse: submission.raw
+    })
+
+    // Extract signing URL from various possible locations in the response
+    let signingUrl = submission.signerUrl
+    if (!signingUrl && submission.raw) {
+      // Try different possible locations for the signing URL
+      signingUrl = submission.raw.invite_links?.[0]?.url || 
+                   submission.raw.submitters?.[0]?.url ||
+                   submission.raw.submitters?.[0]?.signing_url ||
+                   submission.raw.url
+    }
+
+    console.log('[CONTRACT_START] Extracted signing URL:', signingUrl)
+
+    // If we still don't have a signing URL, this is a problem
+    if (!signingUrl) {
+      console.error('[CONTRACT_START] No signing URL found in DocuSeal response')
+      return res.status(500).json({
+        error: 'No signing URL received from DocuSeal',
+        message: 'DocuSeal submission was created but no signing URL was provided',
+        submissionId: submission.submissionId,
+        rawResponse: submission.raw
+      })
+    }
+
     // Return submitter URLs (using the existing function's return format)
     const result = {
       submissionId: submission.submissionId,
-      embedUrl: submission.signerUrl,
+      embedUrl: signingUrl,
       templateName: template.name
     }
 
@@ -2480,6 +2510,7 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
       result.coBuyerEmbedUrl = submission.raw.submitters[1].url
     }
 
+    console.log('[CONTRACT_START] Final result:', result)
     res.json(result)
 
   } catch (error) {
