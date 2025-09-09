@@ -2157,7 +2157,7 @@ async function generatePDFFromOrderData(orderData) {
         setup: Math.round(pricing.setupFee * 100),
         total: Math.round(pricing.total * 100)
       },
-      paymentMethod: build.financing?.method || 'cash',
+      paymentMethod: build.payment?.method || build.financing?.method || 'cash',
       depositRequired: !!build.financing?.depositRequired,
       estimatedFactoryCompletion: build.estimatedFactoryCompletion || null,
       build: build // Include the full build data for the HTML template
