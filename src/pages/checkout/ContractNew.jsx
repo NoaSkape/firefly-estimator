@@ -10,9 +10,7 @@ import {
   DocumentTextIcon,
   EyeIcon,
   ArrowRightIcon,
-  ArrowLeftIcon,
-  ClockIcon,
-  ExclamationCircleIcon
+  ArrowLeftIcon
 } from '@heroicons/react/24/outline'
 
 export default function ContractNew() {
@@ -781,123 +779,21 @@ function SummaryPackContent({ build, summaryPdfUrl, onLoadPdf, onMarkReviewed, o
 
 // Signing Pack Component
 function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingPack, buildId }) {
-  const [previewUrl, setPreviewUrl] = useState('')
-  const [loadingPreview, setLoadingPreview] = useState(false)
-
-  // Load DocuSeal preview for this pack
-  useEffect(() => {
-    async function loadDocuSealPreview() {
-      if (status !== 'not_started' || !buildId) return
-      
-      try {
-        setLoadingPreview(true)
-        
-        // Map pack IDs to template keys
-        const templateMap = {
-          'agreement': 'masterRetail',
-          'delivery': 'delivery',
-          'final': 'masterRetail'
-        }
-        
-        const templateKey = templateMap[pack.id]
-        if (!templateKey) {
-          console.error('Unknown pack:', pack.id)
-          return
-        }
-        
-        // Get the preview URL from our contract start endpoint
-        const token = await getToken()
-        console.log('[PREVIEW_DEBUG] Making preview request:', {
-          templateKey,
-          buildId,
-          hasToken: !!token,
-          url: `/api/contracts/${templateKey}/preview`
-        })
-        
-        const response = await fetch(`/api/contracts/${templateKey}/preview`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ buildId, preview: true })
-        })
-        
-        console.log('[PREVIEW_DEBUG] Response status:', response.status, response.statusText)
-        
-        if (response.ok) {
-          const data = await response.json()
-          console.log('[PREVIEW_DEBUG] Preview data received:', data)
-          setPreviewUrl(data.previewUrl)
-        } else {
-          const errorText = await response.text()
-          console.error('[PREVIEW_DEBUG] Failed to load preview:', response.status, errorText)
-        }
-      } catch (error) {
-        console.error('Failed to load DocuSeal preview:', error)
-      } finally {
-        setLoadingPreview(false)
-      }
-    }
-    
-    loadDocuSealPreview()
-  }, [buildId, pack.id, status])
-
   return (
     <div className="space-y-6">
-      {/* DocuSeal Preview Section */}
-      {status === 'not_started' && (
-        <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-white">{pack.title} Preview</h3>
-            <p className="text-sm text-gray-400">Review your pre-filled document</p>
-          </div>
-          
-          {loadingPreview ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <ClockIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-400">Loading document preview...</p>
-              </div>
-            </div>
-          ) : previewUrl ? (
-            <div className="border border-gray-600 rounded-lg overflow-hidden bg-white" style={{ height: 'calc(100vh - 400px)', minHeight: '500px' }}>
-              {/* Embedded DocuSeal Preview */}
-              <iframe
-                src={previewUrl}
-                title={`${pack.title} Preview`}
-                className="w-full h-full border-0"
-                style={{ 
-                  backgroundColor: '#ffffff'
-                }}
-                allow="fullscreen; clipboard-write"
-              />
-            </div>
-          ) : (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <ExclamationCircleIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-400">Unable to load document preview</p>
-                <p className="text-sm text-gray-500 mt-2">Click "Start Signing" to proceed</p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Ready to Sign Section */}
       {status === 'not_started' && (
-        <div className="text-center py-8 border-t border-gray-600 mt-6">
-          <DocumentTextIcon className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-white mb-2">Ready to Sign</h3>
-          <p className="text-gray-300 mb-6 max-w-md mx-auto">
+        <div className="text-center py-12">
+          <DocumentTextIcon className="w-16 h-16 text-gray-400 mx-auto mb-6" />
+          <h3 className="text-xl font-medium text-white mb-4">Ready to Sign</h3>
+          <p className="text-gray-300 mb-8 max-w-lg mx-auto text-lg">
             Click the button below to start signing {pack.title.toLowerCase()}. 
-            The signing process will open in a secure DocuSeal window.
+            The signing process will open in a secure DocuSeal window where you can review and sign your document.
           </p>
           <button
             onClick={onStartSigning}
             disabled={loadingPack}
-            className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 rounded-lg text-white font-medium"
+            className="px-8 py-4 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 rounded-lg text-white font-medium text-lg"
           >
             {loadingPack ? 'Preparing...' : `Start Signing ${pack.title}`}
           </button>
