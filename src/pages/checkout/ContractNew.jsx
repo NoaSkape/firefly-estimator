@@ -360,20 +360,36 @@ export default function ContractNew() {
       setLoadingPack(true)
       const token = await getToken()
       
-      const response = await fetch(`/api/contracts/${buildId}/docuseal/session`, {
+      // Map pack IDs to template keys
+      const templateMap = {
+        'agreement': 'masterRetail',
+        'delivery': 'delivery',
+        'final': 'masterRetail' // Assuming final uses the same template
+      }
+      
+      const templateKey = templateMap[packId]
+      if (!templateKey) {
+        throw new Error(`Unknown pack: ${packId}`)
+      }
+      
+      const response = await fetch(`/api/contracts/${templateKey}/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ pack: packId })
+        body: JSON.stringify({ buildId, coBuyerEnabled: false })
       })
       
       if (response.ok) {
         const session = await response.json()
+        console.log('[CONTRACT_NEW] Session response:', session)
+        
+        // Use the embedUrl (submitter URL) from the new endpoint
+        const signingUrl = session.embedUrl || session.signingUrl
         
         // Open DocuSeal in a new tab to avoid X-Frame-Options issues
-        const newWindow = window.open(session.signingUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes')
+        const newWindow = window.open(signingUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes')
         
         if (newWindow) {
           // Update status to in_progress
