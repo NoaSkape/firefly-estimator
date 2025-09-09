@@ -246,6 +246,37 @@ export default function Review() {
       .filter(Boolean)
       .join(', ') || 'Not specified'
 
+  // Helper function to format payment method display
+  const getPaymentMethodDisplay = (build) => {
+    const paymentMethod = build?.payment?.method || build?.financing?.method
+    
+    if (paymentMethod === 'ach_debit') {
+      // For ACH debit, show account identifier if available
+      const accountId = build?.payment?.accountId || build?.payment?.last4
+      if (accountId) {
+        return `ACH Debit (Account ending in ${accountId})`
+      }
+      return 'ACH Debit'
+    } else if (paymentMethod === 'bank_transfer') {
+      // For bank transfer, show transfer type
+      return 'Bank Transfer (Wire/ACH Credit)'
+    } else if (paymentMethod === 'card') {
+      // For credit card, show card identifier if available
+      const last4 = build?.payment?.last4 || build?.payment?.cardLast4
+      if (last4) {
+        return `Credit Card (ending in ${last4})`
+      }
+      return 'Credit Card'
+    } else if (paymentMethod === 'financing') {
+      return 'Financing'
+    } else if (paymentMethod === 'cash') {
+      return 'Cash'
+    }
+    
+    // Fallback for when no payment method is selected yet
+    return 'To be selected in next step'
+  }
+
   return (
     <div>
       <FunnelProgress 
@@ -416,7 +447,7 @@ export default function Review() {
           <div className="mt-4 pt-4 border-t border-gray-700">
             <p className="text-gray-300">
               <span className="font-medium">Payment Method:</span> 
-              <span className="ml-2 text-gray-400">{build?.financing?.method || 'To be selected in next step'}</span>
+              <span className="ml-2 text-gray-400">{getPaymentMethodDisplay(build)}</span>
             </p>
           </div>
         </div>
