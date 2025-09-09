@@ -1152,19 +1152,6 @@ export default function CashPayment() {
                   <span className="text-yellow-400 font-bold text-lg">{formatCurrency(currentAmountCents)}</span>
                 </div>
 
-                {/* Payment Method */}
-                <div className="flex justify-between py-2 border-b border-gray-600">
-                  <span className="text-gray-300">Payment Method:</span>
-                  <span className="text-white font-medium">
-                    {(build?.payment?.method || paymentMethod) === 'ach_debit' && 'Bank Account (ACH Debit)'}
-                    {(build?.payment?.method || paymentMethod) === 'bank_transfer' && 'Bank Transfer (Wire/ACH Credit)'}
-                    {(build?.payment?.method || paymentMethod) === 'card' && 'Credit/Debit Card'}
-                    {/* Debug info */}
-                    {process.env.NODE_ENV === 'development' && (
-                      <span className="text-xs text-gray-500 ml-2">(debug: {build?.payment?.method || paymentMethod})</span>
-                    )}
-                  </span>
-                </div>
 
                 {/* Balance Due (if deposit) */}
                 {paymentPlan.type === 'deposit' && (

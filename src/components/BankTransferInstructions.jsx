@@ -88,9 +88,6 @@ ${milestone === 'deposit' ? 'Deposit Payment' :
 PAYMENT DETAILS:
 Amount Due: ${formatCurrency(instructions.amount)}
 Reference Code: ${instructions.bankDetails.referenceCode}
-Payment Type: ${milestone === 'deposit' ? 'Deposit (Required to Start Build)' : 
-               milestone === 'final' ? 'Final Payment (Required for Delivery)' : 
-               'Full Payment (Required to Start Build)'}
 
 BANK TRANSFER DETAILS:
 Recipient Name: ${instructions.bankDetails.recipientName}
@@ -146,9 +143,6 @@ Please find your bank transfer instructions below for your Firefly Tiny Home:
 PAYMENT DETAILS:
 Amount Due: ${formatCurrency(instructions.amount)}
 Reference Code: ${instructions.bankDetails.referenceCode}
-Payment Type: ${milestone === 'deposit' ? 'Deposit Payment (Required to Start Build)' : 
-               milestone === 'final' ? 'Final Payment (Required for Delivery)' : 
-               'Full Payment (Required to Start Build)'}
 
 BANK TRANSFER DETAILS:
 Recipient: ${instructions.bankDetails.recipientName}
