@@ -2981,11 +2981,25 @@ async function buildContractPrefill(build, settings) {
     buyer_phone: buyerInfo.phone || '',
     buyer_email: buyerInfo.email || '',
     
+    // Additional variations that might match the template
+    "Buyer Full Name": `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
+    "Buyer Email": buyerInfo.email || '',
+    "Buyer Address": buyerInfo.address || '',
+    "Buyer Phone": buyerInfo.phone || '',
+    "Co-Buyer Name": '', // Empty for now
+    "Co-Buyer Email": '', // Empty for now
+    
     // Unit Information - Exact field names from DocuSeal template
     model_brand: "Athens Park Select",
     model_code: modelCode || '',
     model_year: new Date().getFullYear().toString(),
     dimensions: modelDimensions,
+    
+    // Additional variations for unit information
+    "Brand": "Athens Park Select",
+    "Model": `${modelName}${modelCode ? ` (${modelCode})` : ''}`,
+    "Year": new Date().getFullYear().toString(),
+    "Dimensions": modelDimensions,
     
     // Pricing - Exact field names from DocuSeal template
     price_base: formatCurrency(basePrice),
@@ -3042,11 +3056,21 @@ async function buildContractPrefill(build, settings) {
     sampleValues: {
       order_id: prefill.order_id,
       buyer_name: prefill.buyer_name,
+      buyer_full_name: prefill.buyer_full_name,
+      buyer_email: prefill.buyer_email,
+      buyer_phone: prefill.buyer_phone,
+      buyer_address: prefill.buyer_address,
+      model_brand: prefill.model_brand,
+      model_code: prefill.model_code,
+      model_year: prefill.model_year,
+      dimensions: prefill.dimensions,
       unit_model: prefill.unit_model,
       total_price: prefill.total_price,
       payment_method: prefill.payment_method
     }
   })
+  
+  console.log('[CONTRACT_CREATE] Full prefill data:', JSON.stringify(prefill, null, 2))
 
   return prefill
 }
