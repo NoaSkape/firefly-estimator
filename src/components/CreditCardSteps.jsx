@@ -160,6 +160,20 @@ export default function CreditCardSteps({
       })
 
       // Auto-save payment method since user already provided authorizations in Step 2
+      console.log('🔄 Calling save-card-method API with data:', {
+        buildId,
+        paymentMethodId: paymentMethod.id,
+        paymentPlan,
+        cardholderName,
+        billingAddress,
+        cardDetails: {
+          brand: paymentMethod.card.brand,
+          last4: paymentMethod.card.last4,
+          exp_month: paymentMethod.card.exp_month,
+          exp_year: paymentMethod.card.exp_year
+        }
+      })
+      
       const saveRes = await fetch('/api/payments/save-card-method', {
         method: 'POST',
         headers: {
@@ -186,10 +200,19 @@ export default function CreditCardSteps({
         })
       })
 
+      // Check if response has content first
+      const responseText = await saveRes.text()
+      if (!responseText) {
+        throw new Error('Empty response from server')
+      }
+
       if (!saveRes.ok) {
-        const errorData = await saveRes.json()
+        const errorData = JSON.parse(responseText)
         throw new Error(errorData.error || 'Failed to save payment method')
       }
+
+      const saveData = JSON.parse(responseText)
+      console.log('✅ Card payment saved successfully:', saveData)
 
       addToast({
         type: 'success',
