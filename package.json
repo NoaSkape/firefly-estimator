@@ -24,7 +24,8 @@
     "debug:server": "cross-env DEBUG_ADMIN=true node backend/dev-server.js",
     "test": "vitest",
     "test:watch": "vitest --watch",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@clerk/backend": "^2.6.3",

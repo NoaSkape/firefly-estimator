@@ -285,6 +285,26 @@ app.get(['/api/admin/is-admin', '/admin/is-admin'], async (req, res) => {
   }
 })
 
+// Admin-only configuration status (no secrets)
+app.get(['/api/admin/config-status', '/admin/config-status'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, true)
+    if (!auth?.userId) return
+    const aiConfigured = !!process.env.AI_API_KEY
+    const stripeMode = (process.env.STRIPE_SECRET_KEY || '').startsWith('sk_live_') ? 'live' : 'test'
+    const webhookConfigured = !!process.env.STRIPE_WEBHOOK_SECRET
+    const redisEnabled = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+    res.json({
+      ai: { configured: aiConfigured, model: process.env.AI_MODEL || null, apiUrl: process.env.AI_API_URL ? 'custom' : 'default' },
+      stripe: { mode: stripeMode, webhookConfigured },
+      rateLimiter: { mode: redisEnabled ? 'redis' : 'memory' }
+    })
+  } catch (error) {
+    console.error('config-status error:', error)
+    res.status(500).json({ error: 'internal_error' })
+  }
+})
+
 // Apply rate limiting to all routes
 app.use('/api/', apiRateLimiter)
 app.use('/api/auth/', authRateLimiter)

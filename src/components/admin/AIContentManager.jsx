@@ -15,8 +15,10 @@ import {
 } from '@heroicons/react/24/outline'
 import AIService from '../../services/ai/AIService'
 import ContentScheduler from '../../services/ai/ContentScheduler'
+import { useAuth } from '@clerk/clerk-react'
 
 export default function AIContentManager() {
+  const { getToken } = useAuth()
   const [isInitialized, setIsInitialized] = useState(false)
   const [schedulerStatus, setSchedulerStatus] = useState(null)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -32,6 +34,7 @@ export default function AIContentManager() {
     autoPublish: false,
     requireApproval: true
   })
+  const [configStatus, setConfigStatus] = useState(null)
 
   useEffect(() => {
     initializeAI()
@@ -43,6 +46,19 @@ export default function AIContentManager() {
       if (success) {
         setIsInitialized(true)
         updateStatus()
+      }
+      // Fetch admin-only config status
+      try {
+        const token = await getToken()
+        if (token) {
+          const resp = await fetch('/api/admin/config-status', { headers: { Authorization: `Bearer ${token}` } })
+          if (resp.ok) {
+            const data = await resp.json()
+            setConfigStatus(data)
+          }
+        }
+      } catch (e) {
+        console.warn('Config status fetch failed:', e?.message)
       }
     } catch (error) {
       console.error('Failed to initialize AI:', error)
@@ -451,20 +467,44 @@ export default function AIContentManager() {
           AI Configuration Status
         </h3>
         
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <CheckIcon className="w-5 h-5 text-green-600" />
-            <span className="text-sm">API Key: Managed on server</span>
+        {configStatus ? (
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center gap-2">
+              {configStatus.ai?.configured ? (
+                <CheckIcon className="w-5 h-5 text-green-600" />
+              ) : (
+                <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600" />
+              )}
+              <span>AI Key: {configStatus.ai?.configured ? 'Configured' : 'Missing'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckIcon className="w-5 h-5 text-green-600" />
+              <span>AI URL: {configStatus.ai?.apiUrl === 'custom' ? 'Custom' : 'Default'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckIcon className="w-5 h-5 text-green-600" />
+              <span>Model: {configStatus.ai?.model || 'Default'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckIcon className="w-5 h-5 text-green-600" />
+              <span>Stripe Mode: {configStatus.stripe?.mode}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {configStatus.stripe?.webhookConfigured ? (
+                <CheckIcon className="w-5 h-5 text-green-600" />
+              ) : (
+                <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600" />
+              )}
+              <span>Webhook: {configStatus.stripe?.webhookConfigured ? 'Configured' : 'Missing'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckIcon className="w-5 h-5 text-green-600" />
+              <span>Rate Limiter: {configStatus.rateLimiter?.mode}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <CheckIcon className="w-5 h-5 text-green-600" />
-            <span className="text-sm">API URL: Managed on server</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <CheckIcon className="w-5 h-5 text-green-600" />
-            <span className="text-sm">Model: Managed on server</span>
-          </div>
-        </div>
+        ) : (
+          <div className="text-sm text-gray-600 dark:text-gray-300">Loading configuration…</div>
+        )}
       </div>
     </div>
   )

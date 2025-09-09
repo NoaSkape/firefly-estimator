@@ -1,28 +1,56 @@
 import React from 'react'
 import { useLocation, Navigate } from 'react-router-dom'
-import { useUser } from '@clerk/clerk-react'
+import { useUser, useAuth } from '@clerk/clerk-react'
 import { canEditModelsClient } from '../lib/canEditModels'
 import { isProtectedRoute, isAdminRoute, getAuthRedirectUrl } from '../lib/routeProtection'
 
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
   const { isSignedIn, user, isLoaded } = useUser()
+  const { getToken, isLoaded: authLoaded } = useAuth()
   const location = useLocation()
   const [isAdmin, setIsAdmin] = React.useState(false)
 
   React.useEffect(() => {
-    const checkAdminStatus = () => {
-      if (user) {
-        const adminStatus = canEditModelsClient(user)
-        setIsAdmin(adminStatus)
-      } else {
-        setIsAdmin(false)
+    let cancelled = false
+    const checkAdminStatus = async () => {
+      // Baseline: client-side role check
+      const baseline = user ? canEditModelsClient(user) : false
+      if (!isSignedIn || !user) {
+        if (!cancelled) setIsAdmin(false)
+        return
+      }
+
+      // If Clerk hooks not loaded, set baseline
+      if (!authLoaded) {
+        if (!cancelled) setIsAdmin(baseline)
+        return
+      }
+
+      try {
+        const token = await getToken()
+        if (!token) {
+          if (!cancelled) setIsAdmin(baseline)
+          return
+        }
+        const resp = await fetch('/api/admin/is-admin', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        if (resp.ok) {
+          const data = await resp.json()
+          if (!cancelled) setIsAdmin(!!data?.isAdmin)
+        } else {
+          if (!cancelled) setIsAdmin(baseline)
+        }
+      } catch {
+        if (!cancelled) setIsAdmin(baseline)
       }
     }
     checkAdminStatus()
-  }, [user])
+    return () => { cancelled = true }
+  }, [user, isSignedIn, authLoaded, getToken])
 
   // Wait for Clerk to finish loading before making authentication decisions
-  if (!isLoaded) {
+  if (!isLoaded || !authLoaded) {
     console.log('[ProtectedRoute] Clerk still loading, showing loading state')
     return (
       <div className="min-h-screen flex items-center justify-center">

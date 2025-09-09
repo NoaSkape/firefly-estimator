@@ -212,6 +212,20 @@ node scripts/test-api.js
 
 - Added admin status endpoint `/api/admin/is-admin` that requires Clerk admin and returns `{ isAdmin: true, userId }` for client-side checks without exposing allowlists.
 
+- Added admin config status endpoint `/api/admin/config-status` (no secrets) returning statuses for AI config, Stripe mode/webhook, and rate limiter mode (redis/memory).
+
+- Client admin gating now verifies against `/api/admin/is-admin` in `src/components/ProtectedRoute.jsx` using Clerk tokens; UI checks elsewhere still use role as a baseline.
+
+- Rate limiter upgraded to support Upstash Redis via REST when `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set. Falls back to in-memory in development.
+
+Operational notes:
+- To remove built artifacts and sensitive files from git history if they were committed:
+  - `git rm -r --cached dist`
+  - `git rm --cached .env .env.local .env.production`
+  - Commit and push. Ensure `.gitignore` continues to list `dist/` and `.env*`.
+
+- Type checking: Added `tsconfig.json` and `npm run typecheck`. Install `typescript` in dev deps to enable in CI: `npm i -D typescript`.
+
 Action items:
 - Set `AI_API_KEY`, `AI_API_URL` (optional), `AI_MODEL` (optional), `ADMIN_EMAILS`, and `STRIPE_WEBHOOK_SECRET` in Vercel/your host.
 - If you previously relied on `VITE_*` server envs, update them accordingly.

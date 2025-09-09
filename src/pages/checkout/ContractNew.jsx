@@ -429,11 +429,11 @@ export default function ContractNew() {
       case 'completed':
         return <CheckCircleIcon className="w-5 h-5 text-green-400" />
       case 'in_progress':
-        return <ClockIcon className="w-5 h-5 text-yellow-400 animate-pulse" />
+        return <div className="w-5 h-5 rounded-full border-2 border-yellow-400 bg-yellow-400 animate-pulse" />
       case 'reviewed':
         return <CheckCircleIcon className="w-5 h-5 text-green-400" />
       case 'ready':
-        return <ExclamationCircleIcon className="w-5 h-5 text-blue-400" />
+        return <div className="w-5 h-5 rounded-full border-2 border-blue-400 bg-blue-400" />
       default:
         return <div className="w-5 h-5 rounded-full border-2 border-gray-600" />
     }
@@ -779,23 +779,35 @@ function SummaryPackContent({ build, summaryPdfUrl, onLoadPdf, onMarkReviewed, o
 
 // Signing Pack Component
 function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingPack, buildId }) {
+  const isInProgress = status === 'in_progress'
+  const isNotStarted = status === 'not_started'
+  
   return (
     <div className="space-y-6">
       {/* Ready to Sign Section */}
-      {status === 'not_started' && (
+      {(isNotStarted || isInProgress) && (
         <div className="text-center py-12">
           <DocumentTextIcon className="w-16 h-16 text-gray-400 mx-auto mb-6" />
-          <h3 className="text-xl font-medium text-white mb-4">Ready to Sign</h3>
+          <h3 className="text-xl font-medium text-white mb-4">
+            {isInProgress ? 'Continue Signing' : 'Ready to Sign'}
+          </h3>
           <p className="text-gray-300 mb-8 max-w-lg mx-auto text-lg">
-            Click the button below to start signing {pack.title.toLowerCase()}. 
-            The signing process will open in a secure DocuSeal window where you can review and sign your document.
+            {isInProgress 
+              ? `Continue signing your ${pack.title.toLowerCase()}. Your progress has been saved and you can resume where you left off.`
+              : `Click the button below to start signing ${pack.title.toLowerCase()}. The signing process will open in a secure DocuSeal window where you can review and sign your document.`
+            }
           </p>
           <button
             onClick={onStartSigning}
             disabled={loadingPack}
             className="px-8 py-4 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 rounded-lg text-white font-medium text-lg"
           >
-            {loadingPack ? 'Preparing...' : `Start Signing ${pack.title}`}
+            {loadingPack 
+              ? 'Preparing...' 
+              : isInProgress 
+                ? `Resume Signing ${pack.title}` 
+                : `Start Signing ${pack.title}`
+            }
           </button>
         </div>
       )}
