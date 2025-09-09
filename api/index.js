@@ -6703,9 +6703,21 @@ app.post(['/api/payments/verify-card', '/payments/verify-card'], async (req, res
 app.post(['/api/payments/save-card-method', '/payments/save-card-method'], async (req, res) => {
   await applyCors(req, res)
   
+  console.log('🔵 Save card method API called:', {
+    method: req.method,
+    url: req.url,
+    body: req.body,
+    headers: req.headers
+  })
+  
   try {
     const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) return
+    if (!auth?.userId) {
+      console.log('❌ No auth found')
+      return
+    }
+    
+    console.log('✅ Auth successful:', auth.userId)
 
     const { 
       buildId, 
@@ -6775,12 +6787,19 @@ app.post(['/api/payments/save-card-method', '/payments/save-card-method'], async
       'payment.updatedAt': now
     }
 
-    await db.collection('builds').updateOne(
+    console.log('🔄 Updating build with payment data:', {
+      buildId,
+      updateData
+    })
+    
+    const updateResult = await db.collection('builds').updateOne(
       { _id: new ObjectId(String(buildId)) },
       { $set: updateData }
     )
+    
+    console.log('✅ Database update result:', updateResult)
 
-    res.status(200).json({
+    const response = {
       success: true,
       message: 'Credit card payment method saved successfully',
       paymentPlan: paymentPlan,
@@ -6789,14 +6808,19 @@ app.post(['/api/payments/save-card-method', '/payments/save-card-method'], async
         deposit: depositCents,
         final: totalCents - depositCents
       }
-    })
+    }
+    
+    console.log('📤 Sending response:', response)
+    res.status(200).json(response)
 
   } catch (error) {
-    console.error('Save card method error:', error)
-    res.status(500).json({ 
+    console.error('❌ Save card method error:', error)
+    const errorResponse = { 
       error: 'Failed to save payment method',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    })
+    }
+    console.log('📤 Sending error response:', errorResponse)
+    res.status(500).json(errorResponse)
   }
 })
 
