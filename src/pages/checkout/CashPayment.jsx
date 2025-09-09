@@ -966,9 +966,9 @@ export default function CashPayment() {
             {/* Selected Payment Method Summary */}
             <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
               <h2 className="text-white font-semibold text-lg mb-4">Selected Payment Method</h2>
-              <div className="flex items-center justify-between p-4 bg-green-900/20 border border-green-600 rounded-lg">
+              <div className="flex items-center justify-between p-4 bg-gray-800/50 border border-gray-600 rounded-lg">
                 <div className="flex items-center">
-                  <span className="text-green-400 text-xl mr-3">✓</span>
+                  <span className="text-gray-400 text-xl mr-3">✓</span>
                   <div>
                     <div className="text-white font-medium">
                       {paymentMethod === 'ach_debit' && 'Bank Account (ACH Debit)'}
