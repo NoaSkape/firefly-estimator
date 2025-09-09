@@ -2975,64 +2975,25 @@ async function buildContractPrefill(build, settings) {
     dealer_phone: "830-328-6109",
     dealer_rep: "Firefly Representative",
     
-    // Buyer Information - Multiple field name variations for template compatibility
-    buyer_name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
+    // Buyer Information - Exact field names from DocuSeal template
     buyer_full_name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
-    "Buyer Name": `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
-    "Buyer Full Name": `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
-    buyer_first_name: buyerInfo.firstName || '',
-    buyer_last_name: buyerInfo.lastName || '',
-    "First Name": buyerInfo.firstName || '',
-    "Last Name": buyerInfo.lastName || '',
-    buyer_email: buyerInfo.email || '',
-    "Buyer Email": buyerInfo.email || '',
-    "Email": buyerInfo.email || '',
-    buyer_phone: buyerInfo.phone || '',
-    "Buyer Phone": buyerInfo.phone || '',
-    "Phone": buyerInfo.phone || '',
     buyer_address: buyerInfo.address || '',
-    "Buyer Address": buyerInfo.address || '',
-    "Address": buyerInfo.address || '',
-    buyer_city: buyerInfo.city || '',
-    buyer_state: buyerInfo.state || '',
-    buyer_zip: buyerInfo.zip || '',
+    buyer_phone: buyerInfo.phone || '',
+    buyer_email: buyerInfo.email || '',
     
-    // Unit Information - Multiple field name variations for template compatibility
-    unit_brand: "Athens Park Select",
-    unit_model: `${modelName}${modelCode ? ` (${modelCode})` : ''}`,
-    unit_year: new Date().getFullYear().toString(),
-    unit_dimensions: modelDimensions,
-    unit_serial: '', // Will be assigned later
-    
-    // Alternative field names for template compatibility
-    brand: "Athens Park Select",
-    model: `${modelName}${modelCode ? ` (${modelCode})` : ''}`,
-    year: new Date().getFullYear().toString(),
+    // Unit Information - Exact field names from DocuSeal template
+    model_brand: "Athens Park Select",
+    model_code: modelCode || '',
+    model_year: new Date().getFullYear().toString(),
     dimensions: modelDimensions,
     
-    // More variations with spaces and capitalization
-    "Brand": "Athens Park Select",
-    "Model": `${modelName}${modelCode ? ` (${modelCode})` : ''}`,
-    "Year": new Date().getFullYear().toString(),
-    "Dimensions": modelDimensions,
-    
-    // Pricing (format as numbers without currency symbols for DocuSeal)
-    base_price: formatCurrency(basePrice),
-    options_total: formatCurrency(optionsTotal),
-    delivery_estimate: formatCurrency(deliveryEstimate),
-    title_fee: formatCurrency(titleFee),
-    setup_fee: formatCurrency(setupFee),
-    taxes: formatCurrency(taxes),
-    total_price: formatCurrency(totalPurchasePrice),
-    
-    // Alternative pricing field names for template compatibility
-    "Base Price": formatCurrency(basePrice),
-    "Options": formatCurrency(optionsTotal),
-    "Delivery": formatCurrency(deliveryEstimate),
-    "Title Fee": formatCurrency(titleFee),
-    "Setup Fee": formatCurrency(setupFee),
-    "Taxes": formatCurrency(taxes),
-    "Total": formatCurrency(totalPurchasePrice),
+    // Pricing - Exact field names from DocuSeal template
+    price_base: formatCurrency(basePrice),
+    price_options: formatCurrency(optionsTotal),
+    price_freight_est: formatCurrency(deliveryEstimate),
+    price_setup: formatCurrency(setupFee),
+    price_other: formatCurrency(titleFee + taxes), // Combined title fee and taxes
+    price_total: formatCurrency(totalPurchasePrice),
     
     // Payment Terms
     deposit_percent: `${depositPercent}%`,
