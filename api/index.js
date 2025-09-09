@@ -2124,7 +2124,21 @@ async function generatePDFFromOrderData(orderData) {
       },
       model: {
         brand: 'Firefly',
-        model: build.modelName || build.modelCode || 'Custom Build',
+        name: build.modelName || 'Custom Build',
+        modelCode: build.modelSlug ? (() => {
+          // Convert slug to model code
+          const modelMapping = {
+            'magnolia': 'APS-630',
+            'oak': 'APS-520',
+            'cedar': 'APS-720',
+            'pine': 'APS-820',
+            'bluebonnet': 'APS-601',
+            'nest': 'APS-520MS',
+            'azul': 'APS-523',
+            'meadow': 'APS-528'
+          }
+          return modelMapping[build.modelSlug] || build.modelSlug.toUpperCase()
+        })() : '',
         year: new Date().getFullYear().toString(),
         dimensions: 'TBD'
       },
@@ -2143,14 +2157,22 @@ async function generatePDFFromOrderData(orderData) {
         setup: Math.round(pricing.setupFee * 100),
         total: Math.round(pricing.total * 100)
       },
-      paymentMethod: build.financing?.method === 'bank_transfer' ? 'cash_ach' : 
-                     build.financing?.method === 'credit_card' ? 'credit_card' :
-                     build.financing?.method === 'financing' ? 'financing' : 'cash',
+      paymentMethod: build.financing?.method || 'cash',
       depositRequired: !!build.financing?.depositRequired,
-      estimatedFactoryCompletion: build.estimatedFactoryCompletion || null
+      estimatedFactoryCompletion: build.estimatedFactoryCompletion || null,
+      build: build // Include the full build data for the HTML template
     }
     
     console.log('[PDF_GENERATOR] Using professional order-summary.js formatter for order:', order.id)
+    console.log('[PDF_GENERATOR] Order data structure:', {
+      model: order.model,
+      paymentMethod: order.paymentMethod,
+      build: {
+        modelName: order.build?.modelName,
+        modelSlug: order.build?.modelSlug,
+        financing: order.build?.financing
+      }
+    })
     
     // Generate HTML using the professional formatter
     const htmlContent = buildOrderSummaryHtml(order)
