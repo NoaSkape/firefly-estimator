@@ -618,6 +618,61 @@ export default function CashPayment() {
     navigateToStep(stepName, 'Payment Method', buildId, true, build, navigate, addToast)
   }
 
+  // Handle payment method selection - follow the same pattern as option selection
+  const handlePaymentMethodChange = async (newPaymentMethod) => {
+    console.log('🔄 Payment method changed to:', newPaymentMethod)
+    
+    // 1. Update local state immediately (optimistic update)
+    setPaymentMethod(newPaymentMethod)
+    
+    // 2. Save to database immediately (like option selection does)
+    try {
+      const token = await getToken()
+      const updateData = {
+        'payment.method': newPaymentMethod,
+        'payment.updatedAt': new Date()
+      }
+      
+      console.log('💾 Saving payment method to build:', updateData)
+      
+      const res = await fetch(`/api/builds/${buildId}`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json', 
+          ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+        },
+        body: JSON.stringify(updateData)
+      })
+      
+      if (res.ok) {
+        console.log('✅ Payment method saved successfully')
+        // Update local build state
+        setBuild(prev => ({
+          ...prev,
+          payment: {
+            ...prev.payment,
+            method: newPaymentMethod,
+            updatedAt: new Date()
+          }
+        }))
+      } else {
+        console.error('❌ Failed to save payment method')
+        addToast({
+          type: 'error',
+          title: 'Save Failed',
+          message: 'Could not save payment method. Please try again.'
+        })
+      }
+    } catch (error) {
+      console.error('❌ Error saving payment method:', error)
+      addToast({
+        type: 'error',
+        title: 'Network Error',
+        message: 'Unable to save payment method. Please check your connection.'
+      })
+    }
+  }
+
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto">
@@ -789,7 +844,7 @@ export default function CashPayment() {
                     name="paymentMethod"
                     value="ach_debit"
                     checked={paymentMethod === 'ach_debit'}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    onChange={(e) => handlePaymentMethodChange(e.target.value)}
                     className="mr-4 mt-1"
                   />
                   <div className="flex-1">
@@ -809,7 +864,7 @@ export default function CashPayment() {
                     name="paymentMethod"
                     value="bank_transfer"
                     checked={paymentMethod === 'bank_transfer'}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    onChange={(e) => handlePaymentMethodChange(e.target.value)}
                     className="mr-4 mt-1"
                   />
                   <div className="flex-1">
@@ -828,15 +883,15 @@ export default function CashPayment() {
                     <span className="ml-2 text-xs">▼</span>
                   </summary>
                   <div className="mt-3">
-                    <label className="flex items-start p-4 border border-gray-600 rounded-lg hover:border-yellow-500 transition-colors cursor-pointer">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="card"
-                        checked={paymentMethod === 'card'}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                        className="mr-4 mt-1"
-                      />
+                <label className="flex items-start p-4 border border-gray-600 rounded-lg hover:border-yellow-500 transition-colors cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="card"
+                    checked={paymentMethod === 'card'}
+                    onChange={(e) => handlePaymentMethodChange(e.target.value)}
+                    className="mr-4 mt-1"
+                  />
                       <div className="flex-1">
                         <div className="text-white font-medium">
                           Credit/Debit Card
@@ -1101,12 +1156,12 @@ export default function CashPayment() {
                 <div className="flex justify-between py-2 border-b border-gray-600">
                   <span className="text-gray-300">Payment Method:</span>
                   <span className="text-white font-medium">
-                    {paymentMethod === 'ach_debit' && 'Bank Account (ACH Debit)'}
-                    {paymentMethod === 'bank_transfer' && 'Bank Transfer (Wire/ACH Credit)'}
-                    {paymentMethod === 'card' && 'Credit/Debit Card'}
+                    {(build?.payment?.method || paymentMethod) === 'ach_debit' && 'Bank Account (ACH Debit)'}
+                    {(build?.payment?.method || paymentMethod) === 'bank_transfer' && 'Bank Transfer (Wire/ACH Credit)'}
+                    {(build?.payment?.method || paymentMethod) === 'card' && 'Credit/Debit Card'}
                     {/* Debug info */}
                     {process.env.NODE_ENV === 'development' && (
-                      <span className="text-xs text-gray-500 ml-2">(debug: {paymentMethod})</span>
+                      <span className="text-xs text-gray-500 ml-2">(debug: {build?.payment?.method || paymentMethod})</span>
                     )}
                   </span>
                 </div>
