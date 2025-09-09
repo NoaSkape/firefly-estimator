@@ -2414,6 +2414,9 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
       return res.status(404).json({ error: 'Build not found' })
     }
 
+    // Get organization settings for prefill data
+    const settings = await getOrgSettings()
+
     // Build prefill data
     const prefillData = await buildContractPrefill(build, settings)
     console.log('[CONTRACT_START] Prefill data keys:', Object.keys(prefillData))
