@@ -963,36 +963,6 @@ export default function CashPayment() {
             <div>
               {/* Step 6B: Payment Details */}
           <div className="space-y-6">
-            {/* Selected Payment Method Summary */}
-            <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-              <h2 className="text-white font-semibold text-lg mb-4">Selected Payment Method</h2>
-              <div className="flex items-center justify-between p-4 bg-gray-800/50 border border-gray-600 rounded-lg">
-                <div className="flex items-center">
-                  <span className="text-gray-400 text-xl mr-3">✓</span>
-                  <div>
-                    <div className="text-white font-medium">
-                      {paymentMethod === 'ach_debit' && 'Bank Account (ACH Debit)'}
-                      {paymentMethod === 'bank_transfer' && 'Bank Transfer (Wire/ACH Credit)'}
-                      {paymentMethod === 'card' && 'Credit/Debit Card'}
-                    </div>
-                    <div className="text-gray-300 text-sm">
-                      {paymentMethod === 'ach_debit' && 'Secure bank-to-bank transfer • No fees • 3-5 business days'}
-                      {paymentMethod === 'bank_transfer' && 'Direct bank transfer • Fastest processing • May incur bank fees'}
-                      {paymentMethod === 'card' && 'Instant processing • Processing fees apply (2.9% + $0.30)'}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-white font-semibold">
-                  {formatCurrency(currentAmountCents)}
-                </div>
-              </div>
-              <button 
-                className="mt-4 text-yellow-400 hover:text-yellow-300 text-sm underline"
-                onClick={() => navigate(`/checkout/${buildId}/cash-payment/choose`)}
-              >
-                ← Change payment method or amount
-              </button>
-            </div>
 
             {paymentMethod === 'ach_debit' && (
               <ACHDetailsStep 
