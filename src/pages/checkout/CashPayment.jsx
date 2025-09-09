@@ -192,6 +192,7 @@ export default function CashPayment() {
         console.log('Build payment status:', buildData.payment?.status)
         console.log('Build payment ready:', buildData.payment?.ready)
         console.log('Build payment method:', buildData.payment?.method)
+        console.log('Full payment object:', buildData.payment)
         setBuild(buildData)
         
         // Load existing payment info if available
