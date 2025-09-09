@@ -57,12 +57,157 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       return res.status(400).send(`Webhook Error: ${err.message}`)
     }
 
-    // Minimal handler: log and acknowledge. Extend with business logic as needed.
+    // Dispatch handling based on event type
+    const type = event.type
+    const id = event.id
+    console.log('Stripe webhook received:', { type, id })
+
+    const db = await getDb()
+
+    // Helpers
+    const updateOrderPaymentStatus = async (orderId, fields) => {
+      try {
+        const _id = new ObjectId(String(orderId))
+        await db.collection('orders').updateOne({ _id }, { $set: fields })
+        console.log('Updated order payment status', { orderId, fields })
+      } catch (e) {
+        console.error('Failed to update order payment status', { orderId, error: e?.message })
+      }
+    }
+
     try {
-      const type = event.type
-      const id = event.id
-      console.log('Stripe webhook received:', { type, id })
-      // TODO: handle events such as payment_intent.succeeded, invoice.payment_succeeded, etc.
+      switch (type) {
+        case 'payment_intent.succeeded': {
+          const pi = event.data.object
+          const orderId = pi?.metadata?.orderId
+          if (orderId) {
+            await updateOrderPaymentStatus(orderId, {
+              'payment.status': 'succeeded',
+              'payment.paymentIntentId': pi.id,
+              'payment.processedAt': new Date()
+            })
+          }
+          break
+        }
+        case 'payment_intent.payment_failed': {
+          const pi = event.data.object
+          const orderId = pi?.metadata?.orderId
+          if (orderId) {
+            await updateOrderPaymentStatus(orderId, {
+              'payment.status': 'failed',
+              'payment.paymentIntentId': pi.id,
+              'payment.lastError': pi?.last_payment_error?.message || 'Payment failed',
+              'payment.failedAt': new Date()
+            })
+          }
+          break
+        }
+        case 'invoice.payment_succeeded': {
+          const invoice = event.data.object
+          const { buildId, milestone, intentId } = invoice?.metadata || {}
+          if (buildId && intentId) {
+            // Mark bank transfer intent paid (or generic intent)
+            try {
+              await db.collection('bankTransferIntents').updateOne(
+                { _id: new ObjectId(String(intentId)) },
+                { $set: {
+                  status: 'paid',
+                  stripeInvoiceId: invoice.id,
+                  paidAmount: invoice.amount_paid,
+                  paidAt: new Date(),
+                  updatedAt: new Date()
+                } }
+              )
+            } catch (e) {
+              console.warn('invoice.payment_succeeded: failed to update bankTransferIntent', e?.message)
+            }
+
+            // Update build payment flags
+            const updateFields = {
+              'payment.lastPaymentAt': new Date(),
+              'payment.updatedAt': new Date()
+            }
+            if (milestone === 'deposit') {
+              updateFields['payment.depositPaid'] = true
+              updateFields['payment.depositPaidAt'] = new Date()
+            } else if (milestone === 'final') {
+              updateFields['payment.finalPaid'] = true
+              updateFields['payment.finalPaidAt'] = new Date()
+            } else if (milestone === 'full') {
+              updateFields['payment.fullPaid'] = true
+              updateFields['payment.fullPaidAt'] = new Date()
+            }
+            await db.collection('builds').updateOne(
+              { _id: new ObjectId(String(buildId)) },
+              { $set: updateFields }
+            )
+
+            // If plan completed, mark fully paid
+            const build = await db.collection('builds').findOne({ _id: new ObjectId(String(buildId)) })
+            if (build?.payment) {
+              const planType = build.payment.plan?.type
+              let allPaid = false
+              if (planType === 'deposit') allPaid = build.payment.depositPaid && build.payment.finalPaid
+              if (planType === 'full') allPaid = build.payment.fullPaid
+              if (allPaid) {
+                await db.collection('builds').updateOne(
+                  { _id: new ObjectId(String(buildId)) },
+                  { $set: { 'payment.status': 'fully_paid', 'payment.fullyPaidAt': new Date() } }
+                )
+              }
+            }
+          }
+          break
+        }
+        case 'invoice.payment_failed': {
+          const invoice = event.data.object
+          const { buildId, intentId } = invoice?.metadata || {}
+          if (buildId && intentId) {
+            try {
+              await db.collection('bankTransferIntents').updateOne(
+                { _id: new ObjectId(String(intentId)) },
+                { $set: {
+                  status: 'payment_failed',
+                  stripeInvoiceId: invoice.id,
+                  lastError: 'Payment failed',
+                  failedAt: new Date(),
+                  updatedAt: new Date()
+                } }
+              )
+            } catch (e) {
+              console.warn('invoice.payment_failed: failed to update bankTransferIntent', e?.message)
+            }
+          }
+          break
+        }
+        case 'treasury.inbound_transfer.succeeded': {
+          const transfer = event.data.object
+          // Match by virtual account ID stored with order
+          const order = await db.collection('orders').findOne({ 'payment.bankTransfer.virtualAccountId': transfer.financial_account })
+          if (order) {
+            await db.collection('orders').updateOne(
+              { _id: order._id },
+              { $set: { 'payment.status': 'succeeded', 'payment.transferId': transfer.id, 'payment.processedAt': new Date() } }
+            )
+          }
+          break
+        }
+        case 'treasury.inbound_transfer.failed': {
+          const transfer = event.data.object
+          const order = await db.collection('orders').findOne({ 'payment.bankTransfer.virtualAccountId': transfer.financial_account })
+          if (order) {
+            await db.collection('orders').updateOne(
+              { _id: order._id },
+              { $set: { 'payment.status': 'failed', 'payment.transferId': transfer.id, 'payment.failedAt': new Date() } }
+            )
+          }
+          break
+        }
+        default: {
+          // Unhandled types are acknowledged
+          console.log('Unhandled Stripe event type:', type)
+        }
+      }
     } catch (handleErr) {
       console.error('Stripe webhook handler error:', handleErr)
       return res.status(500).json({ error: 'Webhook handler failed' })
@@ -126,6 +271,18 @@ const authRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
   maxRequests: 5, // 5 authentication attempts per 15 minutes
   keyGenerator: (req) => req.ip
+})
+
+// Simple admin status endpoint for client-side checks
+app.get(['/api/admin/is-admin', '/admin/is-admin'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, true)
+    if (!auth?.userId) return
+    res.json({ isAdmin: true, userId: auth.userId })
+  } catch (error) {
+    console.error('is-admin error:', error)
+    res.status(500).json({ error: 'internal_error' })
+  }
 })
 
 // Apply rate limiting to all routes
@@ -2425,7 +2582,17 @@ app.get(['/api/admin/docuseal/templates', '/admin/docuseal/templates'], async (r
 // Create DocuSeal preview for a specific template
 app.post(['/api/contracts/:templateKey/preview', '/contracts/:templateKey/preview'], async (req, res) => {
   try {
+    console.log('[CONTRACT_PREVIEW] Request received:', {
+      templateKey: req.params.templateKey,
+      body: req.body,
+      headers: {
+        authorization: req.headers.authorization ? 'Bearer [REDACTED]' : 'none',
+        contentType: req.headers['content-type']
+      }
+    })
+    
     const auth = await requireAuth(req, res, false)
+    console.log('[CONTRACT_PREVIEW] Auth result:', { hasAuth: !!auth, userId: auth?.userId })
     if (!auth?.userId) return
 
     const { templateKey } = req.params

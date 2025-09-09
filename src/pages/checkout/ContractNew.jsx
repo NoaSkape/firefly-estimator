@@ -807,6 +807,13 @@ function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingP
         
         // Get the preview URL from our contract start endpoint
         const token = await getToken()
+        console.log('[PREVIEW_DEBUG] Making preview request:', {
+          templateKey,
+          buildId,
+          hasToken: !!token,
+          url: `/api/contracts/${templateKey}/preview`
+        })
+        
         const response = await fetch(`/api/contracts/${templateKey}/preview`, {
           method: 'POST',
           headers: {
@@ -816,11 +823,15 @@ function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingP
           body: JSON.stringify({ buildId, preview: true })
         })
         
+        console.log('[PREVIEW_DEBUG] Response status:', response.status, response.statusText)
+        
         if (response.ok) {
           const data = await response.json()
+          console.log('[PREVIEW_DEBUG] Preview data received:', data)
           setPreviewUrl(data.previewUrl)
         } else {
-          console.error('Failed to load preview:', response.status)
+          const errorText = await response.text()
+          console.error('[PREVIEW_DEBUG] Failed to load preview:', response.status, errorText)
         }
       } catch (error) {
         console.error('Failed to load DocuSeal preview:', error)

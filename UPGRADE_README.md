@@ -210,6 +210,8 @@ node scripts/test-api.js
 
 - Added Stripe webhook endpoint at `/api/webhooks/stripe` with raw body verification. Configure `STRIPE_WEBHOOK_SECRET` in your environment and point Stripe to `https://<domain>/api/webhooks/stripe`.
 
+- Added admin status endpoint `/api/admin/is-admin` that requires Clerk admin and returns `{ isAdmin: true, userId }` for client-side checks without exposing allowlists.
+
 Action items:
 - Set `AI_API_KEY`, `AI_API_URL` (optional), `AI_MODEL` (optional), `ADMIN_EMAILS`, and `STRIPE_WEBHOOK_SECRET` in Vercel/your host.
 - If you previously relied on `VITE_*` server envs, update them accordingly.
