@@ -151,14 +151,26 @@ router.get('/health', (req, res) => {
 router.get('/_debug/router', (req, res) => {
   if (process.env.DEBUG_ADMIN !== 'true') return res.status(404).end()
   try {
+    function layerInfo(l) {
+      const info = {
+        name: l?.name,
+        hasHandle: typeof l?.handle === 'function',
+        route: l?.route?.path,
+      }
+      if (l?.route?.stack) {
+        info.methods = l.route.stack.map(s => s?.method)
+      }
+      if (l?.regexp) {
+        info.mount = String(l.regexp)
+      }
+      if (Array.isArray(l?.keys)) {
+        info.keys = l.keys.map(k => k?.name)
+      }
+      return info
+    }
     const dump = Array.isArray(router.stack)
-      ? router.stack.map((l, i) => ({
-          i,
-          name: l?.name,
-          hasHandle: typeof l?.handle === 'function',
-          route: l?.route?.path,
-          method: l?.route?.stack?.[0]?.method,
-        })) : []
+      ? router.stack.map((l, i) => ({ i, ...layerInfo(l) }))
+      : []
     res.json({ ok: true, dump })
   } catch (e) {
     res.status(500).json({ ok: false, error: e?.message || String(e) })
