@@ -47,70 +47,74 @@ class PerformanceMonitor {
   }
 
   trackCoreWebVitals() {
-    // Track Largest Contentful Paint (LCP)
-    if ('PerformanceObserver' in window) {
-      const lcpObserver = new PerformanceObserver((list) => {
-        const entries = list.getEntries()
-        const lastEntry = entries[entries.length - 1]
-        
-        this.metrics.lcp = lastEntry.startTime
-        analytics.trackPerformance('lcp', lastEntry.startTime)
-        
-        if (lastEntry.startTime > 2500) {
-          analytics.trackError('poor_lcp', `LCP took ${lastEntry.startTime}ms`, null)
-        }
-      })
-      
-      lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] })
+    // Temporarily disabled Core Web Vitals tracking to reduce analytics load
+    // This can be re-enabled later when analytics rate limiting is better optimized
+    console.log('Core Web Vitals tracking temporarily disabled to reduce analytics load')
+    
+    // Track Largest Contentful Paint (LCP) - DISABLED
+    // if ('PerformanceObserver' in window) {
+    //   const lcpObserver = new PerformanceObserver((list) => {
+    //     const entries = list.getEntries()
+    //     const lastEntry = entries[entries.length - 1]
+    //     
+    //     this.metrics.lcp = lastEntry.startTime
+    //     analytics.trackPerformance('lcp', lastEntry.startTime)
+    //     
+    //     if (lastEntry.startTime > 2500) {
+    //       analytics.trackError('poor_lcp', `LCP took ${lastEntry.startTime}ms`, null)
+    //     }
+    //   })
+    //   
+    //   lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] })
 
-      // Track First Input Delay (FID)
-      const fidObserver = new PerformanceObserver((list) => {
-        const entries = list.getEntries()
-        entries.forEach((entry) => {
-          this.metrics.fid = entry.processingStart - entry.startTime
-          analytics.trackPerformance('fid', this.metrics.fid)
-          
-          if (this.metrics.fid > 100) {
-            analytics.trackError('poor_fid', `FID took ${this.metrics.fid}ms`, null)
-          }
-        })
-      })
-      
-      fidObserver.observe({ entryTypes: ['first-input'] })
+    //   // Track First Input Delay (FID) - DISABLED
+    //   const fidObserver = new PerformanceObserver((list) => {
+    //     const entries = list.getEntries()
+    //     entries.forEach((entry) => {
+    //       this.metrics.fid = entry.processingStart - entry.startTime
+    //       analytics.trackPerformance('fid', this.metrics.fid)
+    //       
+    //       if (this.metrics.fid > 100) {
+    //         analytics.trackError('poor_fid', `FID took ${this.metrics.fid}ms`, null)
+    //       }
+    //     })
+    //   })
+    //   
+    //   fidObserver.observe({ entryTypes: ['first-input'] })
 
-      // Track Cumulative Layout Shift (CLS)
-      let clsValue = 0
-      const clsObserver = new PerformanceObserver((list) => {
-        const entries = list.getEntries()
-        entries.forEach((entry) => {
-          if (!entry.hadRecentInput) {
-            clsValue += entry.value
-          }
-        })
-        
-        this.metrics.cls = clsValue
-        analytics.trackPerformance('cls', clsValue)
-        
-        if (clsValue > 0.1) {
-          analytics.trackError('poor_cls', `CLS is ${clsValue}`, null)
-        }
-      })
-      
-      clsObserver.observe({ entryTypes: ['layout-shift'] })
-    }
+    //   // Track Cumulative Layout Shift (CLS) - DISABLED
+    //   let clsValue = 0
+    //   const clsObserver = new PerformanceObserver((list) => {
+    //     const entries = list.getEntries()
+    //     entries.forEach((entry) => {
+    //       if (!entry.hadRecentInput) {
+    //         clsValue += entry.value
+    //       }
+    //     })
+    //     
+    //     this.metrics.cls = clsValue
+    //     analytics.trackPerformance('cls', clsValue)
+    //     
+    //     if (clsValue > 0.1) {
+    //       analytics.trackError('poor_cls', `CLS is ${clsValue}`, null)
+    //     }
+    //   })
+    //   
+    //   clsObserver.observe({ entryTypes: ['layout-shift'] })
+    // }
   }
 
   trackUserInteractions() {
     // Throttle interaction tracking to prevent excessive events
     let interactionCount = 0
-    const maxInteractionsPerMinute = 5 // Reduced from 10
+    const maxInteractionsPerMinute = 2 // Reduced from 5
     
     // Track button clicks and form interactions (throttled)
     document.addEventListener('click', (event) => {
       const target = event.target
       if (target.tagName === 'BUTTON' || target.tagName === 'A') {
-        // Only track every 20th interaction to reduce noise (increased from 10th)
-        if (interactionCount % 20 !== 0) {
+        // Only track every 50th interaction to reduce noise (increased from 20th)
+        if (interactionCount % 50 !== 0) {
           interactionCount++
           return
         }
@@ -119,8 +123,8 @@ class PerformanceMonitor {
         
         const trackInteraction = () => {
           const duration = performance.now() - startTime
-          // Only track slow interactions (>100ms)
-          if (duration > 100) {
+          // Only track very slow interactions (>500ms) to reduce noise
+          if (duration > 500) {
             analytics.trackPerformance('interaction_response', duration, null, {
               element: target.tagName,
               text: target.textContent?.slice(0, 50),

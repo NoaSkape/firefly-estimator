@@ -4,6 +4,7 @@ class Analytics {
     this.sessionId = this.generateSessionId()
     this.startTime = Date.now()
     this.events = []
+    this.recentEvents = new Map() // Track recent events to prevent duplicates
     this.funnelSteps = {
       'homepage_view': 1,
       'model_view': 2,
@@ -29,7 +30,7 @@ class Analytics {
     // Rate limiting for analytics
     this.rateLimiter = {
       requests: [],
-      maxRequests: 50, // Max 50 requests per minute (increased from 30)
+      maxRequests: 20, // Max 20 requests per minute (reduced from 50)
       windowMs: 60000 // 1 minute window
     }
     
@@ -87,6 +88,28 @@ class Analytics {
 
   recordRequest() {
     this.rateLimiter.requests.push(Date.now())
+  }
+
+  // Check if event is duplicate (same event within 5 seconds)
+  isDuplicateEvent(eventName, properties = {}) {
+    const key = `${eventName}_${JSON.stringify(properties)}`
+    const now = Date.now()
+    const lastTime = this.recentEvents.get(key)
+    
+    if (lastTime && (now - lastTime) < 5000) { // 5 second window
+      return true
+    }
+    
+    this.recentEvents.set(key, now)
+    
+    // Clean up old entries (older than 30 seconds)
+    for (const [eventKey, timestamp] of this.recentEvents.entries()) {
+      if (now - timestamp > 30000) {
+        this.recentEvents.delete(eventKey)
+      }
+    }
+    
+    return false
   }
 
   // Retry stored events when circuit breaker reopens
@@ -150,6 +173,12 @@ class Analytics {
   }
 
   trackEvent(eventName, properties = {}) {
+    // Check for duplicate events
+    if (this.isDuplicateEvent(eventName, properties)) {
+      console.log(`Skipping duplicate analytics event: ${eventName}`)
+      return
+    }
+
     const event = {
       event: eventName,
       sessionId: this.sessionId,

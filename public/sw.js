@@ -1,23 +1,32 @@
 // Service Worker for Firefly Tiny Homes
-const CACHE_NAME = 'firefly-cache-v1'
-const STATIC_CACHE = 'firefly-static-v1'
-const API_CACHE = 'firefly-api-v1'
+const CACHE_NAME = 'firefly-cache-v2'
+const STATIC_CACHE = 'firefly-static-v2'
+const API_CACHE = 'firefly-api-v2'
 
 // Files to cache immediately
 const STATIC_FILES = [
   '/',
   '/index.html',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
   '/logo/firefly-logo.png',
-  '/models/placeholder.svg'
+  '/models/placeholder.svg',
+  '/manifest.json'
 ]
 
 // Install event - cache static files
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) => {
-      return cache.addAll(STATIC_FILES)
+      return cache.addAll(STATIC_FILES).catch((error) => {
+        console.warn('Service Worker: Some files failed to cache:', error)
+        // Cache files individually to avoid failing on one bad file
+        return Promise.allSettled(
+          STATIC_FILES.map(url => 
+            cache.add(url).catch(err => 
+              console.warn(`Failed to cache ${url}:`, err)
+            )
+          )
+        )
+      })
     })
   )
 })
@@ -79,8 +88,9 @@ async function handleApiRequest(request) {
     // Cache successful GET responses only (skip chrome-extension URLs)
     if (response.ok && request.method === 'GET' && !request.url.startsWith('chrome-extension://')) {
       const clonedResponse = response.clone()
-      cache.put(request, clonedResponse).catch(() => {
-        // Silently ignore cache errors (like chrome-extension URLs)
+      cache.put(request, clonedResponse).catch((error) => {
+        // Silently ignore cache errors (like chrome-extension URLs or CORS issues)
+        console.debug('Service Worker: Failed to cache response:', error.message)
       })
     }
     
@@ -121,7 +131,9 @@ async function handleStaticRequest(request) {
     const response = await fetch(request)
     if (response.ok) {
       const clonedResponse = response.clone()
-      cache.put(request, clonedResponse)
+      cache.put(request, clonedResponse).catch((error) => {
+        console.debug('Service Worker: Failed to cache static asset:', error.message)
+      })
     }
     return response
   } catch (error) {
@@ -141,7 +153,9 @@ async function handleNavigationRequest(request) {
     const response = await fetch(request)
     if (response.ok) {
       const clonedResponse = response.clone()
-      cache.put(request, clonedResponse)
+      cache.put(request, clonedResponse).catch((error) => {
+        console.debug('Service Worker: Failed to cache navigation response:', error.message)
+      })
     }
     return response
   } catch (error) {
