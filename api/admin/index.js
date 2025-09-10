@@ -25,6 +25,7 @@ import securityRouter from './security.js'
 import workflowsRouter from './workflows.js'
 import monitoringRouter from './monitoring.js'
 import exportRouter from './export.js'
+import settingsRouter from './settings.js'
 
 const router = express.Router()
 
@@ -120,6 +121,24 @@ router.get('/health', (req, res) => {
       },
       layers
     })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) })
+  }
+})
+
+// Debug route to inspect the admin router shape (only when DEBUG_ADMIN=true)
+router.get('/_debug/router', (req, res) => {
+  if (process.env.DEBUG_ADMIN !== 'true') return res.status(404).end()
+  try {
+    const dump = Array.isArray(router.stack)
+      ? router.stack.map((l, i) => ({
+          i,
+          name: l?.name,
+          hasHandle: typeof l?.handle === 'function',
+          route: l?.route?.path,
+          method: l?.route?.stack?.[0]?.method,
+        })) : []
+    res.json({ ok: true, dump })
   } catch (e) {
     res.status(500).json({ ok: false, error: e?.message || String(e) })
   }
@@ -1304,6 +1323,7 @@ mountSafe('/security', securityRouter, 'securityRouter')
 mountSafe('/workflows', workflowsRouter, 'workflowsRouter')
 mountSafe('/monitoring', monitoringRouter, 'monitoringRouter')
 mountSafe('/export', exportRouter, 'exportRouter')
+mountSafe('/settings', settingsRouter, 'settingsRouter')
 
 // Final defensive pass: replace any non-function layer handles to avoid
 // Express attempting to call undefined.apply when a subrouter failed to load.
