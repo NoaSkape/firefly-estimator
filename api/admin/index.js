@@ -28,8 +28,18 @@ import exportRouter from './export.js'
 
 const router = express.Router()
 
-// Initialize admin database on startup
-initializeAdminDatabase().catch(console.error)
+// Initialize admin database on startup (non-blocking)
+// This will not prevent the router from loading if DB is unavailable
+let dbInitialized = false
+initializeAdminDatabase()
+  .then(() => {
+    dbInitialized = true
+    console.log('✅ Admin database initialized successfully')
+  })
+  .catch((error) => {
+    console.warn('⚠️ Admin database initialization failed (will retry on first request):', error.message)
+    // Don't throw - allow router to load without DB
+  })
 
 // ============================================================================
 // MIDDLEWARE & VALIDATION
@@ -58,6 +68,22 @@ router.get('/health', (req, res) => {
   } catch (e) {
     res.status(500).json({ ok: false, error: e?.message || String(e) })
   }
+})
+
+// Database health check middleware (non-blocking)
+router.use(async (req, res, next) => {
+  // If DB wasn't initialized at startup, try to initialize it now
+  if (!dbInitialized) {
+    try {
+      await initializeAdminDatabase()
+      dbInitialized = true
+      console.log('✅ Admin database initialized on first request')
+    } catch (error) {
+      console.warn('⚠️ Database still unavailable:', error.message)
+      // Continue anyway - some endpoints might work without DB
+    }
+  }
+  next()
 })
 
 // Admin authentication middleware for all routes

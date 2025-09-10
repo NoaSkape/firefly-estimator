@@ -37,6 +37,35 @@ router.get('/', async (req, res) => {
   try {
     const { range = '30d' } = req.query
     
+    // Check if database is available
+    let db
+    try {
+      db = await getDb()
+    } catch (dbError) {
+      console.warn('[DEBUG_DASHBOARD] Database unavailable, returning fallback data:', dbError.message)
+      return res.json({
+        success: true,
+        data: {
+          metrics: {
+            totalUsers: 0,
+            activeBuilds: 0,
+            totalOrders: 0,
+            totalRevenue: 0,
+            revenueChange: 0,
+            newUsers: 0
+          },
+          dailyRevenue: [],
+          orderStatusDistribution: [],
+          recentOrders: [],
+          recentBuilds: [],
+          formattedTopModels: [],
+          timeRange: range,
+          databaseAvailable: false,
+          message: 'Database temporarily unavailable - showing fallback data'
+        }
+      })
+    }
+    
     // Calculate date ranges
     const now = new Date()
     let startDate, previousStartDate
@@ -294,7 +323,8 @@ router.get('/', async (req, res) => {
           builds: recentBuilds || []
         },
         topModels: formattedTopModels || [],
-        timeRange: range
+        timeRange: range,
+        databaseAvailable: true
       }
     })
   } catch (error) {
