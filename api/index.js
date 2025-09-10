@@ -1950,6 +1950,157 @@ app.get(['/api/admin/docuseal/test', '/admin/docuseal/test'], async (req, res) =
   }
 })
 
+// Get contract status (for real-time polling) - MUST come before /:orderId/status route
+app.get(['/api/contracts/status', '/contracts/status'], async (req, res) => {
+  await applyCors(req, res)
+  
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId } = req.query
+    if (!buildId) {
+      return res.status(400).json({ error: 'Build ID is required' })
+    }
+
+    const build = await getBuildById(buildId)
+    if (!build || build.userId !== auth.userId) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    const db = await getDb()
+    const contract = await db.collection('contracts').findOne({ 
+      buildId: buildId, 
+      userId: auth.userId 
+    }, { sort: { version: -1 } }) // Get latest version
+
+    if (!contract) {
+      return res.status(404).json({ error: 'Contract not found' })
+    }
+
+    // Get latest status from DocuSeal for all submissions
+    let overallStatus = contract.status
+    let updatedSubmissions = contract.submissions || []
+    let hasStatusChanges = false
+    
+    if (updatedSubmissions.length > 0) {
+      for (let i = 0; i < updatedSubmissions.length; i++) {
+        const submission = updatedSubmissions[i]
+        if (submission.submissionId) {
+          try {
+            const docusealSubmission = await getSubmission(submission.submissionId)
+            const docusealStatus = mapDocuSealStatus(docusealSubmission.status || docusealSubmission.state)
+            
+            // Update submission status if it changed
+            if (docusealStatus !== submission.status) {
+              updatedSubmissions[i] = {
+                ...submission,
+                status: docusealStatus
+              }
+              hasStatusChanges = true
+            }
+          } catch (error) {
+            console.error(`Failed to get DocuSeal status for ${submission.name}:`, error)
+            // Continue with local status
+          }
+        }
+      }
+      
+      // Determine overall status based on all submissions
+      const allCompleted = updatedSubmissions.every(s => s.status === 'completed')
+      const anySigning = updatedSubmissions.some(s => s.status === 'signing')
+      const anyVoided = updatedSubmissions.some(s => s.status === 'voided')
+      
+      if (allCompleted) {
+        overallStatus = 'completed'
+      } else if (anyVoided) {
+        overallStatus = 'voided'
+      } else if (anySigning) {
+        overallStatus = 'signing'
+      } else {
+        overallStatus = 'ready'
+      }
+      
+      // Update our local status if it changed
+      if (hasStatusChanges || overallStatus !== contract.status) {
+        await db.collection('contracts').updateOne(
+          { _id: contract._id },
+          { 
+            $set: { 
+              status: overallStatus, 
+              submissions: updatedSubmissions,
+              updatedAt: new Date() 
+            },
+            $push: { 
+              audit: {
+                at: new Date(),
+                who: 'system',
+                action: 'status_updated',
+                meta: { 
+                  from: contract.status, 
+                  to: overallStatus,
+                  submissionUpdates: updatedSubmissions.map(s => ({ name: s.name, status: s.status }))
+                }
+              }
+            }
+          }
+        )
+      }
+    }
+
+    // Get primary submission for backward compatibility
+    const primarySubmission = updatedSubmissions.find(s => s.name === 'purchase_agreement') || updatedSubmissions[0]
+
+    // Convert submissions to packs format for contract page compatibility
+    const packs = {
+      summary: contract.summaryReviewed ? 'reviewed' : 'ready',
+      agreement: 'not_started',
+      delivery: 'not_started', 
+      final: 'not_started'
+    }
+
+    // Map submission statuses to pack statuses
+    updatedSubmissions.forEach(submission => {
+      if (submission.name === 'purchase_agreement' || submission.name === 'masterRetail') {
+        if (submission.status === 'completed') {
+          packs.agreement = 'completed'
+        } else if (submission.status === 'signing') {
+          packs.agreement = 'in_progress'
+        } else if (submission.status === 'ready') {
+          packs.agreement = 'ready'
+        }
+      } else if (submission.name === 'delivery') {
+        if (submission.status === 'completed') {
+          packs.delivery = 'completed'
+        } else if (submission.status === 'signing') {
+          packs.delivery = 'in_progress'
+        } else if (submission.status === 'ready') {
+          packs.delivery = 'ready'
+        }
+      }
+    })
+
+    res.status(200).json({
+      success: true,
+      status: overallStatus,
+      packs: packs,
+      submissions: updatedSubmissions,
+      submissionId: primarySubmission?.submissionId,
+      signerUrl: primarySubmission?.signerUrl,
+      version: contract.version,
+      createdAt: contract.createdAt,
+      updatedAt: contract.updatedAt
+    })
+
+  } catch (error) {
+    console.error('Contract status error:', error)
+    res.status(500).json({ 
+      error: 'Failed to get contract status',
+      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    })
+  }
+})
+
 // Get contract status for all packs
 app.get(['/api/contracts/:orderId/status', '/contracts/:orderId/status'], async (req, res) => {
   try {
@@ -3014,154 +3165,6 @@ app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
   }
 })
 
-// Get contract status (for real-time polling)
-app.get(['/api/contracts/status', '/contracts/status'], async (req, res) => {
-  try {
-    const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) return
-
-    const { buildId } = req.query
-    if (!buildId) {
-      return res.status(400).json({ error: 'Build ID is required' })
-    }
-
-    const build = await getBuildById(buildId)
-    if (!build || build.userId !== auth.userId) {
-      return res.status(404).json({ error: 'Build not found' })
-    }
-
-    const db = await getDb()
-    const contract = await db.collection('contracts').findOne({ 
-      buildId: buildId, 
-      userId: auth.userId 
-    }, { sort: { version: -1 } }) // Get latest version
-
-    if (!contract) {
-      return res.status(404).json({ error: 'Contract not found' })
-    }
-
-    // Get latest status from DocuSeal for all submissions
-    let overallStatus = contract.status
-    let updatedSubmissions = contract.submissions || []
-    let hasStatusChanges = false
-    
-    if (updatedSubmissions.length > 0) {
-      for (let i = 0; i < updatedSubmissions.length; i++) {
-        const submission = updatedSubmissions[i]
-        if (submission.submissionId) {
-          try {
-            const docusealSubmission = await getSubmission(submission.submissionId)
-            const docusealStatus = mapDocuSealStatus(docusealSubmission.status || docusealSubmission.state)
-            
-            // Update submission status if it changed
-            if (docusealStatus !== submission.status) {
-              updatedSubmissions[i] = {
-                ...submission,
-                status: docusealStatus
-              }
-              hasStatusChanges = true
-            }
-          } catch (error) {
-            console.error(`Failed to get DocuSeal status for ${submission.name}:`, error)
-            // Continue with local status
-          }
-        }
-      }
-      
-      // Determine overall status based on all submissions
-      const allCompleted = updatedSubmissions.every(s => s.status === 'completed')
-      const anySigning = updatedSubmissions.some(s => s.status === 'signing')
-      const anyVoided = updatedSubmissions.some(s => s.status === 'voided')
-      
-      if (allCompleted) {
-        overallStatus = 'completed'
-      } else if (anyVoided) {
-        overallStatus = 'voided'
-      } else if (anySigning) {
-        overallStatus = 'signing'
-      } else {
-        overallStatus = 'ready'
-      }
-      
-      // Update our local status if it changed
-      if (hasStatusChanges || overallStatus !== contract.status) {
-        await db.collection('contracts').updateOne(
-          { _id: contract._id },
-          { 
-            $set: { 
-              status: overallStatus, 
-              submissions: updatedSubmissions,
-              updatedAt: new Date() 
-            },
-            $push: { 
-              audit: {
-                at: new Date(),
-                who: 'system',
-                action: 'status_updated',
-                meta: { 
-                  from: contract.status, 
-                  to: overallStatus,
-                  submissionUpdates: updatedSubmissions.map(s => ({ name: s.name, status: s.status }))
-                }
-              }
-            }
-          }
-        )
-      }
-    }
-
-    // Get primary submission for backward compatibility
-    const primarySubmission = updatedSubmissions.find(s => s.name === 'purchase_agreement') || updatedSubmissions[0]
-
-    // Convert submissions to packs format for contract page compatibility
-    const packs = {
-      summary: contract.summaryReviewed ? 'reviewed' : 'ready',
-      agreement: 'not_started',
-      delivery: 'not_started', 
-      final: 'not_started'
-    }
-
-    // Map submission statuses to pack statuses
-    updatedSubmissions.forEach(submission => {
-      if (submission.name === 'purchase_agreement' || submission.name === 'masterRetail') {
-        if (submission.status === 'completed') {
-          packs.agreement = 'completed'
-        } else if (submission.status === 'signing') {
-          packs.agreement = 'in_progress'
-        } else if (submission.status === 'ready') {
-          packs.agreement = 'ready'
-        }
-      } else if (submission.name === 'delivery') {
-        if (submission.status === 'completed') {
-          packs.delivery = 'completed'
-        } else if (submission.status === 'signing') {
-          packs.delivery = 'in_progress'
-        } else if (submission.status === 'ready') {
-          packs.delivery = 'ready'
-        }
-      }
-    })
-
-    res.status(200).json({
-      success: true,
-      status: overallStatus,
-      packs: packs,
-      submissions: updatedSubmissions,
-      submissionId: primarySubmission?.submissionId,
-      signerUrl: primarySubmission?.signerUrl,
-      version: contract.version,
-      createdAt: contract.createdAt,
-      updatedAt: contract.updatedAt
-    })
-
-  } catch (error) {
-    console.error('Contract status error:', error)
-    res.status(500).json({ 
-      error: 'Failed to get contract status',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    })
-  }
-})
 
 // DocuSeal webhook handler (for real-time status updates)
 app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
@@ -3430,8 +3433,20 @@ async function buildContractPrefill(build, settings) {
   // CRITICAL: Use ONLY the exact field names from FIELD_MAPS
   // This ensures perfect matching with DocuSeal template fields
   const prefill = {
+    // Order / Reference
+    order_id: String(build._id || ''),
+    order_date: new Date(build.createdAt || Date.now()).toISOString().slice(0, 10),
+    effective_date: new Date().toISOString().slice(0, 10),
+
+    // Dealer / Seller
+    dealer_legal_name: 'Firefly Tiny Homes LLC',
+    dealer_license_no: 'A164017',
+    dealer_address: '6150 TX 16, Pipe Creek, TX 78063',
+    dealer_phone_display: '830 328 6109',
+
     // Buyer Information - EXACT field names from FIELD_MAPS.masterRetail
     buyer_full_name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
+    buyer_name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
     buyer_email: buyerInfo.email || '',
     buyer_address: buyerInfo.address || '',
     buyer_phone: buyerInfo.phone || '',
@@ -3446,15 +3461,17 @@ async function buildContractPrefill(build, settings) {
     model_code: modelCode || '',
     model_year: new Date().getFullYear().toString(),
     dimensions: modelDimensions,
-    
+
     // Pricing Information - EXACT field names from FIELD_MAPS.masterRetail
     price_base: formatCurrency(basePrice),
     price_options: formatCurrency(optionsTotal),
     price_freight_est: formatCurrency(deliveryEstimate),
     price_setup: formatCurrency(setupFee),
-    price_other: formatCurrency(titleFee + taxes), // Combined title fee and taxes
+    price_other: formatCurrency(titleFee),
+    price_sales_tax: formatCurrency(taxes),
+    price_subtotal: formatCurrency(basePrice + optionsTotal + deliveryEstimate + setupFee + titleFee),
     price_total: formatCurrency(totalPurchasePrice),
-    
+
     // Payment Terms
     deposit_percent: `${depositPercent}%`,
     deposit_amount: formatCurrency(depositAmount),
