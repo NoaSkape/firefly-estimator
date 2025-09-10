@@ -102,63 +102,120 @@ export default function AdminOverview() {
 
   const adminFeatures = [
     {
-      title: 'Dashboard',
-      description: 'View key business metrics, user statistics, and recent activity',
-      link: '/admin/dashboard',
-      icon: '📊',
+      title: 'AI Insights',
+      description: 'AI-powered business recommendations and predictive analytics',
+      link: '/admin/ai-insights',
+      icon: '🤖',
+      badge: 'NEW',
       features: [
-        'Total users, builds, and orders',
-        'Revenue and conversion metrics',
-        'Recent activity feed',
-        'Quick actions and shortcuts'
+        'AI-generated business insights',
+        'Predictive revenue analytics',
+        'Customer behavior analysis',
+        'Automated recommendations'
       ]
     },
     {
-      title: 'Orders Management',
-      description: 'Manage customer orders, track status, and process payments',
-      link: '/admin/orders',
-      icon: '📦',
-      features: [
-        'View all customer orders',
-        'Update order status',
-        'Process payments and refunds',
-        'Export order data'
-      ]
-    },
-    {
-      title: 'Advanced Reporting',
-      description: 'Generate detailed reports and analyze business performance',
+      title: 'Advanced Reports',
+      description: 'Custom report builder with templates and automation',
       link: '/admin/reports',
       icon: '📈',
+      badge: 'NEW',
       features: [
-        'Conversion funnel analysis',
-        'Revenue trends and forecasting',
-        'User activity reports',
-        'Model performance metrics'
+        'Custom report builder',
+        'Report templates library',
+        'Scheduled reports',
+        'Multiple export formats'
       ]
     },
     {
-      title: 'Analytics Dashboard',
-      description: 'Real-time analytics and user behavior insights',
-      link: '/admin/analytics',
-      icon: '🔍',
+      title: 'Integration Hub',
+      description: 'Manage third-party service integrations and API connections',
+      link: '/admin/integrations',
+      icon: '🔗',
+      badge: 'NEW',
       features: [
-        'Real-time user tracking',
-        'Page view analytics',
-        'User journey mapping',
-        'Performance metrics'
+        'Third-party integrations',
+        'API connection testing',
+        'Webhook management',
+        'Integration templates'
       ]
     },
     {
-      title: 'Policy Management',
-      description: 'Edit website policies and terms directly through admin interface',
-      link: '/admin/policies',
-      icon: '📄',
+      title: 'Security & Audit',
+      description: 'Monitor security events, audit logs, and system access',
+      link: '/admin/security',
+      icon: '🛡️',
+      badge: 'NEW',
       features: [
-        'Edit Privacy Policy content',
-        'Manage Terms & Conditions',
-        'Update purchase and delivery policies',
-        'Markdown formatting support'
+        'Security event monitoring',
+        'Audit log viewer',
+        'User activity tracking',
+        'Security recommendations'
+      ]
+    },
+    {
+      title: 'Workflow Automation',
+      description: 'Automate business processes with visual workflow builder',
+      link: '/admin/workflows',
+      icon: '⚙️',
+      badge: 'NEW',
+      features: [
+        'Visual workflow builder',
+        'Business process automation',
+        'Event-driven triggers',
+        'Workflow templates'
+      ]
+    },
+    {
+      title: 'Performance Monitoring',
+      description: 'Monitor system health, performance metrics, and alerts',
+      link: '/admin/monitoring',
+      icon: '📊',
+      badge: 'NEW',
+      features: [
+        'System health dashboard',
+        'Performance metrics',
+        'Real-time monitoring',
+        'Alert management'
+      ]
+    },
+    {
+      title: 'Data Export & Backup',
+      description: 'Advanced data export, backup, and recovery management',
+      link: '/admin/export',
+      icon: '💾',
+      badge: 'NEW',
+      features: [
+        'Automated backup scheduling',
+        'Data export templates',
+        'Multiple export formats',
+        'Backup verification'
+      ]
+    },
+    {
+      title: 'Content Management',
+      description: 'Manage blog posts, policies, and website content',
+      link: '/admin/content',
+      icon: '📝',
+      badge: 'NEW',
+      features: [
+        'Blog post editor',
+        'Policy management',
+        'Content scheduling',
+        'SEO optimization'
+      ]
+    },
+    {
+      title: 'Notifications Center',
+      description: 'Manage admin notifications, alerts, and system updates',
+      link: '/admin/notifications',
+      icon: '🔔',
+      badge: 'NEW',
+      features: [
+        'Real-time notifications',
+        'Alert management',
+        'Notification filtering',
+        'Custom notifications'
       ]
     }
   ]
@@ -251,8 +308,15 @@ export default function AdminOverview() {
                 <div className="p-6">
                   <div className="flex items-center mb-4">
                     <span className="text-3xl mr-4">{feature.icon}</span>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900">{feature.title}</h3>
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-xl font-bold text-gray-900">{feature.title}</h3>
+                        {feature.badge && (
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
+                            {feature.badge}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-gray-600">{feature.description}</p>
                     </div>
                   </div>
@@ -287,68 +351,111 @@ export default function AdminOverview() {
             <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Link
-                to="/admin/dashboard"
-                className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                to="/admin/ai-insights"
+                className="flex items-center p-4 border border-blue-200 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
               >
-                <span className="text-2xl mr-3">📊</span>
-                <span className="font-medium">View Dashboard</span>
-              </Link>
-              
-              <Link
-                to="/admin/orders"
-                className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <span className="text-2xl mr-3">📦</span>
-                <span className="font-medium">Manage Orders</span>
+                <span className="text-2xl mr-3">🤖</span>
+                <div className="flex flex-col">
+                  <span className="font-medium">AI Insights</span>
+                  <span className="text-xs text-blue-600">NEW</span>
+                </div>
               </Link>
               
               <Link
                 to="/admin/reports"
-                className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex items-center p-4 border border-blue-200 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
               >
                 <span className="text-2xl mr-3">📈</span>
-                <span className="font-medium">Generate Reports</span>
+                <div className="flex flex-col">
+                  <span className="font-medium">Advanced Reports</span>
+                  <span className="text-xs text-blue-600">NEW</span>
+                </div>
               </Link>
               
               <Link
-                to="/admin/analytics"
-                className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                to="/admin/security"
+                className="flex items-center p-4 border border-blue-200 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
               >
-                <span className="text-2xl mr-3">🔍</span>
-                <span className="font-medium">View Analytics</span>
+                <span className="text-2xl mr-3">🛡️</span>
+                <div className="flex flex-col">
+                  <span className="font-medium">Security & Audit</span>
+                  <span className="text-xs text-blue-600">NEW</span>
+                </div>
               </Link>
               
               <Link
-                to="/admin/policies"
+                to="/admin/monitoring"
+                className="flex items-center p-4 border border-blue-200 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                <span className="text-2xl mr-3">📊</span>
+                <div className="flex flex-col">
+                  <span className="font-medium">Performance Monitor</span>
+                  <span className="text-xs text-blue-600">NEW</span>
+                </div>
+              </Link>
+              
+              <Link
+                to="/admin/workflows"
                 className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                <span className="text-2xl mr-3">📄</span>
-                <span className="font-medium">Manage Policies</span>
+                <span className="text-2xl mr-3">⚙️</span>
+                <span className="font-medium">Workflow Automation</span>
+              </Link>
+              
+              <Link
+                to="/admin/integrations"
+                className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-2xl mr-3">🔗</span>
+                <span className="font-medium">Integration Hub</span>
+              </Link>
+              
+              <Link
+                to="/admin/content"
+                className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-2xl mr-3">📝</span>
+                <span className="font-medium">Content Management</span>
+              </Link>
+              
+              <Link
+                to="/admin/notifications"
+                className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-2xl mr-3">🔔</span>
+                <span className="font-medium">Notifications</span>
               </Link>
             </div>
           </div>
 
           {/* Help Section */}
           <div className="mt-8 bg-blue-50 rounded-lg p-6">
-            <h3 className="text-lg font-bold text-blue-900 mb-2">Need Help?</h3>
+            <h3 className="text-lg font-bold text-blue-900 mb-2">🚀 What's New in Your Admin Panel!</h3>
             <p className="text-blue-700 mb-4">
-              The admin panel provides comprehensive tools to manage your Firefly Tiny Homes business. 
-              Each section offers specific functionality to help you track performance, manage orders, 
-              and analyze customer behavior.
+              Your admin panel has been enhanced with powerful new AI-driven features and enterprise-grade tools! 
+              Explore AI Insights for business intelligence, Advanced Reports for data analysis, 
+              Security & Audit for monitoring, and much more. Each tool is designed to help you 
+              optimize operations and grow your tiny home business.
             </p>
             <div className="flex flex-wrap gap-4">
+              <Link
+                to="/admin/ai-insights"
+                className="text-blue-600 hover:text-blue-500 font-medium"
+              >
+                🤖 Try AI Insights →
+              </Link>
+              <Link
+                to="/admin/reports"
+                className="text-blue-600 hover:text-blue-500 font-medium"
+              >
+                📈 Generate Reports →
+              </Link>
               <a
                 href="mailto:office@fireflytinyhomes.com"
                 className="text-blue-600 hover:text-blue-500 font-medium"
               >
-                Contact Admin Support →
+                Contact Support →
               </a>
-              <Link
-                to="/admin/dashboard"
-                className="text-blue-600 hover:text-blue-500 font-medium"
-              >
-                Start with Dashboard →
-              </Link>
             </div>
           </div>
 
