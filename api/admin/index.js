@@ -45,6 +45,61 @@ initializeAdminDatabase()
 // MIDDLEWARE & VALIDATION
 // ============================================================================
 
+// Public-ish diagnostics and bootstrap endpoints (no admin requirement)
+// These must be defined BEFORE the admin auth middleware below.
+
+// Admin status probe used by the frontend to decide gating
+router.get('/is-admin', async (req, res) => {
+  try {
+    // Accept Clerk Bearer token but do NOT require admin; we just report it
+    const authHeader = req.headers?.authorization || req.headers?.Authorization
+    const token = typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length)
+      : null
+
+    if (!token) {
+      return res.status(200).json({ isAdmin: false, reason: 'no_token' })
+    }
+
+    try {
+      const { verifyToken } = await import('@clerk/backend')
+      const verified = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY })
+      const userId = verified?.sub || verified?.userId || null
+      if (!userId) return res.status(200).json({ isAdmin: false, reason: 'no_user' })
+
+      const role = await adminAuth.getUserRole(userId)
+      const isAdmin = !!role && role !== 'viewer'
+      return res.status(200).json({ isAdmin, userId, role })
+    } catch (e) {
+      // Token invalid or Clerk misconfigured – treat as not admin
+      return res.status(200).json({ isAdmin: false, reason: 'invalid_token' })
+    }
+  } catch (error) {
+    console.error('[ADMIN] /is-admin error:', error)
+    return res.status(200).json({ isAdmin: false, reason: 'internal_error' })
+  }
+})
+
+// Non-sensitive config/status summary used by the Admin UI
+router.get('/config-status', async (req, res) => {
+  try {
+    const aiConfigured = !!process.env.AI_API_KEY
+    const aiModel = process.env.AI_MODEL || null
+    const stripeMode = (process.env.STRIPE_SECRET_KEY || '').startsWith('sk_live') ? 'live' : ((process.env.STRIPE_SECRET_KEY || '').startsWith('sk_test') ? 'test' : 'unset')
+    const stripeWebhook = !!process.env.STRIPE_WEBHOOK_SECRET
+    const rateLimiter = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) ? 'redis' : 'memory'
+
+    return res.json({
+      ai: { configured: aiConfigured, model: aiModel },
+      stripe: { mode: stripeMode, webhookConfigured: stripeWebhook },
+      rateLimiter
+    })
+  } catch (error) {
+    console.error('[ADMIN] /config-status error:', error)
+    return res.status(200).json({ ai: { configured: false }, stripe: { mode: 'unset', webhookConfigured: false }, rateLimiter: 'memory' })
+  }
+})
+
 // Lightweight health check (unauthenticated) to diagnose router/middleware shape
 router.get('/health', (req, res) => {
   try {
