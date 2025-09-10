@@ -93,9 +93,9 @@ router.get('/', async (req, res) => {
     }
 
     // Get actual collections that exist in our system
-    let ordersCollection, buildsCollection, modelsCollection, db
+    let ordersCollection, buildsCollection, modelsCollection
     try {
-      db = await getDb()
+      // db is already declared above
       if (!db) {
         throw new Error('Database connection failed')
       }
