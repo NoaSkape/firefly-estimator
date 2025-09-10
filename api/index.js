@@ -3894,30 +3894,6 @@ async function requireAdmin(req, res) {
   return auth
 }
 
-// Admin status check endpoint
-app.get(['/api/admin/is-admin', '/admin/is-admin'], async (req, res) => {
-  try {
-    const auth = await requireAuth(req, res, false)
-    if (!auth?.userId) {
-      return res.status(401).json({ isAdmin: false, error: 'Not authenticated' })
-    }
-
-    // Check if user is admin
-    const isAdmin = await isAdminServer(auth.userId)
-    
-    res.status(200).json({ 
-      isAdmin,
-      userId: auth.userId 
-    })
-  } catch (error) {
-    console.error('Admin status check error:', error)
-    res.status(500).json({ 
-      isAdmin: false,
-      error: 'Failed to check admin status' 
-    })
-  }
-})
-
 // Get admin statistics
 
 // Get recent admin activity
