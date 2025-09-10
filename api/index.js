@@ -7055,7 +7055,18 @@ function hardenRouter(router, label = 'root') {
         console.error(`[ROUTER_HARDEN] Repaired non-function layer at ${label}[${idx}] (${name})`)
         layer.handle = (req, res) => res.status(500).json({ error: 'router layer misconfigured', label, index: idx, name })
       }
-      // Dive into nested routers
+      // Also sanitize route method stacks (GET/POST etc.)
+      const route = layer && layer.route
+      if (route && Array.isArray(route.stack)) {
+        route.stack.forEach((rLayer, rIdx) => {
+          if (typeof rLayer?.handle !== 'function') {
+            const m = rLayer?.method || 'use'
+            console.error(`[ROUTE_HARDEN] Repaired non-function handler at ${label}[${idx}]/route(${route?.path})#${m}[${rIdx}]`)
+            rLayer.handle = (req, res) => res.status(500).json({ error: 'route handler misconfigured', path: route?.path, method: m, index: rIdx })
+          }
+        })
+      }
+      // Dive into nested routers (mounted sub-routers)
       const nested = layer && layer.handle && layer.handle.stack ? layer.handle : null
       if (nested) hardenRouter(nested, `${label}/${layer?.route?.path || nameOf(layer) || idx}`)
     })
