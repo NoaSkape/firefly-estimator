@@ -47,7 +47,6 @@ export default function SignInPage() {
             }}
             signUpUrl={`/sign-up?redirect=${encodeURIComponent(redirectUrl)}`}
             fallbackRedirectUrl={redirectUrl}
-            afterSignInUrl={redirectUrl}
             showOptionalFields
             onError={(error) => {
               handleAuthError(error)

@@ -29,7 +29,7 @@ class Analytics {
     // Rate limiting for analytics
     this.rateLimiter = {
       requests: [],
-      maxRequests: 10, // Max 10 requests per minute
+      maxRequests: 50, // Max 50 requests per minute (increased from 30)
       windowMs: 60000 // 1 minute window
     }
     

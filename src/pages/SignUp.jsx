@@ -47,7 +47,6 @@ export default function SignUpPage() {
             }}
             signInUrl={`/sign-in?redirect=${encodeURIComponent(redirectUrl)}`}
             fallbackRedirectUrl={redirectUrl}
-            afterSignUpUrl={redirectUrl}
             showOptionalFields
             initialValues={{
               emailAddress: '',

@@ -284,7 +284,6 @@ export default function BuildsDashboard() {
               <h2 className="text-lg font-semibold text-gray-100 mb-2">New to Firefly</h2>
               <SignUp 
                 fallbackRedirectUrl="/builds" 
-                afterSignInUrl="/builds"
                 signInUrl="/sign-in?redirect=/builds"
                 appearance={{
                   elements: {
@@ -314,7 +313,6 @@ export default function BuildsDashboard() {
               <h2 className="text-lg font-semibold text-gray-100 mb-2">Already have an account?</h2>
               <SignIn 
                 fallbackRedirectUrl="/builds" 
-                afterSignUpUrl="/builds"
                 signUpUrl="/sign-up?redirect=/builds"
                 appearance={{
                   elements: {

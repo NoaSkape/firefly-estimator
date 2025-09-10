@@ -103,14 +103,14 @@ class PerformanceMonitor {
   trackUserInteractions() {
     // Throttle interaction tracking to prevent excessive events
     let interactionCount = 0
-    const maxInteractionsPerMinute = 20
+    const maxInteractionsPerMinute = 5 // Reduced from 10
     
     // Track button clicks and form interactions (throttled)
     document.addEventListener('click', (event) => {
       const target = event.target
       if (target.tagName === 'BUTTON' || target.tagName === 'A') {
-        // Only track every 5th interaction to reduce noise
-        if (interactionCount % 5 !== 0) {
+        // Only track every 20th interaction to reduce noise (increased from 10th)
+        if (interactionCount % 20 !== 0) {
           interactionCount++
           return
         }

@@ -3446,6 +3446,7 @@ async function buildContractPrefill(build, settings) {
     // Buyer Information - EXACT field names from FIELD_MAPS.masterRetail
     buyer_full_name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
     buyer_name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
+    buyer_printed_name: `${buyerInfo.firstName || ''} ${buyerInfo.lastName || ''}`.trim(),
     buyer_email: buyerInfo.email || '',
     buyer_address: buyerInfo.address || '',
     buyer_phone: buyerInfo.phone || '',
@@ -3454,6 +3455,9 @@ async function buildContractPrefill(build, settings) {
       ? `${buyerInfo.coBuyerFirstName || buyerInfo.coBuyer?.firstName || ''} ${buyerInfo.coBuyerLastName || buyerInfo.coBuyer?.lastName || ''}`.trim()
       : '',
     cobuyer_email: buyerInfo.coBuyerEmail || buyerInfo.coBuyer?.email || '',
+    cobuyer_printed_name: (buyerInfo.coBuyerFirstName || buyerInfo.coBuyer?.firstName)
+      ? `${buyerInfo.coBuyerFirstName || buyerInfo.coBuyer?.firstName || ''} ${buyerInfo.coBuyerLastName || buyerInfo.coBuyer?.lastName || ''}`.trim()
+      : '',
     
     // Unit Information - EXACT field names from FIELD_MAPS.masterRetail
     model_brand: "Athens Park Select",
@@ -3530,6 +3534,10 @@ async function buildContractPrefill(build, settings) {
     cobuyer_signature: '', // Will be filled during signing (if co-buyer exists)
     firefly_signature: '' // Will be filled by Firefly representative
   }
+
+  // Prefill dealer signer defaults if available
+  prefill.dealer_signer_name = process.env.FIREFLY_SIGNER_NAME || ''
+  prefill.dealer_signer_title = process.env.FIREFLY_SIGNER_TITLE || 'Authorized Representative'
 
   console.log('[CONTRACT_CREATE] Generated prefill data:', {
     prefillKeys: Object.keys(prefill),

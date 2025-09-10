@@ -251,6 +251,10 @@ export default function Buyer() {
             } catch (profileError) {
               console.error('Error saving to profile:', profileError)
               // Don't show error toast - profile save is optional
+              // Log more details for debugging
+              if (profileError.message.includes('JSON')) {
+                console.warn('Profile save failed due to JSON parsing - this is usually harmless')
+              }
             }
           })()
         ])
@@ -363,7 +367,6 @@ export default function Buyer() {
             <p className="text-sm text-gray-300 mb-3">Sign in or create an account so your design and checkout progress are saved.</p>
             <SignIn 
               fallbackRedirectUrl={location.pathname + location.search}
-              afterSignInUrl={location.pathname + location.search}
               signUpUrl={`/sign-up?redirect=${encodeURIComponent(location.pathname + location.search)}`}
               appearance={{
                 elements: {

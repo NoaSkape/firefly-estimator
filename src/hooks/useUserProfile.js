@@ -98,10 +98,15 @@ export function useUserProfile() {
         return profile
       }
       
-      const updatedProfile = JSON.parse(responseText)
-      setProfile(updatedProfile)
-      
-      return updatedProfile
+      try {
+        const updatedProfile = JSON.parse(responseText)
+        setProfile(updatedProfile)
+        return updatedProfile
+      } catch (parseError) {
+        console.warn('Failed to parse response JSON, refreshing profile instead:', parseError)
+        await fetchProfile()
+        return profile
+      }
     } catch (err) {
       setError(err.message)
       console.error('Error updating basic info:', err)
@@ -133,11 +138,24 @@ export function useUserProfile() {
       
       if (!response.ok) throw new Error('Failed to add address')
       
-      const updatedProfile = await response.json()
-      setProfile(updatedProfile)
-      setAddresses(updatedProfile.addresses || [])
+      const responseText = await response.text()
       
-      return updatedProfile
+      if (!responseText || responseText.trim() === '') {
+        console.warn('Empty response from server when adding address, refreshing profile instead')
+        await fetchProfile()
+        return profile
+      }
+      
+      try {
+        const updatedProfile = JSON.parse(responseText)
+        setProfile(updatedProfile)
+        setAddresses(updatedProfile.addresses || [])
+        return updatedProfile
+      } catch (parseError) {
+        console.warn('Failed to parse address response JSON, refreshing profile instead:', parseError)
+        await fetchProfile()
+        return profile
+      }
     } catch (err) {
       setError(err.message)
       console.error('Error adding address:', err)

@@ -167,8 +167,7 @@ export default function BuildCustomize() {
             // Prompt sign-in, then migrate guest draft and resume
             const { openSignIn } = await import('@clerk/clerk-react')
             openSignIn({
-              redirectUrl: location.pathname + location.search,
-              afterSignInUrl: location.pathname + location.search
+              redirectUrl: location.pathname + location.search
             })
             return
           }
@@ -187,8 +186,7 @@ export default function BuildCustomize() {
               // Prompt sign-in, then migrate guest draft and resume
               const { openSignIn } = await import('@clerk/clerk-react')
               openSignIn({
-                redirectUrl: location.pathname + location.search,
-                afterSignInUrl: location.pathname + location.search
+                redirectUrl: location.pathname + location.search
               })
               return
             }
