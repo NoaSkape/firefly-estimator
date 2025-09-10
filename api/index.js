@@ -2575,12 +2575,21 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
     console.log('[CONTRACT_START] Starting contract for template:', templateKey, 'build:', buildId)
 
     // Import the existing working modules
-    const { createSubmission } = await import('../lib/docuseal.js')
+    const { createSubmission, getTemplate } = await import('../lib/docuseal.js')
     const { getTemplate: getTemplateByKey } = await import('../lib/docuseal/templates.js')
 
     // Get template configuration
     const template = getTemplateByKey(templateKey)
     console.log('[CONTRACT_START] Using template:', template.name, 'ID:', template.id)
+    
+    // Fetch actual template from DocuSeal to validate real field names
+    let remoteTemplateFields = []
+    try {
+      const remote = await getTemplate(template.id)
+      remoteTemplateFields = Array.isArray(remote?.fields) ? remote.fields.map(f => f?.name).filter(Boolean) : []
+    } catch (e) {
+      console.warn('[CONTRACT_START] Could not fetch remote template fields; proceeding with local field map only:', e?.message)
+    }
 
     // Get build data
     const build = await getBuildById(buildId)
@@ -2597,7 +2606,13 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
     // Build a filtered map just for FIELD elements (DocuSeal ignores unknown fields).
     // Keep the full prefill object for HTML {{var}} replacement used by DocuSeal's native Download.
     const templateFieldMap = template.fieldMap || {}
-    const validFieldNames = new Set(Object.keys(templateFieldMap))
+    const localNames = new Set(Object.keys(templateFieldMap))
+    const remoteNames = new Set(remoteTemplateFields)
+    const validFieldNames = new Set(
+      remoteNames.size > 0
+        ? Array.from(localNames).filter(n => remoteNames.has(n))
+        : Array.from(localNames)
+    )
     const fieldsPrefill = {}
     
     // Only prefill fields that exist in the template and are READONLY (text/date). 
@@ -2621,6 +2636,7 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
       templateKey,
       totalPrefillFields: Object.keys(prefillData).length,
       validTemplateFields: Array.from(validFieldNames),
+      remoteTemplateFieldCount: remoteTemplateFields.length,
       fieldElementsUsed: Object.keys(fieldsPrefill),
       ignoredForFields: Object.keys(prefillData).filter(key => !validFieldNames.has(key))
     })
