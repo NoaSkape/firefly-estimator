@@ -3,6 +3,7 @@
 
 import express from 'express'
 import { getDb } from '../../lib/db.js'
+import { getCollection } from '../../lib/adminSchema.js'
 import { ORDERS_COLLECTION } from '../../lib/orders.js'
 import { BUILDS_COLLECTION } from '../../lib/builds.js'
 import { COLLECTION as MODELS_COLLECTION } from '../../lib/model-utils.js'
