@@ -3175,14 +3175,23 @@ async function buildContractPrefill(build, settings) {
     deliveryKeys: Object.keys(delivery)
   })
   
-  // Calculate key amounts from the correct data structure
-  const basePrice = selections.basePrice || 0
-  const optionsTotal = pricing.optionsTotal || 0
-  const deliveryEstimate = pricing.deliveryEstimate || 0
-  const titleFee = pricing.titleFee || 0
-  const setupFee = pricing.setupFee || 0
-  const taxes = pricing.taxes || 0
-  const totalPurchasePrice = pricing.total || (basePrice + optionsTotal + deliveryEstimate + titleFee + setupFee + taxes)
+  // Calculate key amounts using the same logic as the frontend
+  const basePrice = Number(selections.basePrice || 0)
+  const options = selections.options || []
+  const optionsTotal = options.reduce((sum, opt) => sum + Number(opt.price || 0) * (opt.quantity || 1), 0)
+  
+  // Get fees from settings or build (same logic as frontend)
+  const deliveryFee = Number(pricing.delivery || 0)
+  const titleFee = Number(settings?.pricing?.title_fee_default || 500)
+  const setupFee = Number(settings?.pricing?.setup_fee_default || 3000)
+  const taxRate = Number(settings?.pricing?.tax_rate_percent || 6.25) / 100
+  
+  // Calculate subtotal before tax
+  const subtotalBeforeFees = basePrice + optionsTotal
+  const feesSubtotal = deliveryFee + titleFee + setupFee
+  const subtotalBeforeTax = subtotalBeforeFees + feesSubtotal
+  const salesTax = subtotalBeforeTax * taxRate
+  const totalPurchasePrice = subtotalBeforeTax + salesTax
   
   // Calculate deposit (default to 25% if not specified)
   const depositPercent = 25 // Default deposit percentage
@@ -3195,7 +3204,6 @@ async function buildContractPrefill(build, settings) {
   
   // Get model code from slug if available
   let modelCode = ''
-  let modelDimensions = ''
   
   if (modelSlug) {
     // Convert slug to model code (e.g., 'magnolia' -> 'APS-630')
@@ -3210,17 +3218,6 @@ async function buildContractPrefill(build, settings) {
       'meadow': 'APS-528'
     }
     modelCode = modelMapping[modelSlug] || modelSlug.toUpperCase()
-    
-    // Get dimensions from model data if available
-    try {
-      const { findModelById } = await import('../lib/model-utils.js')
-      const modelData = await findModelById(modelSlug)
-      if (modelData && modelData.length && modelData.width && modelData.height) {
-        modelDimensions = `${modelData.length} x ${modelData.width} x ${modelData.height}`
-      }
-    } catch (error) {
-      console.log('[CONTRACT_CREATE] Could not fetch model dimensions:', error.message)
-    }
   }
 
   // Format payment method with detailed information
@@ -3275,16 +3272,15 @@ async function buildContractPrefill(build, settings) {
     model_brand: "Athens Park Select",
     model_code: modelCode || '',
     model_year: new Date().getFullYear().toString(),
-    dimensions: modelDimensions,
 
     // Pricing Information - EXACT field names from FIELD_MAPS.masterRetail
     price_base: formatCurrency(basePrice),
     price_options: formatCurrency(optionsTotal),
-    price_freight_est: formatCurrency(deliveryEstimate),
+    price_freight_est: formatCurrency(deliveryFee),
     price_setup: formatCurrency(setupFee),
     price_other: formatCurrency(titleFee),
-    price_sales_tax: formatCurrency(taxes),
-    price_subtotal: formatCurrency(basePrice + optionsTotal + deliveryEstimate + setupFee + titleFee),
+    price_sales_tax: formatCurrency(salesTax),
+    price_subtotal: formatCurrency(subtotalBeforeTax),
     price_total: formatCurrency(totalPurchasePrice),
 
     // Payment Terms
@@ -3363,9 +3359,7 @@ async function buildContractPrefill(build, settings) {
       model_brand: prefill.model_brand,
       model_code: prefill.model_code,
       model_year: prefill.model_year,
-      dimensions: prefill.dimensions,
-      unit_model: prefill.unit_model,
-      total_price: prefill.total_price,
+      total_price: prefill.price_total,
       payment_method: prefill.payment_method
     }
   })
