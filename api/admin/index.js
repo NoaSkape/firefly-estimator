@@ -182,7 +182,7 @@ router.use(async (req, res, next) => {
 })
 
 // Admin authentication middleware for all routes
-router.use((req, res, next) => adminAuth.validateAdminAccess(req, res, next))
+router.use(adminAuth.validateAdminAccess.bind(adminAuth))
 
 // Request validation schemas
 const adminSchemas = {

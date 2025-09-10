@@ -20,7 +20,7 @@ try {
 const router = express.Router()
 
 // Admin authentication middleware for all routes
-router.use((req, res, next) => adminAuth.validateAdminAccess(req, res, next))
+router.use(adminAuth.validateAdminAccess.bind(adminAuth))
 
 // Get analytics dashboard data
 router.get('/', async (req, res) => {

@@ -10,7 +10,7 @@ import { adminAuth } from '../../lib/adminAuth.js'
 const router = express.Router()
 
 // Admin authentication middleware for all routes
-router.use((req, res, next) => adminAuth.validateAdminAccess(req, res, next))
+router.use(adminAuth.validateAdminAccess.bind(adminAuth))
 
 // System health check schema
 const healthCheckSchema = z.object({
