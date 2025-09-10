@@ -6,8 +6,12 @@ import { z } from 'zod'
 import { getDb } from '../../lib/db.js'
 import { validateRequest } from '../../lib/requestValidation.js'
 import { createClerkClient } from '@clerk/backend'
+import { adminAuth } from '../../lib/adminAuth.js'
 
 const router = express.Router()
+
+// Admin authentication middleware for all routes
+router.use((req, res, next) => adminAuth.validateAdminAccess(req, res, next))
 
 // Initialize Clerk client
 let clerkClient

@@ -2700,9 +2700,9 @@ app.post(['/api/admin/docuseal/init-templates', '/admin/docuseal/init-templates'
 
     const results = {}
     
-    console.info("[TEMPLATE_INIT] Creating Agreement v2...")
+    console.info("[TEMPLATE_INIT] Creating Comprehensive Purchase Agreement v5...")
     const { buildAgreementTemplate } = await import('../lib/docuseal/builders/agreement.js')
-    results["Agreement v2"] = await buildAgreementTemplate()
+    results["Comprehensive Purchase Agreement v5"] = await buildAgreementTemplate()
     
     console.info("[TEMPLATE_INIT] Creating Delivery/Site Readiness v2...")
     const { buildDeliveryTemplate } = await import('../lib/docuseal/builders/pack3_delivery.js')
@@ -2711,7 +2711,7 @@ app.post(['/api/admin/docuseal/init-templates', '/admin/docuseal/init-templates'
     console.info("[TEMPLATE_INIT] All templates created successfully:", results)
     
     const envInstructions = [
-      `DOCUSEAL_TEMPLATE_ID_AGREEMENT=${results["Agreement v2"]}`,
+      `DOCUSEAL_TEMPLATE_ID_AGREEMENT=${results["Comprehensive Purchase Agreement v5"]}`,
       `DOCUSEAL_TEMPLATE_ID_DELIVERY=${results["Delivery/Site Readiness v2"]}`
     ]
     
@@ -2719,14 +2719,23 @@ app.post(['/api/admin/docuseal/init-templates', '/admin/docuseal/init-templates'
       ok: true, 
       success: true,
       templates: results,
-      message: "All templates created successfully with v2 versions",
+      message: "All templates created successfully with comprehensive v5 Purchase Agreement",
       envInstructions: envInstructions,
       dashboardUrl: "https://docuseal.com/templates",
       nextSteps: [
         "1. Update your .env file with the new template IDs above",
-        "2. Verify templates in DocuSeal dashboard have readable content",
-        "3. Archive or delete the old v1 templates to avoid confusion",
-        "4. Test Step 7 contract flow with new template IDs"
+        "2. Verify the comprehensive Purchase Agreement template has all sections A-S",
+        "3. Archive or delete the old templates to avoid confusion",
+        "4. Test Step 7 contract flow with new comprehensive template",
+        "5. Review the comprehensive template includes all required legal sections"
+      ],
+      templateFeatures: [
+        "Complete sections A-S as specified",
+        "All required initials and signatures",
+        "Proper conspicuous disclaimers",
+        "Arbitration clause with jury trial waiver",
+        "Texas law compliance",
+        "Electronic signature support"
       ]
     })
 
@@ -2747,19 +2756,27 @@ app.post(['/api/admin/docuseal/init-templates/agreement', '/admin/docuseal/init-
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
-    console.log('[AGREEMENT_TEMPLATE] Creating DOCX-based agreement template...')
+    console.log('[AGREEMENT_TEMPLATE] Creating comprehensive agreement template...')
 
     const { buildAgreementTemplate } = await import('../lib/docuseal/builders/agreement.js')
     const templateId = await buildAgreementTemplate()
 
-    console.log('[AGREEMENT_TEMPLATE] Agreement template created:', templateId)
+    console.log('[AGREEMENT_TEMPLATE] Comprehensive agreement template created:', templateId)
 
     res.json({
       success: true,
       templateId,
-      message: 'Agreement template created successfully via DocuSeal DOCX endpoint',
+      message: 'Comprehensive Purchase Agreement template created successfully with all sections A-S',
       envVariable: 'DOCUSEAL_TEMPLATE_ID_AGREEMENT',
-      instructions: `Add this to your .env file: DOCUSEAL_TEMPLATE_ID_AGREEMENT=${templateId}`
+      instructions: `Add this to your .env file: DOCUSEAL_TEMPLATE_ID_AGREEMENT=${templateId}`,
+      templateFeatures: [
+        "Complete sections A-S as specified",
+        "All required initials and signatures",
+        "Proper conspicuous disclaimers",
+        "Arbitration clause with jury trial waiver",
+        "Texas law compliance",
+        "Electronic signature support"
+      ]
     })
 
   } catch (error) {

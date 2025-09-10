@@ -16,7 +16,14 @@ import {
   BellIcon,
   UserCircleIcon,
   Bars3Icon,
-  XMarkIcon
+  XMarkIcon,
+  LightBulbIcon,
+  ShieldCheckIcon,
+  CpuChipIcon,
+  CloudArrowUpIcon,
+  ChartPieIcon,
+  WrenchScrewdriverIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline'
 import { useUser, useAuth } from '@clerk/clerk-react'
 
@@ -38,28 +45,11 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
       permission: 'financial:view'
     },
     {
-      name: 'Drafts',
-      href: '/admin/drafts',
-      icon: DocumentTextIcon,
-      permission: 'models:view' // Use same permission as models for now
-    },
-    {
-      name: 'Models',
-      href: '/admin/models',
-      icon: CubeIcon,
-      permission: 'models:view'
-    },
-    {
-      name: 'Orders',
-      href: '/admin/orders',
-      icon: ShoppingCartIcon,
-      permission: 'orders:view'
-    },
-    {
-      name: 'Customers',
-      href: '/admin/customers',
-      icon: UsersIcon,
-      permission: 'customers:view'
+      name: 'AI Insights',
+      href: '/admin/ai-insights',
+      icon: LightBulbIcon,
+      permission: 'financial:view',
+      badge: 'NEW'
     },
     {
       name: 'Analytics',
@@ -68,10 +58,16 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
       permission: 'financial:reports'
     },
     {
-      name: 'Advanced Reporting',
+      name: 'Advanced Reports',
       href: '/admin/reports',
-      icon: DocumentTextIcon,
+      icon: ChartPieIcon,
       permission: 'financial:reports'
+    },
+    {
+      name: 'Orders',
+      href: '/admin/orders',
+      icon: ShoppingCartIcon,
+      permission: 'orders:view'
     },
     {
       name: 'Financial',
@@ -80,16 +76,63 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
       permission: 'financial:view'
     },
     {
-      name: 'Delivery',
-      href: '/admin/delivery',
-      icon: TruckIcon,
-      permission: 'orders:view'
+      name: 'Customers',
+      href: '/admin/customers',
+      icon: UsersIcon,
+      permission: 'customers:view'
     },
     {
-      name: 'Documents',
-      href: '/admin/documents',
+      name: 'Models',
+      href: '/admin/models',
+      icon: CubeIcon,
+      permission: 'models:view'
+    },
+    {
+      name: 'Content',
+      href: '/admin/content',
       icon: DocumentTextIcon,
-      permission: 'orders:view'
+      permission: 'content:view'
+    },
+    {
+      name: 'Notifications',
+      href: '/admin/notifications',
+      icon: BellIcon,
+      permission: 'notifications:view'
+    },
+    {
+      name: 'Integrations',
+      href: '/admin/integrations',
+      icon: CloudArrowUpIcon,
+      permission: 'integrations:view',
+      badge: 'NEW'
+    },
+    {
+      name: 'Security & Audit',
+      href: '/admin/security',
+      icon: ShieldCheckIcon,
+      permission: 'security:view',
+      badge: 'NEW'
+    },
+    {
+      name: 'Workflows',
+      href: '/admin/workflows',
+      icon: WrenchScrewdriverIcon,
+      permission: 'workflows:view',
+      badge: 'NEW'
+    },
+    {
+      name: 'Monitoring',
+      href: '/admin/monitoring',
+      icon: EyeIcon,
+      permission: 'monitoring:view',
+      badge: 'NEW'
+    },
+    {
+      name: 'Data Export',
+      href: '/admin/export',
+      icon: CpuChipIcon,
+      permission: 'export:view',
+      badge: 'NEW'
     },
     {
       name: 'Settings',

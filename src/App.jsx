@@ -48,6 +48,15 @@ const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'))
 const TermsConditions = lazy(() => import('./pages/TermsConditions'))
 const OtherPolicies = lazy(() => import('./pages/OtherPolicies'))
 const AdminPolicies = lazy(() => import('./pages/admin/Policies'))
+const AIInsights = lazy(() => import('./pages/admin/AIInsights'))
+const AdvancedReports = lazy(() => import('./pages/admin/AdvancedReports'))
+const Integrations = lazy(() => import('./pages/admin/Integrations'))
+const Security = lazy(() => import('./pages/admin/Security'))
+const Workflows = lazy(() => import('./pages/admin/Workflows'))
+const Monitoring = lazy(() => import('./pages/admin/Monitoring'))
+const DataExport = lazy(() => import('./pages/admin/DataExport'))
+const Content = lazy(() => import('./pages/admin/Content'))
+const Notifications = lazy(() => import('./pages/admin/Notifications'))
 const Blog = lazy(() => import('./pages/Blog'))
 const BlogAll = lazy(() => import('./pages/BlogAll'))
 const BlogCreate = lazy(() => import('./pages/BlogCreate'))
@@ -416,45 +425,70 @@ function App() {
                   <AdminDrafts />
                 </ProtectedRoute>
               } />
-                              <Route path="/admin/analytics" element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <AdminAnalytics />
-                  </ProtectedRoute>
-                } />
-                <Route path="/admin/reports" element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <AdvancedReporting />
-                  </ProtectedRoute>
-                } />
-                <Route path="/admin/dashboard" element={
+              <Route path="/admin/analytics" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminAnalytics />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/dashboard" element={
                 <ProtectedRoute requireAdmin={true}>
                   <AdminDashboard />
                 </ProtectedRoute>
               } />
+              <Route path="/admin/ai-insights" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AIInsights />
+                </ProtectedRoute>
+              } />
               <Route path="/admin/reports" element={
                 <ProtectedRoute requireAdmin={true}>
-                  <AdvancedReporting />
+                  <AdvancedReports />
                 </ProtectedRoute>
               } />
-              <Route path="/admin/analytics" element={
+              <Route path="/admin/integrations" element={
                 <ProtectedRoute requireAdmin={true}>
-                  <AnalyticsDashboard />
+                  <Integrations />
                 </ProtectedRoute>
               } />
-              <Route path="/admin/security-audit" element={
+              <Route path="/admin/security" element={
                 <ProtectedRoute requireAdmin={true}>
-                  <SecurityAuditReport />
+                  <Security />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/workflows" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <Workflows />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/monitoring" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <Monitoring />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/export" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <DataExport />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/content" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <Content />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/notifications" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <Notifications />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/policies" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminPolicies />
                 </ProtectedRoute>
               } />
               <Route path="/faq" element={<FAQPage />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-conditions" element={<TermsConditions />} />
               <Route path="/other-policies" element={<OtherPolicies />} />
-              <Route path="/admin/policies" element={
-                <ProtectedRoute requireAdmin={true}>
-                  <AdminPolicies />
-                </ProtectedRoute>
-              } />
                                 </Routes>
                   </Suspense>
                 </MobileSpacingWrapper>
