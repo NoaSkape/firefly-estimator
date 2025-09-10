@@ -6976,14 +6976,13 @@ function resolveRouter(mod, name) {
 const adminRouter = resolveRouter(adminRouterModule, 'admin')
 if (adminRouter) {
   // Mount for both normalized paths ("/admin") and direct ("/api/admin").
-  // Vercel rewrite /api/(.*) -> /api/index?path=/$1 rewrites to 
-  // req.url like "/admin/...", so we need both.
-  app.use(['/api/admin', '/admin'], adminRouter)
+  // Use separate calls instead of an array to avoid any edge cases in serverless routing.
+  app.use('/api/admin', adminRouter)
+  app.use('/admin', adminRouter)
 } else {
   // Provide diagnostic fallbacks to avoid Express attempting to call undefined.apply
-  app.use(['/api/admin', '/admin'], (req, res) => {
-    res.status(500).json({ error: 'admin router misconfigured' })
-  })
+  app.use('/api/admin', (req, res) => { res.status(500).json({ error: 'admin router misconfigured' }) })
+  app.use('/admin', (req, res) => { res.status(500).json({ error: 'admin router misconfigured' }) })
 }
 
 

@@ -1305,6 +1305,22 @@ mountSafe('/workflows', workflowsRouter, 'workflowsRouter')
 mountSafe('/monitoring', monitoringRouter, 'monitoringRouter')
 mountSafe('/export', exportRouter, 'exportRouter')
 
+// Final defensive pass: replace any non-function layer handles to avoid
+// Express attempting to call undefined.apply when a subrouter failed to load.
+try {
+  if (Array.isArray(router.stack)) {
+    router.stack.forEach((layer, i) => {
+      if (typeof layer?.handle !== 'function') {
+        const name = layer?.name || `layer_${i}`
+        console.error(`[ADMIN] Repairing misconfigured layer: ${name} (index ${i})`)
+        layer.handle = (req, res) => res.status(500).json({ error: 'admin layer misconfigured', layer: name })
+      }
+    })
+  }
+} catch (e) {
+  console.warn('[ADMIN] Stack repair pass failed:', e?.message)
+}
+
 // ============================================================================
 // ERROR HANDLING
 // ============================================================================
