@@ -7086,6 +7086,53 @@ if (adminRouter) {
   // Harden both app and admin routers to avoid undefined.apply errors
   hardenRouter(app._router, 'app')
   hardenRouter(adminRouter, 'admin')
+
+  // Optional deep trace for debugging in production (set DEBUG_ADMIN=true)
+  if (process.env.DEBUG_ADMIN === 'true') {
+    const traced = new WeakSet()
+    const instrument = (router, label) => {
+      try {
+        const stack = router && router.stack
+        if (!Array.isArray(stack)) return
+        stack.forEach((layer, idx) => {
+          const tag = `${label}[${idx}]${layer?.route?.path ? `:${layer.route.path}` : ''}`
+          const wrap = (h) => {
+            if (typeof h !== 'function' || traced.has(h)) return h
+            const isErr = h.length === 4
+            const wrapped = isErr
+              ? function (err, req, res, next) {
+                  console.log('[TRACE_ERR]', tag, { path: req?.path, method: req?.method, name: h?.name })
+                  return h(err, req, res, next)
+                }
+              : function (req, res, next) {
+                  console.log('[TRACE]', tag, { path: req?.path, method: req?.method, name: h?.name })
+                  return h(req, res, next)
+                }
+            traced.add(wrapped)
+            return wrapped
+          }
+          if (layer.handle) layer.handle = wrap(layer.handle)
+          if (layer.route && Array.isArray(layer.route.stack)) {
+            layer.route.stack.forEach((rl, ridx) => {
+              const rtag = `${tag}#${rl?.method || 'use'}[${ridx}]`
+              if (rl.handle && !traced.has(rl.handle)) {
+                const h = rl.handle
+                rl.handle = function (req, res, next) {
+                  console.log('[TRACE_ROUTE]', rtag, { path: req?.path, method: req?.method, name: h?.name })
+                  return h(req, res, next)
+                }
+                traced.add(rl.handle)
+              }
+            })
+          }
+          const nested = layer && layer.handle && layer.handle.stack ? layer.handle : null
+          if (nested) instrument(nested, `${label}/${layer?.route?.path || layer?.name || idx}`)
+        })
+      } catch (e) { console.warn('[TRACE] instrument failed:', e?.message) }
+    }
+    instrument(app._router, 'app')
+    instrument(adminRouter, 'admin')
+  }
 } else {
   // Provide diagnostic fallbacks to avoid Express attempting to call undefined.apply
   app.use('/api/admin', (req, res) => { res.status(500).json({ error: 'admin router misconfigured' }) })
