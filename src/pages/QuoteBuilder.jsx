@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MODELS } from '../data/models'
+import fetchModelsBatch from '../utils/fetchModelsBatch'
 import { OPTIONS } from '../data/options'
 import ClientInfoForm from '../components/ClientInfoForm'
 import ModelSelector from '../components/ModelSelector'
@@ -25,8 +26,7 @@ const QuoteBuilder = () => {
       const local = MODELS.map(m => ({ ...m }))
       setAllModels(local)
       try {
-        const responses = await Promise.all(local.map(m => fetch(`/api/models/${m.id}`)))
-        const apiModels = await Promise.all(responses.map(r => (r.ok ? r.json() : null)))
+        const apiModels = await fetchModelsBatch(local.map(m => m.id))
         const merged = local.map((m, i) => {
           const api = apiModels[i]
           if (!api) return m

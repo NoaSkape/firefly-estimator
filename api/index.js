@@ -6,7 +6,7 @@ import { ObjectId } from 'mongodb'
 import { getDb } from '../lib/db.js'
 import { requireAuth } from '../lib/auth.js'
 import { applyCors } from '../lib/cors.js'
-import { findModelById, ensureModelIndexes, findOrCreateModel, COLLECTION } from '../lib/model-utils.js'
+import { findModelById, ensureModelIndexes, findOrCreateModel, COLLECTION, isModelCode, isSlug } from '../lib/model-utils.js'
 import { initializeAdminDatabase } from '../lib/adminSchema.js'
 import { ensureOrderIndexes, createOrderDraft, getOrderById, updateOrder, listOrdersForUser, listOrdersAdmin, ORDERS_COLLECTION, setOrderPricingSnapshot, setOrderDelivery } from '../lib/orders.js'
 import { ensureBuildIndexes, createBuild, getBuildById, listBuildsForUser, updateBuild, duplicateBuild, deleteBuild, renameBuild } from '../lib/builds.js'
@@ -308,8 +308,18 @@ app.get(['/api/admin/config-status', '/admin/config-status'], async (req, res) =
   }
 })
 
-// Apply rate limiting to all routes
-app.use('/api/', apiRateLimiter)
+// Apply rate limiting to all routes, except high-volume public model GETs
+app.use('/api/', (req, res, next) => {
+  try {
+    const p = req.path || ''
+    const qPath = (req.query && (req.query.path || req.query.p)) || ''
+    const target = typeof qPath === 'string' && qPath ? qPath : p
+    if (req.method === 'GET' && (target === '/models' || target.startsWith('/models/'))) {
+      return next()
+    }
+  } catch {}
+  return apiRateLimiter(req, res, next)
+})
 app.use('/api/auth/', authRateLimiter)
 
 // ===== AI Content Generation Routes =====
@@ -1131,9 +1141,82 @@ app.get(['/api/models/:code', '/models/:code'], async (req, res) => {
       features: Array.isArray(model.features) ? model.features : [],
       images: Array.isArray(model.images) ? model.images : [],
     }
+    // Cache model details at the CDN to avoid function invocations
+    // Cache for 10 minutes at the edge, allow 1 day stale-while-revalidate
+    res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=86400')
     return res.status(200).json(normalized)
   } catch (err) {
     if (debug) console.error('[DEBUG_ADMIN] models GET error', err?.message || err)
+    return res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// ----- GET models batch -----
+// Example: /api/models/batch?ids=aps-630,aps-601,apx-150
+app.get(['/api/models/batch', '/models/batch'], async (req, res) => {
+  const debug = process.env.DEBUG_ADMIN === 'true'
+  try {
+    const raw = (req.query?.ids || req.query?.codes || req.query?.slugs || '')
+    const ids = String(raw)
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+    if (!ids.length) return res.status(400).json({ error: 'missing_ids' })
+
+    await ensureModelIndexes()
+
+    // Partition into modelCodes and slugs for efficient querying
+    const codes = ids.filter(isModelCode).map(s => s.toUpperCase())
+    const slugs = ids.filter(id => !isModelCode(id) && isSlug(id)).map(s => s.toLowerCase())
+
+    const db = await getDb()
+    const collection = db.collection(COLLECTION)
+
+    const or = []
+    if (codes.length) or.push({ modelCode: { $in: codes } })
+    if (slugs.length) or.push({ slug: { $in: slugs } })
+
+    let docs = []
+    if (or.length) {
+      docs = await collection.find({ $or: or }).toArray()
+    }
+
+    // Build a quick lookup map
+    const byCode = new Map(docs.map(d => [String(d.modelCode || '').toUpperCase(), d]))
+    const bySlug = new Map(docs.map(d => [String(d.slug || '').toLowerCase(), d]))
+
+    // Preserve order of requested ids; fall back to individual lookup when not found
+    const results = []
+    for (const id of ids) {
+      let doc = null
+      if (isModelCode(id)) {
+        doc = byCode.get(id.toUpperCase()) || null
+      } else if (isSlug(id)) {
+        doc = bySlug.get(id.toLowerCase()) || null
+      }
+      if (!doc) {
+        // Last-chance: use existing resolver which handles various fallbacks
+        // Avoid blocking the whole request if one fails
+        try {
+          doc = await findModelById(id)
+        } catch {}
+      }
+      if (doc) {
+        results.push({
+          ...doc,
+          features: Array.isArray(doc.features) ? doc.features : [],
+          images: Array.isArray(doc.images) ? doc.images : [],
+        })
+      } else {
+        results.push(null)
+      }
+    }
+
+    // Cache batched response at the CDN to minimize function invocations
+    res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=86400')
+    return res.status(200).json({ models: results })
+  } catch (err) {
+    if (debug) console.error('[DEBUG_ADMIN] models batch error', err?.message || err)
     return res.status(500).json({ error: 'server_error' })
   }
 })

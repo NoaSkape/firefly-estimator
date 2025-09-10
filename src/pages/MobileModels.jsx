@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MODELS } from '../data/models'
+import fetchModelsBatch from '../utils/fetchModelsBatch'
 import { Seo } from '../components/Seo'
 import MobileModelCard from '../components/MobileModelCard'
 import { useToast } from '../components/ToastProvider'
@@ -40,8 +41,7 @@ export default function MobileModelsPage() {
       const local = MODELS.map(m => ({ ...m }))
       setAll(local)
       try {
-        const responses = await Promise.all(local.map(m => fetch(`/api/models/${m.id}`)))
-        const apiModels = await Promise.all(responses.map(r => (r.ok ? r.json() : null)))
+        const apiModels = await fetchModelsBatch(local.map(m => m.id))
         const merged = local.map((m, i) => {
           const api = apiModels[i]
           if (!api) return m
