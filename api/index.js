@@ -2555,6 +2555,7 @@ async function generateOrderSummaryPDF(order) {
 }
 
 // Unified DocuSeal template initialization (v2 templates)
+})
 
 // DocuSeal admin routes are now handled by the admin router
 
@@ -3809,18 +3810,24 @@ async function requireAdmin(req, res) {
 }
 
 // Get admin statistics
+})
 
 // Get recent admin activity
+})
 
 // Get all users for admin
+})
 
 // Bulk user operations
+})
 
 // Data export endpoints
+})
 
 // ===== POLICY MANAGEMENT =====
 
 // Get all policies
+})
 
 // Get single policy
 app.get(['/api/policies/:id', '/policies/:id'], async (req, res) => {
@@ -3868,6 +3875,7 @@ app.get(['/api/policies/:id', '/policies/:id'], async (req, res) => {
 })
 
 // Update policy
+})
 
 // Pages routes
 app.get(['/api/pages/:pageId', '/pages/:pageId'], async (req, res) => {
@@ -4264,10 +4272,13 @@ app.put(['/api/blog/:id', '/blog/:id'], async (req, res) => {
 })
 
 // Admin-specific blog editing endpoint with enhanced security
+})
 
 // Admin endpoint for fetching draft blog posts
+})
 
 // Admin endpoint for fetching blog posts for editing (includes unpublished posts)
+})
 
 // Helper function to get default content for pages
 function getDefaultPageContent(pageId) {
@@ -4616,8 +4627,10 @@ function convertToCSV(data) {
 }
 
 // Advanced reporting endpoints
+})
 
 // Export advanced reports
+})
 
 // Helper functions for report generation
 async function generateFunnelData(db, startDate, endDate) {
