@@ -16,9 +16,11 @@ import {
   ArrowUpIcon,
   ArrowDownIcon
 } from '@heroicons/react/24/outline'
+import { useAuth } from '@clerk/clerk-react'
 import AdminLayout from './AdminLayout'
 
 const AdminDashboard = () => {
+  const { getToken } = useAuth()
   const [dashboardData, setDashboardData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -29,23 +31,52 @@ const AdminDashboard = () => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`/api/admin/dashboard?range=${timeRange}`)
-        if (response.ok) {
-          const data = await response.json()
+        setError(null)
+        
+        const token = await getToken()
+        if (!token) {
+          throw new Error('Authentication required')
+        }
+        
+        const response = await fetch(`/api/admin/dashboard?range=${timeRange}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `HTTP ${response.status}`)
+        }
+        
+        const data = await response.json()
+        if (data.success) {
           setDashboardData(data.data)
         } else {
-          throw new Error('Failed to fetch dashboard data')
+          throw new Error(data.error || 'Failed to fetch dashboard data')
         }
       } catch (error) {
         console.error('Dashboard fetch error:', error)
         setError(error.message)
+        // Set fallback data to prevent UI breaking
+        setDashboardData({
+          metrics: {
+            totalUsers: 0,
+            newUsers: 0,
+            totalOrders: 0,
+            totalRevenue: 0,
+            activeBuilds: 0
+          },
+          growth: {
+            userGrowth: 0,
+            revenueGrowth: 0
+          }
+        })
       } finally {
         setLoading(false)
       }
     }
 
     fetchDashboardData()
-  }, [timeRange])
+  }, [timeRange, getToken])
 
   // Format currency
   const formatCurrency = (amount) => {

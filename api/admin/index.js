@@ -10,6 +10,7 @@ import {
   initializeAdminDatabase
 } from '../../lib/adminSchema.js'
 import { validateRequest } from '../../lib/requestValidation.js'
+import { getDb } from '../../lib/db.js'
 import analyticsRouter from './analytics.js'
 import dashboardRouter from './dashboard.js'
 import reportsRouter from './reports.js'
@@ -49,11 +50,69 @@ router.get('/health', (req, res) => {
 })
 
 // Admin authentication middleware for all routes
-router.use((req, res, next) => {
+router.use(async (req, res, next) => {
   if (process.env.ADMIN_AUTH_DISABLED === 'true') {
+    // Add mock admin user for development
+    req.adminUser = {
+      userId: 'dev-admin',
+      role: 'admin',
+      permissions: ['FINANCIAL_VIEW', 'BUILD_EDIT', 'MODEL_EDIT', 'USER_MANAGE', 'BLOG_EDIT']
+    }
     return next()
   }
-  adminAuth.validateAdminAccess(req, res, next)
+  
+  try {
+    // Extract Bearer token from Authorization header
+    const authHeader = req.headers?.authorization || req.headers?.Authorization
+    const token = typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length)
+      : null
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized - No token provided' })
+    }
+
+    // Verify token with Clerk
+    const { verifyToken, createClerkClient } = await import('@clerk/backend')
+    const verified = await verifyToken(token, {
+      secretKey: process.env.CLERK_SECRET_KEY
+    })
+    
+    const userId = verified?.sub || verified?.userId
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized - Invalid token' })
+    }
+
+    // Check admin status
+    const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY })
+    const user = await clerk.users.getUser(userId)
+    
+    // Check role in public metadata
+    const isAdminByRole = user.publicMetadata?.role === 'admin'
+    
+    // Check email allowlist
+    const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase())
+    const userEmails = user.emailAddresses?.map(e => e.emailAddress.toLowerCase()) || []
+    const isAdminByEmail = adminEmails.length > 0 && userEmails.some(email => adminEmails.includes(email))
+    
+    const isAdmin = isAdminByRole || isAdminByEmail
+    
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' })
+    }
+
+    // Add user info to request
+    req.adminUser = {
+      userId,
+      role: 'admin',
+      permissions: ['FINANCIAL_VIEW', 'BUILD_EDIT', 'MODEL_EDIT', 'USER_MANAGE', 'BLOG_EDIT']
+    }
+
+    next()
+  } catch (error) {
+    console.error('Admin auth error:', error)
+    return res.status(500).json({ error: 'Authentication failed' })
+  }
 })
 
 // Request validation schemas
@@ -757,15 +816,365 @@ router.get('/users', async (req, res) => {
 // Get current admin user information
 router.get('/me', async (req, res) => {
   try {
-    const userSummary = await adminAuth.getAdminUserSummary(req.adminUser.userId)
+    const { userId } = req.adminUser
     
-    res.json({
-      success: true,
-      data: userSummary
-    })
+    // Use the existing auth system to get user info
+    const { createClerkClient } = await import('@clerk/backend')
+    const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY })
+    
+    const user = await clerk.users.getUser(userId)
+    const userInfo = {
+      id: userId,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.primaryEmailAddress?.emailAddress,
+      role: 'admin',
+      lastLogin: user.lastSignInAt,
+      permissions: ['FINANCIAL_VIEW', 'BUILD_EDIT', 'MODEL_EDIT', 'USER_MANAGE', 'BLOG_EDIT']
+    }
+    
+    res.json({ success: true, data: userInfo })
   } catch (error) {
     console.error('Get user info error:', error)
     res.status(500).json({ error: 'Failed to fetch user information' })
+  }
+})
+
+// ============================================================================
+// MISSING ENDPOINTS FOR FRONTEND INTEGRATION
+// ============================================================================
+
+// GET /api/admin/users/detailed - Detailed user analytics
+router.get('/users/detailed', async (req, res) => {
+  try {
+    const { range = '30d' } = req.query
+    const db = await getDb()
+    
+    // Calculate date range
+    const now = new Date()
+    const startDate = new Date(now.getTime() - (range === '7d' ? 7 : 30) * 24 * 60 * 60 * 1000)
+    
+    // Get user statistics
+    const totalUsers = await db.collection('users').countDocuments()
+    const newUsers = await db.collection('users').countDocuments({
+      createdAt: { $gte: startDate }
+    })
+    
+    // Get user activity (using lastSignInAt as proxy for activity)
+    const activeUsers = await db.collection('users').countDocuments({
+      lastSignInAt: { $gte: startDate }
+    })
+    
+    res.json({
+      success: true,
+      data: {
+        totalUsers,
+        newUsers,
+        activeUsers,
+        conversionRate: totalUsers > 0 ? (activeUsers / totalUsers) * 100 : 0
+      }
+    })
+  } catch (error) {
+    console.error('Users detailed error:', error)
+    res.status(500).json({ error: 'Failed to fetch user details' })
+  }
+})
+
+// GET /api/admin/orders/paid - Paid orders analytics
+router.get('/orders/paid', async (req, res) => {
+  try {
+    const { range = '30d' } = req.query
+    const db = await getDb()
+    
+    const now = new Date()
+    const startDate = new Date(now.getTime() - (range === '7d' ? 7 : 30) * 24 * 60 * 60 * 1000)
+    
+    // Get paid orders
+    const paidOrders = await db.collection('orders').find({
+      paymentStatus: 'paid',
+      createdAt: { $gte: startDate }
+    }).toArray()
+    
+    const totalRevenue = paidOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0)
+    const averageOrderValue = paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0
+    
+    res.json({
+      success: true,
+      data: {
+        totalOrders: paidOrders.length,
+        totalRevenue,
+        averageOrderValue,
+        orders: paidOrders.slice(0, 10) // Recent orders
+      }
+    })
+  } catch (error) {
+    console.error('Paid orders error:', error)
+    res.status(500).json({ error: 'Failed to fetch paid orders' })
+  }
+})
+
+// GET /api/admin/financial/revenue - Revenue analytics
+router.get('/financial/revenue', async (req, res) => {
+  try {
+    const { range = '30d' } = req.query
+    const db = await getDb()
+    
+    const now = new Date()
+    const startDate = new Date(now.getTime() - (range === '7d' ? 7 : 30) * 24 * 60 * 60 * 1000)
+    
+    // Get revenue data
+    const orders = await db.collection('orders').find({
+      paymentStatus: 'paid',
+      createdAt: { $gte: startDate }
+    }).toArray()
+    
+    const dailyRevenue = {}
+    orders.forEach(order => {
+      const date = order.createdAt.toISOString().split('T')[0]
+      dailyRevenue[date] = (dailyRevenue[date] || 0) + (order.totalAmount || 0)
+    })
+    
+    const totalRevenue = orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0)
+    
+    res.json({
+      success: true,
+      data: {
+        totalRevenue,
+        dailyRevenue,
+        orderCount: orders.length,
+        averageOrderValue: orders.length > 0 ? totalRevenue / orders.length : 0
+      }
+    })
+  } catch (error) {
+    console.error('Revenue error:', error)
+    res.status(500).json({ error: 'Failed to fetch revenue data' })
+  }
+})
+
+// GET /api/admin/builds/active - Active builds tracking
+router.get('/builds/active', async (req, res) => {
+  try {
+    const db = await getDb()
+    
+    // Get active builds
+    const activeBuilds = await db.collection('builds').find({
+      status: { $in: ['production', 'quality', 'ready'] }
+    }).toArray()
+    
+    // Get build statistics
+    const buildStats = {
+      inProduction: activeBuilds.filter(b => b.status === 'production').length,
+      inQuality: activeBuilds.filter(b => b.status === 'quality').length,
+      readyForDelivery: activeBuilds.filter(b => b.status === 'ready').length,
+      totalActive: activeBuilds.length
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        ...buildStats,
+        builds: activeBuilds.slice(0, 10) // Recent builds
+      }
+    })
+  } catch (error) {
+    console.error('Active builds error:', error)
+    res.status(500).json({ error: 'Failed to fetch active builds' })
+  }
+})
+
+// ============================================================================
+// CONTENT MANAGEMENT ENDPOINTS
+// ============================================================================
+
+// Blog Management
+router.get('/blog', async (req, res) => {
+  try {
+    const { page = 1, limit = 20, status } = req.query
+    const db = await getDb()
+    
+    const filter = status ? { status } : {}
+    const posts = await db.collection('blog_posts')
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .toArray()
+    
+    const total = await db.collection('blog_posts').countDocuments(filter)
+    
+    res.json({
+      success: true,
+      data: {
+        posts,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      }
+    })
+  } catch (error) {
+    console.error('Blog fetch error:', error)
+    res.status(500).json({ error: 'Failed to fetch blog posts' })
+  }
+})
+
+router.post('/blog', async (req, res) => {
+  try {
+    const { title, content, status = 'draft', publishDate } = req.body
+    const db = await getDb()
+    
+    const newPost = {
+      title,
+      content,
+      status,
+      publishDate: publishDate ? new Date(publishDate) : new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      authorId: req.adminUser.userId
+    }
+    
+    const result = await db.collection('blog_posts').insertOne(newPost)
+    
+    res.status(201).json({
+      success: true,
+      data: {
+        id: result.insertedId,
+        ...newPost
+      }
+    })
+  } catch (error) {
+    console.error('Blog creation error:', error)
+    res.status(500).json({ error: 'Failed to create blog post' })
+  }
+})
+
+router.put('/blog/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { title, content, status, publishDate } = req.body
+    const db = await getDb()
+    
+    const updateData = {
+      title,
+      content,
+      status,
+      publishDate: publishDate ? new Date(publishDate) : undefined,
+      updatedAt: new Date(),
+      updatedBy: req.adminUser.userId
+    }
+    
+    // Remove undefined values
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key]
+      }
+    })
+    
+    const result = await db.collection('blog_posts').updateOne(
+      { _id: id },
+      { $set: updateData }
+    )
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Blog post not found' })
+    }
+    
+    res.json({
+      success: true,
+      message: 'Blog post updated successfully'
+    })
+  } catch (error) {
+    console.error('Blog update error:', error)
+    res.status(500).json({ error: 'Failed to update blog post' })
+  }
+})
+
+router.delete('/blog/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const db = await getDb()
+    
+    const result = await db.collection('blog_posts').deleteOne({ _id: id })
+    
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Blog post not found' })
+    }
+    
+    res.json({
+      success: true,
+      message: 'Blog post deleted successfully'
+    })
+  } catch (error) {
+    console.error('Blog deletion error:', error)
+    res.status(500).json({ error: 'Failed to delete blog post' })
+  }
+})
+
+// Drafts Management
+router.get('/drafts', async (req, res) => {
+  try {
+    const db = await getDb()
+    const drafts = await db.collection('blog_posts')
+      .find({ status: 'draft' })
+      .sort({ updatedAt: -1 })
+      .toArray()
+    
+    res.json({
+      success: true,
+      data: drafts
+    })
+  } catch (error) {
+    console.error('Drafts fetch error:', error)
+    res.status(500).json({ error: 'Failed to fetch drafts' })
+  }
+})
+
+// Policy Management
+router.get('/policies', async (req, res) => {
+  try {
+    const db = await getDb()
+    const policies = await db.collection('policies').find({}).toArray()
+    
+    res.json({
+      success: true,
+      data: policies
+    })
+  } catch (error) {
+    console.error('Policies fetch error:', error)
+    res.status(500).json({ error: 'Failed to fetch policies' })
+  }
+})
+
+router.put('/policies/:policyId', async (req, res) => {
+  try {
+    const { policyId } = req.params
+    const { content } = req.body
+    const db = await getDb()
+    
+    const result = await db.collection('policies').updateOne(
+      { _id: policyId },
+      { 
+        $set: { 
+          content,
+          updatedAt: new Date(),
+          updatedBy: req.adminUser.userId
+        }
+      }
+    )
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Policy not found' })
+    }
+    
+    res.json({
+      success: true,
+      message: 'Policy updated successfully'
+    })
+  } catch (error) {
+    console.error('Policy update error:', error)
+    res.status(500).json({ error: 'Failed to update policy' })
   }
 })
 

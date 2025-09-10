@@ -2873,11 +2873,13 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
     // Build a filtered map just for FIELD elements (DocuSeal ignores unknown fields).
     // Keep the full prefill object for HTML {{var}} replacement used by DocuSeal's native Download.
     const templateFieldMap = template.fieldMap || {}
-    const validFieldNames = new Set(Object.keys(templateFieldMap))
-
     const fieldsPrefill = {}
+    // Only prefill READONLY fields (text/date). Do NOT prefill signatures/initials.
     for (const [key, value] of Object.entries(prefillData)) {
-      if (validFieldNames.has(key)) fieldsPrefill[key] = value
+      const cfg = templateFieldMap[key]
+      if (cfg && cfg.readonly === true) {
+        fieldsPrefill[key] = value
+      }
     }
 
     console.log('[CONTRACT_START] Template field validation:', {

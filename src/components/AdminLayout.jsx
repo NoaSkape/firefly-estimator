@@ -104,14 +104,25 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
     const fetchUserInfo = async () => {
       try {
         const token = await getToken()
-        const headers = token ? { Authorization: `Bearer ${token}` } : {}
+        if (!token) {
+          console.warn('No token available for admin user info')
+          return
+        }
         
-        const response = await fetch('/api/admin/me', { headers })
+        const response = await fetch('/api/admin/me', { 
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        
         if (response.ok) {
           const data = await response.json()
-          setUserInfo(data.data)
+          if (data.success) {
+            setUserInfo(data.data)
+          } else {
+            console.error('Failed to fetch user info:', data.error)
+          }
         } else {
-          console.error('Failed to fetch user info:', response.status, response.statusText)
+          const errorData = await response.json().catch(() => ({}))
+          console.error('Failed to fetch user info:', response.status, errorData.error || response.statusText)
         }
       } catch (error) {
         console.error('Failed to fetch user info:', error)

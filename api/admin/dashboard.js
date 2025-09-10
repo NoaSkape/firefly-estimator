@@ -120,6 +120,12 @@ router.get('/', async (req, res) => {
     // Calculate total users (just Clerk for now)
     const totalUsers = totalClerkUsers
 
+    // Get new users in date range
+    const newUsers = clerkUsers.filter(user => {
+      const createdAt = new Date(user.createdAt)
+      return createdAt >= startDate
+    }).length
+
     // Get active builds from the Builds collection with error handling
     let activeBuilds = 0
     try {
@@ -269,10 +275,15 @@ router.get('/', async (req, res) => {
       data: {
         metrics: {
           totalUsers: totalUsers || 0,
+          newUsers: newUsers || 0,
           activeBuilds: activeBuilds || 0,
           totalOrders: totalOrders || 0,
           totalRevenue: totalRevenue || 0,
           revenueChange: revenueChange || 0
+        },
+        growth: {
+          userGrowth: 0, // TODO: Calculate user growth
+          revenueGrowth: revenueChange || 0
         },
         trends: {
           dailyRevenue: dailyRevenue || [],
@@ -282,7 +293,8 @@ router.get('/', async (req, res) => {
           orders: recentOrders || [],
           builds: recentBuilds || []
         },
-        topModels: formattedTopModels || []
+        topModels: formattedTopModels || [],
+        timeRange: range
       }
     })
   } catch (error) {
