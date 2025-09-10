@@ -2638,23 +2638,22 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
     // Build prefill data
     const prefillData = await buildContractPrefill(build, settings)
 
-    // Filter prefill data to only include fields that exist in the template
+    // Build a filtered map just for FIELD elements (DocuSeal ignores unknown fields).
+    // Keep the full prefill object for HTML {{var}} replacement used by DocuSeal's native Download.
     const templateFieldMap = template.fieldMap || {}
     const validFieldNames = new Set(Object.keys(templateFieldMap))
-    
-    const filteredPrefillData = {}
+
+    const fieldsPrefill = {}
     for (const [key, value] of Object.entries(prefillData)) {
-      if (validFieldNames.has(key)) {
-        filteredPrefillData[key] = value
-      }
+      if (validFieldNames.has(key)) fieldsPrefill[key] = value
     }
-    
+
     console.log('[CONTRACT_START] Template field validation:', {
       templateKey,
       totalPrefillFields: Object.keys(prefillData).length,
       validTemplateFields: Array.from(validFieldNames),
-      filteredFields: Object.keys(filteredPrefillData),
-      invalidFields: Object.keys(prefillData).filter(key => !validFieldNames.has(key))
+      fieldElementsUsed: Object.keys(fieldsPrefill),
+      ignoredForFields: Object.keys(prefillData).filter(key => !validFieldNames.has(key))
     })
 
     // Build submitters array (without fields - the existing function will add them)
@@ -2677,11 +2676,14 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
     // Create submission using the existing working function
     const submission = await createSubmission({
       templateId: template.id,
-      prefill: filteredPrefillData,
+      // Send full prefill so DocuSeal can merge {{var}} when generating PDFs
+      prefill: prefillData,
+      // Use filtered fields for actual field elements overlay
+      fieldsPrefill,
       submitters,
       sendEmail: false,
-      completedRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/confirm`,
-      cancelRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/agreement`
+      completedRedirectUrl: `${process.env.APP_URL || 'https://www.fireflyestimator.com'}/checkout/${buildId}/confirm`,
+      cancelRedirectUrl: `${process.env.APP_URL || 'https://www.fireflyestimator.com'}/checkout/${buildId}/agreement`
     })
 
     console.log('[CONTRACT_START] Submission created:', submission.id)
@@ -2850,8 +2852,8 @@ app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
           prefill,
           submitters,
           sendEmail: false, // Don't send email until user is ready
-          completedRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/confirm`,
-          cancelRedirectUrl: `${process.env.VERCEL_URL || 'http://localhost:3000'}/checkout/${buildId}/agreement`
+          completedRedirectUrl: `${process.env.APP_URL || 'https://www.fireflyestimator.com'}/checkout/${buildId}/confirm`,
+          cancelRedirectUrl: `${process.env.APP_URL || 'https://www.fireflyestimator.com'}/checkout/${buildId}/agreement`
         })
         
         submissions.push({
@@ -3186,7 +3188,7 @@ app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
     }
 
     // Update build status if contract completed
-    if (newStatus === 'completed') {
+    if (newOverallStatus === 'completed') {
       await updateBuild(contract.buildId, { 
         'contract.status': 'completed',
         'contract.completedAt': new Date(),
@@ -3320,6 +3322,11 @@ async function buildContractPrefill(build, settings) {
     buyer_email: buyerInfo.email || '',
     buyer_address: buyerInfo.address || '',
     buyer_phone: buyerInfo.phone || '',
+    // Co-buyer fields (optional)
+    cobuyer_full_name: (buyerInfo.coBuyerFirstName || buyerInfo.coBuyer?.firstName)
+      ? `${buyerInfo.coBuyerFirstName || buyerInfo.coBuyer?.firstName || ''} ${buyerInfo.coBuyerLastName || buyerInfo.coBuyer?.lastName || ''}`.trim()
+      : '',
+    cobuyer_email: buyerInfo.coBuyerEmail || buyerInfo.coBuyer?.email || '',
     
     // Unit Information - EXACT field names from FIELD_MAPS.masterRetail
     model_brand: "Athens Park Select",
