@@ -75,8 +75,195 @@ router.get('/insights/:insightId', async (req, res) => {
   }
 })
 
-// Generate AI insights based on business data
+// Generate AI insights based on business data using real AI
 async function generateAIInsights(db, filters = {}) {
+  const insights = []
+  const ordersCollection = db.collection('orders')
+  const usersCollection = db.collection('users')
+  const modelsCollection = db.collection('models')
+
+  // Get business data for AI analysis
+  const businessData = await gatherBusinessData(db)
+  
+  // Use real AI to generate insights
+  const aiInsights = await generateAIInsightsWithClaude(businessData, filters)
+  
+  // Also include some rule-based insights for comparison
+  const ruleBasedInsights = await generateRuleBasedInsights(db, filters)
+  
+  // Combine AI and rule-based insights
+  insights.push(...aiInsights, ...ruleBasedInsights)
+
+  // Filter by priority if specified
+  if (filters.priority) {
+    return insights.filter(insight => insight.priority === filters.priority)
+  }
+
+  // Sort by priority and confidence
+  return insights
+}
+
+// Gather comprehensive business data for AI analysis
+async function gatherBusinessData(db) {
+  const ordersCollection = db.collection('orders')
+  const usersCollection = db.collection('users')
+  const modelsCollection = db.collection('models')
+
+  // Get data for the last 90 days
+  const ninetyDaysAgo = new Date()
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+
+  const [orders, users, models, revenueData, customerData] = await Promise.all([
+    ordersCollection.find({ createdAt: { $gte: ninetyDaysAgo } }).toArray(),
+    usersCollection.find({}).toArray(),
+    modelsCollection.find({}).toArray(),
+    ordersCollection.aggregate([
+      { $match: { createdAt: { $gte: ninetyDaysAgo } }},
+      { $group: {
+        _id: null,
+        totalRevenue: { $sum: '$totalAmount' },
+        totalOrders: { $sum: 1 },
+        averageOrderValue: { $avg: '$totalAmount' },
+        uniqueCustomers: { $addToSet: '$customerId' }
+      }},
+      { $addFields: { uniqueCustomerCount: { $size: '$uniqueCustomers' }}}
+    ]).toArray(),
+    ordersCollection.aggregate([
+      { $match: { createdAt: { $gte: ninetyDaysAgo } }},
+      { $group: {
+        _id: '$customerId',
+        orderCount: { $sum: 1 },
+        totalSpent: { $sum: '$totalAmount' },
+        lastOrderDate: { $max: '$createdAt' }
+      }}
+    ]).toArray()
+  ])
+
+  return {
+    orders: orders.slice(0, 100), // Limit for AI processing
+    users: users.slice(0, 100),
+    models: models.slice(0, 50),
+    revenueData: revenueData[0] || {},
+    customerData: customerData.slice(0, 100),
+    timeRange: '90 days',
+    analysisDate: new Date().toISOString()
+  }
+}
+
+// Generate AI insights using Claude
+async function generateAIInsightsWithClaude(businessData, filters) {
+  try {
+    // Check if AI API is configured
+    const apiKey = process.env.AI_API_KEY
+    if (!apiKey) {
+      console.log('AI API key not configured, using rule-based insights only')
+      return []
+    }
+
+    const apiUrl = process.env.AI_API_URL || 'https://api.anthropic.com/v1'
+    const model = process.env.AI_MODEL || 'claude-sonnet-4-20250514'
+
+    // Prepare data summary for AI
+    const dataSummary = {
+      totalRevenue: businessData.revenueData.totalRevenue || 0,
+      totalOrders: businessData.revenueData.totalOrders || 0,
+      averageOrderValue: businessData.revenueData.averageOrderValue || 0,
+      uniqueCustomers: businessData.revenueData.uniqueCustomerCount || 0,
+      topModels: businessData.models.slice(0, 5).map(m => ({ name: m.name, price: m.basePrice })),
+      customerSegments: businessData.customerData.slice(0, 10).map(c => ({ 
+        orderCount: c.orderCount, 
+        totalSpent: c.totalSpent,
+        daysSinceLastOrder: Math.floor((new Date() - new Date(c.lastOrderDate)) / (1000 * 60 * 60 * 24))
+      }))
+    }
+
+    const prompt = `
+You are a business intelligence AI analyzing a tiny home dealership's performance data. 
+
+BUSINESS CONTEXT:
+- Company: Firefly Tiny Homes (Texas-based tiny home dealership)
+- Business Model: Online tiny home sales and customization
+- Time Period: Last 90 days
+- Data Summary: ${JSON.stringify(dataSummary, null, 2)}
+
+ANALYSIS REQUEST:
+Generate 3-5 actionable business insights with the following structure for each insight:
+
+{
+  "id": "unique-id",
+  "type": "revenue|customer|inventory|marketing|operational|financial",
+  "priority": "low|medium|high|critical",
+  "title": "Clear, actionable title",
+  "description": "Brief description of the insight",
+  "recommendation": "Specific, actionable recommendation",
+  "impact": "low|medium|high",
+  "confidence": 85,
+  "actionItems": ["Action 1", "Action 2", "Action 3"],
+  "estimatedValue": 50000
+}
+
+REQUIREMENTS:
+- Focus on actionable insights that can drive revenue or efficiency
+- Consider the tiny home industry context
+- Include specific recommendations with clear next steps
+- Provide realistic confidence scores (70-95%)
+- Estimate potential value impact where applicable
+- Consider seasonal factors and market trends
+- Think about customer acquisition, retention, and lifetime value
+
+Return ONLY a valid JSON array of insights, no additional text.
+    `.trim()
+
+    const response = await fetch(`${apiUrl}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: model,
+        max_tokens: 2000,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
+      })
+    })
+
+    if (!response.ok) {
+      console.error('AI API error:', response.status, response.statusText)
+      return []
+    }
+
+    const data = await response.json()
+    const content = data.content?.[0]?.text || ''
+    
+    // Parse AI response
+    try {
+      const aiInsights = JSON.parse(content)
+      if (Array.isArray(aiInsights)) {
+        return aiInsights.map(insight => ({
+          ...insight,
+          aiGenerated: true,
+          generatedAt: new Date().toISOString()
+        }))
+      }
+    } catch (parseError) {
+      console.error('Failed to parse AI insights:', parseError)
+    }
+
+    return []
+  } catch (error) {
+    console.error('AI insights generation error:', error)
+    return []
+  }
+}
+
+// Generate rule-based insights (fallback when AI is not available)
+async function generateRuleBasedInsights(db, filters) {
   const insights = []
   const ordersCollection = db.collection('orders')
   const usersCollection = db.collection('users')
@@ -118,12 +305,6 @@ async function generateAIInsights(db, filters = {}) {
     insights.push(...financialInsights)
   }
 
-  // Filter by priority if specified
-  if (filters.priority) {
-    return insights.filter(insight => insight.priority === filters.priority)
-  }
-
-  // Sort by priority and confidence
   return insights
     .sort((a, b) => {
       const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 }

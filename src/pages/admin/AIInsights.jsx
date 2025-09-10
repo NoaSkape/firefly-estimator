@@ -264,6 +264,11 @@ const AIInsights = () => {
                         )}
                       </div>
                       <span className="capitalize">{insight.type}</span>
+                      {insight.aiGenerated && (
+                        <span className="ml-2 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          AI Generated
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

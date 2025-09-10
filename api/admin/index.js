@@ -61,70 +61,7 @@ router.get('/health', (req, res) => {
 })
 
 // Admin authentication middleware for all routes
-router.use(async (req, res, next) => {
-  if (process.env.ADMIN_AUTH_DISABLED === 'true') {
-    // Add mock admin user for development
-    req.adminUser = {
-      userId: 'dev-admin',
-      role: 'admin',
-      permissions: ['FINANCIAL_VIEW', 'BUILD_EDIT', 'MODEL_EDIT', 'USER_MANAGE', 'BLOG_EDIT']
-    }
-    return next()
-  }
-  
-  try {
-    // Extract Bearer token from Authorization header
-    const authHeader = req.headers?.authorization || req.headers?.Authorization
-    const token = typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
-      ? authHeader.slice('Bearer '.length)
-      : null
-    
-    if (!token) {
-      return res.status(401).json({ error: 'Unauthorized - No token provided' })
-    }
-
-    // Verify token with Clerk
-    const { verifyToken, createClerkClient } = await import('@clerk/backend')
-    const verified = await verifyToken(token, {
-      secretKey: process.env.CLERK_SECRET_KEY
-    })
-    
-    const userId = verified?.sub || verified?.userId
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized - Invalid token' })
-    }
-
-    // Check admin status
-    const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY })
-    const user = await clerk.users.getUser(userId)
-    
-    // Check role in public metadata
-    const isAdminByRole = user.publicMetadata?.role === 'admin'
-    
-    // Check email allowlist
-    const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase())
-    const userEmails = user.emailAddresses?.map(e => e.emailAddress.toLowerCase()) || []
-    const isAdminByEmail = adminEmails.length > 0 && userEmails.some(email => adminEmails.includes(email))
-    
-    const isAdmin = isAdminByRole || isAdminByEmail
-    
-    if (!isAdmin) {
-      return res.status(403).json({ error: 'Admin access required' })
-    }
-
-    // Add user info to request
-    req.adminUser = {
-      userId,
-      role: 'admin',
-      permissions: ['FINANCIAL_VIEW', 'BUILD_EDIT', 'MODEL_EDIT', 'USER_MANAGE', 'BLOG_EDIT']
-    }
-
-    next()
-  } catch (error) {
-    console.error('Admin auth error:', error)
-    return res.status(500).json({ error: 'Authentication failed' })
-  }
-})
+router.use((req, res, next) => adminAuth.validateAdminAccess(req, res, next))
 
 // Request validation schemas
 const adminSchemas = {

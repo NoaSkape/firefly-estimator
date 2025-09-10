@@ -402,7 +402,7 @@ function App() {
               } />
               <Route path="/admin" element={
                 <ProtectedRoute requireAdmin={true}>
-                  <AdminOverview />
+                  <AdminDashboard />
                 </ProtectedRoute>
               } />
               <Route path="/admin/orders" element={
