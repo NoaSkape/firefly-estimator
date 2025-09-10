@@ -2599,11 +2599,21 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
     const templateFieldMap = template.fieldMap || {}
     const validFieldNames = new Set(Object.keys(templateFieldMap))
     const fieldsPrefill = {}
-    // Only prefill READONLY fields (text/date). Do NOT prefill signatures/initials.
+    
+    // Only prefill fields that exist in the template and are READONLY (text/date). 
+    // Do NOT prefill signatures/initials or fields that don't exist in the template.
     for (const [key, value] of Object.entries(prefillData)) {
       const cfg = templateFieldMap[key]
-      if (cfg && cfg.readonly === true) {
+      if (cfg && cfg.readonly === true && validFieldNames.has(key)) {
         fieldsPrefill[key] = value
+      }
+    }
+    
+    // Also filter the main prefill data to only include valid fields
+    const filteredPrefillData = {}
+    for (const [key, value] of Object.entries(prefillData)) {
+      if (validFieldNames.has(key)) {
+        filteredPrefillData[key] = value
       }
     }
 
@@ -2635,8 +2645,8 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
     // Create submission using the existing working function
     const submission = await createSubmission({
       templateId: template.id,
-      // Send full prefill so DocuSeal can merge {{var}} when generating PDFs
-      prefill: prefillData,
+      // Send filtered prefill data to avoid "Unknown field" errors
+      prefill: filteredPrefillData,
       // Use filtered fields for actual field elements overlay
       fieldsPrefill,
       submitters,
@@ -3808,6 +3818,30 @@ async function requireAdmin(req, res) {
   if (!auth?.userId) return null
   return auth
 }
+
+// Admin status check endpoint
+app.get(['/api/admin/is-admin', '/admin/is-admin'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) {
+      return res.status(401).json({ isAdmin: false, error: 'Not authenticated' })
+    }
+
+    // Check if user is admin
+    const isAdmin = await isAdminServer(auth.userId)
+    
+    res.status(200).json({ 
+      isAdmin,
+      userId: auth.userId 
+    })
+  } catch (error) {
+    console.error('Admin status check error:', error)
+    res.status(500).json({ 
+      isAdmin: false,
+      error: 'Failed to check admin status' 
+    })
+  }
+})
 
 // Get admin statistics
 
@@ -6912,10 +6946,13 @@ function resolveRouter(mod, name) {
 
 const adminRouter = resolveRouter(adminRouterModule, 'admin')
 if (adminRouter) {
-  app.use('/api/admin', adminRouter)
+  // Mount for both normalized paths ("/admin") and direct ("/api/admin").
+  // Vercel rewrite /api/(.*) -> /api/index?path=/$1 rewrites to 
+  // req.url like "/admin/...", so we need both.
+  app.use(['/api/admin', '/admin'], adminRouter)
 } else {
-  // Provide a diagnostic fallback to avoid Express attempting to call undefined.apply
-  app.use('/api/admin', (req, res) => {
+  // Provide diagnostic fallbacks to avoid Express attempting to call undefined.apply
+  app.use(['/api/admin', '/admin'], (req, res) => {
     res.status(500).json({ error: 'admin router misconfigured' })
   })
 }
