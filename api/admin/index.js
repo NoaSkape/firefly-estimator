@@ -29,6 +29,27 @@ import settingsRouter from './settings.js'
 
 const router = express.Router()
 
+// Guard router.use to avoid inserting non-function layers
+const __origRouterUse = router.use.bind(router)
+router.use = function guardedRouterUse(...args) {
+  try {
+    const path = typeof args[0] === 'string' || args[0] instanceof RegExp || Array.isArray(args[0]) ? args[0] : undefined
+    const handlers = path ? args.slice(1) : args
+    const startIndex = path ? 1 : 0
+    for (let i = 0; i < handlers.length; i++) {
+      if (typeof handlers[i] !== 'function') {
+        const idx = startIndex + i
+        const t = typeof handlers[i]
+        console.error('[ADMIN_USE_GUARD] Non-function handler; patching', { path, index: idx, type: t })
+        args[idx] = (req, res) => res.status(500).json({ error: 'admin_handler_misconfigured', path: String(path || ''), index: idx, type: t })
+      }
+    }
+  } catch (e) {
+    console.warn('[ADMIN_USE_GUARD] Failed to inspect handler:', e?.message)
+  }
+  return __origRouterUse(...args)
+}
+
 // Initialize admin database on startup (non-blocking)
 // This will not prevent the router from loading if DB is unavailable
 let dbInitialized = false

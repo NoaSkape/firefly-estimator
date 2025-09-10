@@ -5,7 +5,7 @@ import { adminAuth } from '../../lib/adminAuth.js'
 const router = express.Router()
 
 // Require admin access
-router.use((req, res, next) => adminAuth.validateAdminAccess(req, res, next))
+router.use(adminAuth.validateAdminAccess.bind(adminAuth))
 
 // Default settings (no DB needed yet)
 const defaultSettings = {

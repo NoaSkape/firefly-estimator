@@ -41,6 +41,29 @@ export const runtime = 'nodejs'
 // Security headers and middleware
 app.disable('x-powered-by')
 
+// Guard against accidental mounting of non-function handlers (prevents
+// Express "undefined.apply" crashes). This wraps app.use early so every
+// subsequent registration passes through this check.
+const __origAppUse = app.use.bind(app)
+app.use = function guardedUse(...args) {
+  try {
+    const path = typeof args[0] === 'string' || args[0] instanceof RegExp || Array.isArray(args[0]) ? args[0] : undefined
+    const handlers = path ? args.slice(1) : args
+    const startIndex = path ? 1 : 0
+    for (let i = 0; i < handlers.length; i++) {
+      if (typeof handlers[i] !== 'function') {
+        const idx = startIndex + i
+        const t = typeof handlers[i]
+        console.error('[USE_GUARD] Non-function handler detected; patching', { path, index: idx, type: t })
+        args[idx] = (req, res) => res.status(500).json({ error: 'handler_misconfigured', path: String(path || ''), index: idx, type: t })
+      }
+    }
+  } catch (e) {
+    console.warn('[USE_GUARD] Failed to inspect handler:', e?.message)
+  }
+  return __origAppUse(...args)
+}
+
 // Stripe webhook must receive the raw body for signature verification.
 // Register this BEFORE express.json() so req.body is a Buffer here.
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET
@@ -3875,6 +3898,35 @@ app.get(['/api/builds/:id/contract/status', '/builds/:id/contract/status'], asyn
     return res.status(500).json({ 
       error: 'status_check_failed', 
       message: error.message || 'Failed to check contract status'
+    })
+  }
+})
+
+// ===== PUBLIC SETTINGS ENDPOINT =====
+// Public, read-only settings for unauthenticated flows (safe subset)
+app.get(['/api/settings', '/settings'], async (_req, res) => {
+  try {
+    // Return default settings for now (can be enhanced to read from DB later)
+    const safe = {
+      factory: {
+        name: 'Firefly Tiny Homes',
+        address: 'Mansfield, TX',
+      },
+      pricing: {
+        title_fee_default: 500,
+        setup_fee_default: 3000,
+        tax_rate_percent: 6.25,
+        delivery_rate_per_mile: 0,
+        delivery_minimum: 0,
+        deposit_percent: 25,
+      },
+    }
+    return res.status(200).json(safe)
+  } catch (err) {
+    console.error('Settings endpoint error:', err)
+    return res.status(200).json({
+      factory: { name: 'Firefly Tiny Homes', address: 'Mansfield, TX' },
+      pricing: { title_fee_default: 500, setup_fee_default: 3000, tax_rate_percent: 6.25, delivery_rate_per_mile: 0, delivery_minimum: 0, deposit_percent: 25 }
     })
   }
 })
