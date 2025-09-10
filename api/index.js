@@ -1127,31 +1127,7 @@ app.get(['/api/models/ping', '/models/ping'], (_req, res) => {
   res.status(200).json({ ok: true, route: '/api/models/ping' })
 })
 
-// ----- GET model -----
-app.get(['/api/models/:code', '/models/:code'], async (req, res) => {
-  const debug = process.env.DEBUG_ADMIN === 'true'
-  try {
-    const { code } = req.params
-    await ensureModelIndexes()
-    const model = await findModelById(code)
-    if (debug) console.log('[DEBUG_ADMIN] models GET', { code, found: !!model })
-    if (!model) return res.status(404).json({ error: 'Not found', images: [], features: [] })
-    const normalized = {
-      ...model,
-      features: Array.isArray(model.features) ? model.features : [],
-      images: Array.isArray(model.images) ? model.images : [],
-    }
-    // Cache model details at the CDN to avoid function invocations
-    // Cache for 10 minutes at the edge, allow 1 day stale-while-revalidate
-    res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=86400')
-    return res.status(200).json(normalized)
-  } catch (err) {
-    if (debug) console.error('[DEBUG_ADMIN] models GET error', err?.message || err)
-    return res.status(500).json({ error: 'server_error' })
-  }
-})
-
-// ----- GET models batch -----
+// ----- GET models batch (MUST come before /:code route) -----
 // Example: /api/models/batch?ids=aps-630,aps-601,apx-150
 app.get(['/api/models/batch', '/models/batch'], async (req, res) => {
   const debug = process.env.DEBUG_ADMIN === 'true'
@@ -1217,6 +1193,30 @@ app.get(['/api/models/batch', '/models/batch'], async (req, res) => {
     return res.status(200).json({ models: results })
   } catch (err) {
     if (debug) console.error('[DEBUG_ADMIN] models batch error', err?.message || err)
+    return res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// ----- GET individual model (MUST come after /batch route) -----
+app.get(['/api/models/:code', '/models/:code'], async (req, res) => {
+  const debug = process.env.DEBUG_ADMIN === 'true'
+  try {
+    const { code } = req.params
+    await ensureModelIndexes()
+    const model = await findModelById(code)
+    if (debug) console.log('[DEBUG_ADMIN] models GET', { code, found: !!model })
+    if (!model) return res.status(404).json({ error: 'Not found', images: [], features: [] })
+    const normalized = {
+      ...model,
+      features: Array.isArray(model.features) ? model.features : [],
+      images: Array.isArray(model.images) ? model.images : [],
+    }
+    // Cache model details at the CDN to avoid function invocations
+    // Cache for 10 minutes at the edge, allow 1 day stale-while-revalidate
+    res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=86400')
+    return res.status(200).json(normalized)
+  } catch (err) {
+    if (debug) console.error('[DEBUG_ADMIN] models GET error', err?.message || err)
     return res.status(500).json({ error: 'server_error' })
   }
 })
