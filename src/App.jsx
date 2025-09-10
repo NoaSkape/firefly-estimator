@@ -15,6 +15,7 @@ const CashPayment = lazy(() => import('./pages/checkout/CashPayment'))
 const Buyer = lazy(() => import('./pages/checkout/Buyer'))
 const Review = lazy(() => import('./pages/checkout/Review'))
 const ContractNew = lazy(() => import('./pages/checkout/ContractNew'))
+const DocumentSigned = lazy(() => import('./pages/checkout/DocumentSigned'))
 const AccountCreate = lazy(() => import('./pages/checkout/Account'))
 const HowItWorks = lazy(() => import('./pages/HowItWorks'))
 const Ordering = lazy(() => import('./pages/how/Ordering'))
@@ -342,6 +343,7 @@ function App() {
                   <Confirm />
                 </ProtectedRoute>
               } />
+              <Route path="/checkout/:buildId/document-signed" element={<DocumentSigned />} />
               <Route path="/about" element={<About />} />
               <Route path="/about/manufacturer" element={<Manufacturer />} />
                       <Route path="/blog" element={<Blog />} />

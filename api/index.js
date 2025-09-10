@@ -2682,7 +2682,7 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
       fieldsPrefill,
       submitters,
       sendEmail: false,
-      completedRedirectUrl: `${process.env.APP_URL || 'https://www.fireflyestimator.com'}/checkout/${buildId}/confirm`,
+      completedRedirectUrl: `${process.env.APP_URL || 'https://www.fireflyestimator.com'}/checkout/${buildId}/document-signed`,
       cancelRedirectUrl: `${process.env.APP_URL || 'https://www.fireflyestimator.com'}/checkout/${buildId}/agreement`
     })
 
@@ -2852,7 +2852,7 @@ app.post(['/api/contracts/create', '/contracts/create'], async (req, res) => {
           prefill,
           submitters,
           sendEmail: false, // Don't send email until user is ready
-          completedRedirectUrl: `${process.env.APP_URL || 'https://www.fireflyestimator.com'}/checkout/${buildId}/confirm`,
+          completedRedirectUrl: `${process.env.APP_URL || 'https://www.fireflyestimator.com'}/checkout/${buildId}/document-signed`,
           cancelRedirectUrl: `${process.env.APP_URL || 'https://www.fireflyestimator.com'}/checkout/${buildId}/agreement`
         })
         

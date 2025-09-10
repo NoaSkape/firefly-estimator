@@ -107,6 +107,25 @@ export default function ContractNew() {
     }
   }, [])
 
+  // Listen for document completion messages from popup windows
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data?.type === 'DOCUMENT_SIGNED' && event.data?.buildId === buildId) {
+        console.log('Document signed message received, refreshing contract status')
+        // Refresh the contract status to pick up the completion
+        loadBuildAndContract()
+        addToast({
+          type: 'success',
+          title: 'Document Signed!',
+          message: 'Your document has been signed successfully.'
+        })
+      }
+    }
+
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [buildId, addToast])
+
   // Pack definitions
   const packs = [
     {
@@ -812,6 +831,33 @@ function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingP
         </div>
       )}
 
+      {/* Document Signed Section */}
+      {status === 'completed' && (
+        <div className="text-center py-12">
+          <CheckCircleIcon className="w-16 h-16 text-green-400 mx-auto mb-6" />
+          <h3 className="text-xl font-medium text-white mb-4">
+            {pack.title} Signed!
+          </h3>
+          <p className="text-gray-300 mb-8 max-w-lg mx-auto text-lg">
+            Your {pack.title.toLowerCase()} has been signed successfully. You can view the signed document or continue to the next step.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={() => window.open(`/api/contracts/download/packet?buildId=${buildId}`, '_blank')}
+              className="px-6 py-3 bg-gray-600 hover:bg-gray-700 rounded-lg text-white font-medium"
+            >
+              View Signed {pack.title}
+            </button>
+            <button
+              onClick={() => window.open(`/api/contracts/download/packet?buildId=${buildId}`, '_blank')}
+              className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg text-white font-medium"
+            >
+              Download PDF
+            </button>
+          </div>
+        </div>
+      )}
+
       {(status === 'in_progress' || status === 'completed') && signingUrl && (
         <div className="border border-gray-600 rounded-lg overflow-hidden bg-white" style={{ height: 'calc(100vh - 280px)', minHeight: '700px' }}>
           <iframe 
@@ -825,23 +871,6 @@ function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingP
         </div>
       )}
 
-      {status === 'completed' && (
-        <div className="flex items-center space-x-3 p-4 bg-green-900/20 border border-green-600 rounded-lg">
-          <CheckCircleIcon className="w-6 h-6 text-green-400" />
-          <div>
-            <p className="text-green-200 font-medium">{pack.title} Completed</p>
-            <p className="text-green-300 text-sm">All required signatures have been collected.</p>
-          </div>
-          <div className="ml-auto">
-            <button
-              onClick={() => window.open(`/api/contracts/download/packet?buildId=${buildId}`, '_blank')}
-              className="px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-md"
-            >
-              Download Signed PDF
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
