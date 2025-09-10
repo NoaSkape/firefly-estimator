@@ -1952,8 +1952,6 @@ app.get(['/api/admin/docuseal/test', '/admin/docuseal/test'], async (req, res) =
 
 // Get contract status (for real-time polling) - MUST come before /:orderId/status route
 app.get(['/api/contracts/status', '/contracts/status'], async (req, res) => {
-  await applyCors(req, res)
-  
   try {
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
@@ -3437,6 +3435,7 @@ async function buildContractPrefill(build, settings) {
     order_id: String(build._id || ''),
     order_date: new Date(build.createdAt || Date.now()).toISOString().slice(0, 10),
     effective_date: new Date().toISOString().slice(0, 10),
+    sales_agent: build?.buyerInfo?.salesAgent || '',
 
     // Dealer / Seller
     dealer_legal_name: 'Firefly Tiny Homes LLC',
