@@ -19,6 +19,12 @@ import financialRouter from './financial.js'
 import contentRouter from './content.js'
 import usersRouter from './users.js'
 import notificationsRouter from './notifications.js'
+import aiInsightsRouter from './ai-insights.js'
+import integrationsRouter from './integrations.js'
+import securityRouter from './security.js'
+import workflowsRouter from './workflows.js'
+import monitoringRouter from './monitoring.js'
+import exportRouter from './export.js'
 
 const router = express.Router()
 
@@ -1274,6 +1280,12 @@ mountSafe('/financial', financialRouter, 'financialRouter')
 mountSafe('/content', contentRouter, 'contentRouter')
 mountSafe('/users', usersRouter, 'usersRouter')
 mountSafe('/notifications', notificationsRouter, 'notificationsRouter')
+mountSafe('/ai-insights', aiInsightsRouter, 'aiInsightsRouter')
+mountSafe('/integrations', integrationsRouter, 'integrationsRouter')
+mountSafe('/security', securityRouter, 'securityRouter')
+mountSafe('/workflows', workflowsRouter, 'workflowsRouter')
+mountSafe('/monitoring', monitoringRouter, 'monitoringRouter')
+mountSafe('/export', exportRouter, 'exportRouter')
 
 // ============================================================================
 // ERROR HANDLING
