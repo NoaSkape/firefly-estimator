@@ -3814,6 +3814,14 @@ app.patch(['/api/profile/basic', '/profile/basic'], async (req, res) => {
     const profile = await updateUserBasicInfo(auth.userId, { firstName, lastName, email, phone, address, city, state, zip })
     
     console.log('DEBUG: Basic info updated successfully:', profile)
+    console.log('DEBUG: Profile type:', typeof profile)
+    console.log('DEBUG: Profile is null/undefined:', profile === null || profile === undefined)
+    
+    if (!profile) {
+      console.log('DEBUG: Profile is null/undefined, returning error')
+      return res.status(500).json({ error: 'profile_update_failed', message: 'Profile update returned null/undefined' })
+    }
+    
     return res.status(200).json(profile)
   } catch (error) {
     console.error('Update profile error:', error)
@@ -3878,6 +3886,14 @@ app.post(['/api/profile/addresses', '/profile/addresses'], async (req, res) => {
     const profile = await addUserAddress(auth.userId, { address, city, state, zip, label })
     
     console.log('DEBUG: Address added successfully:', profile)
+    console.log('DEBUG: Profile type:', typeof profile)
+    console.log('DEBUG: Profile is null/undefined:', profile === null || profile === undefined)
+    
+    if (!profile) {
+      console.log('DEBUG: Profile is null/undefined, returning error')
+      return res.status(500).json({ error: 'address_add_failed', message: 'Address add returned null/undefined' })
+    }
+    
     return res.status(200).json(profile)
   } catch (error) {
     console.error('Add address error:', error)
