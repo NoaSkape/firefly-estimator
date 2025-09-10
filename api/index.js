@@ -2721,6 +2721,52 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
       result.coBuyerEmbedUrl = submission.raw.submitters[1].url
     }
 
+    // Store contract in database for status tracking
+    const db = await getDb()
+    const { ObjectId } = await import('mongodb')
+    
+    const contractData = {
+      _id: new ObjectId(),
+      buildId: buildId,
+      userId: auth.userId,
+      version: 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      submissions: [{
+        submissionId: submission.submissionId,
+        name: 'purchase_agreement',
+        templateId: template.id,
+        templateName: template.name,
+        status: 'ready',
+        signerUrl: signingUrl,
+        createdAt: new Date()
+      }],
+      status: 'ready',
+      pricingSnapshot: build.pricing || {},
+      buyerInfo: build.buyerInfo || {},
+      delivery: build.delivery || {},
+      payment: build.payment || {},
+      audit: [{
+        at: new Date(),
+        who: auth.userId,
+        action: 'contract_created',
+        meta: { 
+          submissionId: submission.submissionId,
+          templateName: template.name
+        }
+      }]
+    }
+
+    await db.collection('contracts').insertOne(contractData)
+
+    // Update build to reference contract
+    await updateBuild(buildId, { 
+      'contract.submissionIds': [submission.submissionId],
+      'contract.status': 'ready',
+      'contract.createdAt': new Date()
+    })
+
+    console.log('[CONTRACT_START] Contract stored in database:', contractData._id)
     console.log('[CONTRACT_START] Final result:', result)
     res.json(result)
 
@@ -6974,11 +7020,39 @@ function resolveRouter(mod, name) {
 }
 
 const adminRouter = resolveRouter(adminRouterModule, 'admin')
+
+// Recursively repair router stacks to ensure every layer has a callable handler
+function hardenRouter(router, label = 'root') {
+  try {
+    const stack = router && router.stack
+    if (!Array.isArray(stack)) return
+    stack.forEach((layer, idx) => {
+      // If layer handle is not a function, replace with diagnostic handler
+      if (typeof layer?.handle !== 'function') {
+        const name = layer?.name || `layer_${idx}`
+        console.error(`[ROUTER_HARDEN] Repaired non-function layer at ${label}[${idx}] (${name})`)
+        layer.handle = (req, res) => res.status(500).json({ error: 'router layer misconfigured', label, index: idx, name })
+      }
+      // Dive into nested routers
+      const nested = layer && layer.handle && layer.handle.stack ? layer.handle : null
+      if (nested) hardenRouter(nested, `${label}/${layer?.route?.path || nameOf(layer) || idx}`)
+    })
+  } catch (e) {
+    console.warn('[ROUTER_HARDEN] Failed:', e?.message)
+  }
+}
+
+function nameOf(layer) {
+  try { return layer?.name || layer?.regexp?.toString() || undefined } catch { return undefined }
+}
 if (adminRouter) {
   // Mount for both normalized paths ("/admin") and direct ("/api/admin").
   // Use separate calls instead of an array to avoid any edge cases in serverless routing.
   app.use('/api/admin', adminRouter)
   app.use('/admin', adminRouter)
+  // Harden both app and admin routers to avoid undefined.apply errors
+  hardenRouter(app._router, 'app')
+  hardenRouter(adminRouter, 'admin')
 } else {
   // Provide diagnostic fallbacks to avoid Express attempting to call undefined.apply
   app.use('/api/admin', (req, res) => { res.status(500).json({ error: 'admin router misconfigured' }) })
