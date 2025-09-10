@@ -179,6 +179,33 @@ app.post('/api/admin/docuseal/init-templates/delivery', async (req, res) => {
   }
 });
 
+// Test minimal template endpoint
+app.post('/api/admin/docuseal/init-templates/minimal-test', async (req, res) => {
+  try {
+    console.log('[DEV_SERVER] Creating minimal test template...');
+    
+    const { buildMinimalTestTemplate } = await import('../lib/docuseal/builders/test-minimal.js');
+    const templateId = await buildMinimalTestTemplate();
+    
+    console.log('[DEV_SERVER] Minimal test template created:', templateId);
+    
+    res.json({
+      success: true,
+      templateId,
+      message: 'Minimal test template created successfully',
+      envVariable: 'DOCUSEAL_TEMPLATE_ID_MINIMAL_TEST',
+      instructions: `Add this to your .env file: DOCUSEAL_TEMPLATE_ID_MINIMAL_TEST=${templateId}`
+    });
+  } catch (error) {
+    console.error('[DEV_SERVER] Minimal test template creation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create minimal test template',
+      details: error.message
+    });
+  }
+});
+
 // Catch-all for unmatched API routes
 app.all('/api/*', (req, res) => {
   res.status(404).json({ 
