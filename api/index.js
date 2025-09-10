@@ -2620,6 +2620,10 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
     for (const [key, value] of Object.entries(prefillData)) {
       const cfg = templateFieldMap[key]
       if (cfg && cfg.readonly === true && validFieldNames.has(key)) {
+        // Only include cobuyer fields if there's actually a cobuyer submitter
+        if (cfg.role === 'cobuyer' && (!coBuyerEnabled || !buyerInfo.coBuyerEmail)) {
+          continue
+        }
         fieldsPrefill[key] = value
       }
     }
@@ -2628,6 +2632,11 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
     const filteredPrefillData = {}
     for (const [key, value] of Object.entries(prefillData)) {
       if (validFieldNames.has(key)) {
+        const cfg = templateFieldMap[key]
+        // Only include cobuyer fields if there's actually a cobuyer submitter
+        if (cfg && cfg.role === 'cobuyer' && (!coBuyerEnabled || !buyerInfo.coBuyerEmail)) {
+          continue
+        }
         filteredPrefillData[key] = value
       }
     }
@@ -2637,8 +2646,12 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
       totalPrefillFields: Object.keys(prefillData).length,
       validTemplateFields: Array.from(validFieldNames),
       remoteTemplateFieldCount: remoteTemplateFields.length,
+      localFieldCount: localNames.size,
+      remoteFieldCount: remoteNames.size,
       fieldElementsUsed: Object.keys(fieldsPrefill),
-      ignoredForFields: Object.keys(prefillData).filter(key => !validFieldNames.has(key))
+      ignoredForFields: Object.keys(prefillData).filter(key => !validFieldNames.has(key)),
+      sampleRemoteFields: remoteTemplateFields.slice(0, 10),
+      sampleLocalFields: Array.from(localNames).slice(0, 10)
     })
 
     // Build submitters array (without fields - the existing function will add them)
