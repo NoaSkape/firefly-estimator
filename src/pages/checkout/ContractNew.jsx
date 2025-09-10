@@ -61,7 +61,7 @@ export default function ContractNew() {
     statusPollRef.current = setInterval(async () => {
       try {
         const token = await getToken()
-        const response = await fetch(`/api/contracts/${buildId}/status`, {
+        const response = await fetch(`/api/contracts/status?buildId=${buildId}`, {
           headers: {
             ...(token ? { Authorization: `Bearer ${token}` } : {})
           }
@@ -71,14 +71,14 @@ export default function ContractNew() {
           const status = await response.json()
           
           // Check if the pack is completed
-          if (status.packs?.[packId] === 'signed') {
+          if (status.packs?.[packId] === 'completed') {
             clearInterval(statusPollRef.current)
             
             setContractStatus(prev => ({
               ...prev,
               packs: {
                 ...prev.packs,
-                [packId]: 'signed'
+                [packId]: 'completed'
               }
             }))
             
@@ -226,7 +226,7 @@ export default function ContractNew() {
     try {
       if (!token) token = await getToken()
       
-      const statusRes = await fetch(`/api/contracts/${buildId}/status`, {
+      const statusRes = await fetch(`/api/contracts/status?buildId=${buildId}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       })
       
@@ -242,7 +242,7 @@ export default function ContractNew() {
   async function pollContractStatus() {
     try {
       const token = await getToken()
-      const statusRes = await fetch(`/api/contracts/${buildId}/status`, {
+      const statusRes = await fetch(`/api/contracts/status?buildId=${buildId}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       })
       

@@ -3113,9 +3113,39 @@ app.get(['/api/contracts/status', '/contracts/status'], async (req, res) => {
     // Get primary submission for backward compatibility
     const primarySubmission = updatedSubmissions.find(s => s.name === 'purchase_agreement') || updatedSubmissions[0]
 
+    // Convert submissions to packs format for contract page compatibility
+    const packs = {
+      summary: contract.summaryReviewed ? 'reviewed' : 'ready',
+      agreement: 'not_started',
+      delivery: 'not_started', 
+      final: 'not_started'
+    }
+
+    // Map submission statuses to pack statuses
+    updatedSubmissions.forEach(submission => {
+      if (submission.name === 'purchase_agreement' || submission.name === 'masterRetail') {
+        if (submission.status === 'completed') {
+          packs.agreement = 'completed'
+        } else if (submission.status === 'signing') {
+          packs.agreement = 'in_progress'
+        } else if (submission.status === 'ready') {
+          packs.agreement = 'ready'
+        }
+      } else if (submission.name === 'delivery') {
+        if (submission.status === 'completed') {
+          packs.delivery = 'completed'
+        } else if (submission.status === 'signing') {
+          packs.delivery = 'in_progress'
+        } else if (submission.status === 'ready') {
+          packs.delivery = 'ready'
+        }
+      }
+    })
+
     res.status(200).json({
       success: true,
       status: overallStatus,
+      packs: packs,
       submissions: updatedSubmissions,
       submissionId: primarySubmission?.submissionId,
       signerUrl: primarySubmission?.signerUrl,
