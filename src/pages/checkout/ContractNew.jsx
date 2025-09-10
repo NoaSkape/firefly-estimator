@@ -808,14 +808,7 @@ function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingP
                 : `Start Signing ${pack.title}`
             }
           </button>
-          <div className="mt-4">
-            <button
-              onClick={() => window.open(`/api/contracts/${buildId}/pack-pdf?pack=${pack.id}`, '_blank')}
-              className="px-4 py-2 text-sm border border-gray-600 text-gray-300 hover:text-white hover:bg-gray-700 rounded-md"
-            >
-              Download Prefilled PDF
-            </button>
-          </div>
+          {/* Removed prefilled download button for cleaner UX */}
         </div>
       )}
 
