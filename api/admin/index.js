@@ -14,6 +14,11 @@ import { getDb } from '../../lib/db.js'
 import analyticsRouter from './analytics.js'
 import dashboardRouter from './dashboard.js'
 import reportsRouter from './reports.js'
+import ordersRouter from './orders.js'
+import financialRouter from './financial.js'
+import contentRouter from './content.js'
+import usersRouter from './users.js'
+import notificationsRouter from './notifications.js'
 
 const router = express.Router()
 
@@ -1264,6 +1269,11 @@ function mountSafe(path, subrouter, name) {
 mountSafe('/dashboard', dashboardRouter, 'dashboardRouter')
 mountSafe('/reports', reportsRouter, 'reportsRouter')
 mountSafe('/analytics', analyticsRouter, 'analyticsRouter')
+mountSafe('/orders', ordersRouter, 'ordersRouter')
+mountSafe('/financial', financialRouter, 'financialRouter')
+mountSafe('/content', contentRouter, 'contentRouter')
+mountSafe('/users', usersRouter, 'usersRouter')
+mountSafe('/notifications', notificationsRouter, 'notificationsRouter')
 
 // ============================================================================
 // ERROR HANDLING

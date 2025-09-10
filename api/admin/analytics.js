@@ -337,5 +337,225 @@ router.get('/:metric', async (req, res) => {
   }
 })
 
+// ============================================================================
+// ADVANCED BUSINESS INTELLIGENCE ENDPOINTS
+// ============================================================================
+
+// Get predictive analytics and forecasting
+router.get('/predictive/revenue', async (req, res) => {
+  try {
+    const { months = 6 } = req.query
+    const ordersCollection = await getCollection(COLLECTIONS.ORDERS)
+    
+    // Get historical revenue data for the last 12 months
+    const twelveMonthsAgo = new Date()
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
+    
+    const historicalData = await ordersCollection.aggregate([
+      { $match: { 
+        status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] },
+        createdAt: { $gte: twelveMonthsAgo }
+      }},
+      { $group: { 
+        _id: { 
+          year: { $year: '$createdAt' },
+          month: { $month: '$createdAt' }
+        },
+        revenue: { $sum: '$totalAmount' },
+        orders: { $sum: 1 }
+      }},
+      { $sort: { '_id.year': 1, '_id.month': 1 } }
+    ]).toArray()
+    
+    // Simple linear regression for forecasting
+    const dataPoints = historicalData.map(item => ({
+      x: item._id.year * 12 + item._id.month,
+      y: item.revenue
+    }))
+    
+    if (dataPoints.length < 3) {
+      return res.json({
+        success: true,
+        data: {
+          forecast: [],
+          confidence: 'low',
+          message: 'Insufficient data for forecasting'
+        }
+      })
+    }
+    
+    // Calculate linear regression
+    const n = dataPoints.length
+    const sumX = dataPoints.reduce((sum, p) => sum + p.x, 0)
+    const sumY = dataPoints.reduce((sum, p) => sum + p.y, 0)
+    const sumXY = dataPoints.reduce((sum, p) => sum + p.x * p.y, 0)
+    const sumXX = dataPoints.reduce((sum, p) => sum + p.x * p.x, 0)
+    
+    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
+    const intercept = (sumY - slope * sumX) / n
+    
+    // Generate forecast
+    const forecast = []
+    const currentMonth = new Date().getMonth() + 1
+    const currentYear = new Date().getFullYear()
+    
+    for (let i = 1; i <= parseInt(months); i++) {
+      const futureMonth = currentMonth + i
+      const futureYear = currentYear + Math.floor((futureMonth - 1) / 12)
+      const adjustedMonth = ((futureMonth - 1) % 12) + 1
+      const x = futureYear * 12 + adjustedMonth
+      const predictedRevenue = slope * x + intercept
+      
+      forecast.push({
+        year: futureYear,
+        month: adjustedMonth,
+        predictedRevenue: Math.max(0, predictedRevenue),
+        confidence: i <= 3 ? 'high' : i <= 6 ? 'medium' : 'low'
+      })
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        historical: historicalData,
+        forecast,
+        model: {
+          slope,
+          intercept,
+          rSquared: calculateRSquared(dataPoints, slope, intercept)
+        }
+      }
+    })
+  } catch (error) {
+    console.error('Predictive analytics error:', error)
+    res.status(500).json({ error: 'Failed to generate revenue forecast' })
+  }
+})
+
+// Get customer lifetime value analytics
+router.get('/customers/lifetime-value', async (req, res) => {
+  try {
+    const ordersCollection = await getCollection(COLLECTIONS.ORDERS)
+    
+    const customerLTV = await ordersCollection.aggregate([
+      { $match: { 
+        status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
+      }},
+      { $group: { 
+        _id: '$customerId',
+        totalSpent: { $sum: '$totalAmount' },
+        orderCount: { $sum: 1 },
+        firstOrder: { $min: '$createdAt' },
+        lastOrder: { $max: '$createdAt' }
+      }},
+      { $addFields: {
+        lifetimeValue: '$totalSpent',
+        averageOrderValue: { $divide: ['$totalSpent', '$orderCount'] },
+        customerAge: { 
+          $divide: [
+            { $subtract: ['$lastOrder', '$firstOrder'] },
+            1000 * 60 * 60 * 24 * 30 // months
+          ]
+        }
+      }},
+      { $group: {
+        _id: null,
+        avgLTV: { $avg: '$lifetimeValue' },
+        medianLTV: { $median: { input: '$lifetimeValue', method: 'approximate' } },
+        avgAOV: { $avg: '$averageOrderValue' },
+        avgOrdersPerCustomer: { $avg: '$orderCount' },
+        avgCustomerAge: { $avg: '$customerAge' },
+        totalCustomers: { $sum: 1 },
+        highValueCustomers: {
+          $sum: { $cond: [{ $gte: ['$lifetimeValue', 100000] }, 1, 0] }
+        }
+      }}
+    ]).toArray()
+    
+    // Get LTV distribution
+    const ltvDistribution = await ordersCollection.aggregate([
+      { $match: { 
+        status: { $in: ['confirmed', 'production', 'ready', 'delivered', 'completed'] }
+      }},
+      { $group: { 
+        _id: '$customerId',
+        totalSpent: { $sum: '$totalAmount' }
+      }},
+      { $bucket: {
+        groupBy: '$totalSpent',
+        boundaries: [0, 25000, 50000, 75000, 100000, 150000, 200000, 300000, 500000],
+        default: '500000+',
+        output: {
+          count: { $sum: 1 },
+          avgLTV: { $avg: '$totalSpent' }
+        }
+      }}
+    ]).toArray()
+    
+    res.json({
+      success: true,
+      data: {
+        summary: customerLTV[0] || {},
+        distribution: ltvDistribution
+      }
+    })
+  } catch (error) {
+    console.error('Customer LTV analytics error:', error)
+    res.status(500).json({ error: 'Failed to calculate customer lifetime value' })
+  }
+})
+
+// Get conversion funnel analytics
+router.get('/funnel/conversion', async (req, res) => {
+  try {
+    const ordersCollection = await getCollection(COLLECTIONS.ORDERS)
+    
+    // Get conversion funnel data
+    const funnelData = await ordersCollection.aggregate([
+      { $group: {
+        _id: '$status',
+        count: { $sum: 1 },
+        totalValue: { $sum: '$totalAmount' }
+      }},
+      { $sort: { count: -1 } }
+    ]).toArray()
+    
+    // Calculate conversion rates
+    const totalOrders = funnelData.reduce((sum, item) => sum + item.count, 0)
+    const confirmedOrders = funnelData.find(item => item._id === 'confirmed')?.count || 0
+    const completedOrders = funnelData.find(item => item._id === 'completed')?.count || 0
+    
+    const conversionRates = {
+      quoteToConfirmed: totalOrders > 0 ? (confirmedOrders / totalOrders) * 100 : 0,
+      confirmedToCompleted: confirmedOrders > 0 ? (completedOrders / confirmedOrders) * 100 : 0,
+      overallConversion: totalOrders > 0 ? (completedOrders / totalOrders) * 100 : 0
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        funnel: funnelData,
+        conversionRates,
+        totalOrders
+      }
+    })
+  } catch (error) {
+    console.error('Conversion funnel analytics error:', error)
+    res.status(500).json({ error: 'Failed to calculate conversion funnel' })
+  }
+})
+
+// Helper function for R-squared calculation
+function calculateRSquared(dataPoints, slope, intercept) {
+  const yMean = dataPoints.reduce((sum, p) => sum + p.y, 0) / dataPoints.length
+  const ssRes = dataPoints.reduce((sum, p) => {
+    const predicted = slope * p.x + intercept
+    return sum + Math.pow(p.y - predicted, 2)
+  }, 0)
+  const ssTot = dataPoints.reduce((sum, p) => sum + Math.pow(p.y - yMean, 2), 0)
+  
+  return ssTot > 0 ? 1 - (ssRes / ssTot) : 0
+}
+
 export default router
 
