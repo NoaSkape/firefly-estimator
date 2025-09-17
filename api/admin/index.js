@@ -178,6 +178,60 @@ router.get('/_debug/router', (req, res) => {
   }
 })
 
+// Public GET /me (token optional). This is defined BEFORE auth middleware to avoid
+// middleware chain issues and to allow soft probing of the current user.
+router.get('/me', async (req, res) => {
+  try {
+    const authHeader = req.headers?.authorization || req.headers?.Authorization
+    const token = typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length)
+      : null
+
+    // If auth is disabled and no token, return a safe admin stub for UI rendering
+    if (!token && process.env.ADMIN_AUTH_DISABLED === 'true') {
+      return res.json({
+        success: true,
+        data: {
+          id: 'dev-admin',
+          firstName: 'Admin',
+          lastName: 'Bypass',
+          email: null,
+          role: 'admin',
+          lastLogin: null,
+          permissions: [] // UI checks for specific permissions; keep empty to reduce risk
+        }
+      })
+    }
+
+    if (!token) return res.status(401).json({ error: 'Unauthorized' })
+
+    const { createClerkClient, verifyToken } = await import('@clerk/backend')
+    const verified = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY })
+    const userId = verified?.sub || verified?.userId || null
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' })
+
+    const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY })
+    const user = await clerk.users.getUser(userId)
+
+    // Derive RBAC role/permissions without invoking auth middleware
+    const role = await adminAuth.getUserRole(userId)
+    const permissions = await adminAuth.getUserPermissions(userId)
+
+    return res.json({ success: true, data: {
+      id: userId,
+      firstName: user?.firstName || null,
+      lastName: user?.lastName || null,
+      email: user?.primaryEmailAddress?.emailAddress || null,
+      role,
+      lastLogin: user?.lastSignInAt || null,
+      permissions
+    }})
+  } catch (e) {
+    console.error('[ADMIN]/me (public) error:', e?.message || e)
+    return res.status(500).json({ error: 'Failed to fetch user information' })
+  }
+})
+
 // Database health check middleware (non-blocking)
 router.use(async (req, res, next) => {
   // If DB wasn't initialized at startup, try to initialize it now
@@ -865,37 +919,7 @@ router.put('/customers/:id', async (req, res) => {
 // ============================================================================
 // USER MANAGEMENT ENDPOINTS
 // USER MANAGEMENT ENDPOINTS (handled by usersRouter)
-// Get current admin user information
-router.get('/me', async (req, res) => {
-  try {
-    const { userId } = req.adminUser || {}
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' })
-
-    const { createClerkClient } = await import('@clerk/backend')
-    const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY })
-
-    const user = await clerk.users.getUser(userId)
-
-    // Derive role and permissions from unified RBAC
-    const role = await adminAuth.getUserRole(userId)
-    const permissions = await adminAuth.getUserPermissions(userId)
-
-    const userInfo = {
-      id: userId,
-      firstName: user?.firstName || null,
-      lastName: user?.lastName || null,
-      email: user?.primaryEmailAddress?.emailAddress || null,
-      role,
-      lastLogin: user?.lastSignInAt || null,
-      permissions
-    }
-
-    res.json({ success: true, data: userInfo })
-  } catch (error) {
-    console.error('Get user info error:', error)
-    res.status(500).json({ error: 'Failed to fetch user information' })
-  }
-})
+// (Duplicate /me route removed; handled above before auth middleware)
 
 // (content and analytics handled by subrouters)
 // SENTINEL: admin-router-cleanup-2025-09-17
