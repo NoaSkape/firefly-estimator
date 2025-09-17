@@ -3313,7 +3313,7 @@ app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
             [`packs.${packId}.status`]: newStatus,
             [`packs.${packId}.updatedAt`]: new Date(),
             ...(newStatus === 'completed' && { [`packs.${packId}.completedAt`]: new Date() }),
-            ...(shouldDownloadPdf && data.documents && data.documents[0] && { [`packs.${packId}.signedPdfUrl`]: data.documents[0].url }),
+            ...(shouldDownloadPdf && { [`packs.${packId}.needsDocumentFetch`]: true }),
             updatedAt: new Date()
           },
           $push: { 
@@ -3529,27 +3529,32 @@ app.get(['/api/contracts/:buildId/pack/:packId/download', '/contracts/:buildId/p
         const { getSubmission } = await import('../lib/docuseal.js')
         const docusealSubmission = await getSubmission(packData.submissionId)
         
-        // Get the signed document URL from DocuSeal
+        // Get the actual signed document (not audit log) from DocuSeal
         if (docusealSubmission.status === 'completed') {
-          // Try to get the document URL from the submission
-          const submissionResponse = await fetch(`https://api.docuseal.co/submissions/${packData.submissionId}`, {
+          // Use DocuSeal's documents endpoint to get the actual signed document
+          const documentsResponse = await fetch(`https://api.docuseal.co/submissions/${packData.submissionId}/documents`, {
             headers: {
               'X-Auth-Token': process.env.DOCUSEAL_API_KEY
             }
           })
           
-          if (submissionResponse.ok) {
-            const submissionData = await submissionResponse.json()
+          if (documentsResponse.ok) {
+            const documentsData = await documentsResponse.json()
+            console.log('DocuSeal documents response:', documentsData)
             
-            // Look for document URLs in the submission data
-            if (submissionData.audit_log_url) {
-              downloadUrl = submissionData.audit_log_url
-            } else if (submissionData.documents && submissionData.documents[0]) {
-              downloadUrl = submissionData.documents[0].url
+            // Get the first document (the actual signed agreement)
+            if (documentsData && documentsData[0] && documentsData[0].url) {
+              downloadUrl = documentsData[0].url
+              console.log('Found signed document URL:', downloadUrl)
             } else {
-              // Use DocuSeal's download endpoint
+              console.log('No documents found in DocuSeal response')
+              // Fallback to submission download endpoint
               downloadUrl = `https://api.docuseal.co/submissions/${packData.submissionId}/download`
             }
+          } else {
+            console.error('Failed to get documents from DocuSeal:', documentsResponse.status)
+            // Fallback to submission download endpoint
+            downloadUrl = `https://api.docuseal.co/submissions/${packData.submissionId}/download`
           }
         }
       } catch (docusealError) {
@@ -3661,6 +3666,48 @@ app.get(['/api/contracts/:buildId/pack/:packId/check-status', '/contracts/:build
       error: 'Failed to check pack status',
       message: error.message 
     })
+  }
+})
+
+// Debug: Check what DocuSeal returns for a submission
+app.get(['/api/debug/docuseal/:submissionId', '/debug/docuseal/:submissionId'], async (req, res) => {
+  try {
+    const { submissionId } = req.params
+    
+    console.log('Debug: Checking DocuSeal submission:', submissionId)
+    
+    // Get submission details
+    const submissionResponse = await fetch(`https://api.docuseal.co/submissions/${submissionId}`, {
+      headers: {
+        'X-Auth-Token': process.env.DOCUSEAL_API_KEY
+      }
+    })
+    
+    // Get documents
+    const documentsResponse = await fetch(`https://api.docuseal.co/submissions/${submissionId}/documents`, {
+      headers: {
+        'X-Auth-Token': process.env.DOCUSEAL_API_KEY
+      }
+    })
+    
+    const submissionData = submissionResponse.ok ? await submissionResponse.json() : null
+    const documentsData = documentsResponse.ok ? await documentsResponse.json() : null
+    
+    res.json({
+      submissionId,
+      submission: {
+        status: submissionResponse.status,
+        data: submissionData
+      },
+      documents: {
+        status: documentsResponse.status,
+        data: documentsData
+      }
+    })
+    
+  } catch (error) {
+    console.error('Debug DocuSeal error:', error)
+    res.status(500).json({ error: error.message })
   }
 })
 
