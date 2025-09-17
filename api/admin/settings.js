@@ -4,7 +4,27 @@ import { getOrgSettings, updateOrgSettings } from '../../lib/settings.js'
 import { getDb } from '../../lib/db.js'
 
 // Convert to an Express Router so it mounts safely like other admin modules
-\n// Guard router.use to avoid non-function handlers\nconst __origRouterUse = router.use.bind(router)\nrouter.use = function guardedRouterUse(...args){\n  try {\n    const path = (typeof args[0] === 'string' || args[0] instanceof RegExp || Array.isArray(args[0])) ? args[0] : undefined\n    const handlers = path ? args.slice(1) : args\n    const startIndex = path ? 1 : 0\n    for (let i=0;i<handlers.length;i++){\n      if (typeof handlers[i] !== 'function'){\n        const idx = startIndex + i\n        const t = typeof handlers[i]\n        console.error('[SUBROUTER_USE_GUARD] Non-function handler; patching', { file: __filename, path, index: idx, type: t })\n        args[idx] = (req,res)=> res.status(500).json({ error:'admin_handler_misconfigured', file: __filename, path: String(path||''), index: idx, type: t })\n      }\n    }\n  } catch(e){ console.warn('[SUBROUTER_USE_GUARD] Failed:', e?.message) }\n  return __origRouterUse(...args)\n}\n// Require admin access
+const router = express.Router()
+
+// Guard router.use to avoid non-function handlers
+const __origRouterUse = router.use.bind(router)
+router.use = function guardedRouterUse(...args) {
+  try {
+    const path = (typeof args[0] === 'string' || args[0] instanceof RegExp || Array.isArray(args[0])) ? args[0] : undefined
+    const handlers = path ? args.slice(1) : args
+    const startIndex = path ? 1 : 0
+    for (let i = 0; i < handlers.length; i++) {
+      if (typeof handlers[i] !== 'function') {
+        const idx = startIndex + i
+        const t = typeof handlers[i]
+        console.error('[SUBROUTER_USE_GUARD] Non-function handler; patching', { file: __filename, path, index: idx, type: t })
+        args[idx] = (req, res) => res.status(500).json({ error: 'admin_handler_misconfigured', file: __filename, path: String(path || ''), index: idx, type: t })
+      }
+    }
+  } catch (e) { console.warn('[SUBROUTER_USE_GUARD] Failed:', e?.message) }
+  return __origRouterUse(...args)
+}
+// Require admin access
 router.use((req,res,next)=>{ if(process.env.ADMIN_AUTH_DISABLED==='true'){ return next() } return adminAuth.validateAdminAccess(req,res,next) })
 
 // GET /admin/settings
