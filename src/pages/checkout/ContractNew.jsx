@@ -998,42 +998,62 @@ function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingP
   const isNotStarted = status === 'not_started'
   const isCompleted = status === 'completed'
   
-  // Get pack-specific document URL (using proxy to avoid X-Frame-Options)
-  const getDocumentUrl = () => {
-    // Use our proxy endpoint that streams the document directly
-    const token = localStorage.getItem('__clerk_db_jwt') // Get auth token
-    const url = `/api/contracts/${buildId}/pack/${pack.id}/document`
-    return url
-  }
-  
-  const handleViewDocument = () => {
-    // Use our document proxy endpoint
-    const url = getDocumentUrl()
-    const packTitle = pack.title || 'Document'
-    const filename = `${pack.id}_agreement_${buildId.slice(-8)}.pdf`
-    
-    // Call parent's document viewer function
-    if (onOpenDocumentViewer) {
-      onOpenDocumentViewer(url, `Signed ${packTitle}`, filename)
-    } else {
-      // Fallback to new tab
-      window.open(url, '_blank')
+  // Get pack-specific document URL (using token-based proxy)
+  const getDocumentUrl = async () => {
+    try {
+      const token = await getToken()
+      
+      // First, get a document access token
+      const tokenResponse = await fetch(`/api/contracts/${buildId}/pack/${pack.id}/document-token`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      
+      if (tokenResponse.ok) {
+        const tokenData = await tokenResponse.json()
+        return `/api/contracts/document/${tokenData.token}`
+      } else {
+        console.error('Failed to get document token:', tokenResponse.status)
+        return null
+      }
+    } catch (error) {
+      console.error('Failed to get document URL:', error)
+      return null
     }
   }
   
-  const handleDownloadDocument = () => {
-    // Use our document proxy endpoint for download
-    const url = getDocumentUrl()
-    const filename = `${pack.id}_agreement_${buildId.slice(-8)}.pdf`
-    
-    // Create download link
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    link.target = '_blank'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+  const handleViewDocument = async () => {
+    // Use our token-based document proxy endpoint
+    const url = await getDocumentUrl()
+    if (url) {
+      const packTitle = pack.title || 'Document'
+      const filename = `${pack.id}_agreement_${buildId.slice(-8)}.pdf`
+      
+      // Call parent's document viewer function
+      if (onOpenDocumentViewer) {
+        onOpenDocumentViewer(url, `Signed ${packTitle}`, filename)
+      } else {
+        // Fallback to new tab
+        window.open(url, '_blank')
+      }
+    }
+  }
+  
+  const handleDownloadDocument = async () => {
+    // Use our token-based document proxy endpoint for download
+    const url = await getDocumentUrl()
+    if (url) {
+      const filename = `${pack.id}_agreement_${buildId.slice(-8)}.pdf`
+      
+      // Create download link
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      link.target = '_blank'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
   }
   
   

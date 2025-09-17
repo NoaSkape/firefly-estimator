@@ -3669,25 +3669,64 @@ app.get(['/api/contracts/:buildId/pack/:packId/check-status', '/contracts/:build
   }
 })
 
-// Proxy signed document from DocuSeal (to avoid X-Frame-Options issues)
-app.get(['/api/contracts/:buildId/pack/:packId/document', '/contracts/:buildId/pack/:packId/document'], async (req, res) => {
+// Generate secure document access token
+app.post(['/api/contracts/:buildId/pack/:packId/document-token', '/contracts/:buildId/pack/:packId/document-token'], async (req, res) => {
   try {
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
     const { buildId, packId } = req.params
 
+    // Generate a secure token for document access
+    const token = Buffer.from(`${auth.userId}:${buildId}:${packId}:${Date.now()}`).toString('base64')
+    
+    // Store token temporarily (5 minutes expiry)
+    const db = await getDb()
+    await db.collection('document_tokens').insertOne({
+      token,
+      userId: auth.userId,
+      buildId,
+      packId,
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000) // 5 minutes
+    })
+
+    res.json({ token })
+
+  } catch (error) {
+    console.error('Document token error:', error)
+    res.status(500).json({ error: 'Failed to generate document token' })
+  }
+})
+
+// Proxy signed document from DocuSeal (using token authentication)
+app.get(['/api/contracts/document/:token', '/contracts/document/:token'], async (req, res) => {
+  try {
+    const { token } = req.params
+
+    // Verify token
+    const db = await getDb()
+    const tokenDoc = await db.collection('document_tokens').findOne({
+      token,
+      expiresAt: { $gt: new Date() }
+    })
+
+    if (!tokenDoc) {
+      return res.status(401).json({ error: 'Invalid or expired token' })
+    }
+
+    const { userId, buildId, packId } = tokenDoc
+
     // Get build data
     const build = await getBuildById(buildId)
-    if (!build || build.userId !== auth.userId) {
+    if (!build || build.userId !== userId) {
       return res.status(404).json({ error: 'Build not found' })
     }
 
     // Get contract
-    const db = await getDb()
     const contract = await db.collection('contracts').findOne({ 
       buildId: buildId, 
-      userId: auth.userId 
+      userId: userId 
     }, { sort: { version: -1 } })
 
     if (!contract) {
@@ -3753,6 +3792,8 @@ app.get(['/api/contracts/:buildId/pack/:packId/document', '/contracts/:buildId/p
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `inline; filename="${packId}_agreement_${buildId.slice(-8)}.pdf"`)
     res.setHeader('Cache-Control', 'private, max-age=3600') // Cache for 1 hour
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN') // Allow our own domain to frame this
+    res.removeHeader('Content-Security-Policy') // Remove CSP for this endpoint
 
     // Stream the document
     documentResponse.body.pipe(res)
