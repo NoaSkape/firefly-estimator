@@ -33,7 +33,10 @@ export default function AdminOverview() {
       try {
         const token = await getToken()
         const res = await fetch('/api/admin/settings', { headers: token?{ Authorization:`Bearer ${token}` }:{} })
-        if (res.ok) setSettings(await res.json())
+        if (res.ok) {
+          const payload = await res.json()
+          setSettings(payload?.data || payload)
+        }
       } catch {}
     })()
   }, [getToken])

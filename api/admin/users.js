@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { getDb } from '../../lib/db.js'
 import { validateRequest } from '../../lib/requestValidation.js'
 import { createClerkClient } from '@clerk/backend'
-import { adminAuth } from '../../lib/adminAuth.js'
+import { adminAuth, ADMIN_ROLES, PERMISSIONS } from '../../lib/adminAuth.js'
 
 const router = express.Router()
 
@@ -32,6 +32,11 @@ const userUpdateSchema = z.object({
   status: z.enum(['active', 'inactive', 'suspended']).optional(),
   notes: z.string().max(500).optional(),
   tags: z.array(z.string()).optional()
+})
+
+// Role update schema
+const roleUpdateSchema = z.object({
+  role: z.enum(Object.values(ADMIN_ROLES))
 })
 
 // Get all users with advanced filtering and pagination
@@ -557,3 +562,55 @@ router.patch('/bulk/update', async (req, res) => {
 })
 
 export default router
+
+// Role management endpoint
+router.patch('/:userId/role', adminAuth.validatePermission(PERMISSIONS.USERS_EDIT), async (req, res) => {
+  try {
+    const { userId } = req.params
+    const { role } = roleUpdateSchema.parse(req.body)
+
+    // Update role in Clerk public metadata
+    if (!clerkClient) {
+      return res.status(500).json({ error: 'Clerk client not initialized' })
+    }
+
+    // Fetch user first to ensure existence
+    await clerkClient.users.getUser(userId)
+
+    await clerkClient.users.updateUser(userId, {
+      publicMetadata: { role }
+    })
+
+    // Update local users collection role if present
+    try {
+      const db = await getDb()
+      await db.collection('users').updateOne(
+        { _id: userId },
+        { $set: { role, updatedAt: new Date() } },
+        { upsert: false }
+      )
+      await db.collection('audit_logs').insertOne({
+        resource: 'user',
+        resourceId: userId,
+        action: 'role_update',
+        changes: { role },
+        userId: req.adminUser?.userId || 'system',
+        timestamp: new Date(),
+        severity: 'info'
+      })
+    } catch (e) {
+      console.warn('[users.role] local role update/audit failed:', e?.message)
+    }
+
+    // Clear auth caches so new role is effective immediately
+    try { adminAuth.clearUserCaches(userId) } catch {}
+
+    res.json({ success: true, data: { userId, role } })
+  } catch (error) {
+    if (error?.name === 'ZodError') {
+      return res.status(400).json({ error: 'Validation failed', details: error.errors })
+    }
+    console.error('User role update API error:', error)
+    res.status(500).json({ error: 'Failed to update user role' })
+  }
+})

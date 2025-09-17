@@ -1,5 +1,7 @@
 import express from 'express'
 import { adminAuth } from '../../lib/adminAuth.js'
+import { getOrgSettings, updateOrgSettings } from '../../lib/settings.js'
+import { getDb } from '../../lib/db.js'
 
 // Convert to an Express Router so it mounts safely like other admin modules
 const router = express.Router()
@@ -7,24 +9,11 @@ const router = express.Router()
 // Require admin access
 router.use(adminAuth.validateAdminAccess.bind(adminAuth))
 
-// Default settings (no DB needed yet)
-const defaultSettings = {
-  payments: {
-    depositPercent: 25,
-    storageFeePerDayCents: 4000,
-    enableCardOption: false
-  },
-  pricing: {
-    title_fee_default: 500,
-    setup_fee_default: 3000,
-    tax_rate_percent: 6.25
-  }
-}
-
 // GET /admin/settings
 router.get('/', async (req, res) => {
   try {
-    res.json(defaultSettings)
+    const doc = await getOrgSettings()
+    res.json({ success: true, data: doc })
   } catch (e) {
     console.error('Settings GET error:', e)
     res.status(500).json({ error: 'Failed to load settings' })
@@ -34,18 +23,36 @@ router.get('/', async (req, res) => {
 // PUT /admin/settings
 router.put('/', async (req, res) => {
   try {
-    const { payments } = req.body || {}
-    if (!payments) return res.status(400).json({ error: 'Payment settings are required' })
+    const patch = req.body || {}
 
-    if (payments.depositPercent < 0 || payments.depositPercent > 100) {
-      return res.status(400).json({ error: 'Deposit percentage must be between 0 and 100' })
+    // Basic validation bounds for commonly edited fields
+    const p = patch?.pricing || {}
+    if (p.deposit_percent != null && (p.deposit_percent < 0 || p.deposit_percent > 100)) {
+      return res.status(400).json({ error: 'deposit_percent must be between 0 and 100' })
     }
-    if (payments.storageFeePerDayCents < 0) {
-      return res.status(400).json({ error: 'Storage fee cannot be negative' })
+    if (p.tax_rate_percent != null && (p.tax_rate_percent < 0 || p.tax_rate_percent > 25)) {
+      return res.status(400).json({ error: 'tax_rate_percent is out of bounds' })
     }
 
-    // TODO: Persist to DB; for now echo back
-    res.json({ success: true, message: 'Settings updated (not persisted yet)', settings: { payments } })
+    const updated = await updateOrgSettings(patch, req.adminUser?.userId)
+
+    // Audit log
+    try {
+      const db = await getDb()
+      await db.collection('audit_logs').insertOne({
+        resource: 'settings',
+        resourceId: 'org',
+        action: 'update',
+        changes: patch,
+        userId: req.adminUser?.userId || 'system',
+        timestamp: new Date(),
+        severity: 'info'
+      })
+    } catch (e) {
+      console.warn('[settings] failed to write audit log:', e?.message)
+    }
+
+    res.json({ success: true, data: updated })
   } catch (e) {
     console.error('Settings PUT error:', e)
     res.status(500).json({ error: 'Failed to update settings' })
