@@ -1865,7 +1865,23 @@ app.get(['/api/contracts/status', '/contracts/status'], async (req, res) => {
     }, { sort: { version: -1 } }) // Get latest version
 
     if (!contract) {
-      return res.status(404).json({ error: 'Contract not found' })
+      // No contract exists yet - return initial state for new users
+      return res.status(200).json({
+        success: true,
+        status: 'not_started',
+        packs: {
+          summary: 'ready',
+          agreement: 'not_started',
+          delivery: 'not_started', 
+          final: 'not_started'
+        },
+        submissions: [],
+        submissionId: null,
+        signerUrl: null,
+        version: 0,
+        createdAt: null,
+        updatedAt: null
+      })
     }
 
     // Get latest status from DocuSeal for all submissions
@@ -1941,34 +1957,85 @@ app.get(['/api/contracts/status', '/contracts/status'], async (req, res) => {
     // Get primary submission for backward compatibility
     const primarySubmission = updatedSubmissions.find(s => s.name === 'purchase_agreement') || updatedSubmissions[0]
 
-    // Convert submissions to packs format for contract page compatibility
-    const packs = {
+    // Use the new pack-based structure if available, otherwise fall back to legacy mapping
+    let packs = {
       summary: contract.summaryReviewed ? 'reviewed' : 'ready',
       agreement: 'not_started',
       delivery: 'not_started', 
       final: 'not_started'
     }
-
-    // Map submission statuses to pack statuses
-    updatedSubmissions.forEach(submission => {
-      if (submission.name === 'purchase_agreement' || submission.name === 'masterRetail') {
-        if (submission.status === 'completed') {
-          packs.agreement = 'completed'
-        } else if (submission.status === 'signing') {
-          packs.agreement = 'in_progress'
-        } else if (submission.status === 'ready') {
-          packs.agreement = 'ready'
-        }
-      } else if (submission.name === 'delivery') {
-        if (submission.status === 'completed') {
-          packs.delivery = 'completed'
-        } else if (submission.status === 'signing') {
-          packs.delivery = 'in_progress'
-        } else if (submission.status === 'ready') {
-          packs.delivery = 'ready'
+    
+    // Check if contract has the new pack structure
+    if (contract.packs) {
+      // Use the new pack structure directly
+      packs = {
+        summary: contract.packs.summary?.status === 'not_reviewed' ? 'ready' : (contract.packs.summary?.status || 'ready'),
+        agreement: contract.packs.agreement?.status || 'not_started',
+        delivery: contract.packs.delivery?.status || 'not_started',
+        final: contract.packs.final?.status || 'not_started'
+      }
+      
+      // Update DocuSeal status for each pack that has a submission
+      for (const [packId, packData] of Object.entries(contract.packs)) {
+        if (packData.submissionId && packId !== 'summary') {
+          try {
+            const docusealSubmission = await getSubmission(packData.submissionId)
+            const docusealStatus = mapDocuSealStatus(docusealSubmission.status || docusealSubmission.state)
+            
+            // Update pack status if it changed
+            if (docusealStatus !== packData.status) {
+              await db.collection('contracts').updateOne(
+                { _id: contract._id },
+                { 
+                  $set: { 
+                    [`packs.${packId}.status`]: docusealStatus,
+                    updatedAt: new Date()
+                  },
+                  $push: {
+                    audit: {
+                      timestamp: new Date(),
+                      userId: 'system',
+                      action: 'status_updated',
+                      packId: packId,
+                      metadata: { 
+                        from: packData.status, 
+                        to: docusealStatus,
+                        submissionId: packData.submissionId
+                      }
+                    }
+                  }
+                }
+              )
+              packs[packId] = docusealStatus
+            }
+          } catch (error) {
+            console.error(`Failed to get DocuSeal status for ${packId}:`, error)
+            // Continue with local status
+          }
         }
       }
-    })
+    } else {
+      // Legacy: Map submission statuses to pack statuses
+      updatedSubmissions.forEach(submission => {
+        if (submission.name === 'purchase_agreement' || submission.name === 'masterRetail') {
+          if (submission.status === 'completed') {
+            packs.agreement = 'completed'
+          } else if (submission.status === 'signing') {
+            packs.agreement = 'in_progress'
+          } else if (submission.status === 'ready') {
+            packs.agreement = 'ready'
+          }
+        } else if (submission.name === 'delivery') {
+          if (submission.status === 'completed') {
+            packs.delivery = 'completed'
+          } else if (submission.status === 'signing') {
+            packs.delivery = 'in_progress'
+          } else if (submission.status === 'ready') {
+            packs.delivery = 'ready'
+          }
+        }
+      })
+    }
 
     res.status(200).json({
       success: true,
@@ -2744,43 +2811,171 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
       result.coBuyerEmbedUrl = submission.raw.submitters[1].url
     }
 
-    // Store contract in database for status tracking
+    // Store contract in database for status tracking with enhanced pack structure
     const db = await getDb()
     const { ObjectId } = await import('mongodb')
     
-    const contractData = {
-      _id: new ObjectId(),
-      buildId: buildId,
-      userId: auth.userId,
-      version: 1,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      submissions: [{
-        submissionId: submission.submissionId,
-        name: 'purchase_agreement',
-        templateId: template.id,
-        templateName: template.name,
-        status: 'ready',
-        signerUrl: signingUrl,
-        createdAt: new Date()
-      }],
-      status: 'ready',
-      pricingSnapshot: build.pricing || {},
-      buyerInfo: build.buyerInfo || {},
-      delivery: build.delivery || {},
-      payment: build.payment || {},
-      audit: [{
-        at: new Date(),
-        who: auth.userId,
-        action: 'contract_created',
-        meta: { 
-          submissionId: submission.submissionId,
-          templateName: template.name
-        }
-      }]
+    // Determine which pack this template belongs to
+    const packMap = {
+      'masterRetail': 'agreement',
+      'delivery': 'delivery',
+      'final': 'final'
     }
-
-    await db.collection('contracts').insertOne(contractData)
+    const packId = packMap[templateKey] || 'agreement'
+    
+    // Check if contract already exists
+    let existingContract = await db.collection('contracts').findOne({ 
+      buildId: buildId, 
+      userId: auth.userId 
+    }, { sort: { version: -1 } })
+    
+    if (existingContract) {
+      // Update existing contract with new pack submission
+      await db.collection('contracts').updateOne(
+        { _id: existingContract._id },
+        {
+          $set: {
+            [`packs.${packId}`]: {
+              status: 'in_progress',
+              submissionId: submission.submissionId,
+              templateId: template.id,
+              templateName: template.name,
+              signerUrl: signingUrl,
+              embedUrl: signingUrl,
+              startedAt: new Date(),
+              progress: {
+                currentPage: 0,
+                totalPages: 1,
+                fieldsCompleted: 0,
+                totalFields: 1
+              }
+            },
+            updatedAt: new Date()
+          },
+          $push: {
+            audit: {
+              timestamp: new Date(),
+              userId: auth.userId,
+              action: 'pack_started',
+              packId: packId,
+              metadata: {
+                submissionId: submission.submissionId,
+                templateName: template.name
+              },
+              ipAddress: req.ip || req.connection.remoteAddress,
+              userAgent: req.headers['user-agent']
+            }
+          }
+        }
+      )
+    } else {
+      // Create new contract with enhanced pack structure
+      const contractData = {
+        _id: new ObjectId(),
+        buildId: buildId,
+        userId: auth.userId,
+        version: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        
+        // Pack-specific submissions tracking
+        packs: {
+          summary: {
+            status: 'not_reviewed',
+            reviewedAt: null,
+            pdfUrl: null
+          },
+          agreement: packId === 'agreement' ? {
+            status: 'in_progress',
+            submissionId: submission.submissionId,
+            templateId: template.id,
+            templateName: template.name,
+            signerUrl: signingUrl,
+            embedUrl: signingUrl,
+            startedAt: new Date(),
+            progress: {
+              currentPage: 0,
+              totalPages: 1,
+              fieldsCompleted: 0,
+              totalFields: 1
+            }
+          } : {
+            status: 'not_started'
+          },
+          delivery: packId === 'delivery' ? {
+            status: 'in_progress',
+            submissionId: submission.submissionId,
+            templateId: template.id,
+            templateName: template.name,
+            signerUrl: signingUrl,
+            embedUrl: signingUrl,
+            startedAt: new Date(),
+            progress: {
+              currentPage: 0,
+              totalPages: 1,
+              fieldsCompleted: 0,
+              totalFields: 1
+            }
+          } : {
+            status: 'not_started'
+          },
+          final: packId === 'final' ? {
+            status: 'in_progress',
+            submissionId: submission.submissionId,
+            templateId: template.id,
+            templateName: template.name,
+            signerUrl: signingUrl,
+            embedUrl: signingUrl,
+            startedAt: new Date(),
+            progress: {
+              currentPage: 0,
+              totalPages: 1,
+              fieldsCompleted: 0,
+              totalFields: 1
+            }
+          } : {
+            status: 'not_started'
+          }
+        },
+        
+        // Legacy submissions for backward compatibility
+        submissions: [{
+          submissionId: submission.submissionId,
+          name: packId === 'agreement' ? 'purchase_agreement' : packId,
+          templateId: template.id,
+          templateName: template.name,
+          status: 'ready',
+          signerUrl: signingUrl,
+          createdAt: new Date()
+        }],
+        
+        status: 'ready',
+        
+        // Comprehensive audit trail
+        audit: [{
+          timestamp: new Date(),
+          userId: auth.userId,
+          action: 'contract_created',
+          packId: packId,
+          metadata: { 
+            submissionId: submission.submissionId,
+            templateName: template.name
+          },
+          ipAddress: req.ip || req.connection.remoteAddress,
+          userAgent: req.headers['user-agent']
+        }],
+        
+        // Snapshots for legal compliance
+        snapshots: {
+          buildData: build,
+          pricingData: build.pricing || {},
+          buyerInfo: build.buyerInfo || {},
+          deliveryInfo: build.delivery || {}
+        }
+      }
+      
+      await db.collection('contracts').insertOne(contractData)
+    }
 
     // Update build to reference contract
     await updateBuild(buildId, { 
@@ -3019,8 +3214,15 @@ app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
     }
 
     const db = await getDb()
+    
+    // Find contract by submission ID in both legacy and new pack structures
     const contract = await db.collection('contracts').findOne({ 
-      'submissions.submissionId': data.id 
+      $or: [
+        { 'submissions.submissionId': data.id },
+        { 'packs.agreement.submissionId': data.id },
+        { 'packs.delivery.submissionId': data.id },
+        { 'packs.final.submissionId': data.id }
+      ]
     })
 
     if (!contract) {
@@ -3028,91 +3230,117 @@ app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
       return res.status(404).json({ error: 'Contract not found' })
     }
 
-    // Find the specific submission that was updated
-    const submissionIndex = contract.submissions?.findIndex(s => s.submissionId === data.id)
-    if (submissionIndex === -1 || submissionIndex === undefined) {
-      console.log('DocuSeal webhook: Submission not found in contract:', data.id)
-      return res.status(404).json({ error: 'Submission not found' })
-    }
-
-    const submission = contract.submissions[submissionIndex]
-    let newSubmissionStatus = submission.status
+    // Determine new status based on event type
+    let newStatus = 'ready'
     let shouldDownloadPdf = false
 
-    // Handle different event types for the specific submission
     switch (event_type) {
       case 'submission.created':
-        newSubmissionStatus = 'ready'
+        newStatus = 'ready'
         break
       case 'submission.started':
-        newSubmissionStatus = 'signing'
+        newStatus = 'in_progress'
         break
       case 'submission.completed':
-        newSubmissionStatus = 'completed'
+        newStatus = 'completed'
         shouldDownloadPdf = true
         break
       case 'submission.declined':
-        newSubmissionStatus = 'voided'
+        newStatus = 'voided'
         break
       default:
         console.log('DocuSeal webhook: Unhandled event type:', event_type)
     }
 
-    // Update the specific submission status
-    const updatedSubmissions = [...contract.submissions]
-    updatedSubmissions[submissionIndex] = {
-      ...submission,
-      status: newSubmissionStatus
-    }
-
-    // Determine overall contract status based on all submissions
-    const allCompleted = updatedSubmissions.every(s => s.status === 'completed')
-    const anySigning = updatedSubmissions.some(s => s.status === 'signing')
-    const anyVoided = updatedSubmissions.some(s => s.status === 'voided')
+    // Find which pack this submission belongs to
+    let packId = null
+    let packData = null
     
-    let newOverallStatus = contract.status
-    if (allCompleted) {
-      newOverallStatus = 'completed'
-    } else if (anyVoided) {
-      newOverallStatus = 'voided'
-    } else if (anySigning) {
-      newOverallStatus = 'signing'
-    } else {
-      newOverallStatus = 'ready'
+    if (contract.packs) {
+      // Check new pack structure
+      for (const [pid, pdata] of Object.entries(contract.packs)) {
+        if (pdata.submissionId === data.id) {
+          packId = pid
+          packData = pdata
+          break
+        }
+      }
     }
-
-    // Update contract with new submission statuses and overall status
-    await db.collection('contracts').updateOne(
-      { _id: contract._id },
-      { 
-        $set: { 
-          status: newOverallStatus,
-          submissions: updatedSubmissions,
-          updatedAt: new Date(),
-          ...(data.completed_at && { completedAt: new Date(data.completed_at) })
-        },
-        $push: { 
-          audit: {
-            at: new Date(),
-            who: 'docuseal_webhook',
-            action: event_type,
-            meta: { 
-              from: contract.status, 
-              to: newOverallStatus, 
-              submissionName: submission.name,
-              submissionStatus: newSubmissionStatus,
-              eventData: data 
+    
+    if (packId) {
+      // Update pack-specific status
+      await db.collection('contracts').updateOne(
+        { _id: contract._id },
+        { 
+          $set: { 
+            [`packs.${packId}.status`]: newStatus,
+            [`packs.${packId}.updatedAt`]: new Date(),
+            ...(newStatus === 'completed' && { [`packs.${packId}.completedAt`]: new Date() }),
+            ...(shouldDownloadPdf && data.audit_trail_url && { [`packs.${packId}.signedPdfUrl`]: data.audit_trail_url }),
+            updatedAt: new Date()
+          },
+          $push: { 
+            audit: {
+              timestamp: new Date(),
+              userId: 'docuseal_webhook',
+              action: event_type,
+              packId: packId,
+              metadata: { 
+                submissionId: data.id,
+                from: packData.status,
+                to: newStatus
+              },
+              ipAddress: req.ip || req.connection.remoteAddress
             }
           }
         }
+      )
+    } else {
+      // Legacy: Find the specific submission that was updated
+      const submissionIndex = contract.submissions?.findIndex(s => s.submissionId === data.id)
+      if (submissionIndex === -1 || submissionIndex === undefined) {
+        console.log('DocuSeal webhook: Submission not found in contract:', data.id)
+        return res.status(404).json({ error: 'Submission not found' })
       }
-    )
 
-    // Download and store signed PDF if completed
-    if (shouldDownloadPdf && data.audit_trail_url) {
+      const submission = contract.submissions[submissionIndex]
+      
+      // Update the specific submission status
+      const updatedSubmissions = [...contract.submissions]
+      updatedSubmissions[submissionIndex] = {
+        ...submission,
+        status: newStatus === 'in_progress' ? 'signing' : newStatus
+      }
+      
+      await db.collection('contracts').updateOne(
+        { _id: contract._id },
+        { 
+          $set: { 
+            submissions: updatedSubmissions,
+            updatedAt: new Date()
+          },
+          $push: { 
+            audit: {
+              at: new Date(),
+              who: 'docuseal_webhook',
+              action: event_type,
+              meta: { 
+                submissionId: data.id,
+                submissionName: submission.name,
+                from: submission.status,
+                to: newStatus === 'in_progress' ? 'signing' : newStatus
+              }
+            }
+          }
+        }
+      )
+    }
+
+    // Download and store signed PDF if completed (for pack-specific structure)
+    if (shouldDownloadPdf && data.audit_trail_url && packId) {
       try {
         const pdfBuffer = await downloadFile(data.audit_trail_url)
-        const publicId = `contracts/${contract.buildId}/v${contract.version}/signed_contract`
+        const publicId = `contracts/${contract.buildId}/v${contract.version}/${packId}_signed`
         
         const cloudinaryResult = await uploadPdfToCloudinary({
           buffer: pdfBuffer,
@@ -3124,25 +3352,35 @@ app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
           { _id: contract._id },
           { 
             $set: { 
-              signedPdfCloudinaryId: cloudinaryResult.public_id,
-              signedPdfUrl: data.audit_trail_url
+              [`packs.${packId}.signedPdfCloudinaryId`]: cloudinaryResult.public_id,
+              [`packs.${packId}.signedPdfUrl`]: data.audit_trail_url
             }
           }
         )
 
-        console.log('DocuSeal webhook: PDF stored to Cloudinary:', cloudinaryResult.public_id)
+        console.log(`DocuSeal webhook: ${packId} PDF stored to Cloudinary:`, cloudinaryResult.public_id)
       } catch (error) {
-        console.error('DocuSeal webhook: Failed to store PDF:', error)
+        console.error(`DocuSeal webhook: Failed to store ${packId} PDF:`, error)
       }
     }
 
-    // Update build status if contract completed
-    if (newOverallStatus === 'completed') {
-      await updateBuild(contract.buildId, { 
-        'contract.status': 'completed',
-        'contract.completedAt': new Date(),
-        step: 8 // Advance to confirmation step
-      })
+    // Update build status if pack completed
+    if (newStatus === 'completed' && packId) {
+      // Check if all packs are completed to advance build step
+      const updatedContract = await db.collection('contracts').findOne({ _id: contract._id })
+      const allPacksCompleted = updatedContract.packs && 
+        ['agreement', 'delivery', 'final'].every(pid => 
+          updatedContract.packs[pid]?.status === 'completed' || 
+          updatedContract.packs[pid]?.status === 'not_started'
+        )
+      
+      if (allPacksCompleted) {
+        await updateBuild(contract.buildId, { 
+          'contract.status': 'completed',
+          'contract.completedAt': new Date(),
+          step: 8 // Advance to confirmation step
+        })
+      }
     }
 
     res.status(200).json({ success: true })
@@ -3151,6 +3389,128 @@ app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
     console.error('DocuSeal webhook error:', error)
     res.status(500).json({ 
       error: 'Webhook processing failed',
+      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    })
+  }
+})
+
+// Download signed document for a specific pack
+app.get(['/api/contracts/:buildId/pack/:packId/download', '/contracts/:buildId/pack/:packId/download'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId, packId } = req.params
+
+    // Validate pack ID
+    if (!['agreement', 'delivery', 'final'].includes(packId)) {
+      return res.status(400).json({ error: 'Invalid pack ID' })
+    }
+
+    // Get build data
+    const build = await getBuildById(buildId)
+    if (!build || build.userId !== auth.userId) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    // Get contract
+    const db = await getDb()
+    const contract = await db.collection('contracts').findOne({ 
+      buildId: buildId, 
+      userId: auth.userId 
+    }, { sort: { version: -1 } })
+
+    if (!contract) {
+      return res.status(404).json({ error: 'Contract not found' })
+    }
+
+    // Check if pack is completed and has signed document
+    const packData = contract.packs?.[packId]
+    if (!packData || packData.status !== 'completed' || !packData.signedPdfUrl) {
+      return res.status(404).json({ error: 'Signed document not found' })
+    }
+
+    // Generate secure download URL
+    if (packData.signedPdfCloudinaryId) {
+      // Use Cloudinary for secure download
+      const downloadUrl = signedCloudinaryUrl(packData.signedPdfCloudinaryId, {
+        resource_type: 'auto',
+        type: 'upload',
+        expires_at: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
+      })
+      
+      res.json({
+        success: true,
+        downloadUrl: downloadUrl,
+        filename: `${packId}_agreement_${buildId.slice(-8)}.pdf`,
+        expiresAt: new Date(Date.now() + (24 * 60 * 60 * 1000))
+      })
+    } else {
+      // Fallback to DocuSeal URL
+      res.json({
+        success: true,
+        downloadUrl: packData.signedPdfUrl,
+        filename: `${packId}_agreement_${buildId.slice(-8)}.pdf`
+      })
+    }
+
+  } catch (error) {
+    console.error('Pack download error:', error)
+    res.status(500).json({ 
+      error: 'Failed to generate download URL',
+      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    })
+  }
+})
+
+// Resume pack signing session
+app.patch(['/api/contracts/:buildId/pack/:packId/resume', '/contracts/:buildId/pack/:packId/resume'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId, packId } = req.params
+
+    // Validate pack ID
+    if (!['agreement', 'delivery', 'final'].includes(packId)) {
+      return res.status(400).json({ error: 'Invalid pack ID' })
+    }
+
+    // Get build data
+    const build = await getBuildById(buildId)
+    if (!build || build.userId !== auth.userId) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    // Get contract
+    const db = await getDb()
+    const contract = await db.collection('contracts').findOne({ 
+      buildId: buildId, 
+      userId: auth.userId 
+    }, { sort: { version: -1 } })
+
+    if (!contract) {
+      return res.status(404).json({ error: 'Contract not found' })
+    }
+
+    // Check if pack is in progress
+    const packData = contract.packs?.[packId]
+    if (!packData || packData.status !== 'in_progress' || !packData.signerUrl) {
+      return res.status(400).json({ error: 'No active signing session found' })
+    }
+
+    // Return existing signing URL
+    res.json({
+      success: true,
+      embedUrl: packData.embedUrl || packData.signerUrl,
+      submissionId: packData.submissionId,
+      templateName: packData.templateName
+    })
+
+  } catch (error) {
+    console.error('Pack resume error:', error)
+    res.status(500).json({ 
+      error: 'Failed to resume signing session',
       message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     })
   }

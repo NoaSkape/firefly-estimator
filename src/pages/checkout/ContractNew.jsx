@@ -477,9 +477,9 @@ export default function ContractNew() {
   function canAccessPack(pack) {
     if (pack.id === 'summary') return true
     
-    // Pack 2 (agreement) requires summary to be reviewed
+    // Pack 2 (agreement) can be accessed when summary is ready or reviewed
     if (pack.id === 'agreement') {
-      return contractStatus.packs.summary === 'reviewed'
+      return contractStatus.packs.summary === 'reviewed' || contractStatus.packs.summary === 'ready'
     }
     
     // Packs 3 and 4 require previous packs to be completed
@@ -795,82 +795,131 @@ function SummaryPackContent({ build, summaryPdfUrl, onLoadPdf, onMarkReviewed, o
   )
 }
 
-// Signing Pack Component
+// Enhanced Signing Pack Component with proper state management
 function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingPack, buildId }) {
+  const [showDocumentViewer, setShowDocumentViewer] = useState(false)
+  const [downloadUrl, setDownloadUrl] = useState(null)
+  const { getToken } = useAuth()
+  
   const isInProgress = status === 'in_progress'
   const isNotStarted = status === 'not_started'
+  const isCompleted = status === 'completed'
+  
+  // Get pack-specific download URL
+  const getDownloadUrl = async () => {
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/contracts/${buildId}/pack/${pack.id}/download`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setDownloadUrl(data.downloadUrl)
+        return data.downloadUrl
+      }
+    } catch (error) {
+      console.error('Failed to get download URL:', error)
+    }
+    return null
+  }
+  
+  const handleViewDocument = async () => {
+    const url = downloadUrl || await getDownloadUrl()
+    if (url) {
+      window.open(url, '_blank')
+    }
+  }
+  
+  const handleDownloadDocument = async () => {
+    const url = downloadUrl || await getDownloadUrl()
+    if (url) {
+      // Create download link
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${pack.id}_agreement_${buildId.slice(-8)}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
+  }
   
   return (
     <div className="space-y-6">
-      {/* Ready to Sign Section */}
-      {(isNotStarted || isInProgress) && (
+      {/* Not Started State - Show "Begin Signing" button */}
+      {isNotStarted && (
         <div className="text-center py-12">
           <DocumentTextIcon className="w-16 h-16 text-gray-400 mx-auto mb-6" />
           <h3 className="text-xl font-medium text-white mb-4">
-            {isInProgress ? 'Continue Signing' : 'Ready to Sign'}
+            Ready to Sign
           </h3>
           <p className="text-gray-300 mb-8 max-w-lg mx-auto text-lg">
-            {isInProgress 
-              ? `Continue signing your ${pack.title.toLowerCase()}. Your progress has been saved and you can resume where you left off.`
-              : `Click the button below to start signing ${pack.title.toLowerCase()}. The signing process will open in a secure DocuSeal window where you can review and sign your document.`
-            }
+            Click the button below to start signing your {pack.title.toLowerCase()}. The signing process will open in a secure DocuSeal window where you can review and sign your document.
           </p>
           <button
             onClick={onStartSigning}
             disabled={loadingPack}
-            className="px-8 py-4 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 rounded-lg text-white font-medium text-lg"
+            className="px-8 py-4 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 rounded-lg text-white font-medium text-lg transition-colors"
           >
-            {loadingPack 
-              ? 'Preparing...' 
-              : isInProgress 
-                ? `Resume Signing ${pack.title}` 
-                : `Start Signing ${pack.title}`
-            }
+            {loadingPack ? 'Preparing...' : 'Begin Signing'}
           </button>
-          {/* Removed prefilled download button for cleaner UX */}
         </div>
       )}
 
-      {/* Document Signed Section */}
-      {status === 'completed' && (
+      {/* In Progress State - Show "Resume Signing" button */}
+      {isInProgress && (
+        <div className="text-center py-12">
+          <DocumentTextIcon className="w-16 h-16 text-yellow-400 mx-auto mb-6" />
+          <h3 className="text-xl font-medium text-white mb-4">
+            Continue Signing
+          </h3>
+          <p className="text-gray-300 mb-8 max-w-lg mx-auto text-lg">
+            Continue signing your {pack.title.toLowerCase()}. Your progress has been saved and you can resume where you left off.
+          </p>
+          <button
+            onClick={onStartSigning}
+            disabled={loadingPack}
+            className="px-8 py-4 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 rounded-lg text-white font-medium text-lg transition-colors"
+          >
+            {loadingPack ? 'Preparing...' : 'Resume Signing'}
+          </button>
+        </div>
+      )}
+
+      {/* Completed State - Show "Review Signed Document" and download options */}
+      {isCompleted && (
         <div className="text-center py-12">
           <CheckCircleIcon className="w-16 h-16 text-green-400 mx-auto mb-6" />
           <h3 className="text-xl font-medium text-white mb-4">
-            {pack.title} Signed!
+            {pack.title} Completed!
           </h3>
           <p className="text-gray-300 mb-8 max-w-lg mx-auto text-lg">
-            Your {pack.title.toLowerCase()} has been signed successfully. You can view the signed document or continue to the next step.
+            Your {pack.title.toLowerCase()} has been signed successfully. You can review the signed document below.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={() => window.open(`/api/contracts/download/packet?buildId=${buildId}`, '_blank')}
-              className="px-6 py-3 bg-gray-600 hover:bg-gray-700 rounded-lg text-white font-medium"
-            >
-              View Signed {pack.title}
-            </button>
-            <button
-              onClick={() => window.open(`/api/contracts/download/packet?buildId=${buildId}`, '_blank')}
-              className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg text-white font-medium"
-            >
-              Download PDF
-            </button>
+          
+          {/* Review Signed Document Section */}
+          <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6 mb-8 max-w-md mx-auto">
+            <DocumentTextIcon className="w-8 h-8 text-green-400 mx-auto mb-3" />
+            <h4 className="text-lg font-medium text-white mb-4">Signed Document Ready</h4>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleViewDocument}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors"
+              >
+                <EyeIcon className="w-5 h-5 inline mr-2" />
+                Review Signed Document
+              </button>
+              <button
+                onClick={handleDownloadDocument}
+                className="px-6 py-3 bg-gray-600 hover:bg-gray-700 rounded-lg text-white font-medium transition-colors"
+              >
+                <ArrowRightIcon className="w-5 h-5 inline mr-2" />
+                Download PDF
+              </button>
+            </div>
           </div>
         </div>
       )}
-
-      {(status === 'in_progress' || status === 'completed') && signingUrl && (
-        <div className="border border-gray-600 rounded-lg overflow-hidden bg-white" style={{ height: 'calc(100vh - 280px)', minHeight: '700px' }}>
-          <iframe 
-            src={signingUrl}
-            className="w-full h-full border-0"
-            title={`${pack.title} Signing`}
-            style={{ 
-              backgroundColor: '#ffffff'
-            }}
-          />
-        </div>
-      )}
-
     </div>
   )
 }
