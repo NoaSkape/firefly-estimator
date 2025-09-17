@@ -178,6 +178,12 @@ router.get('/_debug/router', (req, res) => {
   }
 })
 
+// On every request, re-harden the admin router stack (belt-and-suspenders).
+router.use((req, res, next) => {
+  try { hardenRouterLocal(router, 'admin@rq'); } catch {}
+  next()
+})
+
 // Public GET /me (token optional). This is defined BEFORE auth middleware to avoid
 // middleware chain issues and to allow soft probing of the current user.
 router.get('/me', async (req, res) => {
