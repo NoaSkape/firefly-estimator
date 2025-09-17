@@ -195,7 +195,7 @@ export default function DocumentViewerModal({
           {documentUrl && (
             <iframe
               id="document-iframe"
-              src={`${documentUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitH&zoom=100`}
+              src={documentUrl}
               className="w-full h-full border-0"
               title={documentTitle}
               onLoad={() => setIsLoading(false)}

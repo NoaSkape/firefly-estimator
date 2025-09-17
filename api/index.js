@@ -3669,6 +3669,103 @@ app.get(['/api/contracts/:buildId/pack/:packId/check-status', '/contracts/:build
   }
 })
 
+// Proxy signed document from DocuSeal (to avoid X-Frame-Options issues)
+app.get(['/api/contracts/:buildId/pack/:packId/document', '/contracts/:buildId/pack/:packId/document'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId, packId } = req.params
+
+    // Get build data
+    const build = await getBuildById(buildId)
+    if (!build || build.userId !== auth.userId) {
+      return res.status(404).json({ error: 'Build not found' })
+    }
+
+    // Get contract
+    const db = await getDb()
+    const contract = await db.collection('contracts').findOne({ 
+      buildId: buildId, 
+      userId: auth.userId 
+    }, { sort: { version: -1 } })
+
+    if (!contract) {
+      return res.status(404).json({ error: 'Contract not found' })
+    }
+
+    // Find submission ID - check both new and legacy structures
+    let submissionId = null
+    
+    if (contract.packs && contract.packs[packId] && contract.packs[packId].submissionId) {
+      submissionId = contract.packs[packId].submissionId
+    } else if (contract.submissions) {
+      // Legacy structure - find by name
+      const submission = contract.submissions.find(s => 
+        s.name === 'purchase_agreement' || 
+        s.name === 'masterRetail' ||
+        s.name === packId
+      )
+      submissionId = submission?.submissionId
+    }
+
+    if (!submissionId) {
+      return res.status(404).json({ error: 'Submission not found' })
+    }
+
+    console.log('Proxying document for submission:', submissionId)
+
+    // Get the actual signed document from DocuSeal
+    const documentsResponse = await fetch(`https://api.docuseal.co/submissions/${submissionId}/documents`, {
+      headers: {
+        'X-Auth-Token': process.env.DOCUSEAL_API_KEY
+      }
+    })
+
+    if (!documentsResponse.ok) {
+      console.error('Failed to get documents from DocuSeal:', documentsResponse.status)
+      return res.status(500).json({ error: 'Unable to retrieve document from DocuSeal' })
+    }
+
+    const documentsData = await documentsResponse.json()
+    console.log('DocuSeal documents data:', documentsData)
+
+    // Get the first document (should be the signed agreement)
+    if (!documentsData || !documentsData[0] || !documentsData[0].url) {
+      return res.status(404).json({ error: 'Signed document not found' })
+    }
+
+    const documentUrl = documentsData[0].url
+    console.log('Fetching document from:', documentUrl)
+
+    // Proxy the document
+    const documentResponse = await fetch(documentUrl, {
+      headers: {
+        'X-Auth-Token': process.env.DOCUSEAL_API_KEY
+      }
+    })
+
+    if (!documentResponse.ok) {
+      return res.status(500).json({ error: 'Failed to fetch document' })
+    }
+
+    // Set appropriate headers for PDF
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `inline; filename="${packId}_agreement_${buildId.slice(-8)}.pdf"`)
+    res.setHeader('Cache-Control', 'private, max-age=3600') // Cache for 1 hour
+
+    // Stream the document
+    documentResponse.body.pipe(res)
+
+  } catch (error) {
+    console.error('Document proxy error:', error)
+    res.status(500).json({ 
+      error: 'Failed to proxy document',
+      message: error.message 
+    })
+  }
+})
+
 // Debug: Check what DocuSeal returns for a submission
 app.get(['/api/debug/docuseal/:submissionId', '/debug/docuseal/:submissionId'], async (req, res) => {
   try {

@@ -998,58 +998,42 @@ function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingP
   const isNotStarted = status === 'not_started'
   const isCompleted = status === 'completed'
   
-  // Get pack-specific download URL
-  const getDownloadUrl = async () => {
-    try {
-      const token = await getToken()
-      const response = await fetch(`/api/contracts/${buildId}/pack/${pack.id}/download`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setDownloadUrl(data.downloadUrl)
-        return data.downloadUrl
-      }
-    } catch (error) {
-      console.error('Failed to get download URL:', error)
-    }
-    return null
+  // Get pack-specific document URL (using proxy to avoid X-Frame-Options)
+  const getDocumentUrl = () => {
+    // Use our proxy endpoint that streams the document directly
+    const token = localStorage.getItem('__clerk_db_jwt') // Get auth token
+    const url = `/api/contracts/${buildId}/pack/${pack.id}/document`
+    return url
   }
   
-  const handleViewDocument = async () => {
-    const url = downloadUrl || await getDownloadUrl()
-    if (url) {
-      // Use the document viewer modal instead of opening in new tab
-      const packTitle = pack.title || 'Document'
-      const filename = `${pack.id}_agreement_${buildId.slice(-8)}.pdf`
-      
-      // Call parent's document viewer function
-      if (onOpenDocumentViewer) {
-        onOpenDocumentViewer(url, `Signed ${packTitle}`, filename)
-      } else {
-        // Fallback to new tab
-        window.open(url, '_blank')
-      }
+  const handleViewDocument = () => {
+    // Use our document proxy endpoint
+    const url = getDocumentUrl()
+    const packTitle = pack.title || 'Document'
+    const filename = `${pack.id}_agreement_${buildId.slice(-8)}.pdf`
+    
+    // Call parent's document viewer function
+    if (onOpenDocumentViewer) {
+      onOpenDocumentViewer(url, `Signed ${packTitle}`, filename)
+    } else {
+      // Fallback to new tab
+      window.open(url, '_blank')
     }
   }
   
-  const handleDownloadDocument = async () => {
-    const url = downloadUrl || await getDownloadUrl()
-    if (url) {
-      const filename = `${pack.id}_agreement_${buildId.slice(-8)}.pdf`
-      
-      try {
-        const result = await downloadFile(url, filename)
-        if (result.success) {
-          console.log(`Document downloaded using ${result.method} method`)
-        }
-      } catch (error) {
-        console.error('Download failed:', error)
-        // Fallback to direct link
-        window.open(url, '_blank')
-      }
-    }
+  const handleDownloadDocument = () => {
+    // Use our document proxy endpoint for download
+    const url = getDocumentUrl()
+    const filename = `${pack.id}_agreement_${buildId.slice(-8)}.pdf`
+    
+    // Create download link
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    link.target = '_blank'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
   
   
