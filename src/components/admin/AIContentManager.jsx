@@ -110,8 +110,8 @@ export default function AIContentManager() {
     if (!generatedContent) return
     
     try {
-      const token = await getAuthToken()
-      const response = await fetch('/api/admin/blog', {
+      const token = await getToken()
+      const response = await fetch('/api/admin/content/blog', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -34,12 +34,12 @@ const AdminDrafts = () => {
       
       const token = await getToken()
       const headers = token ? { Authorization: `Bearer ${token}` } : {}
-      
-      const response = await fetch('/api/admin/drafts', { headers })
+      // Use canonical content router with status filter
+      const response = await fetch('/api/admin/content/blog?status=draft&limit=50', { headers })
       
       if (response.ok) {
         const data = await response.json()
-        setDrafts(data.posts || [])
+        setDrafts(data?.data?.posts || [])
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         setError(`Failed to fetch drafts: ${errorData.error || 'Server error'}`)
@@ -61,19 +61,12 @@ const AdminDrafts = () => {
       setActionLoading(true)
       
       const token = await getToken()
-      const headers = { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` 
-      }
-      
-      const response = await fetch(`/api/admin/blog/${draft._id}`, {
-        method: 'PUT',
+      const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+      // Publish via content router by slug
+      const response = await fetch(`/api/admin/content/blog/${encodeURIComponent(draft.slug)}`, {
+        method: 'PATCH',
         headers,
-        body: JSON.stringify({
-          ...draft,
-          status: 'published',
-          publishDate: new Date().toISOString()
-        })
+        body: JSON.stringify({ status: 'published', publishDate: new Date().toISOString() })
       })
       
       if (response.ok) {
@@ -102,11 +95,8 @@ const AdminDrafts = () => {
       
       const token = await getToken()
       const headers = { Authorization: `Bearer ${token}` }
-      
-      const response = await fetch(`/api/admin/blog/${draft._id}`, {
-        method: 'DELETE',
-        headers
-      })
+      // Delete via content router by slug
+      const response = await fetch(`/api/admin/content/blog/${encodeURIComponent(draft.slug)}`, { method: 'DELETE', headers })
       
       if (response.ok) {
         setDrafts(drafts.filter(d => d._id !== draft._id))

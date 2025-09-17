@@ -296,7 +296,31 @@ export default function ContractNew() {
       
       if (statusRes.ok) {
         const status = await statusRes.json()
+        const oldStatus = contractStatus.packs[currentPack]
         setContractStatus(status)
+        
+        // If status hasn't changed and current pack is in_progress, do a direct DocuSeal check
+        if (oldStatus === 'in_progress' && status.packs[currentPack] === 'in_progress' && currentPack !== 'summary') {
+          console.log('Pack still in_progress, checking DocuSeal directly...')
+          
+          try {
+            const directCheckRes = await fetch(`/api/contracts/${buildId}/pack/${currentPack}/check-status`, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {}
+            })
+            
+            if (directCheckRes.ok) {
+              const directStatus = await directCheckRes.json()
+              console.log('Direct DocuSeal check result:', directStatus)
+              
+              if (directStatus.newStatus === 'completed') {
+                // Force reload the contract status to get updated data
+                await loadContractStatus(token)
+              }
+            }
+          } catch (directError) {
+            console.error('Direct status check failed:', directError)
+          }
+        }
         
         // If current pack completed, auto-advance to next
         if (status.packs[currentPack] === 'completed') {
@@ -925,7 +949,9 @@ function SummaryPackContent({ build, summaryPdfUrl, onLoadPdf, onMarkReviewed, o
 function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingPack, buildId, onOpenDocumentViewer }) {
   const [showDocumentViewer, setShowDocumentViewer] = useState(false)
   const [downloadUrl, setDownloadUrl] = useState(null)
+  const [checkingStatus, setCheckingStatus] = useState(false)
   const { getToken } = useAuth()
+  const { addToast } = useToast()
   
   const isInProgress = status === 'in_progress'
   const isNotStarted = status === 'not_started'
@@ -985,6 +1011,49 @@ function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingP
     }
   }
   
+  // Manual status check function for debugging
+  const handleCheckStatus = async () => {
+    setCheckingStatus(true)
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/contracts/${buildId}/pack/${pack.id}/check-status`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log('Manual status check result:', result)
+        
+        addToast({
+          type: 'info',
+          title: 'Status Check',
+          message: `Pack status: ${result.oldStatus} → ${result.newStatus} (DocuSeal: ${result.docusealStatus})`
+        })
+        
+        // Trigger a page reload if status changed
+        if (result.oldStatus !== result.newStatus) {
+          window.location.reload()
+        }
+      } else {
+        const error = await response.json()
+        addToast({
+          type: 'error',
+          title: 'Status Check Failed',
+          message: error.message || 'Unable to check status'
+        })
+      }
+    } catch (error) {
+      console.error('Manual status check failed:', error)
+      addToast({
+        type: 'error',
+        title: 'Status Check Failed',
+        message: 'Unable to check signing status'
+      })
+    } finally {
+      setCheckingStatus(false)
+    }
+  }
+  
   return (
     <div className="space-y-6">
       {/* Not Started State - Show "Begin Signing" button */}
@@ -1017,13 +1086,24 @@ function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingP
           <p className="text-gray-300 mb-8 max-w-lg mx-auto text-lg">
             Continue signing your {pack.title.toLowerCase()}. Your progress has been saved and you can resume where you left off.
           </p>
-          <button
-            onClick={onStartSigning}
-            disabled={loadingPack}
-            className="px-8 py-4 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 rounded-lg text-white font-medium text-lg transition-colors"
-          >
-            {loadingPack ? 'Preparing...' : 'Resume Signing'}
-          </button>
+          <div className="flex flex-col gap-4">
+            <button
+              onClick={onStartSigning}
+              disabled={loadingPack}
+              className="px-8 py-4 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 rounded-lg text-white font-medium text-lg transition-colors"
+            >
+              {loadingPack ? 'Preparing...' : 'Resume Signing'}
+            </button>
+            
+            {/* Debug: Manual status check button */}
+            <button
+              onClick={handleCheckStatus}
+              disabled={checkingStatus}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 rounded-lg text-white font-medium text-sm transition-colors"
+            >
+              {checkingStatus ? 'Checking...' : 'Check Status (Debug)'}
+            </button>
+          </div>
         </div>
       )}
 

@@ -3234,10 +3234,14 @@ app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
     }
 
     const { event_type, data } = req.body
-    console.log('DocuSeal webhook received:', event_type, data?.id)
+    console.log('DocuSeal webhook received:', event_type, 'submitter ID:', data?.id, 'submission ID:', data?.submission_id)
 
-    if (!data?.id) {
-      return res.status(400).json({ error: 'Missing submission ID' })
+    // DocuSeal sends submitter ID in data.id and submission ID in data.submission_id
+    const submitterId = data?.id
+    const submissionId = data?.submission_id
+
+    if (!submitterId && !submissionId) {
+      return res.status(400).json({ error: 'Missing submitter or submission ID' })
     }
 
     const db = await getDb()
@@ -3245,15 +3249,15 @@ app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
     // Find contract by submission ID in both legacy and new pack structures
     const contract = await db.collection('contracts').findOne({ 
       $or: [
-        { 'submissions.submissionId': data.id },
-        { 'packs.agreement.submissionId': data.id },
-        { 'packs.delivery.submissionId': data.id },
-        { 'packs.final.submissionId': data.id }
+        { 'submissions.submissionId': submissionId },
+        { 'packs.agreement.submissionId': submissionId },
+        { 'packs.delivery.submissionId': submissionId },
+        { 'packs.final.submissionId': submissionId }
       ]
     })
 
     if (!contract) {
-      console.log('DocuSeal webhook: Contract not found for submission:', data.id)
+      console.log('DocuSeal webhook: Contract not found for submission:', submissionId)
       return res.status(404).json({ error: 'Contract not found' })
     }
 
@@ -3262,16 +3266,20 @@ app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
     let shouldDownloadPdf = false
 
     switch (event_type) {
+      case 'form.viewed':
       case 'submission.created':
         newStatus = 'ready'
         break
+      case 'form.started':
       case 'submission.started':
         newStatus = 'in_progress'
         break
+      case 'form.completed':
       case 'submission.completed':
         newStatus = 'completed'
         shouldDownloadPdf = true
         break
+      case 'form.declined':
       case 'submission.declined':
         newStatus = 'voided'
         break
@@ -3286,7 +3294,7 @@ app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
     if (contract.packs) {
       // Check new pack structure
       for (const [pid, pdata] of Object.entries(contract.packs)) {
-        if (pdata.submissionId === data.id) {
+        if (pdata.submissionId === submissionId) {
           packId = pid
           packData = pdata
           break
@@ -3303,7 +3311,7 @@ app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
             [`packs.${packId}.status`]: newStatus,
             [`packs.${packId}.updatedAt`]: new Date(),
             ...(newStatus === 'completed' && { [`packs.${packId}.completedAt`]: new Date() }),
-            ...(shouldDownloadPdf && data.audit_trail_url && { [`packs.${packId}.signedPdfUrl`]: data.audit_trail_url }),
+            ...(shouldDownloadPdf && data.documents && data.documents[0] && { [`packs.${packId}.signedPdfUrl`]: data.documents[0].url }),
             updatedAt: new Date()
           },
           $push: { 
@@ -3313,7 +3321,8 @@ app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
               action: event_type,
               packId: packId,
               metadata: { 
-                submissionId: data.id,
+                submissionId: submissionId,
+                submitterId: submitterId,
                 from: packData.status,
                 to: newStatus
               },
@@ -3324,7 +3333,7 @@ app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
       )
     } else {
       // Legacy: Find the specific submission that was updated
-      const submissionIndex = contract.submissions?.findIndex(s => s.submissionId === data.id)
+      const submissionIndex = contract.submissions?.findIndex(s => s.submissionId === submissionId)
       if (submissionIndex === -1 || submissionIndex === undefined) {
         console.log('DocuSeal webhook: Submission not found in contract:', data.id)
         return res.status(404).json({ error: 'Submission not found' })
@@ -3364,28 +3373,44 @@ app.post(['/api/contracts/webhook', '/contracts/webhook'], async (req, res) => {
     }
 
     // Download and store signed PDF if completed (for pack-specific structure)
-    if (shouldDownloadPdf && data.audit_trail_url && packId) {
+    if (shouldDownloadPdf && packId) {
       try {
-        const pdfBuffer = await downloadFile(data.audit_trail_url)
-        const publicId = `contracts/${contract.buildId}/v${contract.version}/${packId}_signed`
+        // Get the signed document URL from DocuSeal webhook data
+        let documentUrl = null
         
-        const cloudinaryResult = await uploadPdfToCloudinary({
-          buffer: pdfBuffer,
-          folder: 'firefly-estimator/contracts',
-          publicId
-        })
+        // Try different possible document URL locations in webhook data
+        if (data.documents && data.documents[0] && data.documents[0].url) {
+          documentUrl = data.documents[0].url
+        } else if (data.submission && data.submission.audit_log_url) {
+          documentUrl = data.submission.audit_log_url
+        } else if (data.audit_log_url) {
+          documentUrl = data.audit_log_url
+        }
+        
+        if (documentUrl) {
+          const pdfBuffer = await downloadFile(documentUrl)
+          const publicId = `contracts/${contract.buildId}/v${contract.version}/${packId}_signed`
+          
+          const cloudinaryResult = await uploadPdfToCloudinary({
+            buffer: pdfBuffer,
+            folder: 'firefly-estimator/contracts',
+            publicId
+          })
 
-        await db.collection('contracts').updateOne(
-          { _id: contract._id },
-          { 
-            $set: { 
-              [`packs.${packId}.signedPdfCloudinaryId`]: cloudinaryResult.public_id,
-              [`packs.${packId}.signedPdfUrl`]: data.audit_trail_url
+          await db.collection('contracts').updateOne(
+            { _id: contract._id },
+            { 
+              $set: { 
+                [`packs.${packId}.signedPdfCloudinaryId`]: cloudinaryResult.public_id,
+                [`packs.${packId}.signedPdfUrl`]: documentUrl
+              }
             }
-          }
-        )
+          )
 
-        console.log(`DocuSeal webhook: ${packId} PDF stored to Cloudinary:`, cloudinaryResult.public_id)
+          console.log(`DocuSeal webhook: ${packId} PDF stored to Cloudinary:`, cloudinaryResult.public_id)
+        } else {
+          console.log('DocuSeal webhook: No document URL found in webhook data')
+        }
       } catch (error) {
         console.error(`DocuSeal webhook: Failed to store ${packId} PDF:`, error)
       }
@@ -3486,6 +3511,92 @@ app.get(['/api/contracts/:buildId/pack/:packId/download', '/contracts/:buildId/p
     res.status(500).json({ 
       error: 'Failed to generate download URL',
       message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    })
+  }
+})
+
+// Check DocuSeal submission status directly (fallback for webhook issues)
+app.get(['/api/contracts/:buildId/pack/:packId/check-status', '/contracts/:buildId/pack/:packId/check-status'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    if (!auth?.userId) return
+
+    const { buildId, packId } = req.params
+
+    // Get contract
+    const db = await getDb()
+    const contract = await db.collection('contracts').findOne({ 
+      buildId: buildId, 
+      userId: auth.userId 
+    }, { sort: { version: -1 } })
+
+    if (!contract) {
+      return res.status(404).json({ error: 'Contract not found' })
+    }
+
+    // Get pack data
+    const packData = contract.packs?.[packId]
+    if (!packData || !packData.submissionId) {
+      return res.status(404).json({ error: 'Pack submission not found' })
+    }
+
+    // Check status directly with DocuSeal
+    try {
+      const { getSubmission } = await import('../lib/docuseal.js')
+      const docusealSubmission = await getSubmission(packData.submissionId)
+      
+      console.log('DocuSeal direct status check:', {
+        submissionId: packData.submissionId,
+        status: docusealSubmission.status,
+        completed_at: docusealSubmission.completed_at
+      })
+
+      // Map DocuSeal status to our status
+      let mappedStatus = packData.status
+      if (docusealSubmission.status === 'completed') {
+        mappedStatus = 'completed'
+      } else if (docusealSubmission.status === 'pending') {
+        mappedStatus = 'in_progress'
+      }
+
+      // Update database if status changed
+      if (mappedStatus !== packData.status) {
+        await db.collection('contracts').updateOne(
+          { _id: contract._id },
+          { 
+            $set: { 
+              [`packs.${packId}.status`]: mappedStatus,
+              [`packs.${packId}.updatedAt`]: new Date(),
+              ...(mappedStatus === 'completed' && { [`packs.${packId}.completedAt`]: new Date() })
+            }
+          }
+        )
+        
+        console.log(`Status updated from ${packData.status} to ${mappedStatus}`)
+      }
+
+      res.json({
+        success: true,
+        packId,
+        oldStatus: packData.status,
+        newStatus: mappedStatus,
+        docusealStatus: docusealSubmission.status,
+        submissionId: packData.submissionId
+      })
+
+    } catch (docusealError) {
+      console.error('Failed to check DocuSeal status:', docusealError)
+      res.status(500).json({ 
+        error: 'Failed to check signing status',
+        message: docusealError.message 
+      })
+    }
+
+  } catch (error) {
+    console.error('Pack status check error:', error)
+    res.status(500).json({ 
+      error: 'Failed to check pack status',
+      message: error.message 
     })
   }
 })

@@ -42,9 +42,9 @@ The Admin Panel has been successfully rebuilt with all critical issues resolved.
 - ✅ `/api/admin/builds/active` - Build tracking
 
 ### **Content Management System**
-- ✅ `/api/admin/blog` - Blog post management (CRUD)
-- ✅ `/api/admin/drafts` - Draft management
-- ✅ `/api/admin/policies` - Policy management
+- ✅ `/api/admin/content/blog` - Blog post management (CRUD)
+- ✅ Drafts via `/api/admin/content/blog?status=draft`
+- ✅ `/api/admin/content/policies` - Policy management
 
 ### **Database Schema**
 - ✅ `blog_posts` collection with proper indexes

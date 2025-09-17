@@ -17,7 +17,7 @@ export default function AdminPolicies() {
     try {
       setLoading(true)
       const token = await getToken()
-      const response = await fetch('/api/admin/policies', {
+      const response = await fetch('/api/admin/content/policies', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -25,7 +25,7 @@ export default function AdminPolicies() {
       
       if (response.ok) {
         const data = await response.json()
-        setPolicies(data)
+        setPolicies(data?.data?.policies || [])
       } else {
         setError('Failed to load policies')
       }
@@ -38,7 +38,8 @@ export default function AdminPolicies() {
   }
 
   const handleEditPolicy = (policy) => {
-    setEditingPolicy(policy)
+    // Use slug as identifier for content routes
+    setEditingPolicy({ id: policy.slug, ...policy })
   }
 
   const handleSavePolicy = (updatedPolicy) => {

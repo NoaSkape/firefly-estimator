@@ -72,12 +72,12 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
   // Fetch post data for editing if we have a post ID but no full post data
   useEffect(() => {
     const fetchPostForEditing = async () => {
-      if (post?._id && !post.title) {
+      if (post?.slug && !post.title) {
         try {
           const token = await getToken()
           if (!token) return
           
-          const response = await fetch(`/api/admin/blog/${post._id}`, {
+          const response = await fetch(`/api/admin/content/blog/${encodeURIComponent(post.slug)}`, {
             headers: { 'Authorization': `Bearer ${token}` }
           })
           
@@ -148,14 +148,14 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
         forcePublish: forcePublish,
         hasToken: !!token,
         tokenLength: token?.length,
-        url: post ? `/api/admin/blog/${post._id || post.id}` : '/api/blog',
-        method: post ? 'PUT' : 'POST',
+        url: post ? `/api/admin/content/blog/${encodeURIComponent(post.slug || post.id)}` : '/api/admin/content/blog',
+        method: post ? 'PATCH' : 'POST',
         dataKeys: Object.keys(postData)
       })
 
       const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
-      const url = post ? `/api/admin/blog/${post._id || post.id}` : '/api/blog'
-      const method = post ? 'PUT' : 'POST'
+      const url = post ? `/api/admin/content/blog/${encodeURIComponent(post.slug || post.id)}` : '/api/admin/content/blog'
+      const method = post ? 'PATCH' : 'POST'
 
       // Ensure publishDate is properly formatted for the API
       const dataToSend = {
@@ -197,7 +197,8 @@ export default function AdminBlogEditor({ post = null, onClose, onSaved }) {
         throw new Error(errorData.message || `HTTP ${response.status}: Failed to save blog post`)
       }
 
-      const savedPost = await response.json()
+      const payload = await response.json()
+      const savedPost = payload?.data || payload
       console.log('[BLOG_SAVE] Blog post saved successfully', { 
         id: savedPost.id || savedPost._id, 
         title: savedPost.title,

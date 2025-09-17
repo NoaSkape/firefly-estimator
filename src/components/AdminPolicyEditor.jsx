@@ -13,12 +13,16 @@ export default function AdminPolicyEditor({ policyId, title, onSave, onCancel })
   useEffect(() => {
     async function loadPolicy() {
       try {
-        const response = await fetch(`/api/policies/${policyId}`)
+        const token = await getToken?.()
+        const headers = token ? { Authorization: `Bearer ${token}` } : {}
+        // Load via canonical content router
+        const response = await fetch(`/api/admin/content/policies/${policyId}` , { headers })
         if (response.ok) {
           const data = await response.json()
-          setPolicy(data)
-          setEditedTitle(data.title || '')
-          setEditedContent(data.content || '')
+          const p = data?.data || data
+          setPolicy(p)
+          setEditedTitle(p.title || '')
+          setEditedContent(p.content || '')
         } else {
           setError('Failed to load policy')
         }
@@ -44,8 +48,8 @@ export default function AdminPolicyEditor({ policyId, title, onSave, onCancel })
 
     try {
       const token = await getToken()
-      const response = await fetch(`/api/admin/policies/${policyId}`, {
-        method: 'PUT',
+      const response = await fetch(`/api/admin/content/policies/${policyId}`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -58,8 +62,9 @@ export default function AdminPolicyEditor({ policyId, title, onSave, onCancel })
 
       if (response.ok) {
         const data = await response.json()
-        setPolicy(data.policy)
-        onSave?.(data.policy)
+        const p = data?.data || data
+        setPolicy(p)
+        onSave?.(p)
       } else {
         const errorData = await response.json()
         setError(errorData.message || 'Failed to save policy')

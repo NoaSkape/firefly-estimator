@@ -216,7 +216,7 @@ class ContentScheduler {
     try {
       const token = await this.getAuthToken()
       
-      const response = await fetch('/api/admin/blog', {
+      const response = await fetch('/api/admin/content/blog', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -26,6 +26,7 @@ import workflowsRouter from './workflows.js'
 import monitoringRouter from './monitoring.js'
 import exportRouter from './export.js'
 import settingsRouter from './settings.js'
+import { toObjectIdOrString } from '../../lib/mongoIds.js'
 
 const router = express.Router()
 
@@ -56,10 +57,10 @@ let dbInitialized = false
 initializeAdminDatabase()
   .then(() => {
     dbInitialized = true
-    console.log('✅ Admin database initialized successfully')
+    console.log('âœ… Admin database initialized successfully')
   })
   .catch((error) => {
-    console.warn('⚠️ Admin database initialization failed (will retry on first request):', error.message)
+    console.warn('âš ï¸ Admin database initialization failed (will retry on first request):', error.message)
     // Don't throw - allow router to load without DB
   })
 
@@ -93,7 +94,7 @@ router.get('/is-admin', async (req, res) => {
       const isAdmin = !!role && role !== 'viewer'
       return res.status(200).json({ isAdmin, userId, role })
     } catch (e) {
-      // Token invalid or Clerk misconfigured – treat as not admin
+      // Token invalid or Clerk misconfigured â€“ treat as not admin
       return res.status(200).json({ isAdmin: false, reason: 'invalid_token' })
     }
   } catch (error) {
@@ -184,9 +185,9 @@ router.use(async (req, res, next) => {
     try {
       await initializeAdminDatabase()
       dbInitialized = true
-      console.log('✅ Admin database initialized on first request')
+      console.log('âœ… Admin database initialized on first request')
     } catch (error) {
-      console.warn('⚠️ Database still unavailable:', error.message)
+      console.warn('âš ï¸ Database still unavailable:', error.message)
       // Continue anyway - some endpoints might work without DB
     }
   }
@@ -196,7 +197,7 @@ router.use(async (req, res, next) => {
 // Admin authentication middleware for all routes
 router.use((req, res, next) => {
   if (process.env.ADMIN_AUTH_DISABLED === 'true') {
-    if (process.env.DEBUG_ADMIN === 'true') console.log('[ADMIN_AUTH] bypass enabled – skipping admin check')
+    if (process.env.DEBUG_ADMIN === 'true') console.log('[ADMIN_AUTH] bypass enabled â€“ skipping admin check')
     return next()
   }
   return adminAuth.validateAdminAccess(req, res, next)
@@ -435,7 +436,7 @@ router.get('/models/:id', async (req, res) => {
     const { id } = req.params
     const collection = await getCollection(COLLECTIONS.MODELS)
     
-    const model = await collection.findOne({ _id: id })
+    const model = await collection.findOne({ _id: toObjectIdOrString(id) })
     if (!model) {
       return res.status(404).json({ error: 'Model not found' })
     }
@@ -501,7 +502,7 @@ router.put('/models/:id', async (req, res) => {
     }
 
     const result = await collection.updateOne(
-      { _id: id },
+      { _id: toObjectIdOrString(id) },
       { $set: updateData }
     )
 
@@ -528,7 +529,7 @@ router.delete('/models/:id', async (req, res) => {
     const { id } = req.params
     const collection = await getCollection(COLLECTIONS.MODELS)
     
-    const result = await collection.deleteOne({ _id: id })
+    const result = await collection.deleteOne({ _id: toObjectIdOrString(id) })
     
     if (result.deletedCount === 0) {
       return res.status(404).json({ error: 'Model not found' })
@@ -602,7 +603,7 @@ router.get('/orders/:id', async (req, res) => {
     const { id } = req.params
     const collection = await getCollection(COLLECTIONS.ORDERS)
     
-    const order = await collection.findOne({ _id: id })
+    const order = await collection.findOne({ _id: toObjectIdOrString(id) })
     if (!order) {
       return res.status(404).json({ error: 'Order not found' })
     }
@@ -663,7 +664,7 @@ router.put('/orders/:id', async (req, res) => {
     }
 
     const result = await collection.updateOne(
-      { _id: id },
+      { _id: toObjectIdOrString(id) },
       { $set: updateData }
     )
 
@@ -693,7 +694,7 @@ router.patch('/orders/:id/cancel', async (req, res) => {
     const collection = await getCollection(COLLECTIONS.ORDERS)
     
     const result = await collection.updateOne(
-      { _id: id },
+      { _id: toObjectIdOrString(id) },
       { 
         $set: { 
           status: 'cancelled',
@@ -775,7 +776,7 @@ router.get('/customers/:id', async (req, res) => {
     const { id } = req.params
     const collection = await getCollection(COLLECTIONS.CUSTOMERS)
     
-    const customer = await collection.findOne({ _id: id })
+    const customer = await collection.findOne({ _id: toObjectIdOrString(id) })
     if (!customer) {
       return res.status(404).json({ error: 'Customer not found' })
     }
@@ -835,7 +836,7 @@ router.put('/customers/:id', async (req, res) => {
     }
 
     const result = await collection.updateOne(
-      { _id: id },
+      { _id: toObjectIdOrString(id) },
       { $set: updateData }
     )
 
@@ -858,48 +859,7 @@ router.put('/customers/:id', async (req, res) => {
 
 // ============================================================================
 // USER MANAGEMENT ENDPOINTS
-// ============================================================================
-
-// Get admin users
-router.get('/users', async (req, res) => {
-  try {
-    const { page = 1, limit = 20, role, isActive } = req.query
-    
-    const collection = await getCollection(COLLECTIONS.USERS)
-    
-    // Build filter
-    const filter = {}
-    if (role) filter.role = role
-    if (isActive !== undefined) filter.isActive = isActive === 'true'
-    
-    // Get total count
-    const total = await collection.countDocuments(filter)
-    
-    // Get users with pagination
-    const users = await collection.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit))
-      .toArray()
-
-    res.json({
-      success: true,
-      data: {
-        users,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
-      }
-    })
-  } catch (error) {
-    console.error('Users fetch error:', error)
-    res.status(500).json({ error: 'Failed to fetch users' })
-  }
-})
-
+// USER MANAGEMENT ENDPOINTS (handled by usersRouter)
 // Get current admin user information
 router.get('/me', async (req, res) => {
   try {
@@ -936,44 +896,7 @@ router.get('/me', async (req, res) => {
 // MISSING ENDPOINTS FOR FRONTEND INTEGRATION
 // ============================================================================
 
-// GET /api/admin/users/detailed - Detailed user analytics
-router.get('/users/detailed', async (req, res) => {
-  try {
-    const { range = '30d' } = req.query
-    const db = await getDb()
-    
-    // Calculate date range
-    const now = new Date()
-    const startDate = new Date(now.getTime() - (range === '7d' ? 7 : 30) * 24 * 60 * 60 * 1000)
-    
-    // Get user statistics
-    const totalUsers = await db.collection('users').countDocuments()
-    const newUsers = await db.collection('users').countDocuments({
-      createdAt: { $gte: startDate }
-    })
-    
-    // Get user activity (using lastSignInAt as proxy for activity)
-    const activeUsers = await db.collection('users').countDocuments({
-      lastSignInAt: { $gte: startDate }
-    })
-    
-    res.json({
-      success: true,
-      data: {
-        totalUsers,
-        newUsers,
-        activeUsers,
-        conversionRate: totalUsers > 0 ? (activeUsers / totalUsers) * 100 : 0
-      }
-    })
-  } catch (error) {
-    console.error('Users detailed error:', error)
-    res.status(500).json({ error: 'Failed to fetch user details' })
-  }
-})
-
-// GET /api/admin/orders/paid - Paid orders analytics
-router.get('/orders/paid', async (req, res) => {
+, async (req, res) => {
   try {
     const { range = '30d' } = req.query
     const db = await getDb()
@@ -1005,46 +928,7 @@ router.get('/orders/paid', async (req, res) => {
   }
 })
 
-// GET /api/admin/financial/revenue - Revenue analytics
-router.get('/financial/revenue', async (req, res) => {
-  try {
-    const { range = '30d' } = req.query
-    const db = await getDb()
-    
-    const now = new Date()
-    const startDate = new Date(now.getTime() - (range === '7d' ? 7 : 30) * 24 * 60 * 60 * 1000)
-    
-    // Get revenue data
-    const orders = await db.collection('orders').find({
-      paymentStatus: 'paid',
-      createdAt: { $gte: startDate }
-    }).toArray()
-    
-    const dailyRevenue = {}
-    orders.forEach(order => {
-      const date = order.createdAt.toISOString().split('T')[0]
-      dailyRevenue[date] = (dailyRevenue[date] || 0) + (order.totalAmount || 0)
-    })
-    
-    const totalRevenue = orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0)
-    
-    res.json({
-      success: true,
-      data: {
-        totalRevenue,
-        dailyRevenue,
-        orderCount: orders.length,
-        averageOrderValue: orders.length > 0 ? totalRevenue / orders.length : 0
-      }
-    })
-  } catch (error) {
-    console.error('Revenue error:', error)
-    res.status(500).json({ error: 'Failed to fetch revenue data' })
-  }
-})
-
-// GET /api/admin/builds/active - Active builds tracking
-router.get('/builds/active', async (req, res) => {
+, async (req, res) => {
   try {
     const db = await getDb()
     
@@ -1079,260 +963,6 @@ router.get('/builds/active', async (req, res) => {
 // ============================================================================
 
 // Blog Management
-router.get('/blog', async (req, res) => {
-  try {
-    const { page = 1, limit = 20, status } = req.query
-    const db = await getDb()
-    
-    const filter = status ? { status } : {}
-    const posts = await db.collection('blog_posts')
-      .find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit))
-      .toArray()
-    
-    const total = await db.collection('blog_posts').countDocuments(filter)
-    
-    res.json({
-      success: true,
-      data: {
-        posts,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
-      }
-    })
-  } catch (error) {
-    console.error('Blog fetch error:', error)
-    res.status(500).json({ error: 'Failed to fetch blog posts' })
-  }
-})
-
-router.post('/blog', async (req, res) => {
-  try {
-    const { title, content, status = 'draft', publishDate } = req.body
-    const db = await getDb()
-    
-    const newPost = {
-      title,
-      content,
-      status,
-      publishDate: publishDate ? new Date(publishDate) : new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      authorId: req.adminUser.userId
-    }
-    
-    const result = await db.collection('blog_posts').insertOne(newPost)
-    
-    res.status(201).json({
-      success: true,
-      data: {
-        id: result.insertedId,
-        ...newPost
-      }
-    })
-  } catch (error) {
-    console.error('Blog creation error:', error)
-    res.status(500).json({ error: 'Failed to create blog post' })
-  }
-})
-
-router.put('/blog/:id', async (req, res) => {
-  try {
-    const { id } = req.params
-    const { title, content, status, publishDate } = req.body
-    const db = await getDb()
-    
-    const updateData = {
-      title,
-      content,
-      status,
-      publishDate: publishDate ? new Date(publishDate) : undefined,
-      updatedAt: new Date(),
-      updatedBy: req.adminUser.userId
-    }
-    
-    // Remove undefined values
-    Object.keys(updateData).forEach(key => {
-      if (updateData[key] === undefined) {
-        delete updateData[key]
-      }
-    })
-    
-    const result = await db.collection('blog_posts').updateOne(
-      { _id: id },
-      { $set: updateData }
-    )
-    
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ error: 'Blog post not found' })
-    }
-    
-    res.json({
-      success: true,
-      message: 'Blog post updated successfully'
-    })
-  } catch (error) {
-    console.error('Blog update error:', error)
-    res.status(500).json({ error: 'Failed to update blog post' })
-  }
-})
-
-router.delete('/blog/:id', async (req, res) => {
-  try {
-    const { id } = req.params
-    const db = await getDb()
-    
-    const result = await db.collection('blog_posts').deleteOne({ _id: id })
-    
-    if (result.deletedCount === 0) {
-      return res.status(404).json({ error: 'Blog post not found' })
-    }
-    
-    res.json({
-      success: true,
-      message: 'Blog post deleted successfully'
-    })
-  } catch (error) {
-    console.error('Blog deletion error:', error)
-    res.status(500).json({ error: 'Failed to delete blog post' })
-  }
-})
-
-// Drafts Management
-router.get('/drafts', async (req, res) => {
-  try {
-    const db = await getDb()
-    const drafts = await db.collection('blog_posts')
-      .find({ status: 'draft' })
-      .sort({ updatedAt: -1 })
-      .toArray()
-    
-    res.json({
-      success: true,
-      data: drafts
-    })
-  } catch (error) {
-    console.error('Drafts fetch error:', error)
-    res.status(500).json({ error: 'Failed to fetch drafts' })
-  }
-})
-
-// Policy Management
-router.get('/policies', async (req, res) => {
-  try {
-    const db = await getDb()
-    const policies = await db.collection('policies').find({}).toArray()
-    
-    res.json({
-      success: true,
-      data: policies
-    })
-  } catch (error) {
-    console.error('Policies fetch error:', error)
-    res.status(500).json({ error: 'Failed to fetch policies' })
-  }
-})
-
-router.put('/policies/:policyId', async (req, res) => {
-  try {
-    const { policyId } = req.params
-    const { content } = req.body
-    const db = await getDb()
-    
-    const result = await db.collection('policies').updateOne(
-      { _id: policyId },
-      { 
-        $set: { 
-          content,
-          updatedAt: new Date(),
-          updatedBy: req.adminUser.userId
-        }
-      }
-    )
-    
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ error: 'Policy not found' })
-    }
-    
-    res.json({
-      success: true,
-      message: 'Policy updated successfully'
-    })
-  } catch (error) {
-    console.error('Policy update error:', error)
-    res.status(500).json({ error: 'Failed to update policy' })
-  }
-})
-
-// ============================================================================
-// EXPORT ENDPOINTS
-// ============================================================================
-
-// Export data to CSV/JSON
-router.post('/export', async (req, res) => {
-  try {
-    const { collection, format = 'json', filters = {}, fields = [] } = req.body
-    
-    if (!Object.values(COLLECTIONS).includes(collection)) {
-      return res.status(400).json({ error: 'Invalid collection specified' })
-    }
-    
-    const dataCollection = await getCollection(collection)
-    
-    // Apply filters
-    const query = filters || {}
-    const data = await dataCollection.find(query).toArray()
-    
-    // Filter fields if specified
-    let exportData = data
-    if (fields.length > 0) {
-      exportData = data.map(item => {
-        const filtered = {}
-        fields.forEach(field => {
-          if (item[field] !== undefined) {
-            filtered[field] = item[field]
-          }
-        })
-        return filtered
-      })
-    }
-    
-    if (format === 'csv') {
-      // Convert to CSV
-      const headers = fields.length > 0 ? fields : Object.keys(exportData[0] || {})
-      const csvContent = [
-        headers.join(','),
-        ...exportData.map(row => 
-          headers.map(header => {
-            const value = row[header]
-            return typeof value === 'string' && value.includes(',') 
-              ? `"${value}"` 
-              : value
-          }).join(',')
-        )
-      ].join('\n')
-      
-      res.setHeader('Content-Type', 'text/csv')
-      res.setHeader('Content-Disposition', `attachment; filename="${collection}-${Date.now()}.csv"`)
-      res.send(csvContent)
-    } else {
-      // Return JSON
-      res.json({
-        success: true,
-        data: exportData
-      })
-    }
-  } catch (error) {
-    console.error('Export error:', error)
-    res.status(500).json({ error: 'Failed to export data' })
-  }
-})
 
 // ============================================================================
 // ROUTER MOUNTING
@@ -1401,3 +1031,5 @@ router.use((error, req, res, next) => {
 })
 
 export default router
+
+
