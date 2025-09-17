@@ -211,12 +211,19 @@ export default function ContractNew() {
 
   // Status polling for active signing sessions
   useEffect(() => {
+    // Only poll if pack is in_progress, stop polling when completed
     if (currentPack !== 'summary' && contractStatus.packs[currentPack] === 'in_progress') {
       statusPollRef.current = setInterval(pollContractStatus, 5000)
       return () => {
         if (statusPollRef.current) {
           clearInterval(statusPollRef.current)
         }
+      }
+    } else {
+      // Stop polling if pack is completed or not active
+      if (statusPollRef.current) {
+        clearInterval(statusPollRef.current)
+        statusPollRef.current = null
       }
     }
   }, [currentPack, contractStatus])
@@ -322,23 +329,19 @@ export default function ContractNew() {
           }
         }
         
-        // If current pack completed, auto-advance to next
-        if (status.packs[currentPack] === 'completed') {
+        // Show completion notification only once when status changes to completed
+        if (status.packs[currentPack] === 'completed' && oldStatus === 'in_progress') {
           const currentIndex = packs.findIndex(p => p.id === currentPack)
-          const nextPack = packs[currentIndex + 1]
+          addToast({
+            type: 'success',
+            title: 'Pack Completed',
+            message: `${packs[currentIndex].title} completed successfully! Click Continue to proceed to the next step.`
+          })
           
-          if (nextPack && status.packs[nextPack.id] === 'not_started') {
-            addToast({
-              type: 'success',
-              title: 'Pack Completed',
-              message: `${packs[currentIndex].title} completed successfully!`
-            })
-            
-            // Auto-advance to next pack after brief delay
-            setTimeout(() => {
-              setCurrentPack(nextPack.id)
-              navigate(`#${nextPack.id}`, { replace: true })
-            }, 2000)
+          // Stop polling since pack is now completed
+          if (statusPollRef.current) {
+            clearInterval(statusPollRef.current)
+            statusPollRef.current = null
           }
         }
       }
@@ -947,11 +950,8 @@ function SummaryPackContent({ build, summaryPdfUrl, onLoadPdf, onMarkReviewed, o
 
 // Enhanced Signing Pack Component with proper state management
 function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingPack, buildId, onOpenDocumentViewer }) {
-  const [showDocumentViewer, setShowDocumentViewer] = useState(false)
   const [downloadUrl, setDownloadUrl] = useState(null)
-  const [checkingStatus, setCheckingStatus] = useState(false)
   const { getToken } = useAuth()
-  const { addToast } = useToast()
   
   const isInProgress = status === 'in_progress'
   const isNotStarted = status === 'not_started'
@@ -1011,48 +1011,6 @@ function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingP
     }
   }
   
-  // Manual status check function for debugging
-  const handleCheckStatus = async () => {
-    setCheckingStatus(true)
-    try {
-      const token = await getToken()
-      const response = await fetch(`/api/contracts/${buildId}/pack/${pack.id}/check-status`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      })
-      
-      if (response.ok) {
-        const result = await response.json()
-        console.log('Manual status check result:', result)
-        
-        addToast({
-          type: 'info',
-          title: 'Status Check',
-          message: `Pack status: ${result.oldStatus} → ${result.newStatus} (DocuSeal: ${result.docusealStatus})`
-        })
-        
-        // Trigger a page reload if status changed
-        if (result.oldStatus !== result.newStatus) {
-          window.location.reload()
-        }
-      } else {
-        const error = await response.json()
-        addToast({
-          type: 'error',
-          title: 'Status Check Failed',
-          message: error.message || 'Unable to check status'
-        })
-      }
-    } catch (error) {
-      console.error('Manual status check failed:', error)
-      addToast({
-        type: 'error',
-        title: 'Status Check Failed',
-        message: 'Unable to check signing status'
-      })
-    } finally {
-      setCheckingStatus(false)
-    }
-  }
   
   return (
     <div className="space-y-6">
@@ -1086,24 +1044,13 @@ function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingP
           <p className="text-gray-300 mb-8 max-w-lg mx-auto text-lg">
             Continue signing your {pack.title.toLowerCase()}. Your progress has been saved and you can resume where you left off.
           </p>
-          <div className="flex flex-col gap-4">
-            <button
-              onClick={onStartSigning}
-              disabled={loadingPack}
-              className="px-8 py-4 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 rounded-lg text-white font-medium text-lg transition-colors"
-            >
-              {loadingPack ? 'Preparing...' : 'Resume Signing'}
-            </button>
-            
-            {/* Debug: Manual status check button */}
-            <button
-              onClick={handleCheckStatus}
-              disabled={checkingStatus}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 rounded-lg text-white font-medium text-sm transition-colors"
-            >
-              {checkingStatus ? 'Checking...' : 'Check Status (Debug)'}
-            </button>
-          </div>
+          <button
+            onClick={onStartSigning}
+            disabled={loadingPack}
+            className="px-8 py-4 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 rounded-lg text-white font-medium text-lg transition-colors"
+          >
+            {loadingPack ? 'Preparing...' : 'Resume Signing'}
+          </button>
         </div>
       )}
 
