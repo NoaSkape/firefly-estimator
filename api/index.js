@@ -29,6 +29,7 @@ import {
 } from '../lib/user-profile.js'
 import { z } from 'zod'
 import { createRateLimiter } from '../lib/rateLimiter.js'
+import { validateContractData, contractRateLimiter, logContractEvent, SECURITY_HEADERS } from '../src/utils/contractSecurity.js'
 import { isAdmin as isAdminServer } from '../lib/canEditModels.js'
 import { validateRequest } from '../lib/requestValidation.js'
 // import { Webhook } from 'svix' // Temporarily disabled - causing deployment crashes
@@ -40,6 +41,14 @@ export const runtime = 'nodejs'
 
 // Security headers and middleware
 app.disable('x-powered-by')
+
+// Apply security headers to contract endpoints
+app.use('/api/contracts', (req, res, next) => {
+  Object.entries(SECURITY_HEADERS).forEach(([header, value]) => {
+    res.setHeader(header, value)
+  })
+  next()
+})
 
 // Guard against accidental mounting of non-function handlers (prevents
 // Express "undefined.apply" crashes). This wraps app.use early so every
