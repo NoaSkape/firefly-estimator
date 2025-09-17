@@ -903,23 +903,28 @@ router.get('/users', async (req, res) => {
 // Get current admin user information
 router.get('/me', async (req, res) => {
   try {
-    const { userId } = req.adminUser
-    
-    // Use the existing auth system to get user info
+    const { userId } = req.adminUser || {}
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' })
+
     const { createClerkClient } = await import('@clerk/backend')
     const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY })
-    
+
     const user = await clerk.users.getUser(userId)
+
+    // Derive role and permissions from unified RBAC
+    const role = await adminAuth.getUserRole(userId)
+    const permissions = await adminAuth.getUserPermissions(userId)
+
     const userInfo = {
       id: userId,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.primaryEmailAddress?.emailAddress,
-      role: 'admin',
-      lastLogin: user.lastSignInAt,
-      permissions: ['FINANCIAL_VIEW', 'BUILD_EDIT', 'MODEL_EDIT', 'USER_MANAGE', 'BLOG_EDIT']
+      firstName: user?.firstName || null,
+      lastName: user?.lastName || null,
+      email: user?.primaryEmailAddress?.emailAddress || null,
+      role,
+      lastLogin: user?.lastSignInAt || null,
+      permissions
     }
-    
+
     res.json({ success: true, data: userInfo })
   } catch (error) {
     console.error('Get user info error:', error)

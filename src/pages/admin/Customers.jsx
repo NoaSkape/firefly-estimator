@@ -21,8 +21,10 @@ import {
   ShoppingCartIcon
 } from '@heroicons/react/24/outline'
 import AdminLayout from '../../components/AdminLayout'
+import { useAuth } from '@clerk/clerk-react'
 
 const AdminCustomers = () => {
+  const { getToken } = useAuth()
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -73,7 +75,9 @@ const AdminCustomers = () => {
         ...filters
       })
 
-      const response = await fetch(`/api/admin/customers?${params}`)
+      const token = await getToken()
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
+      const response = await fetch(`/api/admin/customers?${params}`, { headers })
       if (response.ok) {
         const data = await response.json()
         setCustomers(data.data.customers)

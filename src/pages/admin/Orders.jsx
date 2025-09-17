@@ -20,8 +20,10 @@ import {
   CurrencyDollarIcon
 } from '@heroicons/react/24/outline'
 import AdminLayout from '../../components/AdminLayout'
+import { useAuth } from '@clerk/clerk-react'
 
 const AdminOrders = () => {
+  const { getToken } = useAuth()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -84,7 +86,9 @@ const AdminOrders = () => {
         ...filters
       })
 
-      const response = await fetch(`/api/admin/orders?${params}`)
+      const token = await getToken()
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
+      const response = await fetch(`/api/admin/orders?${params}`, { headers })
       if (response.ok) {
         const data = await response.json()
         setOrders(data.data.orders)

@@ -16,8 +16,10 @@ import {
   ChevronRightIcon
 } from '@heroicons/react/24/outline'
 import AdminLayout from '../../components/AdminLayout'
+import { useAuth } from '@clerk/clerk-react'
 
 const AdminModels = () => {
+  const { getToken } = useAuth()
   const [models, setModels] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -56,7 +58,9 @@ const AdminModels = () => {
         ...filters
       })
 
-      const response = await fetch(`/api/admin/models?${params}`)
+      const token = await getToken()
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
+      const response = await fetch(`/api/admin/models?${params}`, { headers })
       if (response.ok) {
         const data = await response.json()
         setModels(data.data.models)
@@ -121,8 +125,11 @@ const AdminModels = () => {
   // Handle delete
   const handleDelete = async (modelId) => {
     try {
+      const token = await getToken()
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
       const response = await fetch(`/api/admin/models/${modelId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers
       })
 
       if (response.ok) {

@@ -20,8 +20,10 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline'
 import AdminLayout from '../../components/AdminLayout'
+import { useAuth } from '@clerk/clerk-react'
 
 const AdminAnalytics = () => {
+  const { getToken } = useAuth()
   const [analyticsData, setAnalyticsData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -36,7 +38,9 @@ const AdminAnalytics = () => {
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/admin/analytics?range=${timeRange}`)
+      const token = await getToken()
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
+      const response = await fetch(`/api/admin/analytics?range=${timeRange}`, { headers })
       if (response.ok) {
         const data = await response.json()
         setAnalyticsData(data.data)

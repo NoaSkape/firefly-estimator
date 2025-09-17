@@ -8,6 +8,7 @@ import PackProgressIndicator from '../../components/PackProgressIndicator'
 import ContractErrorHandler from '../../components/ContractErrorHandler'
 import { updateBuildStep } from '../../utils/checkoutNavigation'
 import { openDocument, downloadFile, initBrowserCompatibility } from '../../utils/browserCompatibility'
+import { performanceMonitor, OptimizedStatusPoller, initPerformanceMonitoring } from '../../utils/contractPerformance'
 import { 
   CheckCircleIcon,
   ExclamationTriangleIcon,
@@ -62,6 +63,7 @@ export default function ContractNew() {
 
   const iframeRef = useRef(null)
   const statusPollRef = useRef(null)
+  const optimizedPollerRef = useRef(null)
   
   // Helper function to get pack title
   function getPackTitle(packId) {
@@ -177,6 +179,9 @@ export default function ContractNew() {
 
   // Load build and contract status on mount
   useEffect(() => {
+    // Initialize performance monitoring
+    const performanceInfo = initPerformanceMonitoring()
+    
     loadBuildAndContract()
     
     // Initialize browser compatibility checks
@@ -191,6 +196,9 @@ export default function ContractNew() {
         message: 'For the best experience, please use a modern browser like Chrome, Firefox, Safari, or Edge.'
       })
     }
+    
+    // Log performance info
+    console.log('[PERFORMANCE_INIT]', performanceInfo)
   }, [buildId])
 
   // Handle URL hash navigation
@@ -253,6 +261,8 @@ export default function ContractNew() {
   }
 
   async function loadContractStatus(token = null) {
+    const timerKey = performanceMonitor.startTimer('apiCall', { endpoint: 'contract_status' })
+    
     try {
       if (!token) token = await getToken()
       
@@ -263,9 +273,17 @@ export default function ContractNew() {
       if (statusRes.ok) {
         const status = await statusRes.json()
         setContractStatus(status)
+        performanceMonitor.endTimer(timerKey, { success: true, statusCode: statusRes.status })
+      } else {
+        performanceMonitor.endTimer(timerKey, { success: false, statusCode: statusRes.status })
       }
     } catch (error) {
       console.error('Failed to load contract status:', error)
+      performanceMonitor.endTimer(timerKey, { success: false, error: error.message })
+      
+      // Set error for user feedback
+      setCurrentError(error)
+      setRetryContext({ action: 'loadStatus' })
     }
   }
 

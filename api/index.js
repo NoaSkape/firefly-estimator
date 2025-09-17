@@ -1857,9 +1857,23 @@ app.get(['/api/contracts/status', '/contracts/status'], async (req, res) => {
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
+    // Rate limiting for status checks
+    const rateLimitResult = contractRateLimiter.isAllowed(auth.userId, 'status_check', 30, 60 * 1000)
+    if (!rateLimitResult.allowed) {
+      return res.status(429).json({ 
+        error: 'Too many requests',
+        resetTime: rateLimitResult.resetTime
+      })
+    }
+
     const { buildId } = req.query
     if (!buildId) {
       return res.status(400).json({ error: 'Build ID is required' })
+    }
+
+    // Input validation
+    if (!/^[a-zA-Z0-9_-]+$/.test(buildId)) {
+      return res.status(400).json({ error: 'Invalid build ID format' })
     }
 
     const build = await getBuildById(buildId)
