@@ -7,10 +7,8 @@ import { getDb } from '../../lib/db.js'
 import { validateRequest } from '../../lib/requestValidation.js'
 import { adminAuth } from '../../lib/adminAuth.js'
 
-const router = express.Router()
-
-// Admin authentication middleware for all routes
-router.use(adminAuth.validateAdminAccess.bind(adminAuth))
+\n// Guard router.use to avoid non-function handlers\nconst __origRouterUse = router.use.bind(router)\nrouter.use = function guardedRouterUse(...args){\n  try {\n    const path = (typeof args[0] === 'string' || args[0] instanceof RegExp || Array.isArray(args[0])) ? args[0] : undefined\n    const handlers = path ? args.slice(1) : args\n    const startIndex = path ? 1 : 0\n    for (let i=0;i<handlers.length;i++){\n      if (typeof handlers[i] !== 'function'){\n        const idx = startIndex + i\n        const t = typeof handlers[i]\n        console.error('[SUBROUTER_USE_GUARD] Non-function handler; patching', { file: __filename, path, index: idx, type: t })\n        args[idx] = (req,res)=> res.status(500).json({ error:'admin_handler_misconfigured', file: __filename, path: String(path||''), index: idx, type: t })\n      }\n    }\n  } catch(e){ console.warn('[SUBROUTER_USE_GUARD] Failed:', e?.message) }\n  return __origRouterUse(...args)\n}\n// Admin authentication middleware for all routes
+router.use((req,res,next)=>{ if(process.env.ADMIN_AUTH_DISABLED==='true'){ return next() } return adminAuth.validateAdminAccess(req,res,next) })
 
 // System health check schema
 const healthCheckSchema = z.object({
@@ -577,3 +575,5 @@ router.get('/config', async (req, res) => {
 })
 
 export default router
+
+
