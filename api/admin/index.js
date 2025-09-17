@@ -892,77 +892,7 @@ router.get('/me', async (req, res) => {
   }
 })
 
-// ============================================================================
-// MISSING ENDPOINTS FOR FRONTEND INTEGRATION
-// ============================================================================
-
-, async (req, res) => {
-  try {
-    const { range = '30d' } = req.query
-    const db = await getDb()
-    
-    const now = new Date()
-    const startDate = new Date(now.getTime() - (range === '7d' ? 7 : 30) * 24 * 60 * 60 * 1000)
-    
-    // Get paid orders
-    const paidOrders = await db.collection('orders').find({
-      paymentStatus: 'paid',
-      createdAt: { $gte: startDate }
-    }).toArray()
-    
-    const totalRevenue = paidOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0)
-    const averageOrderValue = paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0
-    
-    res.json({
-      success: true,
-      data: {
-        totalOrders: paidOrders.length,
-        totalRevenue,
-        averageOrderValue,
-        orders: paidOrders.slice(0, 10) // Recent orders
-      }
-    })
-  } catch (error) {
-    console.error('Paid orders error:', error)
-    res.status(500).json({ error: 'Failed to fetch paid orders' })
-  }
-})
-
-, async (req, res) => {
-  try {
-    const db = await getDb()
-    
-    // Get active builds
-    const activeBuilds = await db.collection('builds').find({
-      status: { $in: ['production', 'quality', 'ready'] }
-    }).toArray()
-    
-    // Get build statistics
-    const buildStats = {
-      inProduction: activeBuilds.filter(b => b.status === 'production').length,
-      inQuality: activeBuilds.filter(b => b.status === 'quality').length,
-      readyForDelivery: activeBuilds.filter(b => b.status === 'ready').length,
-      totalActive: activeBuilds.length
-    }
-    
-    res.json({
-      success: true,
-      data: {
-        ...buildStats,
-        builds: activeBuilds.slice(0, 10) // Recent builds
-      }
-    })
-  } catch (error) {
-    console.error('Active builds error:', error)
-    res.status(500).json({ error: 'Failed to fetch active builds' })
-  }
-})
-
-// ============================================================================
-// CONTENT MANAGEMENT ENDPOINTS
-// ============================================================================
-
-// Blog Management
+// (content and analytics handled by subrouters)
 
 // ============================================================================
 // ROUTER MOUNTING
