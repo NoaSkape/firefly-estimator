@@ -2664,12 +2664,30 @@ app.post(['/api/contracts/:templateKey/start', '/contracts/:templateKey/start'],
     const auth = await requireAuth(req, res, false)
     if (!auth?.userId) return
 
+    // Rate limiting
+    const rateLimitResult = contractRateLimiter.isAllowed(auth.userId, 'contract_start', 5, 15 * 60 * 1000)
+    if (!rateLimitResult.allowed) {
+      return res.status(429).json({ 
+        error: 'Too many requests',
+        resetTime: rateLimitResult.resetTime
+      })
+    }
+
     const { templateKey } = req.params
     const { buildId, coBuyerEnabled = false } = req.body
 
     if (!buildId) {
       return res.status(400).json({ error: 'Build ID is required' })
     }
+
+    // Audit logging
+    logContractEvent({
+      action: 'contract_start_requested',
+      userId: auth.userId,
+      buildId,
+      packId: templateKey,
+      ipAddress: req.ip || req.connection.remoteAddress
+    })
 
     console.log('[CONTRACT_START] Starting contract for template:', templateKey, 'build:', buildId)
 
