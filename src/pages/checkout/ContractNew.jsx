@@ -3,14 +3,20 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { useToast } from '../../components/ToastProvider'
 import FunnelProgress from '../../components/FunnelProgress'
+import DocumentViewerModal from '../../components/DocumentViewerModal'
+import PackProgressIndicator from '../../components/PackProgressIndicator'
+import ContractErrorHandler from '../../components/ContractErrorHandler'
 import { updateBuildStep } from '../../utils/checkoutNavigation'
+import { openDocument, downloadFile, initBrowserCompatibility } from '../../utils/browserCompatibility'
 import { 
   CheckCircleIcon,
   ExclamationTriangleIcon,
   DocumentTextIcon,
   EyeIcon,
   ArrowRightIcon,
-  ArrowLeftIcon
+  ArrowLeftIcon,
+  ClockIcon,
+  PlayCircleIcon
 } from '@heroicons/react/24/outline'
 
 export default function ContractNew() {
@@ -42,7 +48,18 @@ export default function ContractNew() {
   // Summary PDF state
   const [summaryPdfUrl, setSummaryPdfUrl] = useState('')
   const [requestingEdit, setRequestingEdit] = useState(false)
-  
+
+  // Enhanced UX state
+  const [documentViewer, setDocumentViewer] = useState({
+    isOpen: false,
+    url: null,
+    title: '',
+    filename: ''
+  })
+  const [currentError, setCurrentError] = useState(null)
+  const [retryContext, setRetryContext] = useState(null)
+  const [browserCompatibility, setBrowserCompatibility] = useState(null)
+
   const iframeRef = useRef(null)
   const statusPollRef = useRef(null)
   
@@ -161,6 +178,19 @@ export default function ContractNew() {
   // Load build and contract status on mount
   useEffect(() => {
     loadBuildAndContract()
+    
+    // Initialize browser compatibility checks
+    const compatibility = initBrowserCompatibility()
+    setBrowserCompatibility(compatibility)
+    
+    // Show browser warning if needed
+    if (compatibility.warning.show) {
+      addToast({
+        type: 'warning',
+        title: 'Browser Compatibility',
+        message: 'For the best experience, please use a modern browser like Chrome, Firefox, Safari, or Edge.'
+      })
+    }
   }, [buildId])
 
   // Handle URL hash navigation
@@ -405,10 +435,14 @@ export default function ContractNew() {
         // Use the embedUrl (submitter URL) from the new endpoint
         const signingUrl = session.embedUrl || session.signingUrl
         
-        // Open DocuSeal in a new tab to avoid X-Frame-Options issues
-        const newWindow = window.open(signingUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes')
+        // Open DocuSeal with cross-browser compatibility
+        const openResult = openDocument(signingUrl, {
+          preferPopup: true,
+          windowFeatures: 'width=1200,height=800,scrollbars=yes,resizable=yes,location=yes',
+          fallbackToTab: true
+        })
         
-        if (newWindow) {
+        if (openResult.success) {
           // Update status to in_progress
           setContractStatus(prev => ({
             ...prev,
@@ -418,11 +452,22 @@ export default function ContractNew() {
             }
           }))
           
-          
           // Start polling for completion
           startStatusPolling(packId)
+          
+          // Show appropriate message based on how document was opened
+          if (openResult.fallback) {
+            addToast({
+              type: 'info',
+              title: 'Document Opened',
+              message: 'The signing document opened in a new tab. Please complete signing there and return here.'
+            })
+          }
         } else {
-          addToast('Please allow popups for this site to open the signing document', 'error')
+          // Handle popup blocked error
+          const popupError = new Error(openResult.blocked ? 'Popup blocked by browser' : 'Unable to open signing window')
+          setCurrentError(popupError)
+          setRetryContext({ action: 'startSigning', packId })
         }
       } else {
         const error = await response.json()
@@ -430,14 +475,57 @@ export default function ContractNew() {
       }
     } catch (error) {
       console.error('Failed to start pack signing:', error)
+      setCurrentError(error)
+      setRetryContext({ action: 'startSigning', packId })
+      
       addToast({
         type: 'error',
-        title: 'Error',
-        message: 'Unable to start signing session. Please try again.'
+        title: 'Signing Error',
+        message: 'Unable to start document signing. Please see error details for help.'
       })
     } finally {
       setLoadingPack(false)
     }
+  }
+
+  // Enhanced error handling and retry functions
+  const handleErrorRetry = async () => {
+    if (!retryContext) return
+    
+    switch (retryContext.action) {
+      case 'startSigning':
+        await startPackSigning(retryContext.packId)
+        break
+      case 'loadStatus':
+        await loadContractStatus()
+        break
+      default:
+        console.warn('Unknown retry action:', retryContext.action)
+    }
+  }
+
+  const closeError = () => {
+    setCurrentError(null)
+    setRetryContext(null)
+  }
+
+  // Document viewer functions
+  const openDocumentViewer = (url, title, filename) => {
+    setDocumentViewer({
+      isOpen: true,
+      url,
+      title,
+      filename
+    })
+  }
+
+  const closeDocumentViewer = () => {
+    setDocumentViewer({
+      isOpen: false,
+      url: null,
+      title: '',
+      filename: ''
+    })
   }
 
   function getPackStatusIcon(pack) {
@@ -641,6 +729,7 @@ export default function ContractNew() {
                   onStartSigning={() => startPackSigning(currentPack)}
                   loadingPack={loadingPack}
                   buildId={buildId}
+                  onOpenDocumentViewer={openDocumentViewer}
                 />
               )}
             </div>
@@ -705,6 +794,25 @@ export default function ContractNew() {
           </div>
         </div>
       </div>
+
+      {/* Document Viewer Modal */}
+      <DocumentViewerModal
+        isOpen={documentViewer.isOpen}
+        onClose={closeDocumentViewer}
+        documentUrl={documentViewer.url}
+        documentTitle={documentViewer.title}
+        filename={documentViewer.filename}
+      />
+
+      {/* Error Handler Modal */}
+      {currentError && (
+        <ContractErrorHandler
+          error={currentError}
+          onRetry={handleErrorRetry}
+          onClose={closeError}
+          context={retryContext?.action || 'general'}
+        />
+      )}
     </div>
   )
 }
@@ -796,7 +904,7 @@ function SummaryPackContent({ build, summaryPdfUrl, onLoadPdf, onMarkReviewed, o
 }
 
 // Enhanced Signing Pack Component with proper state management
-function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingPack, buildId }) {
+function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingPack, buildId, onOpenDocumentViewer }) {
   const [showDocumentViewer, setShowDocumentViewer] = useState(false)
   const [downloadUrl, setDownloadUrl] = useState(null)
   const { getToken } = useAuth()
@@ -827,20 +935,35 @@ function SigningPackContent({ pack, status, signingUrl, onStartSigning, loadingP
   const handleViewDocument = async () => {
     const url = downloadUrl || await getDownloadUrl()
     if (url) {
-      window.open(url, '_blank')
+      // Use the document viewer modal instead of opening in new tab
+      const packTitle = pack.title || 'Document'
+      const filename = `${pack.id}_agreement_${buildId.slice(-8)}.pdf`
+      
+      // Call parent's document viewer function
+      if (onOpenDocumentViewer) {
+        onOpenDocumentViewer(url, `Signed ${packTitle}`, filename)
+      } else {
+        // Fallback to new tab
+        window.open(url, '_blank')
+      }
     }
   }
   
   const handleDownloadDocument = async () => {
     const url = downloadUrl || await getDownloadUrl()
     if (url) {
-      // Create download link
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${pack.id}_agreement_${buildId.slice(-8)}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+      const filename = `${pack.id}_agreement_${buildId.slice(-8)}.pdf`
+      
+      try {
+        const result = await downloadFile(url, filename)
+        if (result.success) {
+          console.log(`Document downloaded using ${result.method} method`)
+        }
+      } catch (error) {
+        console.error('Download failed:', error)
+        // Fallback to direct link
+        window.open(url, '_blank')
+      }
     }
   }
   
