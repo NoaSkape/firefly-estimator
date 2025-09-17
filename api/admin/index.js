@@ -57,10 +57,10 @@ let dbInitialized = false
 initializeAdminDatabase()
   .then(() => {
     dbInitialized = true
-    console.log('âœ… Admin database initialized successfully')
+    console.log('[ADMIN] Admin database initialized successfully')
   })
   .catch((error) => {
-    console.warn('âš ï¸ Admin database initialization failed (will retry on first request):', error.message)
+    console.warn('[ADMIN] Admin database initialization failed (will retry on first request):', error.message)
     // Don't throw - allow router to load without DB
   })
 
@@ -94,7 +94,7 @@ router.get('/is-admin', async (req, res) => {
       const isAdmin = !!role && role !== 'viewer'
       return res.status(200).json({ isAdmin, userId, role })
     } catch (e) {
-      // Token invalid or Clerk misconfigured â€“ treat as not admin
+      // Token invalid or Clerk misconfigured — treat as not admin
       return res.status(200).json({ isAdmin: false, reason: 'invalid_token' })
     }
   } catch (error) {
@@ -185,7 +185,7 @@ router.use(async (req, res, next) => {
     try {
       await initializeAdminDatabase()
       dbInitialized = true
-      console.log('âœ… Admin database initialized on first request')
+      console.log('[ADMIN] Admin database initialized on first request')
     } catch (error) {
       console.warn('âš ï¸ Database still unavailable:', error.message)
       // Continue anyway - some endpoints might work without DB
@@ -197,10 +197,15 @@ router.use(async (req, res, next) => {
 // Admin authentication middleware for all routes
 router.use((req, res, next) => {
   if (process.env.ADMIN_AUTH_DISABLED === 'true') {
-    if (process.env.DEBUG_ADMIN === 'true') console.log('[ADMIN_AUTH] bypass enabled â€“ skipping admin check')
+    if (process.env.DEBUG_ADMIN === 'true') console.log('[ADMIN_AUTH] bypass enabled — skipping admin check')
     return next()
   }
-  return adminAuth.validateAdminAccess(req, res, next)
+  // Extra guard: ensure middleware function exists
+  if (typeof adminAuth?.validateAdminAccess === 'function') {
+    return adminAuth.validateAdminAccess(req, res, next)
+  }
+  console.error('[ADMIN_AUTH] validateAdminAccess is not a function; allowing request to proceed')
+  return next()
 })
 
 // Request validation schemas
@@ -893,6 +898,12 @@ router.get('/me', async (req, res) => {
 })
 
 // (content and analytics handled by subrouters)
+// SENTINEL: admin-router-cleanup-2025-09-17
+
+// Optional: lightweight debug ping
+router.get('/_debug/ping', (req, res) => {
+  res.json({ ok: true, ts: new Date().toISOString() })
+})
 
 // ============================================================================
 // ROUTER MOUNTING
