@@ -145,6 +145,47 @@ export default function ContractNew() {
     return () => window.removeEventListener('message', handleMessage)
   }, [buildId, addToast])
 
+  // Auto-refresh when user returns from DocuSeal (world-class UX solution)
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      // When user returns to the tab and a pack is in_progress, check status
+      if (!document.hidden && currentPack !== 'summary' && contractStatus.packs[currentPack] === 'in_progress') {
+        console.log('User returned to tab, checking if signing was completed...')
+        
+        // Wait a moment for any webhook to process, then check status
+        setTimeout(async () => {
+          try {
+            const token = await getToken()
+            const directCheckRes = await fetch(`/api/contracts/${buildId}/pack/${currentPack}/check-status`, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {}
+            })
+            
+            if (directCheckRes.ok) {
+              const directStatus = await directCheckRes.json()
+              console.log('Auto-refresh status check:', directStatus)
+              
+              if (directStatus.newStatus === 'completed') {
+                // Reload contract status to get updated data
+                await loadContractStatus(token)
+                
+                addToast({
+                  type: 'success',
+                  title: 'Document Completed!',
+                  message: 'Your document has been signed successfully.'
+                })
+              }
+            }
+          } catch (error) {
+            console.error('Auto-refresh status check failed:', error)
+          }
+        }, 2000) // Wait 2 seconds for webhook processing
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [buildId, currentPack, contractStatus, getToken, addToast])
+
   // Pack definitions
   const packs = [
     {

@@ -1906,6 +1906,7 @@ app.get(['/api/contracts/status', '/contracts/status'], async (req, res) => {
         const submission = updatedSubmissions[i]
         if (submission.submissionId) {
           try {
+            const { getSubmission } = await import('../lib/docuseal.js')
             const docusealSubmission = await getSubmission(submission.submissionId)
             const docusealStatus = mapDocuSealStatus(docusealSubmission.status || docusealSubmission.state)
             
@@ -1991,6 +1992,7 @@ app.get(['/api/contracts/status', '/contracts/status'], async (req, res) => {
       for (const [packId, packData] of Object.entries(contract.packs)) {
         if (packData.submissionId && packId !== 'summary') {
           try {
+            const { getSubmission } = await import('../lib/docuseal.js')
             const docusealSubmission = await getSubmission(packData.submissionId)
             const docusealStatus = mapDocuSealStatus(docusealSubmission.status || docusealSubmission.state)
             
@@ -3476,35 +3478,96 @@ app.get(['/api/contracts/:buildId/pack/:packId/download', '/contracts/:buildId/p
       return res.status(404).json({ error: 'Contract not found' })
     }
 
-    // Check if pack is completed and has signed document
+    // Check if pack exists and has a submission
     const packData = contract.packs?.[packId]
-    if (!packData || packData.status !== 'completed' || !packData.signedPdfUrl) {
-      return res.status(404).json({ error: 'Signed document not found' })
+    if (!packData || !packData.submissionId) {
+      return res.status(404).json({ error: 'Pack submission not found' })
+    }
+
+    // If pack isn't completed yet, check DocuSeal directly
+    if (packData.status !== 'completed') {
+      try {
+        const { getSubmission } = await import('../lib/docuseal.js')
+        const docusealSubmission = await getSubmission(packData.submissionId)
+        
+        if (docusealSubmission.status !== 'completed') {
+          return res.status(400).json({ error: 'Document not yet completed' })
+        }
+        
+        // Update our database with completion status
+        await db.collection('contracts').updateOne(
+          { _id: contract._id },
+          { 
+            $set: { 
+              [`packs.${packId}.status`]: 'completed',
+              [`packs.${packId}.completedAt`]: new Date()
+            }
+          }
+        )
+      } catch (docusealError) {
+        console.error('Failed to check DocuSeal status:', docusealError)
+        return res.status(500).json({ error: 'Unable to verify document status' })
+      }
     }
 
     // Generate secure download URL
+    let downloadUrl = null
+    
     if (packData.signedPdfCloudinaryId) {
       // Use Cloudinary for secure download
-      const downloadUrl = signedCloudinaryUrl(packData.signedPdfCloudinaryId, {
+      downloadUrl = signedCloudinaryUrl(packData.signedPdfCloudinaryId, {
         resource_type: 'auto',
         type: 'upload',
         expires_at: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
       })
-      
-      res.json({
-        success: true,
-        downloadUrl: downloadUrl,
-        filename: `${packId}_agreement_${buildId.slice(-8)}.pdf`,
-        expiresAt: new Date(Date.now() + (24 * 60 * 60 * 1000))
-      })
+    } else if (packData.signedPdfUrl) {
+      // Use stored DocuSeal URL
+      downloadUrl = packData.signedPdfUrl
     } else {
-      // Fallback to DocuSeal URL
-      res.json({
-        success: true,
-        downloadUrl: packData.signedPdfUrl,
-        filename: `${packId}_agreement_${buildId.slice(-8)}.pdf`
-      })
+      // Get document URL directly from DocuSeal
+      try {
+        const { getSubmission } = await import('../lib/docuseal.js')
+        const docusealSubmission = await getSubmission(packData.submissionId)
+        
+        // Get the signed document URL from DocuSeal
+        if (docusealSubmission.status === 'completed') {
+          // Try to get the document URL from the submission
+          const submissionResponse = await fetch(`https://api.docuseal.co/submissions/${packData.submissionId}`, {
+            headers: {
+              'X-Auth-Token': process.env.DOCUSEAL_API_KEY
+            }
+          })
+          
+          if (submissionResponse.ok) {
+            const submissionData = await submissionResponse.json()
+            
+            // Look for document URLs in the submission data
+            if (submissionData.audit_log_url) {
+              downloadUrl = submissionData.audit_log_url
+            } else if (submissionData.documents && submissionData.documents[0]) {
+              downloadUrl = submissionData.documents[0].url
+            } else {
+              // Use DocuSeal's download endpoint
+              downloadUrl = `https://api.docuseal.co/submissions/${packData.submissionId}/download`
+            }
+          }
+        }
+      } catch (docusealError) {
+        console.error('Failed to get DocuSeal document URL:', docusealError)
+        return res.status(500).json({ error: 'Unable to retrieve signed document' })
+      }
     }
+    
+    if (!downloadUrl) {
+      return res.status(404).json({ error: 'Signed document URL not found' })
+    }
+
+    res.json({
+      success: true,
+      downloadUrl: downloadUrl,
+      filename: `${packId}_agreement_${buildId.slice(-8)}.pdf`,
+      ...(packData.signedPdfCloudinaryId && { expiresAt: new Date(Date.now() + (24 * 60 * 60 * 1000)) })
+    })
 
   } catch (error) {
     console.error('Pack download error:', error)

@@ -942,19 +942,39 @@ mountSafe('/settings', settingsRouter, 'settingsRouter')
 
 // Final defensive pass: replace any non-function layer handles to avoid
 // Express attempting to call undefined.apply when a subrouter failed to load.
-try {
-  if (Array.isArray(router.stack)) {
-    router.stack.forEach((layer, i) => {
+function hardenRouterLocal(r, label = 'admin') {
+  try {
+    const stack = r && r.stack
+    if (!Array.isArray(stack)) return
+    stack.forEach((layer, idx) => {
+      // Repair layer handle
       if (typeof layer?.handle !== 'function') {
-        const name = layer?.name || `layer_${i}`
-        console.error(`[ADMIN] Repairing misconfigured layer: ${name} (index ${i})`)
-        layer.handle = (req, res) => res.status(500).json({ error: 'admin layer misconfigured', layer: name })
+        const name = layer?.name || `layer_${idx}`
+        console.error(`[ADMIN_HARDEN] Repaired non-function layer at ${label}[${idx}] (${name})`)
+        layer.handle = (req, res) => res.status(500).json({ error: 'admin layer misconfigured', label, index: idx, name })
       }
+      // Repair route method stacks
+      const route = layer && layer.route
+      if (route && Array.isArray(route.stack)) {
+        route.stack.forEach((rLayer, rIdx) => {
+          if (typeof rLayer?.handle !== 'function') {
+            const m = rLayer?.method || 'use'
+            console.error(`[ADMIN_HARDEN] Repaired non-function route handler at ${label}[${idx}]/route(${route?.path})#${m}[${rIdx}]`)
+            rLayer.handle = (req, res) => res.status(500).json({ error: 'admin route handler misconfigured', path: route?.path, method: m, index: rIdx })
+          }
+        })
+      }
+      // Recurse into nested routers
+      const nested = layer && layer.handle && layer.handle.stack ? layer.handle : null
+      if (nested) hardenRouterLocal(nested, `${label}/${layer?.route?.path || layer?.name || idx}`)
     })
+  } catch (e) {
+    console.warn('[ADMIN_HARDEN] Failed:', e?.message)
   }
-} catch (e) {
-  console.warn('[ADMIN] Stack repair pass failed:', e?.message)
 }
+
+// Run hardening pass now
+hardenRouterLocal(router, 'admin')
 
 // ============================================================================
 // ERROR HANDLING
