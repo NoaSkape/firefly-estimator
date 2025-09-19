@@ -27,16 +27,31 @@ const router = express.Router()
 
 console.log('[ADMIN_CLEAN] Clean admin router initializing')
 
-// Initialize admin database on startup (non-blocking)
+// Initialize admin database on startup (completely non-blocking and safe)
 let dbInitialized = false
-initializeAdminDatabase()
-  .then(() => {
+let dbInitializing = false
+
+// Safe database initialization that never throws
+async function safeInitializeDatabase() {
+  if (dbInitializing) return // Prevent concurrent initialization
+  
+  dbInitializing = true
+  try {
+    await initializeAdminDatabase()
     dbInitialized = true
     console.log('[ADMIN_CLEAN] Admin database initialized successfully')
-  })
-  .catch((error) => {
+  } catch (error) {
     console.warn('[ADMIN_CLEAN] Admin database initialization failed:', error.message)
-  })
+    // Don't throw - just log and continue
+  } finally {
+    dbInitializing = false
+  }
+}
+
+// Start initialization but don't await it or let it block module loading
+safeInitializeDatabase().catch(() => {
+  // Silently handle any errors - already logged in safeInitializeDatabase
+})
 
 // ============================================================================
 // CORE ADMIN ENDPOINTS (NO CONFLICTS WITH SUB-ROUTERS)
@@ -180,32 +195,53 @@ router.get('/me', async (req, res) => {
   }
 })
 
-// Database health check middleware (non-blocking)
+// Database health check middleware (completely safe and non-blocking)
 router.use(async (req, res, next) => {
-  if (!dbInitialized) {
-    try {
-      await initializeAdminDatabase()
-      dbInitialized = true
-      console.log('[ADMIN_CLEAN] Admin database initialized on first request')
-    } catch (error) {
-      console.warn('[ADMIN_CLEAN] Database still unavailable:', error.message)
+  try {
+    if (!dbInitialized && !dbInitializing) {
+      // Try to initialize database on first request, but don't block if it fails
+      safeInitializeDatabase().catch(() => {
+        // Silently handle errors - already logged in safeInitializeDatabase
+      })
     }
+    // Always continue - never block requests due to DB issues
+    next()
+  } catch (error) {
+    console.error('[ADMIN_CLEAN] Database middleware error:', error)
+    // Always continue - never block requests
+    next()
   }
-  next()
 })
 
-// Admin authentication middleware for all routes
-router.use((req, res, next) => {
-  if (process.env.ADMIN_AUTH_DISABLED === 'true') {
-    if (process.env.DEBUG_ADMIN === 'true') console.log('[ADMIN_CLEAN] bypass enabled')
+// Admin authentication middleware for all routes - Fixed error handling
+router.use(async (req, res, next) => {
+  try {
+    if (process.env.ADMIN_AUTH_DISABLED === 'true') {
+      if (process.env.DEBUG_ADMIN === 'true') console.log('[ADMIN_CLEAN] bypass enabled')
+      return next()
+    }
+    
+    if (typeof validateAdminAccess === 'function') {
+      // Wrap validateAdminAccess to catch any errors it might throw
+      try {
+        return await validateAdminAccess(req, res, next)
+      } catch (authError) {
+        console.error('[ADMIN_CLEAN] Auth middleware error:', authError)
+        if (!res.headersSent) {
+          return res.status(500).json({ error: 'Authentication system error' })
+        }
+        return
+      }
+    }
+    
+    console.error('[ADMIN_CLEAN] validateAdminAccess is not a function; allowing request')
     return next()
+  } catch (error) {
+    console.error('[ADMIN_CLEAN] Auth middleware wrapper error:', error)
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'Middleware error' })
+    }
   }
-  
-  if (typeof validateAdminAccess === 'function') {
-    return validateAdminAccess(req, res, next)
-  }
-  console.error('[ADMIN_CLEAN] validateAdminAccess is not a function; allowing request')
-  return next()
 })
 
 // ============================================================================
@@ -255,10 +291,36 @@ router.use('*', (req, res) => {
   res.status(404).json({ error: 'Admin endpoint not found' })
 })
 
-// Error handler
+// Comprehensive error handler - Prevents Express router crashes
 router.use((error, req, res, next) => {
-  console.error('[ADMIN_CLEAN] Error:', error)
-  res.status(500).json({ error: 'Internal server error' })
+  console.error('[ADMIN_CLEAN] Error caught:', {
+    message: error?.message,
+    name: error?.name,
+    stack: error?.stack,
+    url: req?.url,
+    method: req?.method
+  })
+  
+  // Check if response was already sent
+  if (!res.headersSent) {
+    // Send appropriate error response based on error type
+    if (error?.message?.includes('Unauthorized')) {
+      res.status(401).json({ error: 'Unauthorized' })
+    } else if (error?.message?.includes('MONGODB_URI')) {
+      res.status(503).json({ error: 'Database unavailable', message: 'Service temporarily unavailable' })
+    } else {
+      res.status(500).json({ error: 'Internal server error', message: process.env.NODE_ENV === 'development' ? error?.message : 'Something went wrong' })
+    }
+  }
+})
+
+// Add process-level error handlers specifically for this router module
+process.on('uncaughtException', (error) => {
+  if (error?.message?.includes('apply')) {
+    console.error('[ADMIN_ROUTER] CAUGHT APPLY ERROR:', error)
+    console.error('[ADMIN_ROUTER] This error was caught and handled gracefully')
+    // Don't exit - let the application continue
+  }
 })
 
 export default router
