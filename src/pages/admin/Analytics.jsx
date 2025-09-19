@@ -198,7 +198,7 @@ const AdminAnalytics = () => {
                     Total Revenue
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {formatCurrency(analyticsData?.metrics?.totalRevenue || 0)}
+                    {formatCurrency(analyticsData?.metrics?.revenue?.current || 0)}
                   </dd>
                 </dl>
               </div>
@@ -206,10 +206,10 @@ const AdminAnalytics = () => {
           </div>
           <div className="bg-gray-50 px-5 py-3">
             <div className="text-sm">
-              {analyticsData?.metrics?.revenueChange && (
+              {analyticsData?.metrics?.revenue?.change && (
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500">vs previous period</span>
-                  {getChangeIndicator(analyticsData.metrics.revenueChange)}
+                  {getChangeIndicator(analyticsData.metrics.revenue.change)}
                 </div>
               )}
             </div>
@@ -229,7 +229,7 @@ const AdminAnalytics = () => {
                     Total Orders
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {formatNumber(analyticsData?.metrics?.totalOrders || 0)}
+                    {formatNumber(analyticsData?.metrics?.orders?.current || 0)}
                   </dd>
                 </dl>
               </div>
@@ -237,10 +237,10 @@ const AdminAnalytics = () => {
           </div>
           <div className="bg-gray-50 px-5 py-3">
             <div className="text-sm">
-              {analyticsData?.metrics?.ordersChange && (
+              {analyticsData?.metrics?.orders?.change && (
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500">vs previous period</span>
-                  {getChangeIndicator(analyticsData.metrics.ordersChange)}
+                  {getChangeIndicator(analyticsData.metrics.orders.change)}
                 </div>
               )}
             </div>
@@ -257,10 +257,10 @@ const AdminAnalytics = () => {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
-                    New Customers
+                    Total Users
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {formatNumber(analyticsData?.metrics?.newCustomers || 0)}
+                    {formatNumber(analyticsData?.metrics?.users?.total || 0)}
                   </dd>
                 </dl>
               </div>
@@ -268,10 +268,12 @@ const AdminAnalytics = () => {
           </div>
           <div className="bg-gray-50 px-5 py-3">
             <div className="text-sm">
-              {analyticsData?.metrics?.customersChange && (
+              {analyticsData?.metrics?.users?.new > 0 && (
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500">vs previous period</span>
-                  {getChangeIndicator(analyticsData.metrics.customersChange)}
+                  <span className="text-gray-500">New users this period</span>
+                  <span className="text-sm font-medium text-green-600">
+                    +{analyticsData.metrics.users.new}
+                  </span>
                 </div>
               )}
             </div>
@@ -319,13 +321,39 @@ const AdminAnalytics = () => {
             <p className="text-sm text-gray-500">Revenue performance over time</p>
           </div>
           <div className="p-6">
-            <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-              <div className="text-center">
-                <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-500">Chart visualization would be implemented here</p>
-                <p className="text-sm text-gray-400">Using Chart.js or similar library</p>
+            {analyticsData?.metrics?.revenue?.daily?.length > 0 ? (
+              <div className="h-64">
+                <div className="flex items-end justify-between h-full space-x-1">
+                  {analyticsData.metrics.revenue.daily.slice(-7).map((day, index) => {
+                    const maxRevenue = Math.max(...analyticsData.metrics.revenue.daily.map(d => d.total))
+                    const height = maxRevenue > 0 ? (day.total / maxRevenue) * 100 : 0
+                    return (
+                      <div key={day._id.date || index} className="flex-1 flex flex-col items-center">
+                        <div 
+                          className="w-full bg-blue-500 rounded-t-sm min-h-[4px] transition-all hover:bg-blue-600"
+                          style={{ height: `${Math.max(height, 2)}%` }}
+                          title={`${day._id.date}: ${formatCurrency(day.total)}`}
+                        ></div>
+                        <div className="mt-2 text-xs text-gray-500 text-center">
+                          {day._id.date ? new Date(day._id.date).getDate() : index + 1}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="mt-4 text-center">
+                  <p className="text-sm text-gray-600">Daily Revenue - Last 7 Days</p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
+                <div className="text-center">
+                  <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500">No revenue data available for chart</p>
+                  <p className="text-sm text-gray-400">Revenue data will appear here when orders are confirmed</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -337,22 +365,29 @@ const AdminAnalytics = () => {
           </div>
           <div className="p-6">
             <div className="space-y-4">
-              {analyticsData?.orderStatuses?.map((status) => (
-                <div key={status.status} className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className={`w-3 h-3 rounded-full mr-3 ${status.color}`}></div>
-                    <span className="text-sm font-medium text-gray-900 capitalize">
-                      {status.status.replace('_', ' ')}
-                    </span>
+              {analyticsData?.metrics?.orders?.byStatus?.map((status, index) => {
+                const colors = [
+                  'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-red-500', 
+                  'bg-purple-500', 'bg-pink-500', 'bg-indigo-500'
+                ]
+                return (
+                  <div key={status._id} className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className={`w-3 h-3 rounded-full mr-3 ${colors[index % colors.length]}`}></div>
+                      <span className="text-sm font-medium text-gray-900 capitalize">
+                        {status._id?.replace('_', ' ') || 'Unknown'}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-gray-900">{status.count}</span>
+                      <span className="text-sm text-gray-500">
+                        ({analyticsData.metrics.orders.current > 0 ? 
+                          ((status.count / analyticsData.metrics.orders.current) * 100).toFixed(1) : 0}%)
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-900">{status.count}</span>
-                    <span className="text-sm text-gray-500">
-                      ({((status.count / analyticsData.metrics.totalOrders) * 100).toFixed(1)}%)
-                    </span>
-                  </div>
-                </div>
-              )) || (
+                )
+              }) || (
                 <div className="text-center text-gray-500 py-8">
                   <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
                   <p>No order status data available</p>
@@ -373,8 +408,8 @@ const AdminAnalytics = () => {
           </div>
           <div className="p-6">
             <div className="space-y-4">
-              {analyticsData?.topModels?.slice(0, 5).map((model, index) => (
-                <div key={model._id} className="flex items-center justify-between">
+              {analyticsData?.metrics?.models?.topPerformers?.slice(0, 5).map((model, index) => (
+                <div key={model.modelId} className="flex items-center justify-between">
                   <div className="flex items-center">
                     <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium mr-3 ${
                       index === 0 ? 'bg-yellow-100 text-yellow-800' :
@@ -385,7 +420,7 @@ const AdminAnalytics = () => {
                       {index + 1}
                     </span>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{model.name}</p>
+                      <p className="text-sm font-medium text-gray-900">{model.modelName}</p>
                       <p className="text-xs text-gray-500">{model.category}</p>
                     </div>
                   </div>

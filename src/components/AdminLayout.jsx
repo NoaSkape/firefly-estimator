@@ -209,9 +209,9 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
       )}
 
       {/* Admin Breadcrumb Bar - Positioned below main header */}
-      <div className="sticky top-16 left-0 right-0 z-20 bg-gradient-to-r from-blue-600 to-blue-700 border-b border-blue-800 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-12">
+      <div className="sticky top-16 left-0 right-0 z-20 bg-gradient-to-r from-blue-600 to-blue-700 border-b border-blue-800 shadow-sm" style={{ height: '3rem' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
+          <div className="flex items-center justify-between h-full">
             <div className="flex items-center space-x-3">
               <div className="flex items-center text-blue-100">
                 <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -232,11 +232,15 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
         </div>
       </div>
 
-      {/* Sidebar */}
+      {/* Sidebar - positioned below breadcrumb bar */}
       <div className={`
-        fixed top-28 bottom-0 left-0 z-30 w-64 bg-white shadow-xl border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0
+        fixed left-0 z-30 w-64 bg-white shadow-xl border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
+      `}
+      style={{
+        top: 'calc(4rem + 3rem)', // 4rem (header) + 3rem (breadcrumb bar)
+        bottom: '0'
+      }}>
         {/* Sidebar header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
           <div className="flex items-center min-w-0">
@@ -414,7 +418,7 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
       </div>
 
       {/* Main content area */}
-      <div className="lg:pl-64 pt-28">
+      <div className="lg:pl-64" style={{ paddingTop: 'calc(4rem + 3rem)' }}>
         {/* Page content with proper spacing */}
         <main className="min-h-screen bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
