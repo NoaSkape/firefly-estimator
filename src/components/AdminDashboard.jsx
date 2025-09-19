@@ -38,7 +38,8 @@ const AdminDashboard = () => {
           throw new Error('Authentication required')
         }
         
-        const response = await fetch(`/api/admin/dashboard?range=${timeRange}`, {
+        // TEMPORARY: Use direct endpoint to bypass Express router issues
+        const response = await fetch(`/api/admin-dashboard-direct?range=${timeRange}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
         

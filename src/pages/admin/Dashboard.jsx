@@ -70,7 +70,8 @@ export default function AdminDashboard() {
           if (token) headers = { Authorization: `Bearer ${token}` }
         } catch {}
 
-        const dashRes = await fetch(`/api/admin/dashboard?range=${encodeURIComponent(range)}`, { headers })
+        // TEMPORARY: Use direct endpoint to bypass Express router issues
+        const dashRes = await fetch(`/api/admin-dashboard-direct?range=${encodeURIComponent(range)}`, { headers })
         let payload = null
         if (dashRes.ok) {
           payload = await dashRes.json()
