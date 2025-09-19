@@ -78,6 +78,25 @@ router.get('/', async (req, res) => {
       getCollection(COLLECTIONS.MODELS)
     ])
 
+    // Get Total Users from Clerk
+    let totalUsers = 0
+    let newUsersCount = 0
+    if (clerkClient) {
+      try {
+        const users = await clerkClient.users.getUserList({ limit: 1000 })
+        totalUsers = users.length
+        
+        // Count new users in the time range
+        const newUsersList = users.filter(user => {
+          const createdAt = new Date(user.createdAt)
+          return createdAt >= startDate
+        })
+        newUsersCount = newUsersList.length
+      } catch (clerkError) {
+        console.warn('[ANALYTICS] Clerk users fetch failed:', clerkError.message)
+      }
+    }
+
     // Get revenue analytics
     const revenueAnalytics = await ordersCollection.aggregate([
       { $match: { 

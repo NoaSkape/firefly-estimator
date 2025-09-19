@@ -203,11 +203,11 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-gray-50 overflow-hidden">
+    <div className="min-h-screen bg-gray-50">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 lg:hidden"
+          className="fixed inset-0 z-50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         >
           <div className="fixed inset-0 bg-gray-600 bg-opacity-75" />
@@ -216,29 +216,29 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+        fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 flex flex-col
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         {/* Sidebar header */}
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-          <div className="flex items-center">
+        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 flex-shrink-0">
+          <div className="flex items-center min-w-0">
             <img 
               src="/logo/firefly-logo.png" 
               alt="Firefly Logo" 
-              className="h-8 w-auto"
+              className="h-8 w-auto flex-shrink-0"
             />
-            <span className="ml-3 text-lg font-semibold text-gray-900">Admin</span>
+            <span className="ml-3 text-lg font-semibold text-gray-900 truncate">Admin</span>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+            className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 flex-shrink-0"
           >
             <XMarkIcon className="h-6 w-6" />
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="mt-6 px-3">
+        {/* Navigation - Scrollable */}
+        <nav className="flex-1 mt-6 px-3 pb-4 overflow-y-auto">
           <div className="space-y-1">
             {filteredNavigation.map((item) => {
               const isActive = location.pathname === item.href
@@ -247,7 +247,7 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
                   key={item.name}
                   to={item.href}
                   className={`
-                    group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200
+                    group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 relative
                     ${isActive 
                       ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-700' 
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
@@ -257,11 +257,16 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
                 >
                   <item.icon 
                     className={`
-                      mr-3 h-5 w-5 transition-colors duration-200
+                      mr-3 h-5 w-5 transition-colors duration-200 flex-shrink-0
                       ${isActive ? 'text-blue-700' : 'text-gray-400 group-hover:text-gray-500'}
                     `}
                   />
-                  {item.name}
+                  <span className="truncate">{item.name}</span>
+                  {item.badge && (
+                    <span className="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               )
             })}
@@ -270,20 +275,20 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
 
         {/* User info at bottom */}
         {userInfo && (
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-gray-50">
+          <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-gray-50">
             <div className="flex items-center">
-              <UserCircleIcon className="h-8 w-8 text-gray-400" />
-              <div className="ml-3 flex-1">
-                <p className="text-sm font-medium text-gray-900">
+              <UserCircleIcon className="h-8 w-8 text-gray-400 flex-shrink-0" />
+              <div className="ml-3 flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
                   {userInfo.firstName} {userInfo.lastName}
                 </p>
-                <p className="text-xs text-gray-500 capitalize">
+                <p className="text-xs text-gray-500 capitalize truncate">
                   {userInfo.role?.replace('_', ' ')}
                 </p>
               </div>
               <button
                 onClick={handleSignOut}
-                className="ml-2 p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200"
+                className="ml-2 p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200 flex-shrink-0"
                 title="Sign out"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -295,10 +300,10 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
         )}
       </div>
 
-      {/* Main content */}
-      <div className="lg:pl-64 h-full overflow-y-auto">
-        {/* Top bar */}
-        <div className="sticky top-0 z-30 bg-white shadow-sm border-b border-gray-200">
+      {/* Main content area */}
+      <div className="lg:pl-64 min-h-screen flex flex-col">
+        {/* Admin Top bar - Higher z-index than main header */}
+        <div className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-200">
           <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
             {/* Mobile menu button */}
             <button
@@ -340,8 +345,8 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
         </div>
 
         {/* Page content */}
-        <main className="py-6">
-          <div className="px-4 sm:px-6 lg:px-8">
+        <main className="flex-1 py-6">
+          <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             {children}
           </div>
         </main>

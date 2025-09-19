@@ -102,6 +102,12 @@ function MobileSpacingWrapper({ children }) {
   const location = useLocation()
   const isHomePage = location.pathname === '/'
   const isAuthPage = location.pathname.startsWith('/sign-in') || location.pathname.startsWith('/sign-up')
+  const isAdminPage = location.pathname.startsWith('/admin')
+  
+  // Admin pages render their own layout, so don't wrap them
+  if (isAdminPage) {
+    return <>{children}</>
+  }
   
   // Apply mobile-content-spacing to all pages except homepage and auth pages
   const mainClassName = isHomePage || isAuthPage
@@ -113,6 +119,81 @@ function MobileSpacingWrapper({ children }) {
       {children}
     </main>
   )
+}
+
+// Conditional Header - Hidden on admin pages
+function ConditionalHeader() {
+  const location = useLocation()
+  const isAdminPage = location.pathname.startsWith('/admin')
+  
+  if (isAdminPage) {
+    return null
+  }
+  
+  return <Header />
+}
+
+// Conditional Mobile Navigation - Hidden on admin pages
+function ConditionalMobileNavigation() {
+  const location = useLocation()
+  const isAdminPage = location.pathname.startsWith('/admin')
+  
+  if (isAdminPage) {
+    return null
+  }
+  
+  return <MobileNavigation />
+}
+
+// Conditional Background - Hidden on admin pages
+function ConditionalBackground() {
+  const location = useLocation()
+  const isAdminPage = location.pathname.startsWith('/admin')
+  
+  if (isAdminPage) {
+    return null
+  }
+  
+  return (
+    <>
+      <BackgroundImage src="/hero/tiny-home-dusk.png" />
+      <FirefliesBackground density={0.12} color="#FFD86B" parallax={0.25} />
+    </>
+  )
+}
+
+// Conditional components for admin pages
+function ConditionalOfflineIndicator() {
+  const location = useLocation()
+  const isAdminPage = location.pathname.startsWith('/admin')
+  
+  if (isAdminPage) {
+    return null
+  }
+  
+  return <OfflineIndicator />
+}
+
+function ConditionalCustomizationMigration() {
+  const location = useLocation()
+  const isAdminPage = location.pathname.startsWith('/admin')
+  
+  if (isAdminPage) {
+    return null
+  }
+  
+  return <CustomizationMigration />
+}
+
+function ConditionalFooter() {
+  const location = useLocation()
+  const isAdminPage = location.pathname.startsWith('/admin')
+  
+  if (isAdminPage) {
+    return null
+  }
+  
+  return <Footer />
 }
 
 function App() {
@@ -262,24 +343,23 @@ function App() {
               Skip to navigation
             </a>
             
-            {/* Background image with gradient + animated fireflies above it */}
-            <BackgroundImage src="/hero/tiny-home-dusk.png" />
-            <FirefliesBackground density={0.12} color="#FFD86B" parallax={0.25} />
+            {/* Background image with gradient + animated fireflies above it - Hidden on admin pages */}
+            <ConditionalBackground />
             
-            {/* Desktop Navigation */}
+            {/* Desktop Navigation - Hidden on admin pages */}
             <div className="hidden md:block">
-              <Header />
+              <ConditionalHeader />
             </div>
             
-            {/* Mobile Navigation */}
+            {/* Mobile Navigation - Hidden on admin pages */}
             <div className="md:hidden">
-              <MobileNavigation />
+              <ConditionalMobileNavigation />
             </div>
 
             <div className="flex-1">
               <MobileSpacingWrapper>
-                <OfflineIndicator />
-                <CustomizationMigration />
+                <ConditionalOfflineIndicator />
+                <ConditionalCustomizationMigration />
                 <Suspense fallback={<PageLoadingSpinner />}>
                   <Routes>
               <Route 
@@ -493,7 +573,7 @@ function App() {
                   </Suspense>
                 </MobileSpacingWrapper>
               </div>
-          <Footer />
+          <ConditionalFooter />
                   </div>
         </Router>
       </NetworkErrorHandler>
