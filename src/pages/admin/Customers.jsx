@@ -32,6 +32,8 @@ import {
 } from '@heroicons/react/24/outline'
 import AdminLayout from '../../components/AdminLayout'
 import CustomerDetailModal from '../../components/CustomerDetailModal'
+import RealTimeMonitor from '../../components/admin/RealTimeMonitor'
+import AddCustomerModal from '../../components/admin/AddCustomerModal'
 import { useAuth } from '@clerk/clerk-react'
 
 const AdminCustomers = () => {
@@ -58,6 +60,8 @@ const AdminCustomers = () => {
   const [showRealTime, setShowRealTime] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState(null)
   const [showCustomerModal, setShowCustomerModal] = useState(false)
+  const [showRealTimeMonitor, setShowRealTimeMonitor] = useState(false)
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false)
   const [sortConfig, setSortConfig] = useState({
     field: 'createdAt',
     direction: 'desc'
@@ -266,6 +270,22 @@ const AdminCustomers = () => {
     return { status: 'Inactive', color: 'text-red-600' }
   }
 
+  // Handle real-time monitor
+  const handleRealTimeMonitor = () => {
+    setShowRealTimeMonitor(true)
+  }
+
+  // Handle add customer
+  const handleAddCustomer = () => {
+    setShowAddCustomerModal(true)
+  }
+
+  // Handle customer added callback
+  const handleCustomerAdded = (newCustomer) => {
+    // Refresh customer list
+    fetchCustomers()
+  }
+
   // Handle customer detail view
   const handleViewCustomer = async (customer) => {
     try {
@@ -368,26 +388,23 @@ const AdminCustomers = () => {
           </div>
           
           <div className="flex items-center space-x-3">
-            {/* Real-time Monitor Toggle */}
+            {/* Real-time Monitor */}
             <button
-              onClick={() => setShowRealTime(!showRealTime)}
-              className={`inline-flex items-center px-3 py-2 border text-sm font-medium rounded-md transition-colors ${
-                showRealTime 
-                  ? 'border-green-300 text-green-700 bg-green-50 hover:bg-green-100'
-                  : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
-              }`}
+              onClick={handleRealTimeMonitor}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 text-sm font-medium rounded-md transition-colors"
             >
               <ClockIcon className="h-4 w-4 mr-2" />
               Real-Time Monitor
             </button>
             
-            <Link
-              to="/admin/customers/new"
+            {/* Add Customer */}
+            <button
+              onClick={handleAddCustomer}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               <PlusIcon className="h-4 w-4 mr-2" />
               Add Customer
-            </Link>
+            </button>
           </div>
         </div>
       </div>
@@ -850,6 +867,19 @@ const AdminCustomers = () => {
         customer={selectedCustomer}
         isOpen={showCustomerModal}
         onClose={() => setShowCustomerModal(false)}
+      />
+
+      {/* Real-Time Monitor Modal */}
+      <RealTimeMonitor
+        isOpen={showRealTimeMonitor}
+        onClose={() => setShowRealTimeMonitor(false)}
+      />
+
+      {/* Add Customer Modal */}
+      <AddCustomerModal
+        isOpen={showAddCustomerModal}
+        onClose={() => setShowAddCustomerModal(false)}
+        onCustomerAdded={handleCustomerAdded}
       />
     </AdminLayout>
   )
