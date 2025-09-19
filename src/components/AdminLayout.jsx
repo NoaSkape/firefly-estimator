@@ -48,8 +48,7 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
       name: 'AI Insights',
       href: '/admin/ai-insights',
       icon: LightBulbIcon,
-      permission: 'financial:view',
-      badge: 'NEW'
+      permission: 'financial:view'
     },
     {
       name: 'Analytics',
@@ -103,36 +102,31 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
       name: 'Integrations',
       href: '/admin/integrations',
       icon: CloudArrowUpIcon,
-      permission: 'integrations:view',
-      badge: 'NEW'
+      permission: 'integrations:view'
     },
     {
       name: 'Security & Audit',
       href: '/admin/security',
       icon: ShieldCheckIcon,
-      permission: 'security:view',
-      badge: 'NEW'
+      permission: 'security:view'
     },
     {
       name: 'Workflows',
       href: '/admin/workflows',
       icon: WrenchScrewdriverIcon,
-      permission: 'workflows:view',
-      badge: 'NEW'
+      permission: 'workflows:view'
     },
     {
       name: 'Monitoring',
       href: '/admin/monitoring',
       icon: EyeIcon,
-      permission: 'monitoring:view',
-      badge: 'NEW'
+      permission: 'monitoring:view'
     },
     {
       name: 'Data Export',
       href: '/admin/export',
       icon: CpuChipIcon,
-      permission: 'export:view',
-      badge: 'NEW'
+      permission: 'export:view'
     },
     {
       name: 'Settings',
@@ -203,7 +197,7 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-16">
+    <div className="min-h-screen bg-gray-50">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
@@ -214,8 +208,8 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
         </div>
       )}
 
-      {/* Admin Breadcrumb Bar - Shows we're in admin */}
-      <div className="fixed top-16 left-0 right-0 z-20 bg-gradient-to-r from-blue-600 to-blue-700 border-b border-blue-800 shadow-sm">
+      {/* Admin Breadcrumb Bar - Positioned below main header */}
+      <div className="sticky top-16 left-0 right-0 z-20 bg-gradient-to-r from-blue-600 to-blue-700 border-b border-blue-800 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-12">
             <div className="flex items-center space-x-3">
@@ -420,7 +414,7 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
       </div>
 
       {/* Main content area */}
-      <div className="lg:pl-64 pt-12">
+      <div className="lg:pl-64 pt-28">
         {/* Page content with proper spacing */}
         <main className="min-h-screen bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
