@@ -130,8 +130,8 @@ router.get('/events', async (req, res) => {
   }
 })
 
-// Get security dashboard
-router.get('/dashboard', async (req, res) => {
+// Get security overview (renamed from /dashboard to avoid route conflicts)
+router.get('/overview', async (req, res) => {
   try {
     const { range = '7d' } = req.query
     const db = await getDb()

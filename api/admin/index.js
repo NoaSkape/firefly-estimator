@@ -249,13 +249,11 @@ router.get('/_debug/routers', (req, res) => {
   }
 })
 
-// DISABLED: Router hardening middleware that was causing undefined.apply errors
-// This middleware was modifying the router stack during request processing, causing race conditions
-// Since ADMIN_AUTH_DISABLED=true, we don't need this hardening anyway
-// router.use((req, res, next) => {
-//   try { hardenRouterLocal(router, 'admin@rq'); } catch {}
-//   next()
-// })
+// Re-enabled: Router hardening middleware (main app hardening disabled instead)
+router.use((req, res, next) => {
+  try { hardenRouterLocal(router, 'admin@rq'); } catch {}
+  next()
+})
 
 // Public GET /me (token optional). This is defined BEFORE auth middleware to avoid
 // middleware chain issues and to allow soft probing of the current user.
@@ -1026,8 +1024,34 @@ function mountSafe(path, subrouter, name) {
   router.use(path, subrouter)
 }
 
-// Mount sub-routers safely
-mountSafe('/dashboard', dashboardRouter, 'dashboardRouter')
+// TEMPORARY: Disable dashboard router mounting to test if this fixes the issue
+// mountSafe('/dashboard', dashboardRouter, 'dashboardRouter')
+console.log('[DEBUG_ADMIN] Dashboard router mounting DISABLED for testing')
+
+// INLINE DASHBOARD ROUTE FOR TESTING
+router.get('/dashboard', (req, res) => {
+  console.log('[DEBUG_ADMIN] INLINE dashboard route called - bypassing dashboard router')
+  res.json({
+    success: true,
+    data: {
+      metrics: {
+        totalUsers: 0,
+        activeBuilds: 0,
+        totalOrders: 0,
+        totalRevenue: 0,
+        revenueChange: 0,
+        newUsers: 0
+      },
+      growth: { userGrowth: 0, revenueGrowth: 0 },
+      trends: { dailyRevenue: [], orderStatus: [] },
+      recentActivity: { orders: [], builds: [] },
+      topModels: [],
+      timeRange: req.query.range || '30d',
+      databaseAvailable: false,
+      message: 'INLINE ROUTE - Bypassing dashboard router entirely'
+    }
+  })
+})
 mountSafe('/reports', reportsRouter, 'reportsRouter')
 mountSafe('/analytics', analyticsRouter, 'analyticsRouter')
 mountSafe('/orders', ordersRouter, 'ordersRouter')

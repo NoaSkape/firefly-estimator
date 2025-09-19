@@ -37,8 +37,8 @@ const financialReportSchema = z.object({
   includeProjections: z.boolean().optional().default(false)
 })
 
-// Get comprehensive financial dashboard
-router.get('/dashboard', async (req, res) => {
+// Get comprehensive financial overview (renamed from /dashboard to avoid route conflicts)
+router.get('/overview', async (req, res) => {
   try {
     const { range = '30d', includeProjections = false } = req.query
     const db = await getDb()

@@ -7829,9 +7829,10 @@ if (adminRouter) {
   // Use separate calls instead of an array to avoid any edge cases in serverless routing.
   app.use('/api/admin', adminRouter)
   app.use('/admin', adminRouter)
-  // Harden both app and admin routers to avoid undefined.apply errors
-  hardenRouter(app._router, 'app')
-  hardenRouter(adminRouter, 'admin')
+  // DISABLED: Router hardening was causing race conditions and undefined.apply errors
+  // hardenRouter(app._router, 'app')
+  // hardenRouter(adminRouter, 'admin')
+  console.log('[DEBUG_ADMIN] Router hardening disabled to prevent race conditions')
 
   // Optional deep trace for debugging in production (set DEBUG_ADMIN=true)
   if (process.env.DEBUG_ADMIN === 'true') {
