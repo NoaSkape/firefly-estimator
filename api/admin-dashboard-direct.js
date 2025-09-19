@@ -364,7 +364,7 @@ export default async function handler(req, res) {
     }
 
     // Helper function to create real customer data
-    const createRealCustomerData = async () => {
+    const createRealCustomerData = async (database) => {
       const customers = []
       
       try {
@@ -378,9 +378,9 @@ export default async function handler(req, res) {
             
             // Get user profiles for addresses
             let userProfiles = []
-            if (db) {
+            if (database) {
               try {
-                const profilesCollection = db.collection('UserProfiles')
+                const profilesCollection = database.collection('UserProfiles')
                 userProfiles = await profilesCollection.find({}).toArray()
                 console.log('[DIRECT_DASHBOARD] Fetched', userProfiles.length, 'user profiles')
               } catch (profileError) {
@@ -390,9 +390,9 @@ export default async function handler(req, res) {
             
             // Get real user analytics data
             let userAnalytics = []
-            if (db) {
+            if (database) {
               try {
-                const analyticsCollection = db.collection('UserAnalytics')
+                const analyticsCollection = database.collection('UserAnalytics')
                 userAnalytics = await analyticsCollection.find({}).toArray()
                 console.log('[DIRECT_DASHBOARD] Fetched', userAnalytics.length, 'user analytics records')
               } catch (analyticsError) {
@@ -597,7 +597,7 @@ export default async function handler(req, res) {
     }
 
     // Create real customer data from Clerk users and database
-    const realCustomers = await createRealCustomerData()
+    const realCustomers = await createRealCustomerData(db)
 
     const response = {
       success: true,
