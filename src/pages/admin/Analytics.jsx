@@ -1,7 +1,7 @@
 // Admin Analytics & Reporting Dashboard
 // Comprehensive business intelligence with charts, metrics, and insights
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { 
   ChartBarIcon,
@@ -17,10 +17,44 @@ import {
   EyeIcon,
   DocumentArrowDownIcon,
   CalendarDaysIcon,
-  ClockIcon
+  ClockIcon,
+  ChartPieIcon,
+  PresentationChartLineIcon,
+  FunnelIcon
 } from '@heroicons/react/24/outline'
 import AdminLayout from '../../components/AdminLayout'
 import { useAuth } from '@clerk/clerk-react'
+
+// Chart.js imports
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  TimeScale
+} from 'chart.js'
+import { Line, Bar, Doughnut, Pie } from 'react-chartjs-2'
+import 'chartjs-adapter-date-fns'
+
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  TimeScale
+)
 
 const AdminAnalytics = () => {
   const { getToken } = useAuth()
@@ -29,6 +63,9 @@ const AdminAnalytics = () => {
   const [error, setError] = useState(null)
   const [timeRange, setTimeRange] = useState('30d') // 7d, 30d, 90d, 1y
   const [selectedMetric, setSelectedMetric] = useState('revenue')
+  const [chartGrouping, setChartGrouping] = useState('day') // day, month, quarter, year
+  const [drillDownData, setDrillDownData] = useState(null)
+  const [showDrillDown, setShowDrillDown] = useState(false)
 
   // Fetch analytics data
   useEffect(() => {
@@ -100,6 +137,177 @@ const AdminAnalytics = () => {
       )
     }
     return <span className="text-sm text-gray-500">0%</span>
+  }
+
+  // Process chart data based on grouping
+  const processChartData = useMemo(() => {
+    if (!analyticsData?.metrics?.revenue?.daily) return null
+
+    const data = analyticsData.metrics.revenue.daily
+    let processedData = []
+
+    switch (chartGrouping) {
+      case 'day':
+        processedData = data.slice(-30) // Last 30 days
+        break
+      case 'month':
+        // Group by month
+        const monthlyData = {}
+        data.forEach(item => {
+          const date = new Date(item._id.date)
+          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+          if (!monthlyData[monthKey]) {
+            monthlyData[monthKey] = { total: 0, count: 0, date: monthKey }
+          }
+          monthlyData[monthKey].total += item.total
+          monthlyData[monthKey].count += item.count
+        })
+        processedData = Object.values(monthlyData).slice(-12) // Last 12 months
+        break
+      case 'quarter':
+        // Group by quarter
+        const quarterlyData = {}
+        data.forEach(item => {
+          const date = new Date(item._id.date)
+          const quarter = Math.floor(date.getMonth() / 3) + 1
+          const quarterKey = `${date.getFullYear()}-Q${quarter}`
+          if (!quarterlyData[quarterKey]) {
+            quarterlyData[quarterKey] = { total: 0, count: 0, date: quarterKey }
+          }
+          quarterlyData[quarterKey].total += item.total
+          quarterlyData[quarterKey].count += item.count
+        })
+        processedData = Object.values(quarterlyData).slice(-8) // Last 8 quarters
+        break
+      case 'year':
+        // Group by year
+        const yearlyData = {}
+        data.forEach(item => {
+          const date = new Date(item._id.date)
+          const yearKey = date.getFullYear().toString()
+          if (!yearlyData[yearKey]) {
+            yearlyData[yearKey] = { total: 0, count: 0, date: yearKey }
+          }
+          yearlyData[yearKey].total += item.total
+          yearlyData[yearKey].count += item.count
+        })
+        processedData = Object.values(yearlyData).slice(-5) // Last 5 years
+        break
+    }
+
+    return {
+      labels: processedData.map(item => {
+        if (chartGrouping === 'day') {
+          return new Date(item._id.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        }
+        return item.date
+      }),
+      datasets: [
+        {
+          label: 'Revenue',
+          data: processedData.map(item => item.total),
+          backgroundColor: 'rgba(59, 130, 246, 0.5)',
+          borderColor: 'rgba(59, 130, 246, 1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4
+        }
+      ]
+    }
+  }, [analyticsData, chartGrouping])
+
+  // Order status chart data
+  const orderStatusChartData = useMemo(() => {
+    if (!analyticsData?.metrics?.orders?.byStatus) return null
+
+    const colors = [
+      'rgba(59, 130, 246, 0.8)', // blue
+      'rgba(16, 185, 129, 0.8)', // green
+      'rgba(245, 158, 11, 0.8)', // yellow
+      'rgba(239, 68, 68, 0.8)',  // red
+      'rgba(139, 92, 246, 0.8)', // purple
+      'rgba(236, 72, 153, 0.8)', // pink
+    ]
+
+    return {
+      labels: analyticsData.metrics.orders.byStatus.map(status => 
+        status._id?.replace('_', ' ') || 'Unknown'
+      ),
+      datasets: [
+        {
+          data: analyticsData.metrics.orders.byStatus.map(status => status.count),
+          backgroundColor: colors.slice(0, analyticsData.metrics.orders.byStatus.length),
+          borderWidth: 2,
+          borderColor: '#ffffff'
+        }
+      ]
+    }
+  }, [analyticsData])
+
+  // Handle metric click for drill-down
+  const handleMetricClick = (metricType, data) => {
+    setDrillDownData({ type: metricType, data })
+    setShowDrillDown(true)
+  }
+
+  // Export functionality
+  const exportToCSV = () => {
+    if (!analyticsData) return
+
+    const csvData = []
+    csvData.push(['Metric', 'Value', 'Change'])
+    csvData.push(['Total Revenue', analyticsData.metrics?.revenue?.current || 0, analyticsData.metrics?.revenue?.change || 0])
+    csvData.push(['Total Orders', analyticsData.metrics?.orders?.current || 0, ''])
+    csvData.push(['Total Users', analyticsData.metrics?.users?.total || 0, ''])
+
+    // Add daily revenue data
+    if (analyticsData.metrics?.revenue?.daily) {
+      csvData.push(['', '', ''])
+      csvData.push(['Date', 'Daily Revenue', 'Orders'])
+      analyticsData.metrics.revenue.daily.forEach(day => {
+        csvData.push([day._id.date, day.total, day.count])
+      })
+    }
+
+    const csvContent = csvData.map(row => row.join(',')).join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `analytics-report-${timeRange}-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+  }
+
+  // Chart options
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top'
+      },
+      title: {
+        display: true,
+        text: `Revenue Trends (${chartGrouping})`
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          callback: function(value) {
+            return formatCurrency(value)
+          }
+        }
+      }
+    },
+    onClick: (event, elements) => {
+      if (elements.length > 0) {
+        const index = elements[0].index
+        const data = processChartData?.datasets[0]?.data[index]
+        handleMetricClick('revenue_detail', { date: processChartData?.labels[index], revenue: data })
+      }
+    }
   }
 
   // Loading state
@@ -174,10 +382,31 @@ const AdminAnalytics = () => {
               ))}
             </div>
 
+            {/* Chart Grouping Selector */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-700">Group By:</span>
+              {['day', 'month', 'quarter', 'year'].map((group) => (
+                <button
+                  key={group}
+                  onClick={() => setChartGrouping(group)}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors capitalize ${
+                    chartGrouping === group
+                      ? 'bg-green-100 text-green-700'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {group}
+                </button>
+              ))}
+            </div>
+
             {/* Export Button */}
-            <button className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            <button 
+              onClick={exportToCSV}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
               <DocumentArrowDownIcon className="h-4 w-4 mr-2" />
-              Export Report
+              Export CSV
             </button>
           </div>
         </div>
@@ -186,7 +415,10 @@ const AdminAnalytics = () => {
       {/* Key Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* Revenue */}
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div 
+          className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => handleMetricClick('revenue', analyticsData?.metrics?.revenue)}
+        >
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -201,6 +433,9 @@ const AdminAnalytics = () => {
                     {formatCurrency(analyticsData?.metrics?.revenue?.current || 0)}
                   </dd>
                 </dl>
+              </div>
+              <div className="flex-shrink-0">
+                <EyeIcon className="h-4 w-4 text-gray-400" />
               </div>
             </div>
           </div>
@@ -217,7 +452,10 @@ const AdminAnalytics = () => {
         </div>
 
         {/* Orders */}
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div 
+          className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => handleMetricClick('orders', analyticsData?.metrics?.orders)}
+        >
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -232,6 +470,9 @@ const AdminAnalytics = () => {
                     {formatNumber(analyticsData?.metrics?.orders?.current || 0)}
                   </dd>
                 </dl>
+              </div>
+              <div className="flex-shrink-0">
+                <EyeIcon className="h-4 w-4 text-gray-400" />
               </div>
             </div>
           </div>
@@ -318,37 +559,17 @@ const AdminAnalytics = () => {
         <div className="bg-white shadow rounded-lg">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">Revenue Trend</h3>
-            <p className="text-sm text-gray-500">Revenue performance over time</p>
+            <p className="text-sm text-gray-500">Revenue performance over time (grouped by {chartGrouping})</p>
           </div>
           <div className="p-6">
-            {analyticsData?.metrics?.revenue?.daily?.length > 0 ? (
+            {processChartData ? (
               <div className="h-64">
-                <div className="flex items-end justify-between h-full space-x-1">
-                  {analyticsData.metrics.revenue.daily.slice(-7).map((day, index) => {
-                    const maxRevenue = Math.max(...analyticsData.metrics.revenue.daily.map(d => d.total))
-                    const height = maxRevenue > 0 ? (day.total / maxRevenue) * 100 : 0
-                    return (
-                      <div key={day._id.date || index} className="flex-1 flex flex-col items-center">
-                        <div 
-                          className="w-full bg-blue-500 rounded-t-sm min-h-[4px] transition-all hover:bg-blue-600"
-                          style={{ height: `${Math.max(height, 2)}%` }}
-                          title={`${day._id.date}: ${formatCurrency(day.total)}`}
-                        ></div>
-                        <div className="mt-2 text-xs text-gray-500 text-center">
-                          {day._id.date ? new Date(day._id.date).getDate() : index + 1}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-                <div className="mt-4 text-center">
-                  <p className="text-sm text-gray-600">Daily Revenue - Last 7 Days</p>
-                </div>
+                <Line data={processChartData} options={chartOptions} />
               </div>
             ) : (
               <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
                 <div className="text-center">
-                  <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                  <PresentationChartLineIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
                   <p className="text-gray-500">No revenue data available for chart</p>
                   <p className="text-sm text-gray-400">Revenue data will appear here when orders are confirmed</p>
                 </div>
@@ -364,36 +585,36 @@ const AdminAnalytics = () => {
             <p className="text-sm text-gray-500">Current order pipeline status</p>
           </div>
           <div className="p-6">
-            <div className="space-y-4">
-              {analyticsData?.metrics?.orders?.byStatus?.map((status, index) => {
-                const colors = [
-                  'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-red-500', 
-                  'bg-purple-500', 'bg-pink-500', 'bg-indigo-500'
-                ]
-                return (
-                  <div key={status._id} className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className={`w-3 h-3 rounded-full mr-3 ${colors[index % colors.length]}`}></div>
-                      <span className="text-sm font-medium text-gray-900 capitalize">
-                        {status._id?.replace('_', ' ') || 'Unknown'}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-900">{status.count}</span>
-                      <span className="text-sm text-gray-500">
-                        ({analyticsData.metrics.orders.current > 0 ? 
-                          ((status.count / analyticsData.metrics.orders.current) * 100).toFixed(1) : 0}%)
-                      </span>
-                    </div>
-                  </div>
-                )
-              }) || (
-                <div className="text-center text-gray-500 py-8">
-                  <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                  <p>No order status data available</p>
+            {orderStatusChartData ? (
+              <div className="h-64 flex items-center justify-center">
+                <Doughnut 
+                  data={orderStatusChartData} 
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        position: 'bottom'
+                      }
+                    },
+                    onClick: (event, elements) => {
+                      if (elements.length > 0) {
+                        const index = elements[0].index
+                        const status = analyticsData.metrics.orders.byStatus[index]
+                        handleMetricClick('order_status', status)
+                      }
+                    }
+                  }} 
+                />
+              </div>
+            ) : (
+              <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
+                <div className="text-center">
+                  <ChartPieIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500">No order status data available</p>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -565,6 +786,118 @@ const AdminAnalytics = () => {
           </div>
         </div>
       </div>
+
+      {/* Drill-Down Modal */}
+      {showDrillDown && drillDownData && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900 capitalize">
+                  {drillDownData.type.replace('_', ' ')} Details
+                </h3>
+                <button
+                  onClick={() => setShowDrillDown(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="bg-gray-50 rounded-lg p-4">
+                {drillDownData.type === 'revenue' && (
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium text-gray-700">Current Revenue:</span>
+                      <span className="text-sm text-gray-900">{formatCurrency(drillDownData.data?.current || 0)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium text-gray-700">Previous Period:</span>
+                      <span className="text-sm text-gray-900">{formatCurrency(drillDownData.data?.previous || 0)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium text-gray-700">Change:</span>
+                      <span className="text-sm text-gray-900">{drillDownData.data?.change?.toFixed(1) || 0}%</span>
+                    </div>
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Daily Breakdown:</h4>
+                      <div className="max-h-40 overflow-y-auto space-y-1">
+                        {drillDownData.data?.daily?.slice(-10).map((day, index) => (
+                          <div key={index} className="flex justify-between text-xs">
+                            <span className="text-gray-600">{day._id.date}</span>
+                            <span className="text-gray-900">{formatCurrency(day.total)}</span>
+                          </div>
+                        )) || <p className="text-xs text-gray-500">No daily data available</p>}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {drillDownData.type === 'orders' && (
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium text-gray-700">Total Orders:</span>
+                      <span className="text-sm text-gray-900">{drillDownData.data?.current || 0}</span>
+                    </div>
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Status Breakdown:</h4>
+                      <div className="space-y-1">
+                        {drillDownData.data?.byStatus?.map((status, index) => (
+                          <div key={index} className="flex justify-between text-xs">
+                            <span className="text-gray-600 capitalize">{status._id?.replace('_', ' ')}</span>
+                            <span className="text-gray-900">{status.count}</span>
+                          </div>
+                        )) || <p className="text-xs text-gray-500">No status data available</p>}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {drillDownData.type === 'revenue_detail' && (
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium text-gray-700">Date:</span>
+                      <span className="text-sm text-gray-900">{drillDownData.data?.date}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium text-gray-700">Revenue:</span>
+                      <span className="text-sm text-gray-900">{formatCurrency(drillDownData.data?.revenue || 0)}</span>
+                    </div>
+                  </div>
+                )}
+                
+                {drillDownData.type === 'order_status' && (
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium text-gray-700">Status:</span>
+                      <span className="text-sm text-gray-900 capitalize">{drillDownData.data?._id?.replace('_', ' ')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium text-gray-700">Count:</span>
+                      <span className="text-sm text-gray-900">{drillDownData.data?.count}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium text-gray-700">Total Revenue:</span>
+                      <span className="text-sm text-gray-900">{formatCurrency(drillDownData.data?.total || 0)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={() => setShowDrillDown(false)}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   )
 }
