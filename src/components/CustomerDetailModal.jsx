@@ -203,9 +203,12 @@ export default function CustomerDetailModal({ customer, isOpen, onClose }) {
         </div>
       </div>
 
-      {/* Orders */}
+      {/* Orders (Step 8: Confirmed Orders) */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Orders</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Orders (Step 8)</h3>
+          <div className="text-sm text-gray-500">Contract Signed & Payment Confirmed</div>
+        </div>
         {customer.business.orders && customer.business.orders.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -248,13 +251,24 @@ export default function CustomerDetailModal({ customer, isOpen, onClose }) {
             </table>
           </div>
         ) : (
-          <p className="text-gray-500 text-center py-8">No orders found</p>
+          <div className="text-center py-8">
+            <CreditCardIcon className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No confirmed orders</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Orders appear here after Step 8 completion (contract signed & payment confirmed).
+              <br />
+              <span className="text-xs text-gray-400">Step 8 is currently under development.</span>
+            </p>
+          </div>
         )}
       </div>
 
-      {/* Builds */}
+      {/* Builds (Steps 1-7: Customization Process) */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Builds</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Builds (Steps 1-7)</h3>
+          <div className="text-sm text-gray-500">Customization & Contract Process</div>
+        </div>
         {customer.business.builds && customer.business.builds.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -262,42 +276,69 @@ export default function CustomerDetailModal({ customer, isOpen, onClose }) {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Build ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Step</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Updated</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {customer.business.builds.map((build, index) => (
-                  <tr key={index}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {build._id?.toString().slice(-8) || 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {build.modelName || 'Unknown Model'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        build.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                        build.status === 'DRAFT' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>
-                        {build.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {build.currentStep || 1}/8
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(build.updatedAt || build.createdAt)}
-                    </td>
-                  </tr>
-                ))}
+                {customer.business.builds.map((build, index) => {
+                  const stepNames = {
+                    1: 'Choose Home',
+                    2: 'Customize',
+                    3: 'Sign In',
+                    4: 'Delivery Address',
+                    5: 'Overview',
+                    6: 'Payment Method',
+                    7: 'Contract Signing',
+                    8: 'Confirmation'
+                  }
+                  const currentStep = build.step || 1
+                  const stepName = stepNames[currentStep] || 'Unknown'
+                  
+                  return (
+                    <tr key={index}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {build._id?.toString().slice(-8) || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {build.modelName || 'Unknown Model'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div className="flex items-center">
+                          <span className="font-medium">{currentStep}/8</span>
+                          <span className="ml-2 text-gray-500">- {stepName}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          currentStep === 8 ? 'bg-green-100 text-green-800' :
+                          currentStep >= 7 ? 'bg-blue-100 text-blue-800' :
+                          currentStep >= 4 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {currentStep === 8 ? 'Ready to Order' :
+                           currentStep >= 7 ? 'Contract Phase' :
+                           currentStep >= 4 ? 'In Progress' : 'Getting Started'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(build.updatedAt || build.createdAt)}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         ) : (
-          <p className="text-gray-500 text-center py-8">No builds found</p>
+          <div className="text-center py-8">
+            <BuildingOfficeIcon className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No builds found</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Customer hasn't started the customization process yet.
+            </p>
+          </div>
         )}
       </div>
     </div>

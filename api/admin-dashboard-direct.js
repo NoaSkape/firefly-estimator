@@ -429,26 +429,46 @@ export default async function handler(req, res) {
               // Create recent activity from orders and builds
               const recentActivity = []
               
-              // Add order activities
+              // Add order activities (Step 8 completion - contract signed + payment confirmed)
               userOrders.forEach(order => {
                 recentActivity.push({
                   type: 'order',
-                  action: `${order.status} order`,
-                  description: `Order ${order.orderId || order._id} - ${order.model?.name || 'Unknown Model'}`,
+                  action: 'Order confirmed',
+                  description: `Order ${order.orderId || order._id} - ${order.model?.name || 'Unknown Model'} - Contract signed & payment confirmed`,
                   timestamp: order.createdAt,
                   value: order.totalAmount || 0,
                   status: order.status
                 })
               })
               
-              // Add build activities
+              // Add build activities (Steps 1-7: customization, buyer info, contracts in progress)
               userBuilds.forEach(build => {
+                let buildAction = 'Build in progress'
+                let buildDescription = `Build ${build._id?.toString().slice(-8)} - ${build.modelName || 'Unknown Model'}`
+                
+                // Add step context based on build status and step
+                if (build.step) {
+                  const stepNames = {
+                    1: 'Home selected',
+                    2: 'Customization',
+                    3: 'Account created', 
+                    4: 'Buyer info completed',
+                    5: 'Overview reviewed',
+                    6: 'Payment method',
+                    7: 'Contract signing',
+                    8: 'Order confirmation (not yet available)'
+                  }
+                  buildAction = stepNames[build.step] || buildAction
+                  buildDescription += ` (Step ${build.step}/8)`
+                }
+                
                 recentActivity.push({
                   type: 'build',
-                  action: `${build.status} build`,
-                  description: `Build ${build._id} - ${build.modelName || 'Unknown Model'}`,
+                  action: buildAction,
+                  description: buildDescription,
                   timestamp: build.updatedAt || build.createdAt,
-                  status: build.status
+                  status: build.status,
+                  step: build.step
                 })
               })
               
@@ -560,7 +580,7 @@ export default async function handler(req, res) {
         },
         timeRange: range,
         databaseAvailable: true,
-        message: 'REAL DATA v4 - With Step 4 buyer info, Clerk users, and MongoDB data'
+        message: 'REAL DATA v5 - Builds (Steps 1-7) vs Orders (Step 8) distinction with buyer info'
       }
     }
 
