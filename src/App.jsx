@@ -34,6 +34,7 @@ const AdminCustomers = lazy(() => import('./pages/admin/Customers'))
 const AdminDrafts = lazy(() => import('./pages/admin/Drafts'))
 const AdminAnalytics = lazy(() => import('./pages/admin/Analytics'))
 const AnalyticsEnterprise = lazy(() => import('./pages/admin/AnalyticsEnterprise'))
+const SessionTracker = lazy(() => import('./components/analytics/SessionTracker'))
 const PublicModelDetail = lazy(() => import('./public/PublicModelDetail'))
 const PackageDetail = lazy(() => import('./public/PackageDetail'))
 const BuildsDashboard = lazy(() => import('./pages/builds/Builds'))
@@ -307,8 +308,14 @@ function App() {
       <NetworkErrorHandler>
         <Router>
           <ScrollToTop />
-                <PerformanceMonitor />
-      <div className="min-h-screen flex flex-col transition-colors duration-300" data-app-container>
+          <PerformanceMonitor />
+          
+          {/* Enterprise Session Tracking */}
+          <Suspense fallback={null}>
+            <SessionTracker />
+          </Suspense>
+          
+          <div className="min-h-screen flex flex-col transition-colors duration-300" data-app-container>
             {/* Skip links for accessibility */}
             <a href="#main-content" className="skip-link sr-only-focusable">
               Skip to main content
