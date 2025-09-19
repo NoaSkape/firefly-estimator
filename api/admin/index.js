@@ -74,6 +74,16 @@ initializeAdminDatabase()
 // Admin status probe used by the frontend to decide gating
 router.get('/is-admin', async (req, res) => {
   try {
+    // If admin auth is disabled, always return true for admin access
+    if (process.env.ADMIN_AUTH_DISABLED === 'true') {
+      return res.status(200).json({ 
+        isAdmin: true, 
+        userId: 'dev-admin', 
+        role: 'admin',
+        reason: 'auth_disabled' 
+      })
+    }
+
     // Accept Clerk Bearer token but do NOT require admin; we just report it
     const authHeader = req.headers?.authorization || req.headers?.Authorization
     const token = typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
@@ -173,6 +183,34 @@ router.get('/_debug/router', (req, res) => {
       ? router.stack.map((l, i) => ({ i, ...layerInfo(l) }))
       : []
     res.json({ ok: true, dump })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) })
+  }
+})
+
+// Enhanced diagnostic endpoint for debugging authentication issues
+router.get('/_debug/auth-status', (req, res) => {
+  if (process.env.DEBUG_ADMIN !== 'true') return res.status(404).end()
+  try {
+    const authHeader = req.headers?.authorization || req.headers?.Authorization
+    const hasToken = !!(typeof authHeader === 'string' && authHeader.startsWith('Bearer '))
+    
+    res.json({
+      ok: true,
+      environment: {
+        adminAuthDisabled: process.env.ADMIN_AUTH_DISABLED === 'true',
+        debugAdmin: process.env.DEBUG_ADMIN === 'true',
+        hasClerkSecretKey: !!process.env.CLERK_SECRET_KEY,
+        clerkKeyPrefix: process.env.CLERK_SECRET_KEY?.substring(0, 8) + '...'
+      },
+      request: {
+        hasAuthHeader: !!authHeader,
+        hasBearerToken: hasToken,
+        userAgent: req.headers['user-agent'],
+        origin: req.headers.origin
+      },
+      timestamp: new Date().toISOString()
+    })
   } catch (e) {
     res.status(500).json({ ok: false, error: e?.message || String(e) })
   }
