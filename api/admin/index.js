@@ -3,7 +3,7 @@
 // FIXES the duplicate route registration issue that was causing undefined.apply errors
 
 import express from 'express'
-import { adminAuth, PERMISSIONS } from '../../lib/adminAuth.js'
+import { adminAuth, validateAdminAccess, PERMISSIONS } from '../../lib/adminAuth.js'
 import { initializeAdminDatabase } from '../../lib/adminSchema.js'
 
 // Import all sub-routers
@@ -201,8 +201,8 @@ router.use((req, res, next) => {
     return next()
   }
   
-  if (typeof adminAuth?.validateAdminAccess === 'function') {
-    return adminAuth.validateAdminAccess(req, res, next)
+  if (typeof validateAdminAccess === 'function') {
+    return validateAdminAccess(req, res, next)
   }
   console.error('[ADMIN_CLEAN] validateAdminAccess is not a function; allowing request')
   return next()
@@ -262,3 +262,4 @@ router.use((error, req, res, next) => {
 })
 
 export default router
+

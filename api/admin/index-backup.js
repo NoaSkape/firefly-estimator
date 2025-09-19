@@ -333,7 +333,7 @@ router.use((req, res, next) => {
   }
   // Extra guard: ensure middleware function exists
   if (typeof adminAuth?.validateAdminAccess === 'function') {
-    return adminAuth.validateAdminAccess(req, res, next)
+    return validateAdminAccess(req, res, next)
   }
   console.error('[ADMIN_AUTH] validateAdminAccess is not a function; allowing request to proceed')
   return next()
@@ -1087,4 +1087,5 @@ export default router
 
 
 // SENTINEL: admin-router-write-check 2025-09-17
+
 

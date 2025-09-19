@@ -38,7 +38,7 @@ router.use = function guardedRouterUse(...args) {
   return __origRouterUse(...args)
 }
 // Admin authentication middleware for all routes
-router.use((req,res,next)=>{ if(process.env.ADMIN_AUTH_DISABLED==='true'){ return next() } return adminAuth.validateAdminAccess(req,res,next) })
+router.use((req,res,next)=>{ if(process.env.ADMIN_AUTH_DISABLED==='true'){ return next() } return validateAdminAccess(req,res,next) })
 
 // Get analytics dashboard data
 router.get('/', async (req, res) => {
@@ -599,6 +599,7 @@ function calculateRSquared(dataPoints, slope, intercept) {
 }
 
 export default router
+
 
 
 

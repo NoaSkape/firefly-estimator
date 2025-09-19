@@ -5,7 +5,7 @@ import express from 'express'
 import { z } from 'zod'
 import { getDb } from '../../lib/db.js'
 import { validateRequest } from '../../lib/requestValidation.js'
-import { adminAuth } from '../../lib/adminAuth.js'
+import { validateAdminAccess } from '../../lib/adminAuth.js'
 
 const router = express.Router()
 
@@ -28,7 +28,7 @@ router.use = function guardedRouterUse(...args) {
   return __origRouterUse(...args)
 }
 // Admin authentication middleware for all routes
-router.use((req,res,next)=>{ if(process.env.ADMIN_AUTH_DISABLED==='true'){ return next() } return adminAuth.validateAdminAccess(req,res,next) })
+router.use((req,res,next)=>{ if(process.env.ADMIN_AUTH_DISABLED==='true'){ return next() } return validateAdminAccess(req,res,next) })
 
 // Order status workflow schema
 const ORDER_STATUS_WORKFLOW = {
@@ -491,5 +491,6 @@ router.get('/alerts/overdue', async (req, res) => {
 })
 
 export default router
+
 
 

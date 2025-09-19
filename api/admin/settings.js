@@ -1,5 +1,5 @@
 import express from 'express'
-import { adminAuth } from '../../lib/adminAuth.js'
+import { validateAdminAccess } from '../../lib/adminAuth.js'
 import { getOrgSettings, updateOrgSettings } from '../../lib/settings.js'
 import { getDb } from '../../lib/db.js'
 
@@ -25,7 +25,7 @@ router.use = function guardedRouterUse(...args) {
   return __origRouterUse(...args)
 }
 // Require admin access
-router.use((req,res,next)=>{ if(process.env.ADMIN_AUTH_DISABLED==='true'){ return next() } return adminAuth.validateAdminAccess(req,res,next) })
+router.use((req,res,next)=>{ if(process.env.ADMIN_AUTH_DISABLED==='true'){ return next() } return validateAdminAccess(req,res,next) })
 
 // GET /admin/settings
 router.get('/', async (req, res) => {
@@ -78,5 +78,6 @@ router.put('/', async (req, res) => {
 })
 
 export default router
+
 
 

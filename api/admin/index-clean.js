@@ -202,7 +202,7 @@ router.use((req, res, next) => {
   }
   
   if (typeof adminAuth?.validateAdminAccess === 'function') {
-    return adminAuth.validateAdminAccess(req, res, next)
+    return validateAdminAccess(req, res, next)
   }
   console.error('[ADMIN_CLEAN] validateAdminAccess is not a function; allowing request')
   return next()
@@ -262,3 +262,4 @@ router.use((error, req, res, next) => {
 })
 
 export default router
+

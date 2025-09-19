@@ -30,7 +30,7 @@ router.use = function guardedRouterUse(...args) {
 }
 
 // Admin authentication middleware for all routes
-router.use((req, res, next) => { if (process.env.ADMIN_AUTH_DISABLED === 'true') { return next() } return adminAuth.validateAdminAccess(req, res, next) })
+router.use((req, res, next) => { if (process.env.ADMIN_AUTH_DISABLED === 'true') { return next() } return validateAdminAccess(req, res, next) })
 
 // Initialize Clerk client
 let clerkClient
@@ -633,5 +633,6 @@ router.patch('/:userId/role', adminAuth.validatePermission(PERMISSIONS.USERS_EDI
 })
 
 export default router
+
 
 

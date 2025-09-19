@@ -5,7 +5,7 @@ import express from 'express'
 import { z } from 'zod'
 import { getDb } from '../../lib/db.js'
 import { validateRequest } from '../../lib/requestValidation.js'
-import { adminAuth } from '../../lib/adminAuth.js'
+import { validateAdminAccess } from '../../lib/adminAuth.js'
 
 const router = express.Router()
 
@@ -27,7 +27,7 @@ router.use = function guardedRouterUse(...args) {
   } catch (e) { console.warn('[SUBROUTER_USE_GUARD] Failed:', e?.message) }
   return __origRouterUse(...args)
 }
-router.use((req,res,next)=>{ if(process.env.ADMIN_AUTH_DISABLED==='true'){ return next() } return adminAuth.validateAdminAccess(req,res,next) })
+router.use((req,res,next)=>{ if(process.env.ADMIN_AUTH_DISABLED==='true'){ return next() } return validateAdminAccess(req,res,next) })
 
 // Security event schema
 const securityEventSchema = z.object({
@@ -501,5 +501,6 @@ function convertSecurityLogsToCSV(events) {
 }
 
 export default router
+
 
 

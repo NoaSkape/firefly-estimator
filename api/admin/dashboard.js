@@ -8,7 +8,7 @@ import { ORDERS_COLLECTION } from '../../lib/orders.js'
 import { BUILDS_COLLECTION } from '../../lib/builds.js'
 import { COLLECTION as MODELS_COLLECTION } from '../../lib/model-utils.js'
 import { createClerkClient } from '@clerk/backend'
-import { adminAuth } from '../../lib/adminAuth.js'
+import { validateAdminAccess } from '../../lib/adminAuth.js'
 
 // Initialize Clerk client with error handling
 let clerkClient
@@ -131,3 +131,4 @@ router.get('/', (req, res) => {
 // REMOVED: All unused async code that was causing issues
 
 export default router
+
