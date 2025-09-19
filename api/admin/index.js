@@ -249,11 +249,13 @@ router.get('/_debug/routers', (req, res) => {
   }
 })
 
-// On every request, re-harden the admin router stack (belt-and-suspenders).
-router.use((req, res, next) => {
-  try { hardenRouterLocal(router, 'admin@rq'); } catch {}
-  next()
-})
+// DISABLED: Router hardening middleware that was causing undefined.apply errors
+// This middleware was modifying the router stack during request processing, causing race conditions
+// Since ADMIN_AUTH_DISABLED=true, we don't need this hardening anyway
+// router.use((req, res, next) => {
+//   try { hardenRouterLocal(router, 'admin@rq'); } catch {}
+//   next()
+// })
 
 // Public GET /me (token optional). This is defined BEFORE auth middleware to avoid
 // middleware chain issues and to allow soft probing of the current user.
