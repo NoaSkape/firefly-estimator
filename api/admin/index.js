@@ -247,7 +247,7 @@ router.use(async (req, res, next) => {
       dbInitialized = true
       console.log('[ADMIN] Admin database initialized on first request')
     } catch (error) {
-      console.warn('âš ï¸ Database still unavailable:', error.message)
+      console.warn('[ADMIN] Database still unavailable:', error.message)
       // Continue anyway - some endpoints might work without DB
     }
   }
@@ -1023,4 +1023,6 @@ router.use((error, req, res, next) => {
 
 export default router
 
+
+// SENTINEL: admin-router-write-check 2025-09-17
 
