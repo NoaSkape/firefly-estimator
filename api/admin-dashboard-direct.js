@@ -136,20 +136,36 @@ export default async function handler(req, res) {
         status: { $in: ['DRAFT', 'REVIEW', 'CONFIRMED', 'CUSTOMIZING'] }
       })
 
-      // Get recent builds
+      // Get recent builds WITH buyerInfo for Step 4 address data
       recentBuilds = await buildsCollection
         .find({}, { 
           sort: { updatedAt: -1 }, 
-          limit: 5,
+          limit: 50, // Increase limit to get more builds for customer mapping
           projection: { 
             _id: 1, 
             status: 1, 
             selections: 1, 
             updatedAt: 1,
-            userId: 1
+            createdAt: 1,
+            userId: 1,
+            modelName: 1,
+            modelSlug: 1,
+            step: 1,
+            buyerInfo: 1 // CRITICAL: Include Step 4 buyer data
           }
         })
         .toArray()
+        
+      console.log('[DIRECT_DASHBOARD] Recent builds fetched:', {
+        count: recentBuilds.length,
+        sampleBuild: recentBuilds[0] ? {
+          _id: recentBuilds[0]._id,
+          userId: recentBuilds[0].userId,
+          step: recentBuilds[0].step,
+          hasBuyerInfo: !!recentBuilds[0].buyerInfo,
+          buyerInfoKeys: recentBuilds[0].buyerInfo ? Object.keys(recentBuilds[0].buyerInfo) : []
+        } : null
+      })
 
       // 3. Get Orders Data
       const ordersCollection = db.collection(ORDERS_COLLECTION)
@@ -580,7 +596,7 @@ export default async function handler(req, res) {
         },
         timeRange: range,
         databaseAvailable: true,
-        message: 'REAL DATA v5 - Builds (Steps 1-7) vs Orders (Step 8) distinction with buyer info'
+        message: 'REAL DATA v6 - FIXED: Now includes buyerInfo projection for Step 4 addresses'
       }
     }
 
