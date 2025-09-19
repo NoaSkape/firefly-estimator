@@ -45,7 +45,8 @@ export default function AdminOverview() {
     (async ()=>{
       try {
         const token = await getToken()
-        const res = await fetch('/api/admin/dashboard', { headers: token?{ Authorization:`Bearer ${token}` }:{} })
+        // TEMPORARY: Use direct endpoint to bypass Express router issues
+        const res = await fetch('/api/admin-dashboard-direct', { headers: token?{ Authorization:`Bearer ${token}` }:{} })
         if (res.ok) {
           const data = await res.json()
           setDashboardData(data.data)

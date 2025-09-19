@@ -40,7 +40,7 @@ const Security = () => {
       const token = await getToken()
       if (!token) return
 
-      const response = await fetch(`/api/admin/security/dashboard?range=${selectedTimeRange}`, {
+      const response = await fetch(`/api/admin/security/overview?range=${selectedTimeRange}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
 

@@ -68,9 +68,9 @@ export default async function handler(req, res) {
       { name: 'express', path: 'express' },
       { name: 'clerk-backend', path: '@clerk/backend' },
       { name: 'mongodb', path: 'mongodb' },
-      { name: 'adminAuth', path: '../../lib/adminAuth.js' },
-      { name: 'db', path: '../../lib/db.js' },
-      { name: 'adminSchema', path: '../../lib/adminSchema.js' }
+      { name: 'adminAuth', path: '../lib/adminAuth.js' },
+      { name: 'db', path: '../lib/db.js' },
+      { name: 'adminSchema', path: '../lib/adminSchema.js' }
     ]
 
     masterReport.phases.modules = {}
@@ -84,7 +84,7 @@ export default async function handler(req, res) {
           hasDefault: !!imported.default,
           defaultType: typeof imported.default,
           namedExports: Object.keys(imported).filter(k => k !== 'default'),
-          size: JSON.stringify(imported).length
+          exportCount: Object.keys(imported).length
         }
       } catch (error) {
         masterReport.phases.modules[module.name] = {
@@ -117,7 +117,7 @@ export default async function handler(req, res) {
     for (const routerFile of adminRouterFiles) {
       try {
         console.log(`[MASTER_DEBUG] ${debugId} - Analyzing ${routerFile} router`)
-        const routerModule = await import(`../admin/${routerFile}.js`)
+        const routerModule = await import(`./admin/${routerFile}.js`)
         const router = routerModule.default
         
         const analysis = {
