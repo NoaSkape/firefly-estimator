@@ -203,7 +203,7 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="fixed inset-0 bg-gray-50 overflow-hidden">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
@@ -296,7 +296,7 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-64 h-full overflow-y-auto">
         {/* Top bar */}
         <div className="sticky top-0 z-30 bg-white shadow-sm border-b border-gray-200">
           <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
@@ -341,7 +341,7 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
 
         {/* Page content */}
         <main className="py-6">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="px-4 sm:px-6 lg:px-8">
             {children}
           </div>
         </main>
