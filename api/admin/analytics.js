@@ -193,6 +193,10 @@ router.get('/', async (req, res) => {
           previous: { start: previousStartDate, end: startDate }
         },
         metrics: {
+          users: {
+            total: totalUsers,
+            new: newUsersCount
+          },
           revenue: {
             current: currentRevenue,
             previous: previousRevenueTotal,
