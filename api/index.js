@@ -4566,6 +4566,210 @@ app.post(['/api/analytics/event', '/analytics/event'], async (req, res) => {
   }
 })
 
+// Session tracking endpoints for enterprise analytics
+app.post(['/api/analytics/session/start', '/analytics/session/start'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+    
+    const db = await getDb()
+    const sessionsCol = db.collection('Sessions')
+    
+    const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const session = {
+      sessionId,
+      userId: auth?.userId || null,
+      startTime: new Date(),
+      isActive: true,
+      userAgent: body.userAgent,
+      referrer: body.referrer,
+      landingPage: body.landingPage,
+      device: detectDevice(body.userAgent),
+      pageViews: 0,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+    
+    await sessionsCol.insertOne(session)
+    console.log('[ANALYTICS] Session started:', sessionId, 'for user:', auth?.userId)
+    
+    res.json({ success: true, sessionId })
+  } catch (error) {
+    console.error('[ANALYTICS] Session start error:', error)
+    res.status(500).json({ error: 'Failed to start session' })
+  }
+})
+
+app.post(['/api/analytics/pageview', '/analytics/pageview'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+    
+    const db = await getDb()
+    const pageViewsCol = db.collection('PageViews')
+    const sessionsCol = db.collection('Sessions')
+    
+    // Insert page view
+    await pageViewsCol.insertOne({
+      sessionId: body.sessionId,
+      userId: auth?.userId || null,
+      page: body.page,
+      title: body.title,
+      url: body.url,
+      timestamp: new Date(),
+      createdAt: new Date()
+    })
+    
+    // Update session page view count
+    if (body.sessionId) {
+      await sessionsCol.updateOne(
+        { sessionId: body.sessionId },
+        { 
+          $inc: { pageViews: 1 },
+          $set: { updatedAt: new Date() }
+        }
+      )
+    }
+    
+    console.log('[ANALYTICS] Page view tracked:', body.page, 'session:', body.sessionId)
+    res.json({ success: true })
+  } catch (error) {
+    console.error('[ANALYTICS] Page view error:', error)
+    res.status(500).json({ error: 'Failed to track page view' })
+  }
+})
+
+app.post(['/api/analytics/session/end', '/analytics/session/end'], async (req, res) => {
+  try {
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+    
+    const db = await getDb()
+    const sessionsCol = db.collection('Sessions')
+    
+    const endTime = new Date()
+    const session = await sessionsCol.findOne({ sessionId: body.sessionId })
+    
+    if (session) {
+      const duration = Math.round((endTime - new Date(session.startTime)) / 1000)
+      
+      await sessionsCol.updateOne(
+        { sessionId: body.sessionId },
+        {
+          $set: {
+            endTime,
+            duration,
+            isActive: false,
+            updatedAt: endTime
+          }
+        }
+      )
+      
+      console.log('[ANALYTICS] Session ended:', body.sessionId, 'duration:', duration, 'seconds')
+    }
+    
+    res.json({ success: true })
+  } catch (error) {
+    console.error('[ANALYTICS] Session end error:', error)
+    res.status(500).json({ error: 'Failed to end session' })
+  }
+})
+
+// Helper function for device detection
+function detectDevice(userAgent) {
+  if (!userAgent) return 'unknown'
+  if (/Mobile|Android|iPhone/.test(userAgent)) return 'mobile'
+  if (/iPad|Tablet/.test(userAgent)) return 'tablet'
+  return 'desktop'
+}
+
+// Real-time monitor endpoint for admin
+app.get(['/api/admin/realtime-monitor', '/admin/realtime-monitor'], async (req, res) => {
+  try {
+    // Basic admin auth check
+    if (process.env.ADMIN_AUTH_DISABLED !== 'true') {
+      const auth = await requireAuth(req, res, false)
+      if (!auth?.userId) return res.status(401).json({ error: 'Authentication required' })
+    }
+    
+    const db = await getDb()
+    const now = new Date()
+    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000)
+    const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000)
+
+    // Get active sessions
+    const activeSessions = await db.collection('Sessions')
+      .find({
+        isActive: true,
+        updatedAt: { $gte: fiveMinutesAgo }
+      })
+      .sort({ updatedAt: -1 })
+      .limit(50)
+      .toArray()
+
+    // Get recent activity
+    const recentPageViews = await db.collection('PageViews')
+      .find({ timestamp: { $gte: thirtyMinutesAgo } })
+      .sort({ timestamp: -1 })
+      .limit(20)
+      .toArray()
+
+    // Build activity feed
+    const recentActivity = recentPageViews.map(pv => ({
+      type: 'pageview',
+      description: `Viewed ${pv.page}`,
+      user: pv.userId ? 'Registered User' : 'Anonymous',
+      timeAgo: getTimeAgo(pv.timestamp),
+      timestamp: pv.timestamp
+    }))
+
+    // Calculate stats
+    const stats = {
+      currentVisitors: activeSessions.length,
+      avgSessionTime: activeSessions.length > 0 
+        ? activeSessions.reduce((sum, s) => {
+            const duration = s.duration || ((now - new Date(s.startTime)) / 1000)
+            return sum + duration
+          }, 0) / activeSessions.length 
+        : 0,
+      topPages: [],
+      devices: { desktop: 0, mobile: 0, tablet: 0 }
+    }
+
+    console.log('[REALTIME_MONITOR] Returning data:', {
+      activeSessions: activeSessions.length,
+      recentActivity: recentActivity.length
+    })
+
+    res.json({
+      success: true,
+      activeSessions: activeSessions.map(s => ({
+        sessionId: s.sessionId,
+        userId: s.userId,
+        device: s.device,
+        currentPage: s.landingPage,
+        duration: s.duration || Math.round((now - new Date(s.startTime)) / 1000),
+        startTime: s.startTime
+      })),
+      recentActivity: recentActivity.slice(0, 15),
+      stats
+    })
+  } catch (error) {
+    console.error('[REALTIME_MONITOR] Error:', error)
+    res.status(500).json({ error: 'Failed to fetch real-time data' })
+  }
+})
+
+// Helper function for time ago
+function getTimeAgo(timestamp) {
+  const now = new Date()
+  const diff = Math.floor((now - new Date(timestamp)) / 1000)
+  
+  if (diff < 60) return `${diff}s ago`
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  return `${Math.floor(diff / 86400)}d ago`
+}
+
 // ----- User Profile Management -----
 
 // Get user profile

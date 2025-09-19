@@ -365,22 +365,26 @@ export default async function handler(req, res) {
             
             // Get user profiles for addresses
             let userProfiles = []
-            try {
-              const profilesCollection = db.collection('UserProfiles')
-              userProfiles = await profilesCollection.find({}).toArray()
-              console.log('[DIRECT_DASHBOARD] Fetched', userProfiles.length, 'user profiles')
-            } catch (profileError) {
-              console.error('[DIRECT_DASHBOARD] Failed to fetch user profiles:', profileError)
+            if (db) {
+              try {
+                const profilesCollection = db.collection('UserProfiles')
+                userProfiles = await profilesCollection.find({}).toArray()
+                console.log('[DIRECT_DASHBOARD] Fetched', userProfiles.length, 'user profiles')
+              } catch (profileError) {
+                console.error('[DIRECT_DASHBOARD] Failed to fetch user profiles:', profileError)
+              }
             }
             
             // Get real user analytics data
             let userAnalytics = []
-            try {
-              const analyticsCollection = db.collection('UserAnalytics')
-              userAnalytics = await analyticsCollection.find({}).toArray()
-              console.log('[DIRECT_DASHBOARD] Fetched', userAnalytics.length, 'user analytics records')
-            } catch (analyticsError) {
-              console.error('[DIRECT_DASHBOARD] Failed to fetch user analytics:', analyticsError)
+            if (db) {
+              try {
+                const analyticsCollection = db.collection('UserAnalytics')
+                userAnalytics = await analyticsCollection.find({}).toArray()
+                console.log('[DIRECT_DASHBOARD] Fetched', userAnalytics.length, 'user analytics records')
+              } catch (analyticsError) {
+                console.error('[DIRECT_DASHBOARD] Failed to fetch user analytics:', analyticsError)
+              }
             }
             
             // Create lookup maps
