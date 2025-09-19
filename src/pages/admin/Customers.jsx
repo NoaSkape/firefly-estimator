@@ -49,7 +49,6 @@ const AdminCustomers = () => {
   })
   const [filters, setFilters] = useState({
     status: '',
-    source: '',
     search: '',
     engagementLevel: '',
     lastActivity: '',
@@ -286,6 +285,115 @@ const AdminCustomers = () => {
     fetchCustomers()
   }
 
+  // Apply filters to customer data
+  const applyFilters = (customerList) => {
+    let filtered = [...customerList]
+
+    // Search filter
+    if (filters.search.trim()) {
+      const searchTerm = filters.search.toLowerCase().trim()
+      filtered = filtered.filter(customer => 
+        customer.firstName?.toLowerCase().includes(searchTerm) ||
+        customer.lastName?.toLowerCase().includes(searchTerm) ||
+        customer.email?.toLowerCase().includes(searchTerm) ||
+        customer.phone?.includes(searchTerm) ||
+        `${customer.firstName} ${customer.lastName}`.toLowerCase().includes(searchTerm)
+      )
+    }
+
+    // Status filter
+    if (filters.status) {
+      filtered = filtered.filter(customer => customer.status === filters.status)
+    }
+
+    // Engagement level filter
+    if (filters.engagementLevel) {
+      filtered = filtered.filter(customer => {
+        const score = customer.engagementScore || 0
+        switch (filters.engagementLevel) {
+          case 'high': return score >= 80
+          case 'medium': return score >= 60 && score < 80
+          case 'low': return score >= 40 && score < 60
+          case 'very_low': return score < 40
+          default: return true
+        }
+      })
+    }
+
+    // Last activity filter
+    if (filters.lastActivity) {
+      const days = parseInt(filters.lastActivity)
+      const threshold = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+      filtered = filtered.filter(customer => {
+        const lastActivity = customer.lastActivity || customer.lastSignInAt
+        return lastActivity && new Date(lastActivity) >= threshold
+      })
+    }
+
+    // Location filter (Texas vs Other States)
+    if (filters.location) {
+      filtered = filtered.filter(customer => {
+        const state = customer.address?.state?.toLowerCase()
+        if (filters.location === 'texas') {
+          return state === 'texas' || state === 'tx'
+        } else if (filters.location === 'other') {
+          return state && state !== 'texas' && state !== 'tx'
+        }
+        return true
+      })
+    }
+
+    return filtered
+  }
+
+  // Get filtered and sorted customers
+  const getFilteredCustomers = () => {
+    const filtered = applyFilters(customers)
+    
+    // Apply sorting
+    return filtered.sort((a, b) => {
+      let aVal = a[sortConfig.field]
+      let bVal = b[sortConfig.field]
+
+      // Handle date sorting
+      if (sortConfig.field.includes('Date') || sortConfig.field.includes('At') || sortConfig.field === 'lastActivity') {
+        aVal = aVal ? new Date(aVal).getTime() : 0
+        bVal = bVal ? new Date(bVal).getTime() : 0
+      }
+
+      // Handle string sorting
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase()
+        bVal = bVal ? bVal.toLowerCase() : ''
+      }
+
+      // Handle null/undefined values
+      if (aVal == null) aVal = sortConfig.direction === 'asc' ? Number.MIN_SAFE_INTEGER : Number.MAX_SAFE_INTEGER
+      if (bVal == null) bVal = sortConfig.direction === 'asc' ? Number.MIN_SAFE_INTEGER : Number.MAX_SAFE_INTEGER
+
+      if (sortConfig.direction === 'asc') {
+        return aVal > bVal ? 1 : -1
+      } else {
+        return aVal < bVal ? 1 : -1
+      }
+    })
+  }
+
+  // Handle filter changes
+  const handleFilterChange = (filterName, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterName]: value
+    }))
+  }
+
+  // Handle apply filters
+  const handleApplyFilters = () => {
+    // Filters are applied automatically via getFilteredCustomers()
+    // This function can be used for additional logic if needed
+    console.log('[CUSTOMERS_FILTER] Applied filters:', filters)
+  }
+
   // Handle customer detail view
   const handleViewCustomer = async (customer) => {
     try {
@@ -496,24 +604,20 @@ const AdminCustomers = () => {
 
             {/* Secondary Filters Row */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Source Filter */}
+              {/* Location Filter */}
               <div>
-                <label htmlFor="source" className="block text-sm font-medium text-gray-700 mb-1">
-                  Acquisition Source
+                <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
+                  Location
                 </label>
                 <select
-                  id="source"
-                  value={filters.source}
-                  onChange={(e) => handleFilterChange('source', e.target.value)}
+                  id="location"
+                  value={filters.location}
+                  onChange={(e) => handleFilterChange('location', e.target.value)}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="">All Sources</option>
-                  <option value="website">Direct Website</option>
-                  <option value="referral">Referral</option>
-                  <option value="advertising">Paid Advertising</option>
-                  <option value="social">Social Media</option>
-                  <option value="email">Email Campaign</option>
-                  <option value="trade-show">Trade Show</option>
+                  <option value="">All Locations</option>
+                  <option value="texas">Texas</option>
+                  <option value="other">Other States</option>
                 </select>
               </div>
 
@@ -558,7 +662,8 @@ const AdminCustomers = () => {
               {/* Search Button */}
               <div className="flex items-end">
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleApplyFilters}
                   className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   <FunnelIcon className="h-4 w-4 mr-2" />
@@ -574,7 +679,7 @@ const AdminCustomers = () => {
       <div className="bg-white shadow rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">
-            Customers ({pagination.total})
+            Customers ({getFilteredCustomers().length})
           </h3>
         </div>
 
@@ -696,7 +801,7 @@ const AdminCustomers = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {customers.map((customer) => {
+              {getFilteredCustomers().map((customer) => {
                 const activityStatus = getActivityStatus(customer.lastActivity)
                 return (
                   <tr key={customer.userId || customer._id} className="hover:bg-gray-50">
