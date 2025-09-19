@@ -33,6 +33,7 @@ const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard'))
 const AdminCustomers = lazy(() => import('./pages/admin/Customers'))
 const AdminDrafts = lazy(() => import('./pages/admin/Drafts'))
 const AdminAnalytics = lazy(() => import('./pages/admin/Analytics'))
+const AnalyticsEnterprise = lazy(() => import('./pages/admin/AnalyticsEnterprise'))
 const PublicModelDetail = lazy(() => import('./public/PublicModelDetail'))
 const PackageDetail = lazy(() => import('./public/PackageDetail'))
 const BuildsDashboard = lazy(() => import('./pages/builds/Builds'))
@@ -481,6 +482,11 @@ function App() {
               <Route path="/admin/analytics" element={
                 <ProtectedRoute requireAdmin={true}>
                   <AdminAnalytics />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/analytics-enterprise" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AnalyticsEnterprise />
                 </ProtectedRoute>
               } />
               <Route path="/admin/dashboard" element={

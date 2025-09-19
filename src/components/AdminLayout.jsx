@@ -23,7 +23,8 @@ import {
   CloudArrowUpIcon,
   ChartPieIcon,
   WrenchScrewdriverIcon,
-  EyeIcon
+  EyeIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline'
 import { useUser, useAuth } from '@clerk/clerk-react'
 
@@ -55,6 +56,13 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
       href: '/admin/analytics',
       icon: ChartBarIcon,
       permission: 'financial:reports'
+    },
+    {
+      name: 'Enterprise Analytics',
+      href: '/admin/analytics-enterprise',
+      icon: SparklesIcon,
+      permission: 'financial:reports',
+      badge: 'NEW'
     },
     {
       name: 'Advanced Reports',
