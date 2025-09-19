@@ -133,7 +133,7 @@ export default function RealTimeMonitor({ isOpen, onClose }) {
               </div>
               <div>
                 <div className="text-2xl font-bold text-gray-900">
-                  {stats.devices.desktop + stats.devices.mobile + stats.devices.tablet}
+                  {stats.totalDevices || 0}
                 </div>
                 <div className="text-sm text-gray-500">Total Devices</div>
               </div>
@@ -146,7 +146,7 @@ export default function RealTimeMonitor({ isOpen, onClose }) {
                 <GlobeAltIcon className="w-5 h-5 text-orange-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-gray-900">{stats.topPages.length}</div>
+                <div className="text-2xl font-bold text-gray-900">{stats.activePages || 0}</div>
                 <div className="text-sm text-gray-500">Active Pages</div>
               </div>
             </div>
@@ -185,11 +185,14 @@ export default function RealTimeMonitor({ isOpen, onClose }) {
                             </div>
                             <div>
                               <div className="text-sm font-medium text-gray-900">
-                                {session.userId ? `User: ${session.userEmail || session.userId}` : 'Anonymous Visitor'}
+                                {session.userName || 'Anonymous Visitor'}
                               </div>
                               <div className="text-xs text-gray-500 flex items-center gap-2">
                                 <DeviceIcon className="w-3 h-3" />
                                 {session.device || 'Unknown'} • {session.currentPage || '/'}
+                                {session.userEmail && (
+                                  <span className="ml-2 text-blue-600">({session.userEmail})</span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -302,21 +305,21 @@ export default function RealTimeMonitor({ isOpen, onClose }) {
                       <ComputerDesktopIcon className="w-4 h-4 text-gray-600" />
                       <span className="text-sm text-gray-900">Desktop</span>
                     </div>
-                    <span className="text-sm font-medium text-blue-600">{stats.devices.desktop}</span>
+                    <span className="text-sm font-medium text-blue-600">{stats.devices?.desktop || 0}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <DevicePhoneMobileIcon className="w-4 h-4 text-gray-600" />
                       <span className="text-sm text-gray-900">Mobile</span>
                     </div>
-                    <span className="text-sm font-medium text-blue-600">{stats.devices.mobile}</span>
+                    <span className="text-sm font-medium text-blue-600">{stats.devices?.mobile || 0}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <DevicePhoneMobileIcon className="w-4 h-4 text-gray-600" />
                       <span className="text-sm text-gray-900">Tablet</span>
                     </div>
-                    <span className="text-sm font-medium text-blue-600">{stats.devices.tablet}</span>
+                    <span className="text-sm font-medium text-blue-600">{stats.devices?.tablet || 0}</span>
                   </div>
                 </div>
               </div>

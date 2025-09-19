@@ -4713,16 +4713,113 @@ app.get(['/api/admin/realtime-monitor', '/admin/realtime-monitor'], async (req, 
       .limit(20)
       .toArray()
 
-    // Build activity feed
-    const recentActivity = recentPageViews.map(pv => ({
-      type: 'pageview',
-      description: `Viewed ${pv.page}`,
-      user: pv.userId ? 'Registered User' : 'Anonymous',
-      timeAgo: getTimeAgo(pv.timestamp),
-      timestamp: pv.timestamp
+    // Get top pages from recent page views
+    const topPagesData = await db.collection('PageViews')
+      .aggregate([
+        { $match: { timestamp: { $gte: thirtyMinutesAgo } } },
+        { $group: { _id: '$page', views: { $sum: 1 } } },
+        { $sort: { views: -1 } },
+        { $limit: 5 }
+      ])
+      .toArray()
+
+    const topPages = topPagesData.map(page => ({
+      path: page._id,
+      views: page.views
     }))
 
-    // Calculate stats
+    // Get device breakdown from active sessions
+    const deviceBreakdown = { desktop: 0, mobile: 0, tablet: 0 }
+    activeSessions.forEach(session => {
+      const device = session.device || 'desktop'
+      if (deviceBreakdown.hasOwnProperty(device)) {
+        deviceBreakdown[device]++
+      } else {
+        deviceBreakdown.desktop++ // Default unknown to desktop
+      }
+    })
+
+    // Get total unique devices from all recent sessions
+    const allRecentSessions = await db.collection('Sessions')
+      .find({ startTime: { $gte: thirtyMinutesAgo } })
+      .toArray()
+
+    const totalDevices = allRecentSessions.length
+
+    // Enrich active sessions with Clerk user data
+    const { createClerkClient } = await import('@clerk/backend')
+    let clerkClient = null
+    
+    try {
+      if (process.env.CLERK_SECRET_KEY) {
+        clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY })
+      }
+    } catch (clerkError) {
+      console.error('[REALTIME_MONITOR] Clerk init failed:', clerkError)
+    }
+
+    const enrichedSessions = await Promise.all(
+      activeSessions.map(async (session) => {
+        let userName = null
+        let userEmail = null
+        
+        if (session.userId && clerkClient) {
+          try {
+            const user = await clerkClient.users.getUser(session.userId)
+            userName = `${user.firstName || ''} ${user.lastName || ''}`.trim()
+            userEmail = user.emailAddresses[0]?.emailAddress
+            
+            if (!userName) {
+              userName = userEmail?.split('@')[0] || session.userId
+            }
+          } catch (userError) {
+            console.warn('[REALTIME_MONITOR] Failed to fetch user:', session.userId)
+            userName = session.userId
+          }
+        }
+
+        return {
+          sessionId: session.sessionId,
+          userId: session.userId,
+          userName: userName || 'Anonymous Visitor',
+          userEmail: userEmail,
+          device: session.device || 'desktop',
+          currentPage: session.landingPage || '/',
+          duration: session.duration || Math.round((now - new Date(session.startTime)) / 1000),
+          startTime: session.startTime,
+          location: session.location
+        }
+      })
+    )
+
+    // Build activity feed with user names
+    const recentActivity = await Promise.all(
+      recentPageViews.slice(0, 15).map(async (pv) => {
+        let userName = 'Anonymous'
+        
+        if (pv.userId && clerkClient) {
+          try {
+            const user = await clerkClient.users.getUser(pv.userId)
+            userName = `${user.firstName || ''} ${user.lastName || ''}`.trim()
+            if (!userName) {
+              userName = user.emailAddresses[0]?.emailAddress?.split('@')[0] || 'Registered User'
+            }
+          } catch (userError) {
+            userName = 'Registered User'
+          }
+        }
+
+        return {
+          type: 'pageview',
+          description: `Viewed ${pv.page}`,
+          user: userName,
+          timeAgo: getTimeAgo(pv.timestamp),
+          timestamp: pv.timestamp
+        }
+      })
+    )
+
+    // Calculate comprehensive stats
     const stats = {
       currentVisitors: activeSessions.length,
       avgSessionTime: activeSessions.length > 0 
@@ -4731,26 +4828,24 @@ app.get(['/api/admin/realtime-monitor', '/admin/realtime-monitor'], async (req, 
             return sum + duration
           }, 0) / activeSessions.length 
         : 0,
-      topPages: [],
-      devices: { desktop: 0, mobile: 0, tablet: 0 }
+      topPages: topPages,
+      devices: deviceBreakdown,
+      totalDevices: totalDevices,
+      activePages: topPages.length
     }
 
-    console.log('[REALTIME_MONITOR] Returning data:', {
+    console.log('[REALTIME_MONITOR] Returning enterprise data:', {
       activeSessions: activeSessions.length,
-      recentActivity: recentActivity.length
+      recentActivity: recentActivity.length,
+      topPages: topPages.length,
+      totalDevices: totalDevices,
+      deviceBreakdown: deviceBreakdown
     })
 
     res.json({
       success: true,
-      activeSessions: activeSessions.map(s => ({
-        sessionId: s.sessionId,
-        userId: s.userId,
-        device: s.device,
-        currentPage: s.landingPage,
-        duration: s.duration || Math.round((now - new Date(s.startTime)) / 1000),
-        startTime: s.startTime
-      })),
-      recentActivity: recentActivity.slice(0, 15),
+      activeSessions: enrichedSessions,
+      recentActivity: recentActivity,
       stats
     })
   } catch (error) {

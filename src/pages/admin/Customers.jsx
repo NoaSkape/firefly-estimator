@@ -379,13 +379,6 @@ const AdminCustomers = () => {
     })
   }
 
-  // Handle filter changes
-  const handleFilterChange = (filterName, value) => {
-    setFilters(prev => ({
-      ...prev,
-      [filterName]: value
-    }))
-  }
 
   // Handle apply filters
   const handleApplyFilters = () => {
