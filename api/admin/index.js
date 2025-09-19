@@ -216,6 +216,39 @@ router.get('/_debug/auth-status', (req, res) => {
   }
 })
 
+// Router mounting diagnostic endpoint
+router.get('/_debug/routers', (req, res) => {
+  if (process.env.DEBUG_ADMIN !== 'true') return res.status(404).end()
+  try {
+    const routerStatus = {
+      dashboardRouter: { type: typeof dashboardRouter, isFunction: typeof dashboardRouter === 'function' },
+      reportsRouter: { type: typeof reportsRouter, isFunction: typeof reportsRouter === 'function' },
+      analyticsRouter: { type: typeof analyticsRouter, isFunction: typeof analyticsRouter === 'function' },
+      ordersRouter: { type: typeof ordersRouter, isFunction: typeof ordersRouter === 'function' },
+      financialRouter: { type: typeof financialRouter, isFunction: typeof financialRouter === 'function' },
+      contentRouter: { type: typeof contentRouter, isFunction: typeof contentRouter === 'function' },
+      usersRouter: { type: typeof usersRouter, isFunction: typeof usersRouter === 'function' },
+      notificationsRouter: { type: typeof notificationsRouter, isFunction: typeof notificationsRouter === 'function' },
+      aiInsightsRouter: { type: typeof aiInsightsRouter, isFunction: typeof aiInsightsRouter === 'function' },
+      integrationsRouter: { type: typeof integrationsRouter, isFunction: typeof integrationsRouter === 'function' },
+      securityRouter: { type: typeof securityRouter, isFunction: typeof securityRouter === 'function' },
+      workflowsRouter: { type: typeof workflowsRouter, isFunction: typeof workflowsRouter === 'function' },
+      monitoringRouter: { type: typeof monitoringRouter, isFunction: typeof monitoringRouter === 'function' },
+      exportRouter: { type: typeof exportRouter, isFunction: typeof exportRouter === 'function' },
+      settingsRouter: { type: typeof settingsRouter, isFunction: typeof settingsRouter === 'function' }
+    }
+    
+    res.json({
+      ok: true,
+      routerStatus,
+      failedRouters: Object.entries(routerStatus).filter(([name, status]) => !status.isFunction),
+      timestamp: new Date().toISOString()
+    })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) })
+  }
+})
+
 // On every request, re-harden the admin router stack (belt-and-suspenders).
 router.use((req, res, next) => {
   try { hardenRouterLocal(router, 'admin@rq'); } catch {}

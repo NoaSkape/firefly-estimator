@@ -24,6 +24,60 @@ const router = express.Router()
 // Note: Authentication is handled by the parent admin router
 // No need for additional auth middleware here
 
+// Add error handling wrapper for all routes
+router.use((req, res, next) => {
+  try {
+    console.log('[DEBUG_DASHBOARD] Middleware - processing request:', {
+      method: req.method,
+      path: req.path,
+      url: req.url,
+      adminAuthDisabled: process.env.ADMIN_AUTH_DISABLED === 'true'
+    })
+    next()
+  } catch (error) {
+    console.error('[DEBUG_DASHBOARD] Middleware error:', error)
+    res.status(500).json({
+      error: 'Dashboard middleware error',
+      message: error.message,
+      stack: process.env.DEBUG_ADMIN === 'true' ? error.stack : undefined
+    })
+  }
+})
+
+// Debug endpoint for dashboard diagnostics
+router.get('/_debug', (req, res) => {
+  if (process.env.DEBUG_ADMIN !== 'true') return res.status(404).end()
+  
+  try {
+    res.json({
+      ok: true,
+      environment: {
+        adminAuthDisabled: process.env.ADMIN_AUTH_DISABLED === 'true',
+        debugAdmin: process.env.DEBUG_ADMIN === 'true',
+        hasClerkSecretKey: !!process.env.CLERK_SECRET_KEY,
+        hasMongoUri: !!process.env.MONGODB_URI,
+        hasMongoDb: !!process.env.MONGODB_DB
+      },
+      clerkClient: {
+        initialized: !!clerkClient,
+        type: typeof clerkClient
+      },
+      collections: {
+        ordersCollection: ORDERS_COLLECTION,
+        buildsCollection: BUILDS_COLLECTION,
+        modelsCollection: MODELS_COLLECTION
+      },
+      timestamp: new Date().toISOString()
+    })
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      error: error.message,
+      stack: error.stack
+    })
+  }
+})
+
 // Get comprehensive dashboard data  
 router.get('/', async (req, res) => {
   console.log('[DEBUG_DASHBOARD] Starting dashboard request:', {
@@ -31,8 +85,36 @@ router.get('/', async (req, res) => {
     url: req.url,
     hasAuth: !!req.headers.authorization,
     adminUser: req.adminUser,
-    query: req.query
+    query: req.query,
+    adminAuthDisabled: process.env.ADMIN_AUTH_DISABLED === 'true',
+    hasClerkClient: !!clerkClient
   })
+  
+  // CRITICAL: If admin auth is disabled, skip all Clerk operations
+  if (process.env.ADMIN_AUTH_DISABLED === 'true') {
+    console.log('[DEBUG_DASHBOARD] Admin auth disabled - using fallback data')
+    return res.json({
+      success: true,
+      data: {
+        metrics: {
+          totalUsers: 0,
+          activeBuilds: 0,
+          totalOrders: 0,
+          totalRevenue: 0,
+          revenueChange: 0,
+          newUsers: 0
+        },
+        dailyRevenue: [],
+        orderStatusDistribution: [],
+        recentOrders: [],
+        recentBuilds: [],
+        formattedTopModels: [],
+        timeRange: req.query.range || '30d',
+        databaseAvailable: true,
+        message: 'Admin authentication disabled - showing safe fallback data'
+      }
+    })
+  }
   
   try {
     const { range = '30d' } = req.query
@@ -131,6 +213,7 @@ router.get('/', async (req, res) => {
     let clerkUsers = []
     let totalClerkUsers = 0
     try {
+      console.log('[DEBUG_DASHBOARD] Attempting Clerk user fetch:', { hasClerkClient: !!clerkClient })
       if (!clerkClient) {
         throw new Error('Clerk client not initialized')
       }
@@ -139,9 +222,10 @@ router.get('/', async (req, res) => {
       })
       clerkUsers = clerkResponse.data || []
       totalClerkUsers = clerkResponse.totalCount || clerkResponse.total_count || 0
-      console.log('[DEBUG] Clerk users found:', totalClerkUsers)
+      console.log('[DEBUG_DASHBOARD] Clerk users found:', totalClerkUsers)
     } catch (clerkError) {
-      console.error('Clerk API error:', clerkError.message || clerkError)
+      console.error('[DEBUG_DASHBOARD] Clerk API error:', clerkError.message || clerkError)
+      console.error('[DEBUG_DASHBOARD] Clerk error stack:', clerkError.stack)
       // Continue with 0 users if Clerk fails
       totalClerkUsers = 0
     }
@@ -328,7 +412,16 @@ router.get('/', async (req, res) => {
       }
     })
   } catch (error) {
-    console.error('Dashboard API error:', error)
+    console.error('[DEBUG_DASHBOARD] Dashboard API error:', error)
+    console.error('[DEBUG_DASHBOARD] Error stack:', error.stack)
+    console.error('[DEBUG_DASHBOARD] Error details:', {
+      name: error.name,
+      message: error.message,
+      cause: error.cause,
+      adminAuthDisabled: process.env.ADMIN_AUTH_DISABLED === 'true',
+      hasClerkClient: !!clerkClient
+    })
+    
     // Return a safe fallback instead of 500 to keep the Admin UI usable
     res.json({
       success: true,
@@ -347,7 +440,11 @@ router.get('/', async (req, res) => {
         topModels: [],
         timeRange: req?.query?.range || '30d',
         databaseAvailable: false,
-        message: 'Dashboard fallback due to server error'
+        message: 'Dashboard fallback due to server error',
+        errorDetails: process.env.DEBUG_ADMIN === 'true' ? {
+          error: error.message,
+          stack: error.stack
+        } : undefined
       }
     })
   }
