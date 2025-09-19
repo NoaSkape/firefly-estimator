@@ -34,7 +34,7 @@ const AdminCustomers = lazy(() => import('./pages/admin/Customers'))
 const AdminDrafts = lazy(() => import('./pages/admin/Drafts'))
 const AdminAnalytics = lazy(() => import('./pages/admin/Analytics'))
 const AnalyticsEnterprise = lazy(() => import('./pages/admin/AnalyticsEnterprise'))
-const SessionTracker = lazy(() => import('./components/analytics/SessionTracker'))
+const RealTimeTracker = lazy(() => import('./components/analytics/RealTimeTracker'))
 const PublicModelDetail = lazy(() => import('./public/PublicModelDetail'))
 const PackageDetail = lazy(() => import('./public/PackageDetail'))
 const BuildsDashboard = lazy(() => import('./pages/builds/Builds'))
@@ -310,10 +310,10 @@ function App() {
           <ScrollToTop />
           <PerformanceMonitor />
           
-          {/* Enterprise Session Tracking */}
-          <Suspense fallback={null}>
-            <SessionTracker />
-          </Suspense>
+        {/* Enterprise Real-Time Analytics Tracking */}
+        <Suspense fallback={null}>
+          <RealTimeTracker />
+        </Suspense>
           
           <div className="min-h-screen flex flex-col transition-colors duration-300" data-app-container>
             {/* Skip links for accessibility */}

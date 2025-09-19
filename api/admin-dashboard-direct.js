@@ -373,14 +373,26 @@ export default async function handler(req, res) {
               console.error('[DIRECT_DASHBOARD] Failed to fetch user profiles:', profileError)
             }
             
-            // Create profile lookup map
+            // Get real user analytics data
+            let userAnalytics = []
+            try {
+              const analyticsCollection = db.collection('UserAnalytics')
+              userAnalytics = await analyticsCollection.find({}).toArray()
+              console.log('[DIRECT_DASHBOARD] Fetched', userAnalytics.length, 'user analytics records')
+            } catch (analyticsError) {
+              console.error('[DIRECT_DASHBOARD] Failed to fetch user analytics:', analyticsError)
+            }
+            
+            // Create lookup maps
             const profileMap = new Map(userProfiles.map(p => [p.userId, p]))
+            const analyticsMap = new Map(userAnalytics.map(a => [a.userId, a]))
             
             for (const user of users) {
-              // Get user's orders and builds
+              // Get user's orders, builds, and analytics
               const userOrders = recentOrders.filter(order => order.userId === user.id)
               const userBuilds = recentBuilds.filter(build => build.userId === user.id)
               const userProfile = profileMap.get(user.id)
+              const userAnalyticsData = analyticsMap.get(user.id)
               
               // Calculate real metrics
               const totalSpent = userOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0)
@@ -393,11 +405,18 @@ export default async function handler(req, res) {
               else if (userOrders.length > 0) status = 'inactive_customer'
               else if (hasRecentActivity) status = 'active_prospect'
               
-              // Calculate engagement score
+              // Calculate engagement score - use real analytics if available, otherwise business activity
               let engagementScore = 0
-              engagementScore += Math.min(userOrders.length * 25, 50) // Orders worth up to 50 points
-              engagementScore += Math.min(userBuilds.length * 20, 40) // Builds worth up to 40 points
-              if (hasRecentActivity) engagementScore += 10 // Recent activity bonus
+              
+              if (userAnalyticsData?.engagementScore) {
+                // Use real engagement score from analytics system
+                engagementScore = userAnalyticsData.engagementScore
+              } else {
+                // Fallback to business activity calculation
+                engagementScore += Math.min(userOrders.length * 25, 50) // Orders worth up to 50 points
+                engagementScore += Math.min(userBuilds.length * 20, 40) // Builds worth up to 40 points
+                if (hasRecentActivity) engagementScore += 10 // Recent activity bonus
+              }
               
               // Get address and buyer info from multiple sources (priority: builds buyerInfo > profile > order buyer > order delivery)
               let address = { city: 'Unknown', state: 'Unknown', country: 'US' }
@@ -537,13 +556,14 @@ export default async function handler(req, res) {
                 orders: userOrders,
                 builds: userBuilds,
                 
-                // Technical (placeholder for now - would come from session tracking)
+                // Real analytics data from enterprise tracking system
                 devices: ['desktop'], // Would come from session tracking
                 locations: [address.city && address.state ? `${address.city}, ${address.state}` : 'Unknown'],
                 source: 'website',
-                totalSessions: Math.floor(Math.random() * 20) + 5,
-                totalPageViews: Math.floor(Math.random() * 100) + 20,
-                averageSessionDuration: Math.floor(Math.random() * 30) + 10
+                // REAL DATA: From UserAnalytics collection
+                totalSessions: userAnalyticsData?.totalSessions || 0,
+                totalPageViews: userAnalyticsData?.totalPageViews || 0,
+                averageSessionDuration: userAnalyticsData?.averageSessionDuration || 0
               }
               
               customers.push(customer)
@@ -596,7 +616,7 @@ export default async function handler(req, res) {
         },
         timeRange: range,
         databaseAvailable: true,
-        message: 'REAL DATA v6 - FIXED: Now includes buyerInfo projection for Step 4 addresses'
+        message: 'REAL DATA v7 - ENTERPRISE: Real analytics system replaces fake data + buyerInfo fix'
       }
     }
 
