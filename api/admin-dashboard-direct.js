@@ -383,10 +383,30 @@ export default async function handler(req, res) {
               engagementScore += Math.min(userBuilds.length * 20, 40) // Builds worth up to 40 points
               if (hasRecentActivity) engagementScore += 10 // Recent activity bonus
               
-              // Get address from multiple sources (priority: profile > order buyer > order delivery)
+              // Get address and buyer info from multiple sources (priority: builds buyerInfo > profile > order buyer > order delivery)
               let address = { city: 'Unknown', state: 'Unknown', country: 'US' }
+              let buyerInfo = null
               
-              if (userProfile?.address && userProfile?.city && userProfile?.state) {
+              // First check builds for buyerInfo (Step 4 data)
+              if (userBuilds.length > 0) {
+                for (const build of userBuilds) {
+                  if (build.buyerInfo && build.buyerInfo.address && build.buyerInfo.city && build.buyerInfo.state) {
+                    buyerInfo = build.buyerInfo
+                    address = {
+                      address: build.buyerInfo.address,
+                      city: build.buyerInfo.city,
+                      state: build.buyerInfo.state,
+                      zip: build.buyerInfo.zip || '',
+                      country: 'US'
+                    }
+                    console.log('[DIRECT_DASHBOARD] Using address from build buyerInfo for', user.firstName, user.lastName, address)
+                    break
+                  }
+                }
+              }
+              
+              // Fallback to profile if no build data
+              if (address.city === 'Unknown' && userProfile?.address && userProfile?.city && userProfile?.state) {
                 address = {
                   address: userProfile.address,
                   city: userProfile.city,
@@ -395,10 +415,13 @@ export default async function handler(req, res) {
                   country: 'US'
                 }
                 console.log('[DIRECT_DASHBOARD] Using address from profile for', user.firstName, user.lastName)
-              } else if (userOrders[0]?.buyer?.address) {
+              } 
+              
+              // Fallback to order data
+              else if (address.city === 'Unknown' && userOrders[0]?.buyer?.address) {
                 address = userOrders[0].buyer.address
                 console.log('[DIRECT_DASHBOARD] Using address from order buyer for', user.firstName, user.lastName)
-              } else if (userOrders[0]?.delivery?.address) {
+              } else if (address.city === 'Unknown' && userOrders[0]?.delivery?.address) {
                 address = userOrders[0].delivery.address
                 console.log('[DIRECT_DASHBOARD] Using address from order delivery for', user.firstName, user.lastName)
               }
@@ -435,10 +458,11 @@ export default async function handler(req, res) {
               const customer = {
                 userId: user.id,
                 customerId: user.id,
-                firstName: user.firstName || 'Unknown',
-                lastName: user.lastName || 'User',
-                email: user.emailAddresses[0]?.emailAddress || 'No email',
-                phone: user.phoneNumbers[0]?.phoneNumber || userProfile?.phone || null,
+                // Use buyer info first, then Clerk, then fallback
+                firstName: buyerInfo?.firstName || user.firstName || 'Unknown',
+                lastName: buyerInfo?.lastName || user.lastName || 'User',
+                email: buyerInfo?.email || user.emailAddresses[0]?.emailAddress || 'No email',
+                phone: buyerInfo?.phone || user.phoneNumbers[0]?.phoneNumber || userProfile?.phone || null,
                 profileImageUrl: user.profileImageUrl,
                 
                 // Real address data
@@ -536,7 +560,7 @@ export default async function handler(req, res) {
         },
         timeRange: range,
         databaseAvailable: true,
-        message: 'REAL DATA v3 - With actual customer data from Clerk and MongoDB'
+        message: 'REAL DATA v4 - With Step 4 buyer info, Clerk users, and MongoDB data'
       }
     }
 
