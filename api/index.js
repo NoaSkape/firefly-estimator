@@ -4543,7 +4543,10 @@ app.post(['/api/analytics/event', '/analytics/event'], async (req, res) => {
       }
     }
     
-    return res.status(200).json({ ok: true })
+    // Check if response was already sent before trying to send
+    if (!res.headersSent) {
+      return res.status(200).json({ ok: true })
+    }
   } catch (error) {
     console.error('Analytics event error:', {
       message: error?.message || error,
@@ -4552,17 +4555,20 @@ app.post(['/api/analytics/event', '/analytics/event'], async (req, res) => {
       stack: process.env.DEBUG_ADMIN === 'true' ? error?.stack : undefined
     })
     
-    // Check if this is a database connection error
-    if (error?.message?.includes('tlsv1 alert internal error') || 
-        error?.message?.includes('MongoServerSelectionError') || 
-        error?.message?.includes('MongoNetworkError')) {
-      return res.status(503).json({ 
-        error: 'database_unavailable', 
-        message: 'Database connection failed. Please try again later.' 
-      })
+    // Check if response was already sent before trying to send error
+    if (!res.headersSent) {
+      // Check if this is a database connection error
+      if (error?.message?.includes('tlsv1 alert internal error') || 
+          error?.message?.includes('MongoServerSelectionError') || 
+          error?.message?.includes('MongoNetworkError')) {
+        return res.status(503).json({ 
+          error: 'database_unavailable', 
+          message: 'Database connection failed. Please try again later.' 
+        })
+      }
+      
+      return res.status(500).json({ error: 'analytics_failed' })
     }
-    
-    return res.status(500).json({ error: 'analytics_failed' })
   }
 })
 
@@ -4570,6 +4576,12 @@ app.post(['/api/analytics/event', '/analytics/event'], async (req, res) => {
 app.post(['/api/analytics/session/start', '/analytics/session/start'], async (req, res) => {
   try {
     const auth = await requireAuth(req, res, false)
+    // If requireAuth already sent a response (401), exit early
+    if (!auth?.userId) {
+      console.log('[ANALYTICS] Session start: unauthorized access, response already sent')
+      return
+    }
+    
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
     
     const db = await getDb()
@@ -4578,7 +4590,7 @@ app.post(['/api/analytics/session/start', '/analytics/session/start'], async (re
     const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     const session = {
       sessionId,
-      userId: auth?.userId || null,
+      userId: auth.userId,
       startTime: new Date(),
       isActive: true,
       userAgent: body.userAgent,
@@ -4591,18 +4603,30 @@ app.post(['/api/analytics/session/start', '/analytics/session/start'], async (re
     }
     
     await sessionsCol.insertOne(session)
-    console.log('[ANALYTICS] Session started:', sessionId, 'for user:', auth?.userId)
+    console.log('[ANALYTICS] Session started:', sessionId, 'for user:', auth.userId)
     
-    res.json({ success: true, sessionId })
+    // Check if response was already sent before trying to send
+    if (!res.headersSent) {
+      res.json({ success: true, sessionId })
+    }
   } catch (error) {
     console.error('[ANALYTICS] Session start error:', error)
-    res.status(500).json({ error: 'Failed to start session' })
+    // Check if response was already sent before trying to send error
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to start session' })
+    }
   }
 })
 
 app.post(['/api/analytics/pageview', '/analytics/pageview'], async (req, res) => {
   try {
     const auth = await requireAuth(req, res, false)
+    // If requireAuth already sent a response (401), exit early
+    if (!auth?.userId) {
+      console.log('[ANALYTICS] Pageview: unauthorized access, response already sent')
+      return
+    }
+    
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
     
     const db = await getDb()
@@ -4632,10 +4656,17 @@ app.post(['/api/analytics/pageview', '/analytics/pageview'], async (req, res) =>
     }
     
     console.log('[ANALYTICS] Page view tracked:', body.page, 'session:', body.sessionId)
-    res.json({ success: true })
+    
+    // Check if response was already sent before trying to send
+    if (!res.headersSent) {
+      res.json({ success: true })
+    }
   } catch (error) {
     console.error('[ANALYTICS] Page view error:', error)
-    res.status(500).json({ error: 'Failed to track page view' })
+    // Check if response was already sent before trying to send error
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to track page view' })
+    }
   }
 })
 
@@ -4667,10 +4698,59 @@ app.post(['/api/analytics/session/end', '/analytics/session/end'], async (req, r
       console.log('[ANALYTICS] Session ended:', body.sessionId, 'duration:', duration, 'seconds')
     }
     
-    res.json({ success: true })
+    // Check if response was already sent before trying to send
+    if (!res.headersSent) {
+      res.json({ success: true })
+    }
   } catch (error) {
     console.error('[ANALYTICS] Session end error:', error)
-    res.status(500).json({ error: 'Failed to end session' })
+    // Check if response was already sent before trying to send error
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to end session' })
+    }
+  }
+})
+
+// Track time spent on page
+app.post(['/api/analytics/page-time', '/analytics/page-time'], async (req, res) => {
+  try {
+    const auth = await requireAuth(req, res, false)
+    // If requireAuth already sent a response (401), exit early
+    if (!auth?.userId) {
+      console.log('[ANALYTICS] Page time: unauthorized access, response already sent')
+      return
+    }
+    
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+    
+    const db = await getDb()
+    const pageTimesCol = db.collection('PageTimes')
+    
+    const pageTime = {
+      userId: auth.userId,
+      sessionId: body.sessionId,
+      page: body.page,
+      url: body.url,
+      timeSpent: body.timeSpent, // in seconds
+      startTime: new Date(body.startTime),
+      endTime: new Date(body.endTime),
+      device: detectDevice(body.userAgent),
+      createdAt: new Date()
+    }
+    
+    await pageTimesCol.insertOne(pageTime)
+    console.log('[ANALYTICS] Page time tracked:', body.page, 'time:', body.timeSpent, 'seconds')
+    
+    // Check if response was already sent before trying to send
+    if (!res.headersSent) {
+      res.json({ success: true })
+    }
+  } catch (error) {
+    console.error('[ANALYTICS] Page time error:', error)
+    // Check if response was already sent before trying to send error
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to track page time' })
+    }
   }
 })
 

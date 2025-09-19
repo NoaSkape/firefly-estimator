@@ -1142,7 +1142,6 @@ const AdminCustomers = () => {
             </div>
           </div>
         )}
-        </div>
       )}
       </div>
 
