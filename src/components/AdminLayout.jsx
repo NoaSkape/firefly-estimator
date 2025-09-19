@@ -203,92 +203,211 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pt-16">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-50 lg:hidden"
+          className="fixed inset-0 z-30 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         >
           <div className="fixed inset-0 bg-gray-600 bg-opacity-75" />
         </div>
       )}
 
+      {/* Admin Breadcrumb Bar - Shows we're in admin */}
+      <div className="fixed top-16 left-0 right-0 z-20 bg-gradient-to-r from-blue-600 to-blue-700 border-b border-blue-800 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-12">
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center text-blue-100">
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                </svg>
+                <span className="text-sm font-medium">Administration Panel</span>
+              </div>
+              <div className="text-blue-200 text-sm">•</div>
+              <span className="text-white text-sm font-medium">{getCurrentPageName()}</span>
+            </div>
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-2 rounded-md text-blue-100 hover:text-white hover:bg-blue-800"
+            >
+              <Bars3Icon className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 flex flex-col
+        fixed top-28 bottom-0 left-0 z-30 w-64 bg-white shadow-xl border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         {/* Sidebar header */}
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
           <div className="flex items-center min-w-0">
-            <img 
-              src="/logo/firefly-logo.png" 
-              alt="Firefly Logo" 
-              className="h-8 w-auto flex-shrink-0"
-            />
-            <span className="ml-3 text-lg font-semibold text-gray-900 truncate">Admin</span>
+            <div className="flex-shrink-0 w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h2 className="text-sm font-semibold text-gray-900 truncate">Admin Panel</h2>
+              <p className="text-xs text-gray-500 truncate">Management Dashboard</p>
+            </div>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 flex-shrink-0"
+            className="lg:hidden p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-200"
           >
-            <XMarkIcon className="h-6 w-6" />
+            <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Navigation - Scrollable */}
-        <nav className="flex-1 mt-6 px-3 pb-4 overflow-y-auto">
-          <div className="space-y-1">
-            {filteredNavigation.map((item) => {
-              const isActive = location.pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={`
-                    group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 relative
-                    ${isActive 
-                      ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-700' 
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }
-                  `}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <item.icon 
-                    className={`
-                      mr-3 h-5 w-5 transition-colors duration-200 flex-shrink-0
-                      ${isActive ? 'text-blue-700' : 'text-gray-400 group-hover:text-gray-500'}
-                    `}
-                  />
-                  <span className="truncate">{item.name}</span>
-                  {item.badge && (
-                    <span className="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                      {item.badge}
-                    </span>
-                  )}
-                </Link>
-              )
-            })}
+        {/* Navigation - Scrollable with sections */}
+        <nav className="flex-1 px-3 py-4 overflow-y-auto">
+          <div className="space-y-6">
+            {/* Core Admin Section */}
+            <div>
+              <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Core</h3>
+              <div className="space-y-1">
+                {filteredNavigation.slice(0, 4).map((item) => {
+                  const isActive = location.pathname === item.href
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={`
+                        group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 relative
+                        ${isActive 
+                          ? 'bg-blue-600 text-white shadow-md' 
+                          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                        }
+                      `}
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <item.icon 
+                        className={`
+                          mr-3 h-5 w-5 transition-colors duration-200 flex-shrink-0
+                          ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'}
+                        `}
+                      />
+                      <span className="truncate">{item.name}</span>
+                      {item.badge && (
+                        <span className={`ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          isActive ? 'bg-blue-500 text-blue-100' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Business Management Section */}
+            <div>
+              <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Business</h3>
+              <div className="space-y-1">
+                {filteredNavigation.slice(4, 8).map((item) => {
+                  const isActive = location.pathname === item.href
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={`
+                        group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 relative
+                        ${isActive 
+                          ? 'bg-blue-600 text-white shadow-md' 
+                          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                        }
+                      `}
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <item.icon 
+                        className={`
+                          mr-3 h-5 w-5 transition-colors duration-200 flex-shrink-0
+                          ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'}
+                        `}
+                      />
+                      <span className="truncate">{item.name}</span>
+                      {item.badge && (
+                        <span className={`ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          isActive ? 'bg-blue-500 text-blue-100' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* System & Tools Section */}
+            <div>
+              <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">System</h3>
+              <div className="space-y-1">
+                {filteredNavigation.slice(8).map((item) => {
+                  const isActive = location.pathname === item.href
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={`
+                        group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 relative
+                        ${isActive 
+                          ? 'bg-blue-600 text-white shadow-md' 
+                          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                        }
+                      `}
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <item.icon 
+                        className={`
+                          mr-3 h-5 w-5 transition-colors duration-200 flex-shrink-0
+                          ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'}
+                        `}
+                      />
+                      <span className="truncate">{item.name}</span>
+                      {item.badge && (
+                        <span className={`ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          isActive ? 'bg-blue-500 text-blue-100' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
           </div>
         </nav>
 
         {/* User info at bottom */}
         {userInfo && (
-          <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-gray-50">
+          <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
             <div className="flex items-center">
-              <UserCircleIcon className="h-8 w-8 text-gray-400 flex-shrink-0" />
+              <div className="flex-shrink-0">
+                <img
+                  className="h-8 w-8 rounded-full border-2 border-gray-300"
+                  src={user?.imageUrl || '/logo/firefly-logo.png'}
+                  alt="User avatar"
+                />
+              </div>
               <div className="ml-3 flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
                   {userInfo.firstName} {userInfo.lastName}
                 </p>
                 <p className="text-xs text-gray-500 capitalize truncate">
-                  {userInfo.role?.replace('_', ' ')}
+                  {userInfo.role?.replace('_', ' ')} • Admin
                 </p>
               </div>
               <button
                 onClick={handleSignOut}
-                className="ml-2 p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200 flex-shrink-0"
+                className="ml-2 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-200 flex-shrink-0 transition-colors"
                 title="Sign out"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -301,53 +420,26 @@ const AdminLayout = ({ children, title = 'Admin Panel' }) => {
       </div>
 
       {/* Main content area */}
-      <div className="lg:pl-64 min-h-screen flex flex-col">
-        {/* Admin Top bar - Higher z-index than main header */}
-        <div className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-200">
-          <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-            >
-              <Bars3Icon className="h-6 w-6" />
-            </button>
-
-            {/* Page title */}
-            <div className="flex-1 min-w-0">
-              <h1 className="text-lg font-semibold text-gray-900 truncate">
-                {getCurrentPageName()}
-              </h1>
-            </div>
-
-            {/* Right side actions */}
-            <div className="flex items-center space-x-4">
-              {/* Notifications */}
-              <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md relative">
-                <BellIcon className="h-6 w-6" />
-                {notifications.length > 0 && (
-                  <span className="absolute top-1 right-1 h-3 w-3 bg-red-500 rounded-full"></span>
-                )}
-              </button>
-
-              {/* User menu */}
-              <div className="relative">
-                <button className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                  <img
-                    className="h-8 w-8 rounded-full"
-                    src={user?.imageUrl || '/logo/firefly-logo.png'}
-                    alt="User avatar"
-                  />
-                </button>
+      <div className="lg:pl-64 pt-12">
+        {/* Page content with proper spacing */}
+        <main className="min-h-screen bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {/* Page header */}
+            <div className="mb-8">
+              <div className="border-b border-gray-200 pb-6">
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {getCurrentPageName()}
+                </h1>
+                <p className="mt-2 text-sm text-gray-600">
+                  Manage and monitor your {getCurrentPageName().toLowerCase()} from this centralized dashboard.
+                </p>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Page content */}
-        <main className="flex-1 py-6">
-          <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-            {children}
+            
+            {/* Main content */}
+            <div className="space-y-6">
+              {children}
+            </div>
           </div>
         </main>
       </div>

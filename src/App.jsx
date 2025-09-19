@@ -121,27 +121,13 @@ function MobileSpacingWrapper({ children }) {
   )
 }
 
-// Conditional Header - Hidden on admin pages
+// Always show header - it's the main site navigation
 function ConditionalHeader() {
-  const location = useLocation()
-  const isAdminPage = location.pathname.startsWith('/admin')
-  
-  if (isAdminPage) {
-    return null
-  }
-  
   return <Header />
 }
 
-// Conditional Mobile Navigation - Hidden on admin pages
+// Always show mobile navigation - it's the main site navigation
 function ConditionalMobileNavigation() {
-  const location = useLocation()
-  const isAdminPage = location.pathname.startsWith('/admin')
-  
-  if (isAdminPage) {
-    return null
-  }
-  
   return <MobileNavigation />
 }
 
@@ -162,26 +148,12 @@ function ConditionalBackground() {
   )
 }
 
-// Conditional components for admin pages
+// Always show these components - they don't interfere with admin layout
 function ConditionalOfflineIndicator() {
-  const location = useLocation()
-  const isAdminPage = location.pathname.startsWith('/admin')
-  
-  if (isAdminPage) {
-    return null
-  }
-  
   return <OfflineIndicator />
 }
 
 function ConditionalCustomizationMigration() {
-  const location = useLocation()
-  const isAdminPage = location.pathname.startsWith('/admin')
-  
-  if (isAdminPage) {
-    return null
-  }
-  
   return <CustomizationMigration />
 }
 
@@ -189,6 +161,7 @@ function ConditionalFooter() {
   const location = useLocation()
   const isAdminPage = location.pathname.startsWith('/admin')
   
+  // Footer is hidden on admin pages since admin has its own layout
   if (isAdminPage) {
     return null
   }
