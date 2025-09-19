@@ -347,10 +347,24 @@ export default async function handler(req, res) {
           if (Array.isArray(users)) {
             console.log('[DIRECT_DASHBOARD] Processing', users.length, 'real Clerk users')
             
+            // Get user profiles for addresses
+            let userProfiles = []
+            try {
+              const profilesCollection = db.collection('UserProfiles')
+              userProfiles = await profilesCollection.find({}).toArray()
+              console.log('[DIRECT_DASHBOARD] Fetched', userProfiles.length, 'user profiles')
+            } catch (profileError) {
+              console.error('[DIRECT_DASHBOARD] Failed to fetch user profiles:', profileError)
+            }
+            
+            // Create profile lookup map
+            const profileMap = new Map(userProfiles.map(p => [p.userId, p]))
+            
             for (const user of users) {
-              // Get user's orders
+              // Get user's orders and builds
               const userOrders = recentOrders.filter(order => order.userId === user.id)
               const userBuilds = recentBuilds.filter(build => build.userId === user.id)
+              const userProfile = profileMap.get(user.id)
               
               // Calculate real metrics
               const totalSpent = userOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0)
@@ -369,21 +383,66 @@ export default async function handler(req, res) {
               engagementScore += Math.min(userBuilds.length * 20, 40) // Builds worth up to 40 points
               if (hasRecentActivity) engagementScore += 10 // Recent activity bonus
               
+              // Get address from multiple sources (priority: profile > order buyer > order delivery)
+              let address = { city: 'Unknown', state: 'Unknown', country: 'US' }
+              
+              if (userProfile?.address && userProfile?.city && userProfile?.state) {
+                address = {
+                  address: userProfile.address,
+                  city: userProfile.city,
+                  state: userProfile.state,
+                  zip: userProfile.zip || '',
+                  country: 'US'
+                }
+                console.log('[DIRECT_DASHBOARD] Using address from profile for', user.firstName, user.lastName)
+              } else if (userOrders[0]?.buyer?.address) {
+                address = userOrders[0].buyer.address
+                console.log('[DIRECT_DASHBOARD] Using address from order buyer for', user.firstName, user.lastName)
+              } else if (userOrders[0]?.delivery?.address) {
+                address = userOrders[0].delivery.address
+                console.log('[DIRECT_DASHBOARD] Using address from order delivery for', user.firstName, user.lastName)
+              }
+              
+              // Create recent activity from orders and builds
+              const recentActivity = []
+              
+              // Add order activities
+              userOrders.forEach(order => {
+                recentActivity.push({
+                  type: 'order',
+                  action: `${order.status} order`,
+                  description: `Order ${order.orderId || order._id} - ${order.model?.name || 'Unknown Model'}`,
+                  timestamp: order.createdAt,
+                  value: order.totalAmount || 0,
+                  status: order.status
+                })
+              })
+              
+              // Add build activities
+              userBuilds.forEach(build => {
+                recentActivity.push({
+                  type: 'build',
+                  action: `${build.status} build`,
+                  description: `Build ${build._id} - ${build.modelName || 'Unknown Model'}`,
+                  timestamp: build.updatedAt || build.createdAt,
+                  status: build.status
+                })
+              })
+              
+              // Sort by most recent first
+              recentActivity.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+              
               const customer = {
                 userId: user.id,
                 customerId: user.id,
                 firstName: user.firstName || 'Unknown',
                 lastName: user.lastName || 'User',
                 email: user.emailAddresses[0]?.emailAddress || 'No email',
-                phone: user.phoneNumbers[0]?.phoneNumber || null,
+                phone: user.phoneNumbers[0]?.phoneNumber || userProfile?.phone || null,
                 profileImageUrl: user.profileImageUrl,
                 
-                // Address (would come from orders or profile)
-                address: userOrders[0]?.buyer?.address || { 
-                  city: 'Unknown', 
-                  state: 'Unknown',
-                  country: 'US'
-                },
+                // Real address data
+                address: address,
                 
                 // Status and activity
                 status: status,
@@ -404,16 +463,23 @@ export default async function handler(req, res) {
                 lastOrderDate: userOrders.length > 0 ? 
                   new Date(Math.max(...userOrders.map(o => new Date(o.createdAt)))) : null,
                 totalBuilds: userBuilds.length,
-                activeBuilds: userBuilds.filter(b => b.status === 'DRAFT').length,
+                activeBuilds: userBuilds.filter(b => ['DRAFT', 'REVIEW', 'CONFIRMED'].includes(b.status)).length,
                 lastBuildDate: userBuilds.length > 0 ? 
                   new Date(Math.max(...userBuilds.map(b => new Date(b.updatedAt || b.createdAt)))) : null,
                 
                 // Engagement
                 engagementScore: Math.min(engagementScore, 100),
                 
-                // Technical (placeholder for now)
+                // Real activity data
+                recentActivity: recentActivity.slice(0, 10), // Last 10 activities
+                
+                // Detailed data for tabs
+                orders: userOrders,
+                builds: userBuilds,
+                
+                // Technical (placeholder for now - would come from session tracking)
                 devices: ['desktop'], // Would come from session tracking
-                locations: ['Unknown'],
+                locations: [address.city && address.state ? `${address.city}, ${address.state}` : 'Unknown'],
                 source: 'website',
                 totalSessions: Math.floor(Math.random() * 20) + 5,
                 totalPageViews: Math.floor(Math.random() * 100) + 20,

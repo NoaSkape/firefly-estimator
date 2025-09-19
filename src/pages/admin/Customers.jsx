@@ -31,6 +31,7 @@ import {
   CubeIcon
 } from '@heroicons/react/24/outline'
 import AdminLayout from '../../components/AdminLayout'
+import CustomerDetailModal from '../../components/CustomerDetailModal'
 import { useAuth } from '@clerk/clerk-react'
 
 const AdminCustomers = () => {
@@ -268,7 +269,7 @@ const AdminCustomers = () => {
   // Handle customer detail view
   const handleViewCustomer = async (customer) => {
     try {
-      // For now, use the customer data we already have and enhance it
+      // Use the real customer data we already have with all the detailed information
       const enhancedCustomer = {
         profile: {
           userId: customer.userId,
@@ -277,28 +278,49 @@ const AdminCustomers = () => {
           email: customer.email,
           phone: customer.phone,
           address: customer.address,
+          profileImageUrl: customer.profileImageUrl,
           createdAt: customer.createdAt,
+          lastSignInAt: customer.lastSignInAt,
+          emailVerified: customer.emailVerified,
+          phoneVerified: customer.phoneVerified,
+          status: customer.status,
+          isActive: customer.isActive,
           insights: {
-            engagementScore: customer.engagementScore
+            engagementScore: customer.engagementScore,
+            totalSessions: customer.totalSessions,
+            totalPageViews: customer.totalPageViews,
+            averageSessionDuration: customer.averageSessionDuration
           }
         },
         activity: {
+          recentActivity: customer.recentActivity || [],
           sessions: [], // Would come from session tracking
           websiteActivity: [],
           lastSeen: {
-            timestamp: customer.lastActivity
+            timestamp: customer.lastActivity || customer.lastSignInAt
           }
         },
         business: {
-          orders: [],
-          builds: [],
+          orders: customer.orders || [],
+          builds: customer.builds || [],
+          totalOrders: customer.totalOrders,
+          totalBuilds: customer.totalBuilds,
+          activeBuilds: customer.activeBuilds,
           totalValue: customer.totalSpent,
+          lastOrderDate: customer.lastOrderDate,
+          lastBuildDate: customer.lastBuildDate,
           lifetime: {
             days: customer.createdAt ? Math.floor((new Date() - new Date(customer.createdAt)) / (1000 * 60 * 60 * 24)) : 0
           }
+        },
+        technical: {
+          devices: customer.devices || ['desktop'],
+          locations: customer.locations || ['Unknown'],
+          source: customer.source || 'website'
         }
       }
       
+      console.log('[CUSTOMER_DETAIL] Enhanced customer data:', enhancedCustomer)
       setSelectedCustomer(enhancedCustomer)
       setShowCustomerModal(true)
     } catch (error) {
@@ -824,210 +846,11 @@ const AdminCustomers = () => {
       </div>
 
       {/* Customer Detail Modal */}
-      {showCustomerModal && selectedCustomer && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-10 mx-auto p-5 border w-11/12 md:w-4/5 lg:w-3/4 shadow-lg rounded-md bg-white max-h-screen overflow-y-auto">
-            <div className="mt-3">
-              {/* Modal Header */}
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-xl font-medium text-gray-900">
-                    {selectedCustomer.profile?.firstName} {selectedCustomer.profile?.lastName}
-                  </h3>
-                  <p className="text-sm text-gray-600">{selectedCustomer.profile?.email}</p>
-                </div>
-                <button
-                  onClick={() => setShowCustomerModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <XCircleIcon className="w-6 h-6" />
-                </button>
-              </div>
-
-              {/* Customer Overview Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="flex items-center">
-                    <ShoppingCartIcon className="h-8 w-8 text-blue-600" />
-                    <div className="ml-3">
-                      <div className="text-2xl font-bold text-blue-900">
-                        {selectedCustomer.business?.orders?.length || 0}
-                      </div>
-                      <div className="text-sm text-blue-700">Total Orders</div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <div className="flex items-center">
-                    <CurrencyDollarIcon className="h-8 w-8 text-green-600" />
-                    <div className="ml-3">
-                      <div className="text-2xl font-bold text-green-900">
-                        {formatCurrency(selectedCustomer.business?.totalValue || 0)}
-                      </div>
-                      <div className="text-sm text-green-700">Total Value</div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-purple-50 p-4 rounded-lg">
-                  <div className="flex items-center">
-                    <ClockIcon className="h-8 w-8 text-purple-600" />
-                    <div className="ml-3">
-                      <div className="text-2xl font-bold text-purple-900">
-                        {selectedCustomer.activity?.sessions?.length || 0}
-                      </div>
-                      <div className="text-sm text-purple-700">Total Sessions</div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-yellow-50 p-4 rounded-lg">
-                  <div className="flex items-center">
-                    <ChartBarIcon className="h-8 w-8 text-yellow-600" />
-                    <div className="ml-3">
-                      <div className="text-2xl font-bold text-yellow-900">
-                        {selectedCustomer.profile?.insights?.engagementScore || 0}
-                      </div>
-                      <div className="text-sm text-yellow-700">Engagement Score</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Detailed Information Tabs */}
-              <div className="border-b border-gray-200 mb-4">
-                <nav className="-mb-px flex space-x-8">
-                  <button className="border-b-2 border-blue-500 text-blue-600 py-2 px-1 text-sm font-medium">
-                    Profile & Activity
-                  </button>
-                  <button className="border-b-2 border-transparent text-gray-500 hover:text-gray-700 py-2 px-1 text-sm font-medium">
-                    Orders & Builds
-                  </button>
-                  <button className="border-b-2 border-transparent text-gray-500 hover:text-gray-700 py-2 px-1 text-sm font-medium">
-                    Session History
-                  </button>
-                  <button className="border-b-2 border-transparent text-gray-500 hover:text-gray-700 py-2 px-1 text-sm font-medium">
-                    Journey Timeline
-                  </button>
-                </nav>
-              </div>
-
-              {/* Profile & Activity Tab Content */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Personal Information */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="text-lg font-medium text-gray-900 mb-4">Personal Information</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium text-gray-700">Full Name:</span>
-                      <span className="text-sm text-gray-900">
-                        {selectedCustomer.profile?.firstName} {selectedCustomer.profile?.lastName}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium text-gray-700">Email:</span>
-                      <span className="text-sm text-gray-900">{selectedCustomer.profile?.email}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium text-gray-700">Phone:</span>
-                      <span className="text-sm text-gray-900">{selectedCustomer.profile?.phone || 'Not provided'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium text-gray-700">Address:</span>
-                      <span className="text-sm text-gray-900">
-                        {selectedCustomer.profile?.address?.city || 'Unknown'}, {selectedCustomer.profile?.address?.state || 'Unknown'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium text-gray-700">Customer Since:</span>
-                      <span className="text-sm text-gray-900">
-                        {selectedCustomer.profile?.createdAt ? formatDate(selectedCustomer.profile.createdAt) : 'Unknown'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Activity Summary */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="text-lg font-medium text-gray-900 mb-4">Activity Summary</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium text-gray-700">Last Seen:</span>
-                      <span className="text-sm text-gray-900">
-                        {selectedCustomer.activity?.lastSeen?.timestamp ? 
-                          formatDate(selectedCustomer.activity.lastSeen.timestamp) : 'Never'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium text-gray-700">Total Sessions:</span>
-                      <span className="text-sm text-gray-900">{selectedCustomer.activity?.sessions?.length || 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium text-gray-700">Page Views:</span>
-                      <span className="text-sm text-gray-900">
-                        {selectedCustomer.activity?.websiteActivity?.length || 0}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium text-gray-700">Engagement Score:</span>
-                      <span className="text-sm text-gray-900">
-                        {selectedCustomer.profile?.insights?.engagementScore || 0}/100
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium text-gray-700">Customer Lifetime:</span>
-                      <span className="text-sm text-gray-900">
-                        {selectedCustomer.business?.lifetime?.days || 0} days
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Recent Activity */}
-              <div className="mt-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h4>
-                <div className="bg-gray-50 rounded-lg p-4 max-h-40 overflow-y-auto">
-                  {selectedCustomer.activity?.sessions?.slice(-10).map((session, index) => (
-                    <div key={index} className="flex items-center justify-between py-2 border-b border-gray-200 last:border-b-0">
-                      <div className="flex items-center">
-                        <ClockIcon className="h-4 w-4 text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-900">{session.action}</span>
-                      </div>
-                      <span className="text-xs text-gray-500">
-                        {session.timestamp ? formatDate(session.timestamp) : 'Unknown'}
-                      </span>
-                    </div>
-                  )) || (
-                    <div className="text-center text-gray-500 py-4">
-                      <ClockIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p>No recent activity recorded</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Modal Footer */}
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  onClick={() => setShowCustomerModal(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-                >
-                  Close
-                </button>
-                <Link
-                  to={`/admin/customers/${selectedCustomer.profile?.userId}/edit`}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  onClick={() => setShowCustomerModal(false)}
-                >
-                  Edit Customer
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <CustomerDetailModal
+        customer={selectedCustomer}
+        isOpen={showCustomerModal}
+        onClose={() => setShowCustomerModal(false)}
+      />
     </AdminLayout>
   )
 }
