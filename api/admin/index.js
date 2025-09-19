@@ -5,6 +5,7 @@
 import express from 'express'
 import { adminAuth, validateAdminAccess, PERMISSIONS } from '../../lib/adminAuth.js'
 import { initializeAdminDatabase } from '../../lib/adminSchema.js'
+import { productionDebugger, wrapMiddleware, wrapRouter } from '../../lib/productionDebugger.js'
 
 // Import all sub-routers
 import analyticsRouter from './analytics.js'
@@ -26,6 +27,20 @@ import settingsRouter from './settings.js'
 const router = express.Router()
 
 console.log('[ADMIN_CLEAN] Clean admin router initializing')
+console.log('[ADMIN_CLEAN] Router created successfully, type:', typeof router)
+console.log('[ADMIN_CLEAN] Router has stack:', !!router.stack)
+
+// Add detailed request logging to track when router is called
+router.use((req, res, next) => {
+  console.log('[ADMIN_CLEAN] 🔄 Router request received:', {
+    method: req.method,
+    url: req.url,
+    path: req.path,
+    originalUrl: req.originalUrl,
+    timestamp: new Date().toISOString()
+  })
+  next()
+})
 
 // Initialize admin database on startup (completely non-blocking and safe)
 let dbInitialized = false
@@ -195,15 +210,18 @@ router.get('/me', async (req, res) => {
   }
 })
 
-// Database health check middleware (completely safe and non-blocking)
-router.use(async (req, res, next) => {
+// Database health check middleware (completely safe and non-blocking) with debugging
+router.use(wrapMiddleware(async (req, res, next) => {
   try {
+    console.log('[ADMIN_CLEAN] Database middleware called for:', req.url)
     if (!dbInitialized && !dbInitializing) {
+      console.log('[ADMIN_CLEAN] Attempting safe database initialization')
       // Try to initialize database on first request, but don't block if it fails
       safeInitializeDatabase().catch(() => {
         // Silently handle errors - already logged in safeInitializeDatabase
       })
     }
+    console.log('[ADMIN_CLEAN] Database middleware completing successfully')
     // Always continue - never block requests due to DB issues
     next()
   } catch (error) {
@@ -211,17 +229,21 @@ router.use(async (req, res, next) => {
     // Always continue - never block requests
     next()
   }
-})
+}, 'databaseHealthCheck'))
 
-// Admin authentication middleware for all routes - Fixed error handling
-router.use(async (req, res, next) => {
+// Admin authentication middleware for all routes - Fixed error handling with debugging
+router.use(wrapMiddleware(async (req, res, next) => {
   try {
+    console.log('[ADMIN_CLEAN] Auth middleware called for:', req.url)
+    console.log('[ADMIN_CLEAN] validateAdminAccess type:', typeof validateAdminAccess)
+    
     if (process.env.ADMIN_AUTH_DISABLED === 'true') {
       if (process.env.DEBUG_ADMIN === 'true') console.log('[ADMIN_CLEAN] bypass enabled')
       return next()
     }
     
     if (typeof validateAdminAccess === 'function') {
+      console.log('[ADMIN_CLEAN] Calling validateAdminAccess function')
       // Wrap validateAdminAccess to catch any errors it might throw
       try {
         return await validateAdminAccess(req, res, next)
@@ -242,24 +264,37 @@ router.use(async (req, res, next) => {
       return res.status(500).json({ error: 'Middleware error' })
     }
   }
-})
+}, 'adminAuthentication'))
 
 // ============================================================================
 // SUB-ROUTER MOUNTING (NO DUPLICATE ROUTES)
 // ============================================================================
 
-// Defensive mount helper
+// Defensive mount helper with detailed debugging
 function mountSafe(path, subrouter, name) {
+  console.log(`[ADMIN_CLEAN] Attempting to mount ${name} at ${path}`)
+  console.log(`[ADMIN_CLEAN] ${name} type: ${typeof subrouter}`)
+  console.log(`[ADMIN_CLEAN] ${name} is function: ${typeof subrouter === 'function'}`)
+  
   const isFn = typeof subrouter === 'function'
   if (!isFn) {
-    console.error(`[ADMIN_CLEAN] Failed to mount ${name}: not a function`, { path, type: typeof subrouter })
+    console.error(`[ADMIN_CLEAN] ❌ Failed to mount ${name}: not a function`, { 
+      path, 
+      type: typeof subrouter,
+      value: subrouter,
+      keys: subrouter ? Object.keys(subrouter) : 'null'
+    })
     router.use(path, (req, res) => {
-      res.status(500).json({ error: `${name} router misconfigured` })
+      console.error(`[ADMIN_CLEAN] Fallback handler called for broken ${name} router`)
+      res.status(500).json({ error: `${name} router misconfigured`, path, type: typeof subrouter })
     })
     return
   }
-  router.use(path, subrouter)
-  console.log(`[ADMIN_CLEAN] Mounted ${name} at ${path}`)
+  
+  // Wrap the subrouter with debugging
+  const wrappedSubrouter = wrapRouter(subrouter, name)
+  router.use(path, wrappedSubrouter)
+  console.log(`[ADMIN_CLEAN] ✅ Mounted ${name} at ${path} with debugging wrapper`)
 }
 
 // Mount all sub-routers - NO CONFLICTS

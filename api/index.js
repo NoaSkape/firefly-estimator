@@ -3,6 +3,9 @@ import Stripe from 'stripe'
 import { createHash } from 'node:crypto'
 import { ObjectId } from 'mongodb'
 
+// Import production debugger for detailed error tracking
+import { productionDebugger, wrapRouter, wrapMiddleware } from '../lib/productionDebugger.js'
+
 import { getDb } from '../lib/db.js'
 import { requireAuth } from '../lib/auth.js'
 import { applyCors } from '../lib/cors.js'
@@ -8389,6 +8392,9 @@ function resolveRouter(mod, name) {
 
 const adminRouter = resolveRouter(adminRouterModule, 'admin')
 
+// Wrap admin router with detailed debugging
+const wrappedAdminRouter = adminRouter ? wrapRouter(adminRouter, 'admin') : null
+
 // Recursively repair router stacks to ensure every layer has a callable handler
 function hardenRouter(router, label = 'root') {
   try {
@@ -8424,11 +8430,13 @@ function hardenRouter(router, label = 'root') {
 function nameOf(layer) {
   try { return layer?.name || layer?.regexp?.toString() || undefined } catch { return undefined }
 }
-if (adminRouter) {
+if (wrappedAdminRouter) {
+  console.log('[API] Mounting wrapped admin router with detailed debugging')
   // Mount for both normalized paths ("/admin") and direct ("/api/admin").
   // Use separate calls instead of an array to avoid any edge cases in serverless routing.
-  app.use('/api/admin', adminRouter)
-  app.use('/admin', adminRouter)
+  app.use('/api/admin', wrappedAdminRouter)
+  app.use('/admin', wrappedAdminRouter)
+  console.log('[API] Admin router mounted successfully with debugging wrapper')
   // DISABLED: Router hardening was causing race conditions and undefined.apply errors
   // hardenRouter(app._router, 'app')
   // hardenRouter(adminRouter, 'admin')
@@ -8481,9 +8489,18 @@ if (adminRouter) {
     instrument(adminRouter, 'admin')
   }
 } else {
+  console.error('[API] ❌ Admin router is undefined - providing fallback handlers')
+  console.error('[API] Original adminRouter type:', typeof adminRouter)
+  console.error('[API] AdminRouterModule:', typeof adminRouterModule)
   // Provide diagnostic fallbacks to avoid Express attempting to call undefined.apply
-  app.use('/api/admin', (req, res) => { res.status(500).json({ error: 'admin router misconfigured' }) })
-  app.use('/admin', (req, res) => { res.status(500).json({ error: 'admin router misconfigured' }) })
+  app.use('/api/admin', (req, res) => { 
+    console.error('[API] Fallback admin handler called for:', req.url)
+    res.status(500).json({ error: 'admin router misconfigured', url: req.url, method: req.method }) 
+  })
+  app.use('/admin', (req, res) => { 
+    console.error('[API] Fallback admin handler called for:', req.url)
+    res.status(500).json({ error: 'admin router misconfigured', url: req.url, method: req.method }) 
+  })
 }
 
 
