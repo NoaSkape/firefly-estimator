@@ -32,9 +32,6 @@ router.use = function guardedRouterUse(...args) {
 // Admin authentication middleware for all routes
 router.use((req, res, next) => { if (process.env.ADMIN_AUTH_DISABLED === 'true') { return next() } return adminAuth.validateAdminAccess(req, res, next) })
 
-
-router.use((req,res,next)=>{ if(process.env.ADMIN_AUTH_DISABLED==='true'){ return next() } return adminAuth.validateAdminAccess(req,res,next) })
-
 // Initialize Clerk client
 let clerkClient
 try {
@@ -583,9 +580,7 @@ router.patch('/bulk/update', async (req, res) => {
   }
 })
 
-export default router
-
-// Role management endpoint
+// Role management endpoint - MOVED BEFORE EXPORT TO FIX ROUTER ISSUE
 router.patch('/:userId/role', adminAuth.validatePermission(PERMISSIONS.USERS_EDIT), async (req, res) => {
   try {
     const { userId } = req.params
@@ -636,5 +631,7 @@ router.patch('/:userId/role', adminAuth.validatePermission(PERMISSIONS.USERS_EDI
     res.status(500).json({ error: 'Failed to update user role' })
   }
 })
+
+export default router
 
 
