@@ -22,7 +22,26 @@ try {
 const router = express.Router()
 
 // Note: Authentication is handled by the parent admin router
-// No need for additional auth middleware here
+// But we need to add the same middleware pattern as other admin routers
+
+// Import adminAuth for consistency with other admin routers
+import { adminAuth } from '../../lib/adminAuth.js'
+
+// Add the same authentication middleware as other admin routers
+router.use((req, res, next) => {
+  if (process.env.ADMIN_AUTH_DISABLED === 'true') {
+    console.log('[DEBUG_DASHBOARD] Admin auth disabled - bypassing validation')
+    return next()
+  }
+  
+  // Use the same pattern as other admin routers
+  if (typeof adminAuth?.validateAdminAccess === 'function') {
+    return adminAuth.validateAdminAccess(req, res, next)
+  }
+  
+  console.error('[DEBUG_DASHBOARD] adminAuth.validateAdminAccess is not a function')
+  return next()
+})
 
 // Add error handling wrapper for all routes
 router.use((req, res, next) => {
