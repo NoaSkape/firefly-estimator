@@ -121,89 +121,21 @@ const AdminCustomers = () => {
       const token = await getToken()
       const headers = token ? { Authorization: `Bearer ${token}` } : {}
       
-      // Temporary: Use dashboard API that we know works, then enhance with customer data
+      // Use dashboard API which now includes real customer data
       const response = await fetch(`/api/admin-dashboard-direct?range=30d`, { headers })
       if (response.ok) {
         const data = await response.json()
-        console.log('[CUSTOMERS_PAGE] Dashboard data loaded, transforming to customer format:', data.data)
+        console.log('[CUSTOMERS_PAGE] Real customer data loaded:', data.data)
         
-        // Transform dashboard data to customer format temporarily
-        const mockCustomers = []
-        
-        // Create customers from recent orders data
-        if (data.data.recentActivity?.orders) {
-          data.data.recentActivity.orders.forEach((order, index) => {
-            mockCustomers.push({
-              userId: order.userId,
-              customerId: order.userId,
-              firstName: `Customer`,
-              lastName: `${index + 1}`,
-              email: `customer${index + 1}@example.com`,
-              phone: `(555) 000-${String(index + 1).padStart(4, '0')}`,
-              address: { city: 'Austin', state: 'TX' },
-              status: order.status === 'draft' ? 'active_prospect' : 'customer',
-              source: 'website',
-              totalOrders: 1,
-              totalSpent: order.totalAmount || 0,
-              totalBuilds: 0,
-              engagementScore: Math.floor(Math.random() * 40) + 60, // 60-100
-              totalSessions: Math.floor(Math.random() * 10) + 5, // 5-15
-              totalPageViews: Math.floor(Math.random() * 50) + 20, // 20-70
-              lastActivity: order.createdAt,
-              createdAt: order.createdAt,
-              isActive: true,
-              emailVerified: true,
-              devices: ['desktop'],
-              locations: ['Austin, TX']
-            })
-          })
-        }
-        
-        // Create customers from recent builds data
-        if (data.data.recentActivity?.builds) {
-          data.data.recentActivity.builds.forEach((build, index) => {
-            // Check if we already have this user
-            const existingCustomer = mockCustomers.find(c => c.userId === build.userId)
-            if (existingCustomer) {
-              existingCustomer.totalBuilds = (existingCustomer.totalBuilds || 0) + 1
-              existingCustomer.engagementScore = Math.min(existingCustomer.engagementScore + 10, 100)
-            } else {
-              mockCustomers.push({
-                userId: build.userId,
-                customerId: build.userId,
-                firstName: `Builder`,
-                lastName: `${index + 1}`,
-                email: `builder${index + 1}@example.com`,
-                phone: `(555) 100-${String(index + 1).padStart(4, '0')}`,
-                address: { city: 'Dallas', state: 'TX' },
-                status: 'active_prospect',
-                source: 'website',
-                totalOrders: 0,
-                totalSpent: 0,
-                totalBuilds: 1,
-                engagementScore: Math.floor(Math.random() * 30) + 70, // 70-100 (builders are highly engaged)
-                totalSessions: Math.floor(Math.random() * 15) + 10, // 10-25
-                totalPageViews: Math.floor(Math.random() * 100) + 50, // 50-150
-                lastActivity: build.updatedAt,
-                createdAt: build.updatedAt,
-                isActive: true,
-                emailVerified: true,
-                devices: ['desktop', 'mobile'],
-                locations: ['Dallas, TX']
-              })
-            }
-          })
-        }
-        
-        console.log('[CUSTOMERS_PAGE] Generated customer data:', mockCustomers.length, 'customers')
-        setCustomers(mockCustomers)
+        // Use real customer data from API
+        setCustomers(data.data.customers || [])
         setPagination(prev => ({
           ...prev,
-          total: mockCustomers.length,
-          pages: Math.ceil(mockCustomers.length / prev.limit)
+          total: data.data.pagination?.total || data.data.customers?.length || 0,
+          pages: data.data.pagination?.pages || Math.ceil((data.data.customers?.length || 0) / prev.limit)
         }))
       } else {
-        throw new Error('Failed to fetch customer data')
+        throw new Error('Failed to fetch real customer data')
       }
     } catch (error) {
       console.error('Fetch customers error:', error)
@@ -336,15 +268,39 @@ const AdminCustomers = () => {
   // Handle customer detail view
   const handleViewCustomer = async (customer) => {
     try {
-      const token = await getToken()
-      const headers = token ? { Authorization: `Bearer ${token}` } : {}
-      const response = await fetch(`/api/customers-enterprise?action=profile&customerId=${customer.userId}`, { headers })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setSelectedCustomer(data.data)
-        setShowCustomerModal(true)
+      // For now, use the customer data we already have and enhance it
+      const enhancedCustomer = {
+        profile: {
+          userId: customer.userId,
+          firstName: customer.firstName,
+          lastName: customer.lastName,
+          email: customer.email,
+          phone: customer.phone,
+          address: customer.address,
+          createdAt: customer.createdAt,
+          insights: {
+            engagementScore: customer.engagementScore
+          }
+        },
+        activity: {
+          sessions: [], // Would come from session tracking
+          websiteActivity: [],
+          lastSeen: {
+            timestamp: customer.lastActivity
+          }
+        },
+        business: {
+          orders: [],
+          builds: [],
+          totalValue: customer.totalSpent,
+          lifetime: {
+            days: customer.createdAt ? Math.floor((new Date() - new Date(customer.createdAt)) / (1000 * 60 * 60 * 24)) : 0
+          }
+        }
       }
+      
+      setSelectedCustomer(enhancedCustomer)
+      setShowCustomerModal(true)
     } catch (error) {
       console.error('Failed to load customer details:', error)
     }
