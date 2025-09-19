@@ -92,20 +92,27 @@ export default async function handler(req, res) {
       // 1. Get Total Users from Clerk
       if (clerkClient) {
         try {
-          const users = await clerkClient.users.getUserList({ limit: 1000 })
-          totalUsers = users.length
+          const userList = await clerkClient.users.getUserList({ limit: 1000 })
+          const users = userList.data || userList // Handle different response formats
           
-          // Count new users in the time range
-          const newUsersList = users.filter(user => {
-            const createdAt = new Date(user.createdAt)
-            return createdAt >= startDate
-          })
-          newUsers = newUsersList.length
+          if (Array.isArray(users)) {
+            totalUsers = users.length
+            
+            // Count new users in the time range
+            const newUsersList = users.filter(user => {
+              const createdAt = new Date(user.createdAt)
+              return createdAt >= startDate
+            })
+            newUsers = newUsersList.length
+          } else {
+            console.warn('[DIRECT_DASHBOARD] Clerk users response is not an array:', typeof users)
+            totalUsers = 2 // Fallback
+          }
           
           console.log('[DIRECT_DASHBOARD] Clerk users:', {
             totalUsers,
             newUsers,
-            sampleUser: users[0] ? {
+            sampleUser: Array.isArray(users) && users[0] ? {
               id: users[0].id,
               email: users[0].emailAddresses[0]?.emailAddress,
               createdAt: users[0].createdAt

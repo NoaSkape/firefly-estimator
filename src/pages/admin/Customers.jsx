@@ -27,7 +27,8 @@ import {
   ChartBarIcon,
   BellIcon,
   CheckCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  CubeIcon
 } from '@heroicons/react/24/outline'
 import AdminLayout from '../../components/AdminLayout'
 import { useAuth } from '@clerk/clerk-react'
