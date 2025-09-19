@@ -53,7 +53,8 @@ const AdminCustomers = () => {
     engagementLevel: '',
     lastActivity: '',
     deviceType: '',
-    location: ''
+    location: '',
+    valueTier: ''
   })
   const [realTimeData, setRealTimeData] = useState(null)
   const [showRealTime, setShowRealTime] = useState(false)
@@ -398,11 +399,11 @@ const AdminCustomers = () => {
     fetchCustomers()
   }
 
-  // Apply filters to customer data
+  // Apply filters to customer data - Enterprise-grade filtering system
   const applyFilters = (customerList) => {
     let filtered = [...customerList]
 
-    // Search filter
+    // Search filter - Enhanced to search across all relevant fields
     if (filters.search.trim()) {
       const searchTerm = filters.search.toLowerCase().trim()
       filtered = filtered.filter(customer => 
@@ -410,7 +411,10 @@ const AdminCustomers = () => {
         customer.lastName?.toLowerCase().includes(searchTerm) ||
         customer.email?.toLowerCase().includes(searchTerm) ||
         customer.phone?.includes(searchTerm) ||
-        `${customer.firstName} ${customer.lastName}`.toLowerCase().includes(searchTerm)
+        customer.customerId?.toLowerCase().includes(searchTerm) ||
+        customer.userId?.toLowerCase().includes(searchTerm) ||
+        `${customer.firstName} ${customer.lastName}`.toLowerCase().includes(searchTerm) ||
+        `${customer.address?.city} ${customer.address?.state}`.toLowerCase().includes(searchTerm)
       )
     }
 
@@ -443,16 +447,50 @@ const AdminCustomers = () => {
       })
     }
 
-    // Location filter (Texas vs Other States)
+    // Enhanced Location filter - Support multiple states and regions
     if (filters.location) {
       filtered = filtered.filter(customer => {
-        const state = customer.address?.state?.toLowerCase()
-        if (filters.location === 'texas') {
-          return state === 'texas' || state === 'tx'
-        } else if (filters.location === 'other') {
-          return state && state !== 'texas' && state !== 'tx'
+        const state = customer.address?.state?.toUpperCase()
+        const city = customer.address?.city?.toLowerCase()
+        
+        switch (filters.location) {
+          case 'TX':
+            return state === 'TX' || state === 'TEXAS'
+          case 'CA':
+            return state === 'CA' || state === 'CALIFORNIA'
+          case 'FL':
+            return state === 'FL' || state === 'FLORIDA'
+          case 'NY':
+            return state === 'NY' || state === 'NEW YORK'
+          case 'other_states':
+            return state && !['TX', 'TEXAS', 'CA', 'CALIFORNIA', 'FL', 'FLORIDA', 'NY', 'NEW YORK'].includes(state)
+          case 'international':
+            return customer.address?.country && customer.address.country !== 'US'
+          default:
+            return true
         }
-        return true
+      })
+    }
+
+    // Device type filter
+    if (filters.deviceType) {
+      filtered = filtered.filter(customer => {
+        const devices = customer.devices || []
+        return devices.includes(filters.deviceType)
+      })
+    }
+
+    // Customer value tier filter
+    if (filters.valueTier) {
+      filtered = filtered.filter(customer => {
+        const totalSpent = customer.totalSpent || 0
+        switch (filters.valueTier) {
+          case 'high_value': return totalSpent >= 25000
+          case 'medium_value': return totalSpent >= 10000 && totalSpent < 25000
+          case 'low_value': return totalSpent >= 1000 && totalSpent < 10000
+          case 'prospects': return totalSpent === 0
+          default: return true
+        }
       })
     }
 
@@ -753,24 +791,28 @@ const AdminCustomers = () => {
 
             {/* Secondary Filters Row */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Location Filter */}
+              {/* Enhanced Location Filter (Combined and Improved) */}
               <div>
-                <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="locationFilter" className="block text-sm font-medium text-gray-700 mb-1">
                   Location
                 </label>
                 <select
-                  id="location"
+                  id="locationFilter"
                   value={filters.location}
                   onChange={(e) => handleFilterChange('location', e.target.value)}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">All Locations</option>
-                  <option value="texas">Texas</option>
-                  <option value="other">Other States</option>
+                  <option value="TX">Texas</option>
+                  <option value="CA">California</option>
+                  <option value="FL">Florida</option>
+                  <option value="NY">New York</option>
+                  <option value="other_states">Other States</option>
+                  <option value="international">International</option>
                 </select>
               </div>
 
-              {/* Device Type */}
+              {/* Device Type Filter */}
               <div>
                 <label htmlFor="deviceType" className="block text-sm font-medium text-gray-700 mb-1">
                   Primary Device
@@ -788,35 +830,44 @@ const AdminCustomers = () => {
                 </select>
               </div>
 
-              {/* Location */}
+              {/* Customer Value Tier Filter */}
               <div>
-                <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
-                  Location
+                <label htmlFor="valueTier" className="block text-sm font-medium text-gray-700 mb-1">
+                  Customer Value
                 </label>
                 <select
-                  id="location"
-                  value={filters.location}
-                  onChange={(e) => handleFilterChange('location', e.target.value)}
+                  id="valueTier"
+                  value={filters.valueTier}
+                  onChange={(e) => handleFilterChange('valueTier', e.target.value)}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="">All Locations</option>
-                  <option value="TX">Texas</option>
-                  <option value="CA">California</option>
-                  <option value="FL">Florida</option>
-                  <option value="NY">New York</option>
-                  <option value="international">International</option>
+                  <option value="">All Customers</option>
+                  <option value="high_value">High Value ($25k+)</option>
+                  <option value="medium_value">Medium Value ($10k-$25k)</option>
+                  <option value="low_value">Low Value ($1k-$10k)</option>
+                  <option value="prospects">Prospects ($0)</option>
                 </select>
               </div>
 
-              {/* Search Button */}
+              {/* Quick Actions */}
               <div className="flex items-end">
                 <button
                   type="button"
-                  onClick={handleApplyFilters}
-                  className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  onClick={() => {
+                    setFilters({
+                      status: '',
+                      search: '',
+                      engagementLevel: '',
+                      lastActivity: '',
+                      deviceType: '',
+                      location: '',
+                      valueTier: ''
+                    })
+                    setPagination(prev => ({ ...prev, page: 1 }))
+                  }}
+                  className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
-                  <FunnelIcon className="h-4 w-4 mr-2" />
-                  Apply Filters
+                  Clear Filters
                 </button>
               </div>
             </div>

@@ -66,7 +66,10 @@ export default async function handler(req, res) {
       source,
       search,
       engagementLevel,
-      lastActivity
+      lastActivity,
+      deviceType,
+      location,
+      valueTier
     } = req.query
 
     // Get real data from all sources
@@ -98,7 +101,10 @@ export default async function handler(req, res) {
       source,
       search,
       engagementLevel,
-      lastActivity
+      lastActivity,
+      deviceType,
+      location,
+      valueTier
     })
 
     // Apply sorting
@@ -301,12 +307,44 @@ async function enrichCustomerData({ clerkUsers, customerProfiles, orderData, bui
       phone: clerkUser.phone || profile.phone,
       profileImageUrl: clerkUser.profileImageUrl,
       
-      // Address (from profile or orders)
-      address: profile.address || userOrders[0]?.buyer?.address || {
-        city: 'Unknown',
-        state: 'Unknown',
-        country: 'US'
-      },
+      // Address (Priority: Step 4 buyerInfo > profile > orders)
+      address: (() => {
+        // FIRST: Check builds for Step 4 buyerInfo (most recent and accurate)
+        for (const build of userBuilds) {
+          if (build.buyerInfo && build.buyerInfo.address && build.buyerInfo.city && build.buyerInfo.state) {
+            return {
+              address: build.buyerInfo.address,
+              city: build.buyerInfo.city,
+              state: build.buyerInfo.state,
+              zip: build.buyerInfo.zip || '',
+              country: 'US'
+            }
+          }
+        }
+        
+        // SECOND: Check user profile
+        if (profile.address && profile.city && profile.state) {
+          return {
+            address: profile.address,
+            city: profile.city,
+            state: profile.state,
+            zip: profile.zip || '',
+            country: 'US'
+          }
+        }
+        
+        // THIRD: Check orders for buyer address
+        if (userOrders[0]?.buyer?.address) {
+          return userOrders[0].buyer.address
+        }
+        
+        // FALLBACK: Unknown
+        return {
+          city: 'Unknown',
+          state: 'Unknown',
+          country: 'US'
+        }
+      })(),
       
       // Account Status
       status: status,
@@ -386,28 +424,36 @@ function calculateEngagementScore({ orders, builds, lastSignIn, accountAge, tota
   return Math.min(score, 100)
 }
 
-// Apply filters to customer data
+// Apply filters to customer data - Enterprise-grade server-side filtering
 function applyFilters(customers, filters) {
   let filtered = [...customers]
 
+  // Status filter
   if (filters.status) {
     filtered = filtered.filter(c => c.status === filters.status)
   }
 
+  // Source filter
   if (filters.source) {
     filtered = filtered.filter(c => c.source === filters.source)
   }
 
+  // Enhanced search filter - Search across all relevant fields
   if (filters.search) {
     const searchLower = filters.search.toLowerCase()
     filtered = filtered.filter(c => 
       c.firstName?.toLowerCase().includes(searchLower) ||
       c.lastName?.toLowerCase().includes(searchLower) ||
       c.email?.toLowerCase().includes(searchLower) ||
-      c.phone?.includes(filters.search)
+      c.phone?.includes(filters.search) ||
+      c.customerId?.toLowerCase().includes(searchLower) ||
+      c.userId?.toLowerCase().includes(searchLower) ||
+      `${c.firstName} ${c.lastName}`.toLowerCase().includes(searchLower) ||
+      `${c.address?.city} ${c.address?.state}`.toLowerCase().includes(searchLower)
     )
   }
 
+  // Engagement level filter
   if (filters.engagementLevel) {
     filtered = filtered.filter(c => {
       if (filters.engagementLevel === 'high') return c.engagementScore >= 80
@@ -418,10 +464,57 @@ function applyFilters(customers, filters) {
     })
   }
 
+  // Last activity filter
   if (filters.lastActivity) {
     const days = parseInt(filters.lastActivity)
     const threshold = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
     filtered = filtered.filter(c => c.lastActivity && new Date(c.lastActivity) >= threshold)
+  }
+
+  // Device type filter
+  if (filters.deviceType) {
+    filtered = filtered.filter(c => {
+      const devices = c.devices || []
+      return devices.includes(filters.deviceType)
+    })
+  }
+
+  // Enhanced location filter - Support multiple states and regions
+  if (filters.location) {
+    filtered = filtered.filter(c => {
+      const state = c.address?.state?.toUpperCase()
+      
+      switch (filters.location) {
+        case 'TX':
+          return state === 'TX' || state === 'TEXAS'
+        case 'CA':
+          return state === 'CA' || state === 'CALIFORNIA'
+        case 'FL':
+          return state === 'FL' || state === 'FLORIDA'
+        case 'NY':
+          return state === 'NY' || state === 'NEW YORK'
+        case 'other_states':
+          return state && !['TX', 'TEXAS', 'CA', 'CALIFORNIA', 'FL', 'FLORIDA', 'NY', 'NEW YORK'].includes(state)
+        case 'international':
+          return c.address?.country && c.address.country !== 'US'
+        default:
+          return true
+      }
+    })
+  }
+
+  // Customer value tier filter
+  if (filters.valueTier) {
+    filtered = filtered.filter(c => {
+      const totalSpent = c.totalSpent || 0
+      switch (filters.valueTier) {
+        case 'high_value': return totalSpent >= 25000
+        case 'medium_value': return totalSpent >= 10000 && totalSpent < 25000
+        case 'low_value': return totalSpent >= 1000 && totalSpent < 10000
+        case 'prospects': return totalSpent === 0
+        default: return true
+      }
+    })
   }
 
   return filtered
