@@ -77,10 +77,13 @@ const AdminAnalytics = () => {
       setLoading(true)
       const token = await getToken()
       const headers = token ? { Authorization: `Bearer ${token}` } : {}
-      const response = await fetch(`/api/admin/analytics?range=${timeRange}`, { headers })
+      
+      // Use direct endpoint to bypass Express router issues
+      const response = await fetch(`/api/admin-analytics-direct?range=${timeRange}`, { headers })
       if (response.ok) {
         const data = await response.json()
         setAnalyticsData(data.data)
+        console.log('[ANALYTICS_PAGE] Data loaded successfully:', data.data)
       } else {
         throw new Error('Failed to fetch analytics data')
       }
@@ -488,8 +491,11 @@ const AdminAnalytics = () => {
           </div>
         </div>
 
-        {/* Customers */}
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        {/* Users */}
+        <div 
+          className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => handleMetricClick('users', analyticsData?.metrics?.users)}
+        >
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -504,6 +510,9 @@ const AdminAnalytics = () => {
                     {formatNumber(analyticsData?.metrics?.users?.total || 0)}
                   </dd>
                 </dl>
+              </div>
+              <div className="flex-shrink-0">
+                <EyeIcon className="h-4 w-4 text-gray-400" />
               </div>
             </div>
           </div>
@@ -850,6 +859,29 @@ const AdminAnalytics = () => {
                             <span className="text-gray-900">{status.count}</span>
                           </div>
                         )) || <p className="text-xs text-gray-500">No status data available</p>}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {drillDownData.type === 'users' && (
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium text-gray-700">Total Users:</span>
+                      <span className="text-sm text-gray-900">{drillDownData.data?.total || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium text-gray-700">New Users (this period):</span>
+                      <span className="text-sm text-gray-900">{drillDownData.data?.new || 0}</span>
+                    </div>
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">User Growth:</h4>
+                      <div className="text-xs text-gray-600">
+                        {drillDownData.data?.new > 0 ? (
+                          <p>Growing by {drillDownData.data.new} new users in the selected time period.</p>
+                        ) : (
+                          <p>No new user registrations in the selected time period.</p>
+                        )}
                       </div>
                     </div>
                   </div>
