@@ -22,8 +22,21 @@ try {
 }
 
 export default async function handler(req, res) {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', 'https://www.fireflyestimator.com')
+  // Set CORS headers - Support both www and apex domains
+  const origin = req.headers.origin
+  const allowedOrigins = [
+    'https://www.fireflyestimator.com',
+    'https://fireflyestimator.com',
+    'http://localhost:3000',
+    'http://localhost:5173'
+  ]
+  
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://www.fireflyestimator.com')
+  }
+  
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
   res.setHeader('Vary', 'Origin')

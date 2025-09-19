@@ -23,8 +23,21 @@ try {
 }
 
 export default async function handler(req, res) {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', 'https://www.fireflyestimator.com')
+  // Set CORS headers - Support both www and apex domains
+  const origin = req.headers.origin
+  const allowedOrigins = [
+    'https://www.fireflyestimator.com',
+    'https://fireflyestimator.com',
+    'http://localhost:3000',
+    'http://localhost:5173'
+  ]
+  
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://www.fireflyestimator.com')
+  }
+  
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
   res.setHeader('Vary', 'Origin')
@@ -103,7 +116,14 @@ export default async function handler(req, res) {
     console.log('[REAL_CUSTOMERS] Returning data:', {
       totalCustomers: total,
       pageCustomers: paginatedCustomers.length,
-      summary
+      summary,
+      sampleCustomer: paginatedCustomers[0] ? {
+        name: `${paginatedCustomers[0].firstName} ${paginatedCustomers[0].lastName}`,
+        email: paginatedCustomers[0].email,
+        status: paginatedCustomers[0].status,
+        totalOrders: paginatedCustomers[0].totalOrders,
+        totalSpent: paginatedCustomers[0].totalSpent
+      } : null
     })
 
     return res.status(200).json({
